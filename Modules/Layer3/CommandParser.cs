@@ -39,7 +39,13 @@ namespace JarvisLauncher
         EXIT,
         UPDATE,
         POWERSHELL,
-        UPDATE_COMPUTER
+        UPDATE_COMPUTER,
+        SYS_INFO,
+        SEARCH_LAUNCHER,
+        SCREENSHOT,
+        MUTE,
+        CLIPBOARD,
+        TODO
     };
 
     public static class CommandParser
@@ -110,7 +116,19 @@ namespace JarvisLauncher
             { CommandType.POWERSHELL,
             new CommandDictType("Execute PowerShell CLI commands", new PowerShellRunnerCommandHandler()) },
             { CommandType.UPDATE_COMPUTER,
-            new CommandDictType("Update computer software", new UpdateComputerCommandHandler()) }
+            new CommandDictType("Update computer software", new UpdateComputerCommandHandler()) },
+            { CommandType.SYS_INFO,
+            new CommandDictType("View system specifications", new SysInfoCommandHandler()) },
+            { CommandType.SEARCH_LAUNCHER,
+            new CommandDictType("Open web searches", new SearchLauncherCommandHandler()) },
+            { CommandType.SCREENSHOT,
+            new CommandDictType("Capture screen captures", new ScreenshotCommandHandler()) },
+            { CommandType.MUTE,
+            new CommandDictType("Mute system sound device", new MuteCommandHandler()) },
+            { CommandType.CLIPBOARD,
+            new CommandDictType("Clear or check clipboard texts", new ClipboardCommandHandler()) },
+            { CommandType.TODO,
+            new CommandDictType("Persistently manage lists of tasks", new TodoCommandHandler()) }
         };
 
         public static List<CommandResult> GetSuggestions(string query)
