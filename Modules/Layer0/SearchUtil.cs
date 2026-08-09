@@ -34,7 +34,7 @@ namespace JarvisLauncher
             char[] SharedChars = Query1.Intersect(Query2).ToArray();
             int CurrentDistance = SharedChars.Length;
 
-            return CurrentDistance >= MaxDistance;
+            return CurrentDistance > MaxDistance;
         }
 
         public static double GetSimilarity(string query1, string query2)

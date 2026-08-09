@@ -4,6 +4,7 @@
 
 using System;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace JarvisLauncher
 {
@@ -37,18 +38,85 @@ namespace JarvisLauncher
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool LockWorkStation();
 
+        // Memory structure for GlobalMemoryStatusEx
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+        public struct MEMORYSTATUSEX
+        {
+            public uint dwLength;
+            public uint dwMemoryLoad;
+            public ulong ullTotalPhys;
+            public ulong ullAvailPhys;
+            public ulong ullTotalPageFile;
+            public ulong ullAvailPageFile;
+            public ulong ullTotalVirtual;
+            public ulong ullAvailVirtual;
+            public ulong ullAvailExtendedVirtual;
+        }
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool GetSystemTimes(
+            out System.Runtime.InteropServices.ComTypes.FILETIME lpIdleTime,
+            out System.Runtime.InteropServices.ComTypes.FILETIME lpKernelTime,
+            out System.Runtime.InteropServices.ComTypes.FILETIME lpUserTime);
+
         public static void Restart()
         {
-            var exePath = Environment.ProcessPath;
-            if (!string.IsNullOrEmpty(exePath))
+            string projectRoot = @"C:\Users\Kyle\Downloads\Projects\Jarvis";
+
+            // Dynamically search upwards for the project folder containing the .csproj file
+            string checkDir = AppDomain.CurrentDomain.BaseDirectory;
+            for (int i = 0; i < 5; i++)
             {
+                if (System.IO.File.Exists(System.IO.Path.Combine(checkDir, "JarvisLauncher.csproj")))
+                {
+                    projectRoot = checkDir;
+                    break;
+                }
+                var parent = System.IO.Directory.GetParent(checkDir);
+                if (parent == null) break;
+                checkDir = parent.FullName;
+            }
+
+            try
+            {
+                // Launch a new command prompt to build and run the app
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                 {
-                    FileName = exePath,
-                    UseShellExecute = true
+                    FileName = "cmd.exe",
+                    Arguments = $"/c cd /d \"{projectRoot}\" && dotnet run",
+                    CreateNoWindow = true, // Hide the console window entirely
+                    UseShellExecute = false
                 });
+                
+                // Terminate current process immediately to free hotkeys and resources
                 Environment.Exit(0);
             }
+            catch
+            {
+                // Fallback to launching the built executable directly if cmd fails
+                var exePath = Environment.ProcessPath;
+                if (!string.IsNullOrEmpty(exePath))
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = exePath,
+                        UseShellExecute = true
+                    });
+                    Environment.Exit(0);
+                }
+            }
         }
+
+        [System.Runtime.InteropServices.DllImport("shell32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        public static extern int SHEmptyRecycleBin(IntPtr hwnd, string? pszRootPath, uint dwFlags);
+
+        public const uint SHERB_NOCONFIRMATION = 0x00000001;
+        public const uint SHERB_NOPROGRESSUI = 0x00000002;
+        public const uint SHERB_NOSOUND = 0x00000004;
     }
 }

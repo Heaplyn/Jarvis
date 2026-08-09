@@ -4,7 +4,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <ImplicitUsings>disable</ImplicitUsings>
     <UseWpf>true</UseWpf>
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>JarvisLauncher</RootNamespace>

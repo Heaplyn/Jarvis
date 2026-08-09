@@ -11,7 +11,7 @@
                          DecelerationRatio="0.8"/>
         <DoubleAnimation Storyboard.TargetName="MainBorder" 
                          Storyboard.TargetProperty="Opacity" 
-                         From="0" To="0.98" 
+                         From="0" To="1.0" 
                          Duration="0:0:0.18"/>
     </Storyboard>
     

@@ -22,6 +22,9 @@ namespace JarvisLauncher
             // Initialize main window
             _mainWindow = new MainWindow();
 
+            // Run command handler startup initializations
+            CommandParser.Initialize();
+
             // Setup Tray Icon using WinForms NotifyIcon
             _notifyIcon = new NotifyIcon
             {

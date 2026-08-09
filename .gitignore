@@ -1,4 +1,6 @@
-# Core build artifacts
+# Core build artifacts (Recursive)
+**/bin/
+**/obj/
 bin/
 obj/
 
@@ -14,3 +16,21 @@ obj/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# Node.js dependencies and outputs (Recursive)
+**/node_modules/
+node_modules/
+**/downloads/
+downloads/
+**/dist/
+dist/
+*.log
+
+# FlareSolverr / Browser caches
+**/flaresolverr/
+**/debug_before_click.png
+**/debug_error.png
+
+# Configuration files containing credentials/keys
+**/SystemSettings.json
+SystemSettings.json
