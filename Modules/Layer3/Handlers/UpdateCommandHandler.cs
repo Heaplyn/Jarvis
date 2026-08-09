@@ -156,7 +156,18 @@ namespace JarvisLauncher
                 
                 log.AppendLine("🎉 CODEBASE SYNCED AND RESTORED SUCCESSFULLY!");
                 log.AppendLine("All local files have been overwritten to match GitHub exactly.");
-                log.AppendLine("Run the 'restart' command or press Ctrl+Shift+R to rebuild and run.");
+                log.AppendLine("Rebuilding and restarting Jarvis launcher dynamically...");
+                
+                // Show terminal logs before restart
+                CliOutputOverlay.Show("Codebase Update", log.ToString());
+
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    TextOverlay.Show("⚡ Rebuilding & Restarting Jarvis...", 3000);
+                });
+                
+                await Task.Delay(1000);
+                NativeMethods.Restart();
             }
             else
             {
@@ -209,7 +220,18 @@ namespace JarvisLauncher
                 else if (pullResult.Contains("Updating") || pullResult.Contains("Fast-forward") || pullResult.Contains("files changed"))
                 {
                     log.AppendLine("🎉 UPDATES PULLED SUCCESSFULLY!");
-                    log.AppendLine("Run the 'restart' command or press Ctrl+Shift+R to rebuild and apply updates.");
+                    log.AppendLine("Rebuilding and restarting Jarvis launcher dynamically...");
+                    
+                    // Show terminal logs before restart
+                    CliOutputOverlay.Show("Codebase Update", log.ToString());
+
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        TextOverlay.Show("⚡ Rebuilding & Restarting Jarvis...", 3000);
+                    });
+                    
+                    await Task.Delay(1000);
+                    NativeMethods.Restart();
                 }
                 else if (pullResult.Contains("conflict") || pullResult.Contains("Merge conflict"))
                 {
