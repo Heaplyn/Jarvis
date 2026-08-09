@@ -31,7 +31,8 @@ namespace JarvisLauncher
         ALIAS,
         TEXT_OPACITY,
         DOWNLOAD,
-        GIT_PUSH
+        GIT_PUSH,
+        COMMANDS
     };
 
     public static class CommandParser
@@ -86,7 +87,9 @@ namespace JarvisLauncher
             { CommandType.DOWNLOAD,
             new CommandDictType("Download media from URL", new DownloadCommandHandler()) },
             { CommandType.GIT_PUSH,
-            new CommandDictType("Push project repository to GitHub", new GitPushCommandHandler()) }
+            new CommandDictType("Push project repository to GitHub", new GitPushCommandHandler()) },
+            { CommandType.COMMANDS,
+            new CommandDictType("View all system commands", new CommandsCommandHandler()) }
         };
 
         public static List<CommandResult> GetSuggestions(string query)
