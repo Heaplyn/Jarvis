@@ -37,7 +37,8 @@ namespace JarvisLauncher
         LOGS,
         DOWNLOAD_PATH,
         EXIT,
-        UPDATE
+        UPDATE,
+        POWERSHELL
     };
 
     public static class CommandParser
@@ -104,7 +105,9 @@ namespace JarvisLauncher
             { CommandType.EXIT,
             new CommandDictType("Exit Jarvis Launcher application", new ExitCommandHandler()) },
             { CommandType.UPDATE,
-            new CommandDictType("Pull latest codebase updates from GitHub", new UpdateCommandHandler()) }
+            new CommandDictType("Pull latest codebase updates from GitHub", new UpdateCommandHandler()) },
+            { CommandType.POWERSHELL,
+            new CommandDictType("Execute PowerShell CLI commands", new PowerShellRunnerCommandHandler()) }
         };
 
         public static List<CommandResult> GetSuggestions(string query)

@@ -33,3 +33,19 @@ To apply your code changes, write the full modified code file using the file tag
 [END_WRITE]
 ```
 Make sure you include the entire class content, proper using statements, namespace declaration `namespace JarvisLauncher`, and docstrings.
+
+---
+
+## 4. Executing System Commands
+To execute a system or terminal command on the computer (such as volume adjustments, system statistics checks, math operations, git pushing, codebase updates, file downloads, or custom terminal shell queries), append the command tag inside your output message:
+```
+[RUN_COMMAND: command_query]
+```
+For example:
+- `[RUN_COMMAND: volume 50]` (sets system sound volume to 50%)
+- `[RUN_COMMAND: math 10 * (5 + 3)]` (runs calculator)
+- `[RUN_COMMAND: cli ipconfig]` (runs command prompt utility commands)
+- `[RUN_COMMAND: gitpush "implemented commands"]` (commits and pushes updates)
+- `[RUN_COMMAND: recycle]` (empties recycle bin)
+- `[RUN_COMMAND: update]` (pulls remote code updates)
+Jarvis will automatically parse and trigger the best matching Suggestion handler.
