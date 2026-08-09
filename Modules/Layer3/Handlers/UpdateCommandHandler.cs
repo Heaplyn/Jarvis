@@ -1,6 +1,6 @@
 // Developer: heaplyn
 // Date: 2026-08-09
-// Summary: Handles CLI commands to pull, fetch, and merge the latest codebase commits from the remote GitHub repository.
+// Summary: Handles CLI commands to pull, fetch, and merge the latest codebase commits from the remote GitHub repository. Supports safe stashing and force syncing.
 
 using System;
 using System.Collections.Generic;
@@ -33,26 +33,34 @@ namespace JarvisLauncher
             suggestions.Add(new CommandResult
             {
                 Title       = "Update Code from GitHub",
-                Description = "Run 'git pull' to merge the latest changes from your remote GitHub origin",
+                Description = "Run 'git pull' safely (stashing any local uncommitted changes)",
                 Similarity  = similarity + 0.5, // Priority boost for direct matches
-                Execute     = () => Task.Run(async () => await PullUpdatesAsync())
+                Execute     = () => Task.Run(async () => await PullUpdatesAsync(force: false))
+            });
+
+            suggestions.Add(new CommandResult
+            {
+                Title       = "Force Reset Code from GitHub",
+                Description = "⚠️ Wipes all local modifications and forces sync with GitHub remote main",
+                Similarity  = similarity + 0.2,
+                Execute     = () => Task.Run(async () => await PullUpdatesAsync(force: true))
             });
 
             return suggestions;
         }
 
-        private static async Task PullUpdatesAsync()
+        private static async Task PullUpdatesAsync(bool force)
         {
             Application.Current.Dispatcher.Invoke(() =>
             {
-                TextOverlay.Show("📥 Checking for GitHub updates...", 3000);
+                TextOverlay.Show(force ? "⚠️ Forcing codebase synchronization..." : "📥 Checking for GitHub updates...", 3000);
             });
 
             string projectRoot = GetProjectRoot();
             var log = new StringBuilder();
 
             log.AppendLine("===================================================");
-            log.AppendLine("            JARVIS CODEBASE UPDATE ENGINE          ");
+            log.AppendLine(force ? "       JARVIS FORCE RESET SYNCHRONIZATION ENGINE   " : "            JARVIS CODEBASE UPDATE ENGINE          ");
             log.AppendLine("===================================================");
             log.AppendLine();
             log.AppendLine($"Working directory: {projectRoot}");
@@ -73,7 +81,15 @@ namespace JarvisLauncher
                 log.AppendLine("🔗 Linking local codebase files to tracking branch...");
                 await RunCommandAsync("git", "checkout -B main", projectRoot);
                 await RunCommandAsync("git", "branch --set-upstream-to=origin/main main", projectRoot);
-                await RunCommandAsync("git", "reset --mixed origin/main", projectRoot);
+                
+                if (force)
+                {
+                    await RunCommandAsync("git", "reset --hard origin/main", projectRoot);
+                }
+                else
+                {
+                    await RunCommandAsync("git", "reset --mixed origin/main", projectRoot);
+                }
                 
                 log.AppendLine("✅ Git repository initialized and linked successfully!");
                 log.AppendLine();
@@ -111,26 +127,70 @@ namespace JarvisLauncher
 
             // Ensure branch upstream tracking is configured
             await RunCommandAsync("git", $"branch --set-upstream-to=origin/{branchName} {branchName}", projectRoot);
-
-            log.AppendLine("--- PULLING FROM GITHUB ---");
-            // Pull explicitly specifying remote and branch to bypass missing tracking constraints
-            string pullResult = await RunCommandAsync("git", $"pull origin {branchName}", projectRoot);
-            log.AppendLine(pullResult);
             log.AppendLine();
 
-            if (pullResult.Contains("Already up to date") || pullResult.Contains("Already up-to-date"))
+            if (force)
             {
-                log.AppendLine("✅ System is already up to date. No updates found.");
+                log.AppendLine("--- FORCING OVERWRITE FROM GITHUB ---");
+                log.AppendLine("⚡ Fetching all remote updates...");
+                await RunCommandAsync("git", "fetch --all", projectRoot);
+                
+                log.AppendLine($"⚡ Overwriting local branch with origin/{branchName}...");
+                string resetResult = await RunCommandAsync("git", $"reset --hard origin/{branchName}", projectRoot);
+                log.AppendLine(resetResult);
+                
+                log.AppendLine("⚡ Cleaning untracked files...");
+                string cleanResult = await RunCommandAsync("git", "clean -fd", projectRoot);
+                log.AppendLine(cleanResult);
+                log.AppendLine();
+                
+                log.AppendLine("🎉 CODEBASE SYNCED AND RESTORED SUCCESSFULLY!");
+                log.AppendLine("All local files have been overwritten to match GitHub exactly.");
+                log.AppendLine("Run the 'restart' command or press Ctrl+Shift+R to rebuild and run.");
             }
-            else if (pullResult.Contains("Updating") || pullResult.Contains("Fast-forward") || pullResult.Contains("files changed"))
+            else
             {
-                log.AppendLine("🎉 UPDATES PULLED SUCCESSFULLY!");
-                log.AppendLine("Run the 'restart' command or press Ctrl+Shift+R to rebuild and apply updates.");
-            }
-            else if (pullResult.Contains("conflict") || pullResult.Contains("Merge conflict"))
-            {
-                log.AppendLine("⚠️ [CONFLICT] Merge conflicts detected during pull!");
-                log.AppendLine("Please resolve conflicts manually in your editor.");
+                // Safe pull logic
+                string statusPorcelain = await RunCommandAsync("git", "status --porcelain", projectRoot);
+                bool hasLocalChanges = !string.IsNullOrWhiteSpace(statusPorcelain);
+                bool stashed = false;
+
+                if (hasLocalChanges)
+                {
+                    log.AppendLine("⚠️ Local uncommitted changes detected. Stashing changes to prevent merge conflicts...");
+                    string stashResult = await RunCommandAsync("git", "stash", projectRoot);
+                    log.AppendLine(stashResult);
+                    stashed = stashResult.Contains("Saved working directory") || stashResult.Contains("WIP on");
+                    log.AppendLine();
+                }
+
+                log.AppendLine("--- PULLING FROM GITHUB ---");
+                string pullResult = await RunCommandAsync("git", $"pull origin {branchName}", projectRoot);
+                log.AppendLine(pullResult);
+                log.AppendLine();
+
+                if (stashed)
+                {
+                    log.AppendLine("--- RESTORING LOCAL CHANGES ---");
+                    string popResult = await RunCommandAsync("git", "stash pop", projectRoot);
+                    log.AppendLine(popResult);
+                    log.AppendLine();
+                }
+
+                if (pullResult.Contains("Already up to date") || pullResult.Contains("Already up-to-date"))
+                {
+                    log.AppendLine("✅ System is already up to date. No updates found.");
+                }
+                else if (pullResult.Contains("Updating") || pullResult.Contains("Fast-forward") || pullResult.Contains("files changed"))
+                {
+                    log.AppendLine("🎉 UPDATES PULLED SUCCESSFULLY!");
+                    log.AppendLine("Run the 'restart' command or press Ctrl+Shift+R to rebuild and apply updates.");
+                }
+                else if (pullResult.Contains("conflict") || pullResult.Contains("Merge conflict"))
+                {
+                    log.AppendLine("⚠️ [CONFLICT] Merge conflicts detected during pull!");
+                    log.AppendLine("Please resolve conflicts manually in your editor.");
+                }
             }
 
             // Show logs inside system terminal
