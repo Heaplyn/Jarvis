@@ -4,19 +4,14 @@
 
 import { LucidaClient } from './lucida.js';
 import { YtDlp } from 'ytdlp-nodejs';
-import { ensureFlareSolverr } from './setup.js';
+import { ensureAllDependencies } from './setup.js';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const downloadDir = path.resolve(__dirname, 'downloads');
-
-// Ensure downloads directory exists
-if (!fs.existsSync(downloadDir)) {
-    fs.mkdirSync(downloadDir, { recursive: true });
-}
+let downloadDir = path.resolve(__dirname, 'downloads');
 
 async function download_yt(url: string) {
     console.log('[INFO] Route: YouTube URL detected. Initializing extraction via yt-dlp...');
@@ -63,18 +58,30 @@ async function download_lucida(url: string) {
 
 async function main() {
     // Ensure all required system dependencies (like FlareSolverr) are pre-installed
-    ensureFlareSolverr();
+    ensureAllDependencies();
 
     const args = process.argv.slice(2);
     if (args.length === 0) {
         console.log('❌ Error: Missing URL parameter.');
-        console.log('Usage: npx tsx DownloadMedia.ts <url>');
+        console.log('Usage: npx tsx DownloadMedia.ts <url> [download_directory]');
         console.log('Example: npx tsx DownloadMedia.ts "https://www.deezer.com/track/1435235"');
         process.exit(1);
     }
 
     const url = args[0].trim();
+
+    // Check if a custom download folder path was passed as the second argument
+    if (args[1]) {
+        downloadDir = path.resolve(args[1].trim());
+    }
+
+    // Ensure the resolved downloads folder exists on disk
+    if (!fs.existsSync(downloadDir)) {
+        fs.mkdirSync(downloadDir, { recursive: true });
+    }
+
     console.log(`[INFO] Starting download task for target: "${url}"`);
+    console.log(`[INFO] Output folder: "${downloadDir}"`);
 
     try {
         const cleanUrl = url.toLowerCase();

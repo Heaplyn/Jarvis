@@ -1,8 +1,10 @@
 // Developer: heaplyn
 // Date: 2026-08-09
-// Summary: Draggable, scrollable console terminal output window styled in retro green and monospaced font.
+// Summary: Persistent singleton console terminal output window styled in retro green and monospaced font. Resizable & minimizable. Writes logs to disk.
 
 using System;
+using System.IO;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -11,22 +13,44 @@ namespace JarvisLauncher
 {
     public class CliOutputOverlay : BaseOverlay
     {
+        private static CliOutputOverlay _instance;
+        private TextBox _textBox;
+
         public static void Show(string commandTitle, string outputContent)
         {
+            // Write logs persistently to disk first
+            WriteLogToDisk(commandTitle, outputContent);
+
             // Execute on UI Dispatcher Thread
             Application.Current.Dispatcher.Invoke(() =>
             {
-                var overlay = new CliOutputOverlay(commandTitle, outputContent);
-                overlay.Show();
+                if (_instance == null)
+                {
+                    _instance = new CliOutputOverlay();
+                }
+
+                _instance.AppendOutput(commandTitle, outputContent);
+                _instance.Show();
+
+                // If minimized, restore it
+                if (_instance.WindowState == WindowState.Minimized)
+                {
+                    _instance.WindowState = WindowState.Normal;
+                }
+
+                _instance.Activate();
+                _instance.Focus();
             });
         }
 
-        private CliOutputOverlay(string commandTitle, string outputContent)
-            : base($"TERMINAL OUTPUT: {commandTitle.ToUpper()}", width: 650, height: 420)
+        private CliOutputOverlay()
+            : base("JARVIS SYSTEM TERMINAL", width: 650, height: 420)
         {
-            var textBox = new TextBox
+            this.Closed += (s, e) => { _instance = null; };
+
+            _textBox = new TextBox
             {
-                Text = string.IsNullOrEmpty(outputContent) ? "[No Output Returned]" : outputContent,
+                Text = "",
                 IsReadOnly = true,
                 AcceptsReturn = true,
                 Background = Brushes.Transparent,
@@ -40,7 +64,56 @@ namespace JarvisLauncher
                 Padding = new Thickness(4)
             };
 
-            this.UserContent = textBox;
+            this.UserContent = _textBox;
+        }
+
+        private void AppendOutput(string commandTitle, string outputContent)
+        {
+            var sb = new StringBuilder(_textBox.Text);
+            
+            if (sb.Length > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine();
+            }
+
+            sb.AppendLine($">>> [{DateTime.Now:HH:mm:ss}] EXEC: {commandTitle.ToUpper()}");
+            sb.AppendLine("--------------------------------------------------------------------------------");
+            sb.AppendLine(string.IsNullOrEmpty(outputContent) ? "[No Output Returned]" : outputContent);
+            sb.AppendLine("--------------------------------------------------------------------------------");
+
+            _textBox.Text = sb.ToString();
+            
+            // Auto-scroll to the bottom to display the latest execution logs
+            _textBox.ScrollToEnd();
+        }
+
+        private static void WriteLogToDisk(string commandTitle, string outputContent)
+        {
+            try
+            {
+                string dataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
+                if (!Directory.Exists(dataDir))
+                {
+                    string devPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\Data"));
+                    if (Directory.Exists(devPath))
+                    {
+                        dataDir = devPath;
+                    }
+                    else
+                    {
+                        Directory.CreateDirectory(dataDir);
+                    }
+                }
+
+                string logPath = Path.Combine(dataDir, "Jarvis.log");
+                string logEntry = $"\n>>> [{DateTime.Now:yyyy-MM-dd HH:mm:ss}] EXEC: {commandTitle.ToUpper()}\n" +
+                                  "--------------------------------------------------------------------------------\n" +
+                                  $"{outputContent}\n" +
+                                  "--------------------------------------------------------------------------------\n";
+                File.AppendAllText(logPath, logEntry);
+            }
+            catch { }
         }
     }
 }
