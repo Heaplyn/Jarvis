@@ -53,6 +53,14 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
+                    Title       = "Download Media (Prompt)...",
+                    Description = "Prompt for a music or video URL to download",
+                    Similarity  = similarity + 0.5,
+                    Execute     = () => InputPromptOverlay.Show("Enter URL to download (YouTube, Spotify, Deezer, etc.):", (url) => RunDownload(url))
+                });
+
+                suggestions.Add(new CommandResult
+                {
                     Title       = "Download Media...",
                     Description = "Type a URL after 'download' (e.g. download https://deezer.com/track/123)",
                     Similarity  = similarity,

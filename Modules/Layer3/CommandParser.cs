@@ -46,7 +46,8 @@ namespace JarvisLauncher
         MUTE,
         CLIPBOARD,
         TODO,
-        THEME
+        THEME,
+        EDIT
     };
 
     public static class CommandParser
@@ -131,7 +132,9 @@ namespace JarvisLauncher
             { CommandType.TODO,
             new CommandDictType("Persistently manage lists of tasks", new TodoCommandHandler()) },
             { CommandType.THEME,
-            new CommandDictType("Change HUD appearance theme colors", new ThemeCommandHandler()) }
+            new CommandDictType("Change HUD appearance theme colors", new ThemeCommandHandler()) },
+            { CommandType.EDIT,
+            new CommandDictType("Edit files in built-in Text Editor", new EditCommandHandler()) }
         };
 
         public static List<CommandResult> GetSuggestions(string query)

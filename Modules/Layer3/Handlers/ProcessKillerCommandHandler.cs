@@ -51,6 +51,14 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
+                    Title = "Kill Process (Prompt)...",
+                    Description = "Prompt for a running application name to terminate",
+                    Execute = () => InputPromptOverlay.Show("Enter process name to terminate (e.g. chrome, discord):", (procName) => KillProcessByName(procName)),
+                    Similarity = similarity + 0.5
+                });
+
+                suggestions.Add(new CommandResult
+                {
                     Title = "Kill Process...",
                     Description = "Type a process name (e.g. 'kill chrome')",
                     Execute = null,
