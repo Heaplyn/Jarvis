@@ -38,6 +38,13 @@ namespace JarvisLauncher
         {
             PositionWindowAtTopCenter();
 
+            // Apply persistent theme from settings
+            try
+            {
+                ThemeManager.ApplyTheme(SettingsManager.Current.Theme);
+            }
+            catch { }
+
             // Subscribe to the text opacity event from Layer 3
             CommandParser.OnTextOpacityChanged += (opacityValue) =>
             {

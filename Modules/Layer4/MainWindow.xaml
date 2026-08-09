@@ -31,8 +31,8 @@
     <Grid x:Name="RootGrid" Margin="10">
         <!-- Shadow Container -->
         <Border x:Name="MainBorder" 
-                Background="#F2140D24" 
-                BorderBrush="#ffffffe6" 
+                Background="{DynamicResource WindowBackgroundBrush}" 
+                BorderBrush="{DynamicResource WindowBorderBrush}" 
                 BorderThickness="1" 
                 CornerRadius="12" 
                 Opacity="1.0"
@@ -52,16 +52,16 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-
+ 
                 <!-- Search Panel -->
                 <Grid Grid.Row="0">
                     <TextBox x:Name="SearchInput" 
                              Background="Transparent" 
                              BorderThickness="0" 
-                             Foreground="#FFFFFF" 
+                             Foreground="{DynamicResource TextPrimaryBrush}" 
                              FontSize="20" 
                              FontFamily="Segoe UI Semibold, Arial"
-                             CaretBrush="#FFD9CCFF" 
+                             CaretBrush="{DynamicResource AccentCaretBrush}" 
                              Padding="6,4"
                              VerticalAlignment="Center"
                              TextChanged="SearchInput_TextChanged"
@@ -69,7 +69,7 @@
                     
                     <TextBlock x:Name="PlaceholderText" 
                                Text="Type a command, math, or app name..." 
-                               Foreground="#5AFFFFFF" 
+                               Foreground="{DynamicResource TextPlaceholderBrush}" 
                                FontSize="20" 
                                FontFamily="Segoe UI Semibold, Arial"
                                IsHitTestVisible="False" 
@@ -102,12 +102,12 @@
                         <DataTemplate>
                             <StackPanel Orientation="Vertical">
                                 <TextBlock Text="{Binding Title}" 
-                                           Foreground="#FFFFFF" 
+                                           Foreground="{DynamicResource TextPrimaryBrush}" 
                                            FontSize="15" 
                                            FontWeight="SemiBold"
                                            FontFamily="Segoe UI"/>
                                 <TextBlock Text="{Binding Description}" 
-                                           Foreground="#8CFFFFFF" 
+                                           Foreground="{DynamicResource TextSecondaryBrush}" 
                                            FontSize="12" 
                                            Margin="0,2,0,0"
                                            FontFamily="Segoe UI"/>

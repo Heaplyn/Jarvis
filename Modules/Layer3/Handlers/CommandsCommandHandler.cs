@@ -70,6 +70,7 @@ namespace JarvisLauncher
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "mute", "Toggle audio mute status", "mute"));
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "clipboard / cb", "View or clear clipboard text", "cb"));
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "todo <add/done/list>", "Manage local Todo tasks list", "todo list"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "theme <name>", "Switch interface color theme", "theme blue"));
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "> <cmd>", "Run terminal command in cmd.exe", ">dir"));
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "$ <cmd>", "Run command in PowerShell", "$Get-Process"));
 
