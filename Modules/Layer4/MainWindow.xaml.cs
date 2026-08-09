@@ -241,9 +241,25 @@ namespace JarvisLauncher
             {
                 if (ResultsList.Visibility == Visibility.Visible && ResultsList.Items.Count > 0)
                 {
-                    ResultsList.Focus();
-                    var container = ResultsList.ItemContainerGenerator.ContainerFromIndex(ResultsList.SelectedIndex) as ListBoxItem;
-                    container?.Focus();
+                    int nextIndex = ResultsList.SelectedIndex + 1;
+                    if (nextIndex < ResultsList.Items.Count)
+                    {
+                        ResultsList.SelectedIndex = nextIndex;
+                        ResultsList.ScrollIntoView(ResultsList.SelectedItem);
+                    }
+                    e.Handled = true;
+                }
+            }
+            else if (e.Key == Key.Up)
+            {
+                if (ResultsList.Visibility == Visibility.Visible && ResultsList.Items.Count > 0)
+                {
+                    int prevIndex = ResultsList.SelectedIndex - 1;
+                    if (prevIndex >= 0)
+                    {
+                        ResultsList.SelectedIndex = prevIndex;
+                        ResultsList.ScrollIntoView(ResultsList.SelectedItem);
+                    }
                     e.Handled = true;
                 }
             }
