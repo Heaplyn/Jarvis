@@ -1,10 +1,11 @@
 // Developer: heaplyn
 // Date: 2026-08-09
-// Summary: Parses AI responses for filesystem tags ([WRITE_FILE], [APPEND_FILE]) and executes modifications.
+// Summary: Parses AI responses for filesystem tags ([WRITE_FILE], [APPEND_FILE]) and command tags ([RUN_COMMAND]) and executes modifications or calls system operations.
 
 using System;
 using System.IO;
 using System.Text.RegularExpressions;
+using System.Windows;
 
 namespace JarvisLauncher
 {
@@ -24,12 +25,10 @@ namespace JarvisLauncher
                 string path = match.Groups[1].Value.Trim();
                 string content = match.Groups[2].Value;
 
-                // Clean quotes from path
                 path = path.Trim('"', '\'');
 
                 try
                 {
-                    // Ensure parent directory exists
                     string? dir = Path.GetDirectoryName(path);
                     if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                     {
@@ -76,9 +75,48 @@ namespace JarvisLauncher
                 }
             }
 
+            // 3. Process RUN_COMMAND tags: [RUN_COMMAND: volume 50]
+            var cmdRegex = new Regex(@"\[RUN_COMMAND:\s*(.+?)\]", RegexOptions.IgnoreCase);
+            var cmdMatches = cmdRegex.Matches(aiResponse);
+            foreach (Match match in cmdMatches)
+            {
+                string commandQuery = match.Groups[1].Value.Trim();
+
+                try
+                {
+                    // Execute command on UI Dispatcher Thread
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        var suggestions = CommandParser.GetSuggestions(commandQuery);
+                        if (suggestions != null && suggestions.Count > 0)
+                        {
+                            var bestMatch = suggestions[0];
+                            if (bestMatch.Execute != null)
+                            {
+                                bestMatch.Execute.Invoke();
+                                TextOverlay.Show($"⚡ AI Executed:\n\"{commandQuery}\"", 3000);
+                                logs += $"\n[SUCCESS] Executed command: {commandQuery}";
+                            }
+                            else
+                            {
+                                logs += $"\n[ERROR] Command '{commandQuery}' has no executable actions defined.";
+                            }
+                        }
+                        else
+                        {
+                            logs += $"\n[ERROR] Command '{commandQuery}' is not recognized.";
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    logs += $"\n[ERROR] Command '{commandQuery}' failed: {ex.Message}";
+                }
+            }
+
             if (!string.IsNullOrEmpty(logs))
             {
-                return aiResponse + "\n\n--- AGENT FILESYSTEM EXECUTION SUMMARY ---\n" + logs;
+                return aiResponse + "\n\n--- AGENT EXECUTION SUMMARY ---\n" + logs;
             }
 
             return aiResponse;
