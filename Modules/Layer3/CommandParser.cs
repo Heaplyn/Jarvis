@@ -38,7 +38,8 @@ namespace JarvisLauncher
         DOWNLOAD_PATH,
         EXIT,
         UPDATE,
-        POWERSHELL
+        POWERSHELL,
+        UPDATE_COMPUTER
     };
 
     public static class CommandParser
@@ -107,7 +108,9 @@ namespace JarvisLauncher
             { CommandType.UPDATE,
             new CommandDictType("Pull latest codebase updates from GitHub", new UpdateCommandHandler()) },
             { CommandType.POWERSHELL,
-            new CommandDictType("Execute PowerShell CLI commands", new PowerShellRunnerCommandHandler()) }
+            new CommandDictType("Execute PowerShell CLI commands", new PowerShellRunnerCommandHandler()) },
+            { CommandType.UPDATE_COMPUTER,
+            new CommandDictType("Update computer software", new UpdateComputerCommandHandler()) }
         };
 
         public static List<CommandResult> GetSuggestions(string query)
