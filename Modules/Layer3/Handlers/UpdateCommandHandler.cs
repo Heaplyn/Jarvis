@@ -99,8 +99,22 @@ namespace JarvisLauncher
             }
             log.AppendLine();
 
+            // Resolve local branch name
+            string branchName = await RunCommandAsync("git", "rev-parse --abbrev-ref HEAD", projectRoot);
+            branchName = branchName.Trim();
+            if (string.IsNullOrEmpty(branchName) || branchName.Contains("fatal") || branchName.Contains("error"))
+            {
+                branchName = "main"; // Fallback default
+            }
+
+            log.AppendLine($"Target Branch: {branchName}");
+
+            // Ensure branch upstream tracking is configured
+            await RunCommandAsync("git", $"branch --set-upstream-to=origin/{branchName} {branchName}", projectRoot);
+
             log.AppendLine("--- PULLING FROM GITHUB ---");
-            string pullResult = await RunCommandAsync("git", "pull", projectRoot);
+            // Pull explicitly specifying remote and branch to bypass missing tracking constraints
+            string pullResult = await RunCommandAsync("git", $"pull origin {branchName}", projectRoot);
             log.AppendLine(pullResult);
             log.AppendLine();
 
