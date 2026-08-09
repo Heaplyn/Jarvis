@@ -32,6 +32,33 @@ namespace JarvisLauncher
             return binPath; // Default fallback path
         }
 
+        private static string GetProjectRoot()
+        {
+            string devPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\.."));
+            if (Directory.Exists(Path.Combine(devPath, "Modules")))
+            {
+                return devPath;
+            }
+            return AppDomain.CurrentDomain.BaseDirectory;
+        }
+
+        private static string GetConfiguredDownloadDirectory()
+        {
+            string customDir = SettingsManager.Current.DownloadDirectory;
+            if (!string.IsNullOrWhiteSpace(customDir))
+            {
+                return customDir;
+            }
+
+            // Default to 'Downloads' folder in the project root folder
+            string defaultDir = Path.Combine(GetProjectRoot(), "Downloads");
+            if (!Directory.Exists(defaultDir))
+            {
+                try { Directory.CreateDirectory(defaultDir); } catch { }
+            }
+            return defaultDir;
+        }
+
         public static async Task<string> EnsureDependenciesAsync()
         {
             string scriptDir = GetScriptDirectory();
@@ -123,13 +150,16 @@ namespace JarvisLauncher
             // Escape double quotes inside URL parameters to prevent CLI argument injection
             string escapedUrl = url.Replace("\"", "\\\"");
 
+            string downloadDir = GetConfiguredDownloadDirectory();
+            string escapedDownloadDir = downloadDir.Replace("\\", "/");
+
             // Run "node" directly using Node 20.6+'s native ESM import hooks to bypass npx.cmd's pathing bugs on Windows
             var process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
                     FileName               = "node",
-                    Arguments              = $"--import tsx DownloadMedia.ts \"{escapedUrl}\"",
+                    Arguments              = $"--import tsx DownloadMedia.ts \"{escapedUrl}\" \"{escapedDownloadDir}\"",
                     WorkingDirectory       = scriptDir,
                     UseShellExecute        = false,
                     RedirectStandardOutput = true,

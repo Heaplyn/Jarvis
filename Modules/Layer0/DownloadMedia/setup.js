@@ -1,6 +1,6 @@
 // Developer: heaplyn
 // Date: 2026-08-09
-// Summary: Cross-platform FlareSolverr setup trigger that executes the correct platform installation script.
+// Summary: Cross-platform FlareSolverr, yt-dlp, and FFmpeg setup trigger that configures all necessary binaries.
 
 import { execSync } from 'child_process';
 import os from 'os';
@@ -32,7 +32,29 @@ export function ensureFlareSolverr() {
     }
 }
 
+export function ensureYtDlpAndFfmpeg() {
+    console.log('⚡ [SETUP] Checking yt-dlp and FFmpeg binaries...');
+    try {
+        // Run update to fetch the latest yt-dlp binary
+        console.log('📦 Fetching/Updating yt-dlp binary...');
+        execSync('npx ytdlp update', { stdio: 'inherit' });
+
+        // Run ffmpeg download to fetch FFmpeg binaries
+        console.log('📦 Fetching/Updating FFmpeg binaries...');
+        execSync('npx ytdlp ffmpeg', { stdio: 'inherit' });
+
+        console.log('✅ [SETUP] yt-dlp and FFmpeg configured successfully!');
+    } catch (error) {
+        console.error('❌ [SETUP] Failed to configure yt-dlp/FFmpeg binaries:', error.message || error);
+    }
+}
+
+export function ensureAllDependencies() {
+    ensureFlareSolverr();
+    ensureYtDlpAndFfmpeg();
+}
+
 // Support running directly via: node setup.js
 if (process.argv[1] === __filename) {
-    ensureFlareSolverr();
+    ensureAllDependencies();
 }

@@ -33,7 +33,9 @@ namespace JarvisLauncher
         DOWNLOAD,
         GIT_PUSH,
         COMMANDS,
-        GIT_SETUP
+        GIT_SETUP,
+        LOGS,
+        DOWNLOAD_PATH
     };
 
     public static class CommandParser
@@ -92,7 +94,11 @@ namespace JarvisLauncher
             { CommandType.COMMANDS,
             new CommandDictType("View all system commands", new CommandsCommandHandler()) },
             { CommandType.GIT_SETUP,
-            new CommandDictType("Set up Git repository and credentials", new GitSetupCommandHandler()) }
+            new CommandDictType("Set up Git repository and credentials", new GitSetupCommandHandler()) },
+            { CommandType.LOGS,
+            new CommandDictType("Manage system execution logs", new LogCommandHandler()) },
+            { CommandType.DOWNLOAD_PATH,
+            new CommandDictType("Configure custom download destination folder path", new DownloadPathCommandHandler()) }
         };
 
         public static List<CommandResult> GetSuggestions(string query)
