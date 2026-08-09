@@ -37,10 +37,18 @@ namespace JarvisLauncher
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool LockWorkStation();
 
-        [DllImport("user32.dll", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern void Restart();
-
-
+        public static void Restart()
+        {
+            var exePath = Environment.ProcessPath;
+            if (!string.IsNullOrEmpty(exePath))
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = exePath,
+                    UseShellExecute = true
+                });
+                Environment.Exit(0);
+            }
+        }
     }
 }

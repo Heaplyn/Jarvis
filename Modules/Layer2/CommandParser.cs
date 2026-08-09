@@ -5,19 +5,48 @@
 using System;
 using System.Collections.Generic;
 
+using CommandDictType = System.Tuple<string, JarvisLauncher.ICommandHandler>;
+
 namespace JarvisLauncher
 {
+    public enum CommandType
+    {
+        MATH,
+        VOLUME,
+        LOCK,
+        RESTART,
+        APP_LAUNCHER
+    };
     public static class CommandParser
     {
-        private static readonly List<ICommandHandler> _handlers = new List<ICommandHandler>
+        public static Dictionary<CommandType, CommandDictType> Handlers = new Dictionary<CommandType, CommandDictType>
         {
-            new MathCommandHandler(),
-            new VolumeCommandHandler(),
-            new LockCommandHandler(),
-            new RestartCommandHandler(),
-            // AppLauncher is a catch-all, so it must be evaluated last
-            new AppLauncherCommandHandler()
+            { CommandType.MATH,
+            new CommandDictType("Perform mathematical calculations", new MathCommandHandler()) },
+            { CommandType.VOLUME,
+            new CommandDictType("Control system volume", new VolumeCommandHandler()) },
+            { CommandType.LOCK,
+            new CommandDictType ("Lock the system", new LockCommandHandler()) },
+            { CommandType.RESTART,
+            new CommandDictType ("Restart the application", new RestartCommandHandler()) },
+            { CommandType.APP_LAUNCHER,
+            new CommandDictType ("Launch applications", new AppLauncherCommandHandler()) }
         };
+        private static CommandType GetCommandType(string query)
+        {
+            query = query.Replace(' ', '_').ToUpper();
+
+            if (Enum.TryParse<CommandType>(query, out CommandType commandType))
+            {
+                return commandType;
+            }
+            else
+            {
+                return CommandType.APP_LAUNCHER;
+            }
+        }
+
+
 
         public static List<CommandResult> GetSuggestions(string query)
         {
@@ -30,13 +59,14 @@ namespace JarvisLauncher
 
             query = query.Trim();
 
-            foreach (var handler in _handlers)
+            foreach (var (type, handler) in Handlers)
             {
                 try
                 {
-                    if (handler.CanHandle(query))
+                    if (handler.Item2.CanHandle(query))
                     {
-                        var results = handler.GetSuggestions(query);
+
+                        var results = handler.Item2.GetSuggestions(query);
                         if (results != null && results.Count > 0)
                         {
                             suggestions.AddRange(results);

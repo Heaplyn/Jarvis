@@ -18,8 +18,10 @@ namespace JarvisLauncher
     {
         private const int HOTKEY_ID = 9000;
         private const int CTRL_SHIFT_C_ID = 9001;
+        private const int CTRL_SHIFT_R_ID = 9002;
         private const uint VK_OEM_3 = 0xC0; // Backtick (`) / Tilde (~) key on US keyboard
         private const uint VK_C = 0x43;      // 'C' key
+        private const uint VK_R = 0x52;      // 'R' key
 
         private HwndSource? _hwndSource;
         private IntPtr _previousForegroundWindow = IntPtr.Zero;
@@ -64,6 +66,13 @@ namespace JarvisLauncher
             {
                 MessageBox.Show("Could not register global hotkey (Ctrl+Shift+C) - check if another app is using it.", "Jarvis HUD Launcher Error", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
+
+            // Register Hotkey: Ctrl + Shift + R
+            bool success3 = NativeMethods.RegisterHotKey(helper.Handle, CTRL_SHIFT_R_ID, ctrlShift, VK_R);
+            if (!success3)
+            {
+                MessageBox.Show("Could not register global hotkey (Ctrl+Shift+R) - check if another app is using it.", "Jarvis HUD Launcher Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
 
         private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -81,6 +90,7 @@ namespace JarvisLauncher
                     // Ctrl + Shift + C was pressed globally!
                     //MessageBox.Show("Ctrl+Shift+C Pressed!");
                     handled = true;
+                    //Console.WriteLine("CTRL SHIFT C PRESSED");
                     System.Environment.Exit(0);
                 }
             }
