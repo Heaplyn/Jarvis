@@ -35,7 +35,9 @@ namespace JarvisLauncher
         COMMANDS,
         GIT_SETUP,
         LOGS,
-        DOWNLOAD_PATH
+        DOWNLOAD_PATH,
+        EXIT,
+        UPDATE
     };
 
     public static class CommandParser
@@ -98,7 +100,11 @@ namespace JarvisLauncher
             { CommandType.LOGS,
             new CommandDictType("Manage system execution logs", new LogCommandHandler()) },
             { CommandType.DOWNLOAD_PATH,
-            new CommandDictType("Configure custom download destination folder path", new DownloadPathCommandHandler()) }
+            new CommandDictType("Configure custom download destination folder path", new DownloadPathCommandHandler()) },
+            { CommandType.EXIT,
+            new CommandDictType("Exit Jarvis Launcher application", new ExitCommandHandler()) },
+            { CommandType.UPDATE,
+            new CommandDictType("Pull latest codebase updates from GitHub", new UpdateCommandHandler()) }
         };
 
         public static List<CommandResult> GetSuggestions(string query)
