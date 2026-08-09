@@ -60,6 +60,18 @@ namespace JarvisLauncher
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "textopacity <0-1>", "Adjust HUD text opacity dynamically", "textopacity 0.7"));
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "download <url>", "Download audio via Lucida/YT-DLP", "download https://deezer..."));
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "push \"<message>\"", "Safe-sync repository with GitHub", "push \"added command\""));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "gitsetup", "Configure Git and Auth wizard", "gitsetup"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "update / pull", "Pull codebase updates from GitHub", "update"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "logs", "View persistent execution logs", "logs"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "getdlpath / setdlpath", "View or set downloads folder", "setdlpath C:\\Music"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "sysinfo / specs", "Check hardware/OS specifications", "specs"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "google <query>", "Search Google in default browser", "google WPF layouts"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "screenshot", "Save screen capture to Pictures", "screenshot"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "mute", "Toggle audio mute status", "mute"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "clipboard / cb", "View or clear clipboard text", "cb"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "todo <add/done/list>", "Manage local Todo tasks list", "todo list"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "> <cmd>", "Run terminal command in cmd.exe", ">dir"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "$ <cmd>", "Run command in PowerShell", "$Get-Process"));
 
             sb.AppendLine("-----------------------------------------------------------------------");
             sb.AppendLine("💡 Tips:");

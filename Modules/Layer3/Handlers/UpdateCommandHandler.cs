@@ -66,6 +66,19 @@ namespace JarvisLauncher
             log.AppendLine($"Working directory: {projectRoot}");
             log.AppendLine();
 
+            // Test if Git is available
+            string gitCheck = await RunCommandAsync("git", "--version", projectRoot);
+            if (gitCheck.Contains("Error executing command") || gitCheck.Contains("cannot find the file") || string.IsNullOrWhiteSpace(gitCheck))
+            {
+                log.AppendLine("❌ ERROR: Git is not installed or was not found in your system's environment variables (PATH).");
+                log.AppendLine("👉 Please download and install Git from: https://git-scm.com/");
+                log.AppendLine("👉 After installation, restart Jarvis and try again.");
+                log.AppendLine();
+                log.AppendLine("Raw Error Detail: " + gitCheck);
+                CliOutputOverlay.Show("Codebase Update Failed", log.ToString());
+                return;
+            }
+
             // Self-healing check: If the directory is not a Git repository (e.g. static ZIP extraction on another PC)
             if (!Directory.Exists(Path.Combine(projectRoot, ".git")))
             {
@@ -76,20 +89,14 @@ namespace JarvisLauncher
                 await RunCommandAsync("git", "remote add origin https://github.com/Heaplyn/Jarvis.git", projectRoot);
                 
                 log.AppendLine("📥 Fetching repository metadata from remote origin...");
-                await RunCommandAsync("git", "fetch", projectRoot);
+                string fetchResult = await RunCommandAsync("git", "fetch", projectRoot);
+                log.AppendLine(fetchResult);
                 
                 log.AppendLine("🔗 Linking local codebase files to tracking branch...");
-                await RunCommandAsync("git", "checkout -B main", projectRoot);
-                await RunCommandAsync("git", "branch --set-upstream-to=origin/main main", projectRoot);
+                string checkoutResult = await RunCommandAsync("git", "checkout -f -B main origin/main", projectRoot);
+                log.AppendLine(checkoutResult);
                 
-                if (force)
-                {
-                    await RunCommandAsync("git", "reset --hard origin/main", projectRoot);
-                }
-                else
-                {
-                    await RunCommandAsync("git", "reset --mixed origin/main", projectRoot);
-                }
+                await RunCommandAsync("git", "branch --set-upstream-to=origin/main main", projectRoot);
                 
                 log.AppendLine("✅ Git repository initialized and linked successfully!");
                 log.AppendLine();
@@ -118,7 +125,10 @@ namespace JarvisLauncher
             // Resolve local branch name
             string branchName = await RunCommandAsync("git", "rev-parse --abbrev-ref HEAD", projectRoot);
             branchName = branchName.Trim();
-            if (string.IsNullOrEmpty(branchName) || branchName.Contains("fatal") || branchName.Contains("error"))
+            if (string.IsNullOrEmpty(branchName) || 
+                branchName.Contains("fatal") || 
+                branchName.Contains("error") || 
+                branchName.Equals("HEAD", StringComparison.OrdinalIgnoreCase))
             {
                 branchName = "main"; // Fallback default
             }
@@ -166,6 +176,15 @@ namespace JarvisLauncher
 
                 log.AppendLine("--- PULLING FROM GITHUB ---");
                 string pullResult = await RunCommandAsync("git", $"pull origin {branchName}", projectRoot);
+                
+                // Self-healing check for unrelated histories
+                if (pullResult.Contains("refusing to merge unrelated histories"))
+                {
+                    log.AppendLine("💡 TIP: Git is refusing to merge unrelated histories.");
+                    log.AppendLine("⚡ Retrying pull with '--allow-unrelated-histories' to force merge...");
+                    pullResult = await RunCommandAsync("git", $"pull origin {branchName} --allow-unrelated-histories", projectRoot);
+                }
+
                 log.AppendLine(pullResult);
                 log.AppendLine();
 
@@ -177,7 +196,13 @@ namespace JarvisLauncher
                     log.AppendLine();
                 }
 
-                if (pullResult.Contains("Already up to date") || pullResult.Contains("Already up-to-date"))
+                // Diagnostics parsing for failures
+                if (pullResult.Contains("Authentication failed") || pullResult.Contains("could not read Username"))
+                {
+                    log.AppendLine("❌ ERROR: GitHub Authentication failed.");
+                    log.AppendLine("👉 If this repository is private, verify your Git Credentials (or run 'gitsetup').");
+                }
+                else if (pullResult.Contains("Already up to date") || pullResult.Contains("Already up-to-date"))
                 {
                     log.AppendLine("✅ System is already up to date. No updates found.");
                 }

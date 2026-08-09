@@ -1,0 +1,68 @@
+// Developer: heaplyn
+// Date: 2026-08-09
+// Summary: Handles CLI commands to capture a screenshot of the primary screen and save it to the system Pictures folder.
+
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
+using System.Windows.Forms;
+
+namespace JarvisLauncher
+{
+    public class ScreenshotCommandHandler : ICommandHandler
+    {
+        public bool CanHandle(string query)
+        {
+            query = query.Trim().ToLower();
+            return query == "screenshot" || query == "screen capture" || query == "capture";
+        }
+
+        public List<CommandResult> GetSuggestions(string query)
+        {
+            var suggestions = new List<CommandResult>();
+            query = query.Trim().ToLower();
+
+            double similarity = SearchUtil.GetSimilarity(query, "screenshot");
+
+            suggestions.Add(new CommandResult
+            {
+                Title       = "Capture Screenshot",
+                Description = "Save a PNG capture of your primary display to your Pictures folder",
+                Similarity  = similarity + 0.5,
+                Execute     = () => TakeScreenshot()
+            });
+
+            return suggestions;
+        }
+
+        private static void TakeScreenshot()
+        {
+            try
+            {
+                int width = Screen.PrimaryScreen.Bounds.Width;
+                int height = Screen.PrimaryScreen.Bounds.Height;
+
+                using (var bmp = new Bitmap(width, height))
+                {
+                    using (var g = Graphics.FromImage(bmp))
+                    {
+                        g.CopyFromScreen(0, 0, 0, 0, bmp.Size);
+                    }
+
+                    string picturesDir = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
+                    string filename = $"Screenshot_{DateTime.Now:yyyyMMdd_HHmmss}.png";
+                    string savePath = Path.Combine(picturesDir, filename);
+
+                    bmp.Save(savePath, ImageFormat.Png);
+                    TextOverlay.Show($"📸 Screenshot Saved:\n{filename}", 3500);
+                }
+            }
+            catch (Exception ex)
+            {
+                TextOverlay.Show($"⚠️ Screenshot failed: {ex.Message}", 3000);
+            }
+        }
+    }
+}
