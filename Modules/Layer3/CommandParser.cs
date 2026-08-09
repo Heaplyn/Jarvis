@@ -32,7 +32,8 @@ namespace JarvisLauncher
         TEXT_OPACITY,
         DOWNLOAD,
         GIT_PUSH,
-        COMMANDS
+        COMMANDS,
+        GIT_SETUP
     };
 
     public static class CommandParser
@@ -89,7 +90,9 @@ namespace JarvisLauncher
             { CommandType.GIT_PUSH,
             new CommandDictType("Push project repository to GitHub", new GitPushCommandHandler()) },
             { CommandType.COMMANDS,
-            new CommandDictType("View all system commands", new CommandsCommandHandler()) }
+            new CommandDictType("View all system commands", new CommandsCommandHandler()) },
+            { CommandType.GIT_SETUP,
+            new CommandDictType("Set up Git repository and credentials", new GitSetupCommandHandler()) }
         };
 
         public static List<CommandResult> GetSuggestions(string query)
