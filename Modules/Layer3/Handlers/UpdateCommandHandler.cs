@@ -58,6 +58,27 @@ namespace JarvisLauncher
             log.AppendLine($"Working directory: {projectRoot}");
             log.AppendLine();
 
+            // Self-healing check: If the directory is not a Git repository (e.g. static ZIP extraction on another PC)
+            if (!Directory.Exists(Path.Combine(projectRoot, ".git")))
+            {
+                log.AppendLine("⚠️ Local directory is not initialized as a Git repository!");
+                log.AppendLine("⚡ Running Git Self-Healing Initialization...");
+                
+                await RunCommandAsync("git", "init", projectRoot);
+                await RunCommandAsync("git", "remote add origin https://github.com/Heaplyn/Jarvis.git", projectRoot);
+                
+                log.AppendLine("📥 Fetching repository metadata from remote origin...");
+                await RunCommandAsync("git", "fetch", projectRoot);
+                
+                log.AppendLine("🔗 Linking local codebase files to tracking branch...");
+                await RunCommandAsync("git", "checkout -B main", projectRoot);
+                await RunCommandAsync("git", "branch --set-upstream-to=origin/main main", projectRoot);
+                await RunCommandAsync("git", "reset --mixed origin/main", projectRoot);
+                
+                log.AppendLine("✅ Git repository initialized and linked successfully!");
+                log.AppendLine();
+            }
+
             log.AppendLine("--- CONFIGURING REMOTE ORIGIN ---");
             string remoteUrl = await RunCommandAsync("git", "remote get-url origin", projectRoot);
             remoteUrl = remoteUrl.Trim();
