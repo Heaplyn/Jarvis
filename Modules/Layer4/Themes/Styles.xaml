@@ -26,12 +26,12 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="true">
-                            <Setter TargetName="Bd" Property="Background" Value="#1C8050E6"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBackgroundBrush}"/>
                             <Setter Property="Cursor" Value="Hand"/>
                         </Trigger>
                         <Trigger Property="IsSelected" Value="true">
-                            <Setter TargetName="Bd" Property="Background" Value="#338050E6"/>
-                            <Setter TargetName="Bd" Property="BorderBrush" Value="#808050E6"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SelectedBackgroundBrush}"/>
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource SelectedBorderBrush}"/>
                             <Setter TargetName="Bd" Property="BorderThickness" Value="1"/>
                             <Setter Property="Padding" Value="11,9"/> <!-- Adjust padding for border thickness -->
                         </Trigger>

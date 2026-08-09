@@ -13,6 +13,7 @@ namespace JarvisLauncher
         public string GoogleAIKey { get; set; } = string.Empty;
         public string GithubToken { get; set; } = string.Empty;
         public string DownloadDirectory { get; set; } = string.Empty;
+        public string Theme { get; set; } = "purple";
         public System.Collections.Generic.Dictionary<string, string> Aliases { get; set; } = new System.Collections.Generic.Dictionary<string, string>();
     }
 
