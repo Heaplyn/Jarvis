@@ -11,6 +11,8 @@ using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 using MessageBox = System.Windows.MessageBox;
 using System.Windows.Interop;
 using System.Windows.Media.Animation;
+using System.Windows.Threading;
+using System.Threading;
 
 namespace JarvisLauncher
 {
@@ -35,6 +37,27 @@ namespace JarvisLauncher
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             PositionWindowAtTopCenter();
+
+            // Subscribe to the text opacity event from Layer 3
+            CommandParser.OnTextOpacityChanged += (opacityValue) =>
+            {
+                this.Dispatcher.Invoke(() =>
+                {
+                    SearchInput.Opacity = opacityValue;
+                    PlaceholderText.Opacity = opacityValue;
+                    ResultsList.Opacity = opacityValue;
+                });
+            };
+
+            // Run self-healing downloader dependency setup on a background thread on startup
+            System.Threading.Tasks.Task.Run(async () =>
+            {
+                try
+                {
+                    await DownloadMediaRunner.EnsureDependenciesAsync();
+                }
+                catch { }
+            });
         }
 
         private void PositionWindowAtTopCenter()
@@ -88,10 +111,23 @@ namespace JarvisLauncher
                 else if (hotkeyId == CTRL_SHIFT_C_ID)
                 {
                     // Ctrl + Shift + C was pressed globally!
-                    //MessageBox.Show("Ctrl+Shift+C Pressed!");
                     handled = true;
-                    //Console.WriteLine("CTRL SHIFT C PRESSED");
                     System.Environment.Exit(0);
+                }
+                else if (hotkeyId == CTRL_SHIFT_R_ID)
+                {
+                    handled = true;
+                    // Display visual overlay directly (Layer 4 can call Layer 2 directly!)
+                    TextOverlay.Show("Restarting Jarvis...", 1000);
+
+                    // Wait 1 second before performing the actual process restart
+                    var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+                    timer.Tick += (s, ev) =>
+                    {
+                        timer.Stop();
+                        NativeMethods.Restart();
+                    };
+                    timer.Start();
                 }
             }
             return IntPtr.Zero;
@@ -274,6 +310,7 @@ namespace JarvisLauncher
                 var helper = new WindowInteropHelper(this);
                 NativeMethods.UnregisterHotKey(helper.Handle, HOTKEY_ID);
                 NativeMethods.UnregisterHotKey(helper.Handle, CTRL_SHIFT_C_ID);
+                NativeMethods.UnregisterHotKey(helper.Handle, CTRL_SHIFT_R_ID);
                 _hwndSource.RemoveHook(HwndHook);
                 _hwndSource = null;
             }
