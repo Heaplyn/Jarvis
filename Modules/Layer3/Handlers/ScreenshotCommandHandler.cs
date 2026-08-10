@@ -41,8 +41,9 @@ namespace JarvisLauncher
         {
             try
             {
-                int width = Screen.PrimaryScreen.Bounds.Width;
-                int height = Screen.PrimaryScreen.Bounds.Height;
+                var screen = Screen.PrimaryScreen ?? Screen.AllScreens[0];
+                int width = screen.Bounds.Width;
+                int height = screen.Bounds.Height;
 
                 using (var bmp = new Bitmap(width, height))
                 {
