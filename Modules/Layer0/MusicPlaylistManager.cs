@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 
 namespace JarvisLauncher
@@ -57,11 +58,46 @@ namespace JarvisLauncher
 
             // Default initial setup
             var defaultLibrary = new MusicLibraryData();
+            var allSongsFolder = new MusicFolder { FolderName = "🎵 All Songs" };
             var defaultFolder = new MusicFolder { FolderName = "Favorites" };
+            
+            defaultLibrary.Folders.Add(allSongsFolder);
             defaultLibrary.Folders.Add(defaultFolder);
-            defaultLibrary.LastActiveFolderId = defaultFolder.Id;
+            defaultLibrary.LastActiveFolderId = allSongsFolder.Id;
             SaveLibrary(defaultLibrary);
             return defaultLibrary;
+        }
+
+        public static void AddTrackToFolderAndAllSongs(MusicLibraryData library, MusicFolder targetFolder, MusicTrack track)
+        {
+            // 1. Add track to target folder
+            if (!targetFolder.Tracks.Any(t => t.PathOrUrl == track.PathOrUrl))
+            {
+                targetFolder.Tracks.Add(track);
+            }
+
+            // 2. Add track to "🎵 All Songs" folder automatically
+            var allSongsFolder = library.Folders.FirstOrDefault(f => f.FolderName == "🎵 All Songs");
+            if (allSongsFolder == null)
+            {
+                allSongsFolder = new MusicFolder { FolderName = "🎵 All Songs" };
+                library.Folders.Insert(0, allSongsFolder);
+            }
+
+            if (!allSongsFolder.Tracks.Any(t => t.PathOrUrl == track.PathOrUrl))
+            {
+                var clone = new MusicTrack
+                {
+                    Title = track.Title,
+                    Artist = track.Artist,
+                    PathOrUrl = track.PathOrUrl,
+                    IsStreamUrl = track.IsStreamUrl,
+                    AddedAt = track.AddedAt
+                };
+                allSongsFolder.Tracks.Add(clone);
+            }
+
+            SaveLibrary(library);
         }
 
         public static void SaveLibrary(MusicLibraryData data)
