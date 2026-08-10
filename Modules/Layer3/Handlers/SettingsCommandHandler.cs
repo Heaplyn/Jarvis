@@ -12,7 +12,8 @@ namespace JarvisLauncher
         public bool CanHandle(string query)
         {
             query = query.Trim().ToLower();
-            return query.StartsWith("setkey") || query.StartsWith("getkey") || query == "settings" || query == "options" || query == "config";
+            return query.StartsWith("setkey") || query.StartsWith("getkey") || query == "settings" || query == "options" || query == "config"
+                || query.StartsWith("ontop") || query.StartsWith("topmost") || query.StartsWith("alwaysontop");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -126,7 +127,89 @@ namespace JarvisLauncher
                 }
             }
 
+            if (cmd == "ontop" || cmd == "topmost" || cmd == "alwaysontop")
+            {
+                bool current = SettingsManager.Current.AlwaysOnTop;
+                if (parts.Length > 1)
+                {
+                    string arg = parts[1].ToLower();
+                    if (arg == "on" || arg == "true" || arg == "1")
+                    {
+                        suggestions.Add(new CommandResult
+                        {
+                            Title = "📌 Enable Always On Top",
+                            Description = "Keep all Jarvis HUD windows persistently on top of other windows",
+                            Execute = () => SetAlwaysOnTop(true),
+                            Similarity = similarity + 1.0
+                        });
+                    }
+                    else if (arg == "off" || arg == "false" || arg == "0")
+                    {
+                        suggestions.Add(new CommandResult
+                        {
+                            Title = "📌 Disable Always On Top",
+                            Description = "Allow Jarvis HUD windows to be placed behind other windows",
+                            Execute = () => SetAlwaysOnTop(false),
+                            Similarity = similarity + 1.0
+                        });
+                    }
+                    else if (arg == "toggle")
+                    {
+                        suggestions.Add(new CommandResult
+                        {
+                            Title = $"📌 Toggle Always On Top (Currently: {(current ? "On" : "Off")})",
+                            Description = $"Switch Always On Top to {!current}",
+                            Execute = () => SetAlwaysOnTop(!current),
+                            Similarity = similarity + 1.0
+                        });
+                    }
+                }
+                else
+                {
+                    suggestions.Add(new CommandResult
+                    {
+                        Title = $"📌 Always On Top is {(current ? "Enabled" : "Disabled")}",
+                        Description = "Type 'ontop on', 'ontop off', or 'ontop toggle' to configure",
+                        Execute = null,
+                        Similarity = similarity + 0.5
+                    });
+                    suggestions.Add(new CommandResult
+                    {
+                        Title = "📌 Toggle Always On Top",
+                        Description = $"Switch Always On Top to {!current}",
+                        Execute = () => SetAlwaysOnTop(!current),
+                        Similarity = similarity
+                    });
+                }
+            }
+
             return suggestions;
+        }
+
+        private static void SetAlwaysOnTop(bool value)
+        {
+            try
+            {
+                SettingsManager.Current.AlwaysOnTop = value;
+                SettingsManager.Save();
+
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    foreach (System.Windows.Window win in System.Windows.Application.Current.Windows)
+                    {
+                        if (win is BaseOverlay baseOverlay)
+                        {
+                            baseOverlay.Topmost = value;
+                        }
+                    }
+                });
+
+                TextOverlay.Show($"📌 Always On Top {(value ? "Enabled" : "Disabled")}", 2500);
+            }
+            catch (Exception ex)
+            {
+                TextOverlay.Show($"⚠️ Failed to set Always On Top: {ex.Message}", 3000);
+            }
         }
 
         private static string MaskKey(string key)
