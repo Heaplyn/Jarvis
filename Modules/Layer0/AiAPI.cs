@@ -14,11 +14,17 @@ using System.Collections.Generic;
 
 namespace JarvisLauncher
 {
+    public class ChatTurn
+    {
+        public string Role { get; set; } = "user"; // "user" or "model"
+        public string Text { get; set; } = string.Empty;
+    }
+
     public static class AiAPI
     {
         private static readonly HttpClient _client = new HttpClient();
 
-        public static async Task<string> AskGemini(string prompt)
+        public static async Task<string> AskGemini(string prompt, List<ChatTurn>? history = null)
         {
             string apiKey = SettingsManager.Current.GoogleAIKey;
             if (string.IsNullOrWhiteSpace(apiKey))
@@ -28,24 +34,19 @@ namespace JarvisLauncher
 
             string currentPrompt = prompt;
             string lastResponse = "";
-            int loopLimit = 4;
+            int loopLimit = 100; // Allow up to 100 multi-step agent requests per turn
 
             for (int i = 0; i < loopLimit; i++)
             {
-                string response = await QueryGeminiRaw(currentPrompt, apiKey);
+                string response = await QueryGeminiRaw(currentPrompt, apiKey, history);
                 lastResponse = response;
 
-                // Check for [READ_FILE: path] tags
+                var executionFeedBuilder = new StringBuilder();
+
+                // 1. Check for [READ_FILE: path] tags
                 var readRegex = new Regex(@"\[READ_FILE:\s*(.+?)\]");
-                var matches = readRegex.Matches(response);
-
-                if (matches.Count == 0)
-                {
-                    break;
-                }
-
-                var fileContentsBuilder = new StringBuilder();
-                foreach (Match match in matches)
+                var readMatches = readRegex.Matches(response);
+                foreach (Match match in readMatches)
                 {
                     string path = match.Groups[1].Value.Trim().Trim('"', '\'');
                     try
@@ -53,38 +54,81 @@ namespace JarvisLauncher
                         if (File.Exists(path))
                         {
                             string fileText = File.ReadAllText(path);
-                            fileContentsBuilder.AppendLine($"[FILE_CONTENT: {path}]");
-                            fileContentsBuilder.AppendLine(fileText);
-                            fileContentsBuilder.AppendLine("[END_FILE_CONTENT]");
+                            executionFeedBuilder.AppendLine($"[FILE_CONTENT: {path}]");
+                            executionFeedBuilder.AppendLine(fileText);
+                            executionFeedBuilder.AppendLine("[END_FILE_CONTENT]");
                         }
                         else
                         {
-                            fileContentsBuilder.AppendLine($"[FILE_CONTENT: {path}]");
-                            fileContentsBuilder.AppendLine("Error: File not found.");
-                            fileContentsBuilder.AppendLine("[END_FILE_CONTENT]");
+                            executionFeedBuilder.AppendLine($"[FILE_CONTENT: {path}]");
+                            executionFeedBuilder.AppendLine("Error: File not found.");
+                            executionFeedBuilder.AppendLine("[END_FILE_CONTENT]");
                         }
                     }
                     catch (Exception ex)
                     {
-                        fileContentsBuilder.AppendLine($"[FILE_CONTENT: {path}]");
-                        fileContentsBuilder.AppendLine($"Error reading file: {ex.Message}");
-                        fileContentsBuilder.AppendLine("[END_FILE_CONTENT]");
+                        executionFeedBuilder.AppendLine($"[FILE_CONTENT: {path}]");
+                        executionFeedBuilder.AppendLine($"Error reading file: {ex.Message}");
+                        executionFeedBuilder.AppendLine("[END_FILE_CONTENT]");
                     }
                 }
 
-                currentPrompt = $"{currentPrompt}\n\nHere is the content of the files you requested:\n{fileContentsBuilder}\n\nPlease proceed with your response based on this information.";
+                // 2. Check for [EXEC_SHELL: cmd] tags
+                var shellRegex = new Regex(@"\[EXEC_SHELL:\s*(.+?)\]", RegexOptions.IgnoreCase);
+                var shellMatches = shellRegex.Matches(response);
+                foreach (Match match in shellMatches)
+                {
+                    string shellCmd = match.Groups[1].Value.Trim();
+                    try
+                    {
+                        var psi = new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = "cmd.exe",
+                            Arguments = $"/c {shellCmd}",
+                            RedirectStandardOutput = true,
+                            RedirectStandardError = true,
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        };
+                        using var proc = System.Diagnostics.Process.Start(psi);
+                        if (proc != null)
+                        {
+                            string outText = proc.StandardOutput.ReadToEnd();
+                            string errText = proc.StandardError.ReadToEnd();
+                            proc.WaitForExit(5000);
+                            string output = (outText + "\n" + errText).Trim();
+                            executionFeedBuilder.AppendLine($"[SHELL_OUTPUT: {shellCmd}]");
+                            executionFeedBuilder.AppendLine(output);
+                            executionFeedBuilder.AppendLine("[END_SHELL_OUTPUT]");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        executionFeedBuilder.AppendLine($"[SHELL_OUTPUT: {shellCmd}]");
+                        executionFeedBuilder.AppendLine($"Error executing command: {ex.Message}");
+                        executionFeedBuilder.AppendLine("[END_SHELL_OUTPUT]");
+                    }
+                }
 
-                // Show a quick visual notification
+                // If no execution tags were found, we are finished!
+                if (readMatches.Count == 0 && shellMatches.Count == 0)
+                {
+                    break;
+                }
+
+                currentPrompt = $"{currentPrompt}\n\nHere is the execution output of the commands/files you requested:\n{executionFeedBuilder}\n\nNOW PROCEED IMMEDIATELY TO EXECUTE THE NEXT STEP OR GENERATE/WRITE FILES!";
+
+                // Show visual progress indicator
                 Application.Current.Dispatcher.Invoke(() =>
                 {
-                    TextOverlay.Show("📖 Jarvis is reading project files...", 1500);
+                    TextOverlay.Show("⚙️ Jarvis executed agent command...", 1500);
                 });
             }
 
             return lastResponse;
         }
 
-        private static async Task<string> QueryGeminiRaw(string prompt, string apiKey)
+        private static async Task<string> QueryGeminiRaw(string prompt, string apiKey, List<ChatTurn>? history = null)
         {
             // Dynamically discover active supported models for this API key if needed
             var discoveredModels = await DiscoverActiveModelsAsync(apiKey);
@@ -110,11 +154,13 @@ namespace JarvisLauncher
                     string systemPrompt = 
                         "You are Jarvis, a powerful AI assistant running locally on the user's Windows machine. " +
                         "You have direct access to read, modify, and execute local files and operations. " +
-                        "If you need to inspect or read the contents of any local file to answer a question or write code, output the read request in this exact tag format:\n" +
+                        "CRITICAL: When the user asks you to read, inspect, or explore files, DO NOT just describe what you will do or list steps in text. YOU MUST IMMEDIATELY OUTPUT THE REAL TAGS to execute them!\n\n" +
+                        "To inspect or read any local file, output:\n" +
                         "[READ_FILE: C:\\path\\to\\file.cs]\n\n" +
+                        "To list files or execute a Command Prompt / PowerShell shell command, output:\n" +
+                        "[EXEC_SHELL: dir /b C:\\Users\\Kyle\\Downloads\\Projects\\Jarvis]\n\n" +
                         "CRITICAL REQUIREMENT - FILE CREATION AND WRITING:\n" +
-                        "Whenever the user asks you to write code, create a file, generate a script, or save notes, YOU MUST EXPLICITLY output the file content wrapped in the [WRITE_FILE] tag format. DO NOT just show the code in markdown code blocks unless explicitly asked to only show it. Always write it to disk so the user gets the real file created!\n" +
-                        "To write or overwrite a file, output:\n" +
+                        "Whenever the user asks you to write code, create a file, generate a script, or save notes, YOU MUST EXPLICITLY output the file content wrapped in the [WRITE_FILE] tag format:\n" +
                         "[WRITE_FILE: C:\\path\\to\\file.txt]\n" +
                         "File content...\n" +
                         "[END_WRITE]\n\n" +
@@ -128,8 +174,6 @@ namespace JarvisLauncher
                         "[OPEN_EDITOR: C:\\path\\to\\file.txt]\n\n" +
                         "To pin a file to the Jarvis visual launchpad grid dashboard, output:\n" +
                         "[PIN_FILE: C:\\path\\to\\file.txt]\n\n" +
-                        "To execute a raw Command Prompt / Shell command and receive output, output:\n" +
-                        "[EXEC_SHELL: dir]\n\n" +
                         "To run a Jarvis launcher command (like setting themes or volume), output:\n" +
                         "[RUN_COMMAND: theme dracula]\n\n" +
                         "Provide file paths exactly as requested (usually absolute Windows paths). " +
@@ -141,6 +185,28 @@ namespace JarvisLauncher
                         "Below are additional instructions from your local files:\n" +
                         instructions;
 
+                    // Build contents array supporting multi-turn conversation context
+                    var contentsList = new List<object>();
+
+                    if (history != null && history.Count > 0)
+                    {
+                        foreach (var turn in history)
+                        {
+                            contentsList.Add(new
+                            {
+                                role = turn.Role,
+                                parts = new[] { new { text = turn.Text } }
+                            });
+                        }
+                    }
+
+                    // Add current turn
+                    contentsList.Add(new
+                    {
+                        role = "user",
+                        parts = new[] { new { text = prompt } }
+                    });
+
                     var payload = new
                     {
                         systemInstruction = new
@@ -150,16 +216,7 @@ namespace JarvisLauncher
                                 new { text = systemPrompt }
                             }
                         },
-                        contents = new[]
-                        {
-                            new
-                            {
-                                parts = new[]
-                                {
-                                    new { text = prompt }
-                                }
-                            }
-                        }
+                        contents = contentsList.ToArray()
                     };
 
                     string jsonBody = JsonSerializer.Serialize(payload);

@@ -1,18 +1,18 @@
 // Developer: heaplyn
 // Date: 2026-08-09
-// Summary: Handles CLI commands to toggle interactive Bitcoin mining simulator GUI (`btc`, `mine`, `bitcoin`).
+// Summary: Handles CLI commands to open interactive Music Player & Playlist Manager GUI (`music`, `playlist`, `player`, `songs`).
 
 using System;
 using System.Collections.Generic;
 
 namespace JarvisLauncher
 {
-    public class BitcoinMinerCommandHandler : ICommandHandler
+    public class MusicPlaylistCommandHandler : ICommandHandler
     {
         public bool CanHandle(string query)
         {
             query = query.Trim().ToLower();
-            return query == "btc" || query == "mine" || query == "bitcoin" || query == "miner";
+            return query == "music" || query == "playlist" || query == "player" || query == "songs" || query == "song";
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -24,10 +24,10 @@ namespace JarvisLauncher
 
             suggestions.Add(new CommandResult
             {
-                Title       = "⛏️ Toggle Bitcoin Miner Simulator",
-                Description = "Launch live matrix SHA-256 Bitcoin mining overlay GUI",
+                Title       = "🎵 Open Music Player & Playlist Manager",
+                Description = "Manage song folders, add audio files/links, and play music",
                 Similarity  = similarity,
-                Execute     = () => BitcoinMinerOverlay.ToggleMiner()
+                Execute     = () => MusicPlaylistOverlay.OpenPlayer()
             });
 
             return suggestions;

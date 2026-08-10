@@ -3,12 +3,14 @@
 // Summary: Draggable, interactive AI chat companion panel with scrollable history and message input.
 
 using System;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace JarvisLauncher
 {
@@ -140,39 +142,196 @@ namespace JarvisLauncher
             this.UserContent = contentGrid;
         }
 
+        private readonly List<ChatTurn> _conversationHistory = new List<ChatTurn>();
+
         private async Task SendUserMessage(string message)
         {
-            // 1. Add User Message Bubble
+            // 1. Add User Message Bubble for this turn
             AddMessageBubble(message, isAi: false);
 
-            // 2. Add temporary "Thinking" bubble
-            var thinkingBorder = AddMessageBubble(" Jarvis is thinking...", isAi: true, isItalic: true);
+            // 2. Determine turn number & create a brand new dedicated AI response message bubble for this chained turn
+            int turnNumber = (_conversationHistory.Count / 2) + 1;
+            string initialStatus = turnNumber > 1 
+                ? $"🧠 [Turn {turnNumber}] Analyzing chained context & formulating response..." 
+                : "🧠 Jarvis is initializing deep reasoning...";
+
+            var (aiBorder, aiTextBox) = AddMessageBubbleWithControl(initialStatus, isAi: true, isItalic: true);
+
+            using var cts = new System.Threading.CancellationTokenSource();
+
+            // Start background status updates directly inside this turn's new AI response bubble
+            var thinkingTask = Task.Run(async () =>
+            {
+                string[] thinkingPhases = turnNumber > 1
+                    ? new[]
+                    {
+                        $"🧠 [Turn {turnNumber}] Analyzing chained conversation history...",
+                        "🔍 Searching local codebase & workspace memory...",
+                        "⚡ Evaluating previous turn context & instructions...",
+                        "📡 Querying Gemini AI model endpoints...",
+                        "⚙️ Executing follow-up agent file operations...",
+                        "📝 Synthesizing chained response...",
+                        "✨ Finalizing formatting and output verification..."
+                    }
+                    : new[]
+                    {
+                        "🧠 Analyzing query structure & intentions...",
+                        "🔍 Searching local codebase & workspace memory...",
+                        "⚡ Formulating deep reasoning context...",
+                        "📡 Querying Gemini AI model endpoints...",
+                        "⚙️ Evaluating file operations and shell commands...",
+                        "📝 Synthesizing comprehensive response...",
+                        "✨ Finalizing formatting and output verification..."
+                    };
+
+                int index = 0;
+                while (!cts.Token.IsCancellationRequested)
+                {
+                    string currentThought = thinkingPhases[index % thinkingPhases.Length];
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        aiTextBox.Text = currentThought;
+                        _scrollViewer.UpdateLayout();
+                        _scrollViewer.ScrollToBottom();
+                    });
+
+                    index++;
+                    try { await Task.Delay(3500, cts.Token); } catch { break; }
+                }
+            });
 
             try
             {
-                // 3. Ask Gemini
-                string aiResponse = await AiAPI.AskGemini(message);
-
-                // Remove thinking indicator
-                _chatHistoryPanel.Children.Remove(thinkingBorder);
+                // 3. Ask Gemini with full multi-turn chained history context
+                string aiResponse = await AiAPI.AskGemini(message, _conversationHistory);
 
                 // 4. Run through filesystem agent parser
                 string finalResult = AgentExecutor.ProcessAIResponse(aiResponse);
 
-                // 5. Render AI response
-                AddMessageBubble(finalResult, isAi: true);
+                // Stop thinking animation loop
+                cts.Cancel();
+
+                // 5. Multi-message rendering: Remove thinking bubble and spawn separate response bubbles for each block
+                var messageBlocks = SplitIntoMultipleMessages(finalResult);
+
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    // Remove temporary thinking indicator bubble
+                    _chatHistoryPanel.Children.Remove(aiBorder);
+
+                    // Render every message block as a distinct, dedicated AI chat bubble for this turn!
+                    foreach (var block in messageBlocks)
+                    {
+                        AddMessageBubble(block, isAi: true);
+                    }
+
+                    _scrollViewer.UpdateLayout();
+                    _scrollViewer.ScrollToBottom();
+                });
+
+                // 6. Chain conversation turns together for future messages (retains up to 100 turns / 200 items)
+                _conversationHistory.Add(new ChatTurn { Role = "user", Text = message });
+                _conversationHistory.Add(new ChatTurn { Role = "model", Text = finalResult });
+
+                if (_conversationHistory.Count > 200)
+                {
+                    _conversationHistory.RemoveRange(0, 2); // Maintain rolling 100-turn window
+                }
+
+                // 7. Log conversation turn to .txt file
+                LogConversationTurn(message, finalResult);
             }
             catch (Exception ex)
             {
-                _chatHistoryPanel.Children.Remove(thinkingBorder);
-                AddMessageBubble($"⚠️ Error generating response: {ex.Message}", isAi: true);
+                cts.Cancel();
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    aiTextBox.Text = $"⚠️ Error generating response: {ex.Message}";
+                    aiTextBox.FontStyle = FontStyles.Normal;
+                });
+                LogConversationTurn(message, $"ERROR: {ex.Message}");
             }
         }
 
-        private Border AddMessageBubble(string text, bool isAi, bool isItalic = false)
+        private static List<string> SplitIntoMultipleMessages(string rawText)
         {
-            var brushConverter = new BrushConverter();
-            
+            var list = new List<string>();
+            if (string.IsNullOrWhiteSpace(rawText)) return list;
+
+            // Split into up to 100 individual message bubbles based on double newlines, line breaks, or section headers
+            string[] parts = rawText.Split(new[] { "\n\n", "\r\n\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+
+            var currentBlock = new System.Text.StringBuilder();
+
+            foreach (var p in parts)
+            {
+                string trimmed = p.Trim();
+                if (string.IsNullOrWhiteSpace(trimmed)) continue;
+
+                // Create a new separate message bubble for every distinct thought/line/header (up to 100 bubbles limit)
+                if (list.Count < 100)
+                {
+                    if (currentBlock.Length > 0 && (trimmed.StartsWith("- ") || trimmed.StartsWith("* ") || trimmed.StartsWith("#") || trimmed.StartsWith("```") || trimmed.StartsWith("[") || currentBlock.Length > 150))
+                    {
+                        list.Add(currentBlock.ToString().Trim());
+                        currentBlock.Clear();
+                    }
+
+                    if (currentBlock.Length > 0) currentBlock.AppendLine();
+                    currentBlock.Append(trimmed);
+                }
+                else
+                {
+                    currentBlock.AppendLine(trimmed);
+                }
+            }
+
+            if (currentBlock.Length > 0)
+            {
+                list.Add(currentBlock.ToString().Trim());
+            }
+
+            return list.Count > 0 ? list : new List<string> { rawText };
+        }
+
+        private static void LogConversationTurn(string userMessage, string aiResponse)
+        {
+            try
+            {
+                string dataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Conversations");
+                if (!Directory.Exists(dataDir)) Directory.CreateDirectory(dataDir);
+
+                // Create a daily conversation log file (e.g. ChatLog_2026-08-09.txt)
+                string fileName = $"ChatLog_{DateTime.Now:yyyy-MM-dd}.txt";
+                string filePath = Path.Combine(dataDir, fileName);
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"==========================================================================");
+                sb.AppendLine($"TIMESTAMP: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                sb.AppendLine($"USER: {userMessage}");
+                sb.AppendLine($"--------------------------------------------------------------------------");
+                sb.AppendLine($"JARVIS: {aiResponse}");
+                sb.AppendLine($"==========================================================================");
+                sb.AppendLine();
+
+                File.AppendAllText(filePath, sb.ToString());
+            }
+            catch { }
+        }
+
+        private async Task UpdateThinkingStatus(TextBox targetTextBox, string statusText, int delayMs)
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                targetTextBox.Text = statusText;
+                _scrollViewer.UpdateLayout();
+                _scrollViewer.ScrollToBottom();
+            });
+            await Task.Delay(delayMs);
+        }
+
+        private (Border Border, TextBox TextBox) AddMessageBubbleWithControl(string text, bool isAi, bool isItalic = false)
+        {
             var bubbleBg = isAi 
                 ? new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) 
                 : new SolidColorBrush(Color.FromArgb(64, 128, 80, 230));
@@ -190,7 +349,6 @@ namespace JarvisLauncher
             var textBox = new TextBox
             {
                 Text = text,
-                Foreground = Brushes.White,
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
                 IsReadOnly = true,
@@ -202,6 +360,7 @@ namespace JarvisLauncher
                 Cursor = Cursors.Arrow,
                 Margin = new Thickness(0)
             };
+            textBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
 
             bubbleBorder.Child = textBox;
             _chatHistoryPanel.Children.Add(bubbleBorder);
@@ -210,7 +369,13 @@ namespace JarvisLauncher
             _scrollViewer.UpdateLayout();
             _scrollViewer.ScrollToBottom();
 
-            return bubbleBorder;
+            return (bubbleBorder, textBox);
+        }
+
+        private Border AddMessageBubble(string text, bool isAi, bool isItalic = false)
+        {
+            var tuple = AddMessageBubbleWithControl(text, isAi, isItalic);
+            return tuple.Border;
         }
     }
 }

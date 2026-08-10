@@ -279,35 +279,106 @@ namespace JarvisLauncher
             return suggestions;
         }
 
-        // --- MACRO PERSISTENCE ---
+        // --- MACRO PERSISTENCE (.TXT FILES & JSON) ---
         private static List<MacroItem> LoadMacros()
         {
+            var list = new List<MacroItem>();
+
             try
             {
-                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Macros.json");
-                if (File.Exists(path))
+                // 1. Scan Macros directory for .txt files
+                string macrosDir = GetMacrosDirectory();
+                if (Directory.Exists(macrosDir))
                 {
-                    string json = File.ReadAllText(path);
-                    return JsonSerializer.Deserialize<List<MacroItem>>(json) ?? new List<MacroItem>();
+                    var txtFiles = Directory.GetFiles(macrosDir, "*.txt");
+                    foreach (var file in txtFiles)
+                    {
+                        string macroName = Path.GetFileNameWithoutExtension(file);
+                        string[] lines = File.ReadAllLines(file);
+                        var validCommands = new List<string>();
+
+                        foreach (var line in lines)
+                        {
+                            string trimmed = line.Trim();
+                            if (!string.IsNullOrWhiteSpace(trimmed) && !trimmed.StartsWith("#") && !trimmed.StartsWith("//"))
+                            {
+                                validCommands.Add(trimmed);
+                            }
+                        }
+
+                        if (validCommands.Count > 0)
+                        {
+                            string chain = string.Join(" | ", validCommands);
+                            list.Add(new MacroItem { Name = macroName, CommandsChain = chain });
+                        }
+                    }
+                }
+
+                // 2. Load JSON macros
+                string jsonPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Macros.json");
+                if (File.Exists(jsonPath))
+                {
+                    string json = File.ReadAllText(jsonPath);
+                    var jsonMacros = JsonSerializer.Deserialize<List<MacroItem>>(json);
+                    if (jsonMacros != null)
+                    {
+                        foreach (var jm in jsonMacros)
+                        {
+                            if (!list.Exists(m => m.Name.Equals(jm.Name, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                list.Add(jm);
+                            }
+                        }
+                    }
                 }
             }
             catch { }
-            return new List<MacroItem>();
+
+            return list;
+        }
+
+        private static string GetMacrosDirectory()
+        {
+            string checkDir = AppDomain.CurrentDomain.BaseDirectory;
+            for (int i = 0; i < 5; i++)
+            {
+                string targetFolder = Path.Combine(checkDir, "Macros");
+                if (Directory.Exists(targetFolder))
+                {
+                    return targetFolder;
+                }
+                var parent = Directory.GetParent(checkDir);
+                if (parent == null) break;
+                checkDir = parent.FullName;
+            }
+
+            string defaultPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Macros");
+            if (!Directory.Exists(defaultPath)) Directory.CreateDirectory(defaultPath);
+            return defaultPath;
         }
 
         private static void SaveMacro(string name, string chain)
         {
-            var macros = LoadMacros();
-            macros.RemoveAll(m => m.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-            macros.Add(new MacroItem { Name = name, CommandsChain = chain });
             try
             {
-                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Macros.json");
-                string json = JsonSerializer.Serialize(macros, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(path, json);
-                TextOverlay.Show($"⚡ Macro '{name}' saved!", 2500);
+                string macrosDir = GetMacrosDirectory();
+                string txtPath = Path.Combine(macrosDir, $"{name}.txt");
+                
+                // Write each command separated by newlines
+                string[] commands = chain.Split('|', StringSplitOptions.RemoveEmptyEntries);
+                var sb = new StringBuilder();
+                foreach (var c in commands)
+                {
+                    sb.AppendLine(c.Trim());
+                }
+
+                File.WriteAllText(txtPath, sb.ToString());
+                TextOverlay.Show($"⚡ Macro '{name}.txt' saved in Macros folder!", 2500);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                TextOverlay.Show($"⚠️ Save failed: {ex.Message}", 3000);
+            }
         }
 
         private static void ParseAndAddMacro(string input)
