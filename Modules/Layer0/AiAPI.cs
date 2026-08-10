@@ -10,6 +10,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Collections.Generic;
 
 namespace JarvisLauncher
 {
@@ -85,21 +86,24 @@ namespace JarvisLauncher
 
         private static async Task<string> QueryGeminiRaw(string prompt, string apiKey)
         {
-            // List of candidate models tried in sequence
-            string[] models = new[] {
-                "gemini-2.0-flash",
-                "gemini-1.5-flash-8b",
-                "gemini-2.0-flash-lite",
-                "gemini-1.5-flash"
-            };
+            // Dynamically discover active supported models for this API key if needed
+            var discoveredModels = await DiscoverActiveModelsAsync(apiKey);
 
+            string[] models = discoveredModels.Count > 0 
+                ? discoveredModels.ToArray() 
+                : new[] { "gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash", "gemini-pro" };
+
+            string[] apiVersions = new[] { "v1beta", "v1" };
             string lastError = "";
 
-            foreach (var model in models)
+            foreach (var apiVer in apiVersions)
             {
-                try
+                foreach (var model in models)
                 {
-                    var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={apiKey}";
+                    try
+                    {
+                        string cleanModel = model.StartsWith("models/") ? model.Substring(7) : model;
+                        var url = $"https://generativelanguage.googleapis.com/{apiVer}/models/{cleanModel}:generateContent?key={apiKey}";
                     
                     string instructions = InstructionsManager.GetFormattedInstructions();
                     string instructionsPath = InstructionsManager.InstructionsDirectory;
@@ -190,12 +194,58 @@ namespace JarvisLauncher
                 }
                 catch (Exception ex)
                 {
-                    lastError = $"Exception querying model '{model}': {ex.Message}";
+                    lastError = $"Exception querying model '{model}' ({apiVer}): {ex.Message}";
                     continue;
                 }
             }
+            }
 
             return $"Error: All candidate Gemini models failed to respond.\nLast error details:\n{lastError}";
+        }
+
+        private static List<string> _cachedDiscoveredModels = new List<string>();
+
+        private static async Task<List<string>> DiscoverActiveModelsAsync(string apiKey)
+        {
+            if (_cachedDiscoveredModels.Count > 0) return _cachedDiscoveredModels;
+
+            try
+            {
+                var listUrl = $"https://generativelanguage.googleapis.com/v1beta/models?key={apiKey}";
+                var resp = await _client.GetAsync(listUrl);
+                if (resp.IsSuccessStatusCode)
+                {
+                    string json = await resp.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("models", out var modelsArr))
+                    {
+                        var discovered = new List<string>();
+                        foreach (var m in modelsArr.EnumerateArray())
+                        {
+                            if (m.TryGetProperty("name", out var nameProp) && m.TryGetProperty("supportedGenerationMethods", out var methods))
+                            {
+                                string name = nameProp.GetString() ?? "";
+                                foreach (var method in methods.EnumerateArray())
+                                {
+                                    if (method.GetString() == "generateContent")
+                                    {
+                                        discovered.Add(name);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if (discovered.Count > 0)
+                        {
+                            _cachedDiscoveredModels = discovered;
+                            return _cachedDiscoveredModels;
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            return _cachedDiscoveredModels;
         }
     }
 }
