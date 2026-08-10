@@ -415,13 +415,34 @@ namespace JarvisLauncher
                 _nowPlayingTitle.Text = track.Title;
                 _nowPlayingArtist.Text = track.IsStreamUrl ? $"Stream Link: {track.PathOrUrl}" : $"Local File: {track.PathOrUrl}";
 
-                // Kill existing web stream process if currently playing another stream
+                // Stop local WPF MediaPlayer if currently playing local audio
+                try
+                {
+                    _mediaPlayer.Stop();
+                    _mediaPlayer.Close();
+                }
+                catch { }
+
+                // Kill existing web stream process and orphan browser app processes
                 try
                 {
                     if (_streamProcess != null && !_streamProcess.HasExited)
                     {
                         _streamProcess.Kill(entireProcessTree: true);
                         _streamProcess = null;
+                    }
+
+                    // Scan for orphan app window processes launched by web streams
+                    foreach (var proc in System.Diagnostics.Process.GetProcessesByName("chrome"))
+                    {
+                        try
+                        {
+                            if (proc.MainWindowTitle.Contains("YouTube") || proc.MainWindowTitle.Contains("Spotify") || proc.MainWindowTitle.Contains("SoundCloud"))
+                            {
+                                proc.Kill(entireProcessTree: true);
+                            }
+                        }
+                        catch { }
                     }
                 }
                 catch { }
