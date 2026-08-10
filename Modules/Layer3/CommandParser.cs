@@ -65,95 +65,67 @@ namespace JarvisLauncher
             OnTextOpacityChanged?.Invoke(opacity);
         }
 
-        public static Dictionary<CommandType, CommandDictType> Handlers = new Dictionary<CommandType, CommandDictType>
+        public static Dictionary<CommandType, CommandDictType> Handlers = new Dictionary<CommandType, CommandDictType>();
+
+        static CommandParser()
         {
-            { CommandType.MATH,
-            new CommandDictType("Perform mathematical calculations", new MathCommandHandler()) },
-            { CommandType.VOLUME,
-            new CommandDictType("Control system volume", new VolumeCommandHandler()) },
-            { CommandType.LOCK,
-            new CommandDictType("Lock the system", new LockCommandHandler()) },
-            { CommandType.RESTART,
-            new CommandDictType("Restart the application", new RestartCommandHandler()) },
-            { CommandType.OPACITY,
-            new CommandDictType("Control HUD transparency", new OpacityCommandHandler()) },
-            { CommandType.TIMER,
-            new CommandDictType("Set alarm timers", new TimerCommandHandler()) },
-            { CommandType.SYSTEM_STATS,
-            new CommandDictType("Monitor CPU and RAM", new SystemStatsCommandHandler()) },
-            { CommandType.LOCAL_IP,
-            new CommandDictType("Query network connections", new LocalIpCommandHandler()) },
-            { CommandType.BRIGHTNESS,
-            new CommandDictType("Control monitor brightness", new BrightnessCommandHandler()) },
-            { CommandType.CLI_RUNNER,
-            new CommandDictType("Run shell terminal queries", new CliRunnerCommandHandler()) },
-            { CommandType.APP_LAUNCHER,
-            new CommandDictType("Launch applications", new AppLauncherCommandHandler()) },
-            { CommandType.VIEW_FILE,
-            new CommandDictType("View text file contents", new ViewFileCommandHandler()) },
-            { CommandType.SETTINGS,
-            new CommandDictType("Manage configuration settings", new SettingsCommandHandler()) },
-            { CommandType.AI,
-            new CommandDictType("Ask Jarvis AI assistant", new AiCommandHandler()) },
-            { CommandType.RECYCLE_BIN,
-            new CommandDictType("Empty Recycle Bin", new RecycleBinCommandHandler()) },
-            { CommandType.PROCESS_KILLER,
-            new CommandDictType("Kill running processes", new ProcessKillerCommandHandler()) },
-            { CommandType.POWER,
-            new CommandDictType("PC Power operations", new PowerCommandHandler()) },
-            { CommandType.ALIAS,
-            new CommandDictType("Manage command shortcuts", new AliasCommandHandler()) },
-            { CommandType.TEXT_OPACITY,
-            new CommandDictType("Adjust UI text transparency", new TextOpacityCommandHandler()) },
-            { CommandType.GIT_PUSH,
-            new CommandDictType("Push project repository to GitHub", new GitPushCommandHandler()) },
-            { CommandType.COMMANDS,
-            new CommandDictType("View all system commands", new CommandsCommandHandler()) },
-            { CommandType.GIT_SETUP,
-            new CommandDictType("Set up Git repository and credentials", new GitSetupCommandHandler()) },
-            { CommandType.LOGS,
-            new CommandDictType("Manage system execution logs", new LogCommandHandler()) },
-            { CommandType.DOWNLOAD_PATH,
-            new CommandDictType("Configure custom download destination folder path", new DownloadPathCommandHandler()) },
-            { CommandType.EXIT,
-            new CommandDictType("Exit Jarvis Launcher application", new ExitCommandHandler()) },
-            { CommandType.UPDATE,
-            new CommandDictType("Pull latest codebase updates from GitHub", new UpdateCommandHandler()) },
-            { CommandType.POWERSHELL,
-            new CommandDictType("Execute PowerShell CLI commands", new PowerShellRunnerCommandHandler()) },
-            { CommandType.UPDATE_COMPUTER,
-            new CommandDictType("Update computer software", new UpdateComputerCommandHandler()) },
-            { CommandType.SYS_INFO,
-            new CommandDictType("View system specifications", new SysInfoCommandHandler()) },
-            { CommandType.SEARCH_LAUNCHER,
-            new CommandDictType("Open web searches", new SearchLauncherCommandHandler()) },
-            { CommandType.SCREENSHOT,
-            new CommandDictType("Capture screen captures", new ScreenshotCommandHandler()) },
-            { CommandType.MUTE,
-            new CommandDictType("Mute system sound device", new MuteCommandHandler()) },
-            { CommandType.CLIPBOARD,
-            new CommandDictType("Clear or check clipboard texts", new ClipboardCommandHandler()) },
-            { CommandType.TODO,
-            new CommandDictType("Persistently manage lists of tasks", new TodoCommandHandler()) },
-            { CommandType.THEME,
-            new CommandDictType("Change HUD appearance theme colors", new ThemeCommandHandler()) },
-            { CommandType.EDIT,
-            new CommandDictType("Edit files in built-in Text Editor", new EditCommandHandler()) },
-            { CommandType.OPEN,
-            new CommandDictType("Open file using Windows default program", new OpenNativeCommandHandler()) },
-            { CommandType.GRID,
-            new CommandDictType("Manage visual files launchpad dashboard", new GridCommandHandler()) },
-            { CommandType.PRODUCTIVITY,
-            new CommandDictType("Manage quick notes and desktop reminders", new ProductivityCommandHandler()) },
-            { CommandType.EXTRA_FEATURES,
-            new CommandDictType("Desktop file search, snippets, apps, and web summarizer", new ExtraFeaturesCommandHandler()) },
-            { CommandType.NEW_IDEAS,
-            new CommandDictType("Window snap, macros, ping, jumps, task manager GUI, time, and hash", new NewIdeasCommandHandler()) },
-            { CommandType.MUSIC_PLAYLIST,
-            new CommandDictType("Interactive Music Player & Playlist Manager GUI", new MusicPlaylistCommandHandler()) },
-            { CommandType.STICKY_NOTE,
-            new CommandDictType("Visual Desktop Sticky Notes widget", new StickyNotesCommandHandler()) }
-        };
+            RegisterHandler(CommandType.MATH, "Perform mathematical calculations", () => new MathCommandHandler());
+            RegisterHandler(CommandType.VOLUME, "Control system volume", () => new VolumeCommandHandler());
+            RegisterHandler(CommandType.LOCK, "Lock the system", () => new LockCommandHandler());
+            RegisterHandler(CommandType.RESTART, "Restart the application", () => new RestartCommandHandler());
+            RegisterHandler(CommandType.OPACITY, "Control HUD transparency", () => new OpacityCommandHandler());
+            RegisterHandler(CommandType.TIMER, "Set alarm timers", () => new TimerCommandHandler());
+            RegisterHandler(CommandType.SYSTEM_STATS, "Monitor CPU and RAM", () => new SystemStatsCommandHandler());
+            RegisterHandler(CommandType.LOCAL_IP, "Query network connections", () => new LocalIpCommandHandler());
+            RegisterHandler(CommandType.BRIGHTNESS, "Control monitor brightness", () => new BrightnessCommandHandler());
+            RegisterHandler(CommandType.CLI_RUNNER, "Run shell terminal queries", () => new CliRunnerCommandHandler());
+            RegisterHandler(CommandType.APP_LAUNCHER, "Launch applications", () => new AppLauncherCommandHandler());
+            RegisterHandler(CommandType.VIEW_FILE, "View text file contents", () => new ViewFileCommandHandler());
+            RegisterHandler(CommandType.SETTINGS, "Manage configuration settings", () => new SettingsCommandHandler());
+            RegisterHandler(CommandType.AI, "Ask Jarvis AI assistant", () => new AiCommandHandler());
+            RegisterHandler(CommandType.RECYCLE_BIN, "Empty Recycle Bin", () => new RecycleBinCommandHandler());
+            RegisterHandler(CommandType.PROCESS_KILLER, "Kill running processes", () => new ProcessKillerCommandHandler());
+            RegisterHandler(CommandType.POWER, "PC Power operations", () => new PowerCommandHandler());
+            RegisterHandler(CommandType.ALIAS, "Manage command shortcuts", () => new AliasCommandHandler());
+            RegisterHandler(CommandType.TEXT_OPACITY, "Adjust UI text transparency", () => new TextOpacityCommandHandler());
+            RegisterHandler(CommandType.GIT_PUSH, "Push project repository to GitHub", () => new GitPushCommandHandler());
+            RegisterHandler(CommandType.COMMANDS, "View all system commands", () => new CommandsCommandHandler());
+            RegisterHandler(CommandType.GIT_SETUP, "Set up Git repository and credentials", () => new GitSetupCommandHandler());
+            RegisterHandler(CommandType.LOGS, "Manage system execution logs", () => new LogCommandHandler());
+            RegisterHandler(CommandType.DOWNLOAD_PATH, "Configure custom download destination folder path", () => new DownloadPathCommandHandler());
+            RegisterHandler(CommandType.EXIT, "Exit Jarvis Launcher application", () => new ExitCommandHandler());
+            RegisterHandler(CommandType.UPDATE, "Pull latest codebase updates from GitHub", () => new UpdateCommandHandler());
+            RegisterHandler(CommandType.POWERSHELL, "Execute PowerShell CLI commands", () => new PowerShellRunnerCommandHandler());
+            RegisterHandler(CommandType.UPDATE_COMPUTER, "Update computer software", () => new UpdateComputerCommandHandler());
+            RegisterHandler(CommandType.SYS_INFO, "View system specifications", () => new SysInfoCommandHandler());
+            RegisterHandler(CommandType.SEARCH_LAUNCHER, "Open web searches", () => new SearchLauncherCommandHandler());
+            RegisterHandler(CommandType.SCREENSHOT, "Capture screen captures", () => new ScreenshotCommandHandler());
+            RegisterHandler(CommandType.MUTE, "Mute system sound device", () => new MuteCommandHandler());
+            RegisterHandler(CommandType.CLIPBOARD, "Clear or check clipboard texts", () => new ClipboardCommandHandler());
+            RegisterHandler(CommandType.TODO, "Persistently manage lists of tasks", () => new TodoCommandHandler());
+            RegisterHandler(CommandType.THEME, "Change HUD appearance theme colors", () => new ThemeCommandHandler());
+            RegisterHandler(CommandType.EDIT, "Edit files in built-in Text Editor", () => new EditCommandHandler());
+            RegisterHandler(CommandType.OPEN, "Open file using Windows default program", () => new OpenNativeCommandHandler());
+            RegisterHandler(CommandType.GRID, "Manage visual files launchpad dashboard", () => new GridCommandHandler());
+            RegisterHandler(CommandType.PRODUCTIVITY, "Manage quick notes and desktop reminders", () => new ProductivityCommandHandler());
+            RegisterHandler(CommandType.EXTRA_FEATURES, "Desktop file search, snippets, apps, and web summarizer", () => new ExtraFeaturesCommandHandler());
+            RegisterHandler(CommandType.NEW_IDEAS, "Window snap, macros, ping, jumps, task manager GUI, time, and hash", () => new NewIdeasCommandHandler());
+            RegisterHandler(CommandType.MUSIC_PLAYLIST, "Interactive Music Player & Playlist Manager GUI", () => new MusicPlaylistCommandHandler());
+            RegisterHandler(CommandType.STICKY_NOTE, "Visual Desktop Sticky Notes widget", () => new StickyNotesCommandHandler());
+        }
+
+        private static void RegisterHandler(CommandType type, string description, Func<ICommandHandler> factory)
+        {
+            try
+            {
+                var handler = factory();
+                Handlers[type] = new CommandDictType(description, handler);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Failed to load command handler {type}: {ex.Message}");
+            }
+        }
 
         public static List<CommandResult> GetSuggestions(string query)
         {
