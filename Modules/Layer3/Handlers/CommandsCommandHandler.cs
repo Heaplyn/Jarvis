@@ -85,6 +85,13 @@ namespace JarvisLauncher
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "fetch <url>", "Scrape & summarize webpage with AI", "fetch https://..."));
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "monitor / stats", "Toggle live floating system monitor", "monitor"));
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "vol night/gaming", "Quick volume preset profiles", "vol night"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "snap left/right", "Snap foreground window to screen half", "snap left"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "macro <name>", "Execute multi-command action chain", "macro focus"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "ping <host>", "Check network roundtrip latency", "ping 8.8.8.8"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "jump <folder>", "Quick jump to system folder path", "jump downloads"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "procs / taskmgr", "Open interactive Process Manager GUI", "procs"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "time <city>", "Look up global time & UTC offset", "time Tokyo"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "hash <file>", "Compute file SHA-256 checksum", "hash notes.txt"));
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "> <cmd>", "Run terminal command in cmd.exe", ">dir"));
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "$ <cmd>", "Run command in PowerShell", "$Get-Process"));
 

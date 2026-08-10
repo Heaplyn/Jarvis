@@ -38,6 +38,24 @@ namespace JarvisLauncher
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool LockWorkStation();
 
+        [DllImport("user32.dll")]
+        public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+
+        public const uint KEYEVENTF_KEYUP = 0x0002;
+
+        public static void SendKeyCombo(byte modifierVk, byte keyVk)
+        {
+            try
+            {
+                keybd_event(modifierVk, 0, 0, UIntPtr.Zero);
+                keybd_event(keyVk, 0, 0, UIntPtr.Zero);
+                Thread.Sleep(50);
+                keybd_event(keyVk, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+                keybd_event(modifierVk, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            }
+            catch { }
+        }
+
         // Memory structure for GlobalMemoryStatusEx
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
         public struct MEMORYSTATUSEX

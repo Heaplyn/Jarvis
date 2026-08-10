@@ -51,7 +51,8 @@ namespace JarvisLauncher
         OPEN,
         GRID,
         PRODUCTIVITY,
-        EXTRA_FEATURES
+        EXTRA_FEATURES,
+        NEW_IDEAS
     };
 
     public static class CommandParser
@@ -146,7 +147,9 @@ namespace JarvisLauncher
             { CommandType.PRODUCTIVITY,
             new CommandDictType("Manage quick notes and desktop reminders", new ProductivityCommandHandler()) },
             { CommandType.EXTRA_FEATURES,
-            new CommandDictType("Desktop file search, snippets, apps, and web summarizer", new ExtraFeaturesCommandHandler()) }
+            new CommandDictType("Desktop file search, snippets, apps, and web summarizer", new ExtraFeaturesCommandHandler()) },
+            { CommandType.NEW_IDEAS,
+            new CommandDictType("Window snap, macros, ping, jumps, task manager GUI, time, and hash", new NewIdeasCommandHandler()) }
         };
 
         public static List<CommandResult> GetSuggestions(string query)
