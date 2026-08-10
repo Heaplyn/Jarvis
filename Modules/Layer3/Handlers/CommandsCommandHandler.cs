@@ -72,6 +72,12 @@ namespace JarvisLauncher
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "todo <add/done/list>", "Manage local Todo tasks list", "todo list"));
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "theme <name>", "Switch interface color theme", "theme blue"));
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "edit <filename>", "Open file in built-in Text Editor", "edit notes.txt"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "open <filename>", "Open file via Windows default app", "open report.pdf"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "grid / files", "View pinned files launchpad grid", "grid"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "pin <filename>", "Pin file to launchpad dashboard", "pin C:\\notes.txt"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "unpin <filename>", "Remove file from launchpad grid", "unpin C:\\notes.txt"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "note <text>", "Quickly append text to notes.txt", "note Meeting at 3pm"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "remind <time> <msg>", "Set popup alert (e.g. 5m, 30s)", "remind 10m Break"));
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "> <cmd>", "Run terminal command in cmd.exe", ">dir"));
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "$ <cmd>", "Run command in PowerShell", "$Get-Process"));
 

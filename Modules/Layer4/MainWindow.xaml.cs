@@ -38,6 +38,9 @@ namespace JarvisLauncher
         {
             PositionWindowAtTopCenter();
 
+            // Initialize Clipboard History Manager
+            ClipboardHistoryManager.Initialize();
+
             // Apply persistent theme from settings
             try
             {

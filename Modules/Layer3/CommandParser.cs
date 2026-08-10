@@ -47,7 +47,10 @@ namespace JarvisLauncher
         CLIPBOARD,
         TODO,
         THEME,
-        EDIT
+        EDIT,
+        OPEN,
+        GRID,
+        PRODUCTIVITY
     };
 
     public static class CommandParser
@@ -134,7 +137,13 @@ namespace JarvisLauncher
             { CommandType.THEME,
             new CommandDictType("Change HUD appearance theme colors", new ThemeCommandHandler()) },
             { CommandType.EDIT,
-            new CommandDictType("Edit files in built-in Text Editor", new EditCommandHandler()) }
+            new CommandDictType("Edit files in built-in Text Editor", new EditCommandHandler()) },
+            { CommandType.OPEN,
+            new CommandDictType("Open file using Windows default program", new OpenNativeCommandHandler()) },
+            { CommandType.GRID,
+            new CommandDictType("Manage visual files launchpad dashboard", new GridCommandHandler()) },
+            { CommandType.PRODUCTIVITY,
+            new CommandDictType("Manage quick notes and desktop reminders", new ProductivityCommandHandler()) }
         };
 
         public static List<CommandResult> GetSuggestions(string query)
