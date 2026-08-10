@@ -14,6 +14,11 @@ namespace JarvisLauncher
         public string GithubToken { get; set; } = string.Empty;
         public string DownloadDirectory { get; set; } = string.Empty;
         public string Theme { get; set; } = "purple";
+        public bool StartWithWindows { get; set; } = false;
+        public bool PlaySounds { get; set; } = true;
+        public bool AutoHideOnExecute { get; set; } = true;
+        public double WindowOpacity { get; set; } = 1.0;
+        public string DefaultSearchEngine { get; set; } = "Google";
         public System.Collections.Generic.Dictionary<string, string> Aliases { get; set; } = new System.Collections.Generic.Dictionary<string, string>();
     }
 

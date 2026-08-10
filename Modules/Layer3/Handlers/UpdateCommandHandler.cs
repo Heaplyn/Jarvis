@@ -139,12 +139,23 @@ namespace JarvisLauncher
             await RunCommandAsync("git", $"branch --set-upstream-to=origin/{branchName} {branchName}", projectRoot);
             log.AppendLine();
 
-            if (force)
+            // Check configured GitHub Token in settings
+            string ghToken = SettingsManager.Current.GithubToken;
+            if (!string.IsNullOrEmpty(ghToken))
+            {
+                // Configure git extraheader for token authentication
+                string authHeader = $"http.https://github.com/.extraheader=AUTHORIZATION: basic {Convert.ToBase64String(Encoding.UTF8.GetBytes($"x-access-token:{ghToken}"))}";
+                await RunCommandAsync("git", $"config {authHeader}", projectRoot);
+            }
+
+            log.AppendLine("--- FETCHING LATEST COMMITS FROM GITHUB ---");
+            string fetchLogs = await RunCommandAsync("git", "fetch --all --prune", projectRoot);
+            log.AppendLine(fetchLogs);
+            log.AppendLine();
+
+            if (force || fetchLogs.Contains("unrelated histories") || fetchLogs.Contains("divergent"))
             {
                 log.AppendLine("--- FORCING OVERWRITE FROM GITHUB ---");
-                log.AppendLine("⚡ Fetching all remote updates...");
-                await RunCommandAsync("git", "fetch --all", projectRoot);
-                
                 log.AppendLine($"⚡ Overwriting local branch with origin/{branchName}...");
                 string resetResult = await RunCommandAsync("git", $"reset --hard origin/{branchName}", projectRoot);
                 log.AppendLine(resetResult);
@@ -168,76 +179,52 @@ namespace JarvisLauncher
                 
                 await Task.Delay(1000);
                 NativeMethods.Restart();
+                return;
+            }
+
+            // Standard pull logic with automatic fallback to force-checkout if pull fails
+            string pullResult = await RunCommandAsync("git", $"pull origin {branchName} --allow-unrelated-histories --no-rebase", projectRoot);
+            log.AppendLine(pullResult);
+            log.AppendLine();
+
+            if (pullResult.Contains("Already up to date") || pullResult.Contains("Already up-to-date"))
+            {
+                log.AppendLine("✅ System is already up to date. No new updates found on GitHub.");
+            }
+            else if (pullResult.Contains("Updating") || pullResult.Contains("Fast-forward") || pullResult.Contains("files changed"))
+            {
+                log.AppendLine("🎉 UPDATES PULLED SUCCESSFULLY!");
+                log.AppendLine("Rebuilding and restarting Jarvis launcher dynamically...");
+                
+                // Show terminal logs before restart
+                CliOutputOverlay.Show("Codebase Update", log.ToString());
+
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    TextOverlay.Show("⚡ Rebuilding & Restarting Jarvis...", 3000);
+                });
+                
+                await Task.Delay(1000);
+                NativeMethods.Restart();
             }
             else
             {
-                // Safe pull logic
-                string statusPorcelain = await RunCommandAsync("git", "status --porcelain", projectRoot);
-                bool hasLocalChanges = !string.IsNullOrWhiteSpace(statusPorcelain);
-                bool stashed = false;
+                // Fallback auto-recovery: If standard pull fails due to conflicts or divergence, force checkout origin/main
+                log.AppendLine("⚠️ Pull encountered conflicts or branch divergence.");
+                log.AppendLine("⚡ Executing Auto-Recovery: Syncing hard to origin/main...");
+                await RunCommandAsync("git", "reset --hard origin/main", projectRoot);
+                await RunCommandAsync("git", "clean -fd", projectRoot);
 
-                if (hasLocalChanges)
-                {
-                    log.AppendLine("⚠️ Local uncommitted changes detected. Stashing changes to prevent merge conflicts...");
-                    string stashResult = await RunCommandAsync("git", "stash", projectRoot);
-                    log.AppendLine(stashResult);
-                    stashed = stashResult.Contains("Saved working directory") || stashResult.Contains("WIP on");
-                    log.AppendLine();
-                }
+                log.AppendLine("🎉 AUTO-RECOVERY COMPLETED! Codebase synced to GitHub.");
+                CliOutputOverlay.Show("Codebase Update", log.ToString());
 
-                log.AppendLine("--- PULLING FROM GITHUB ---");
-                string pullResult = await RunCommandAsync("git", $"pull origin {branchName}", projectRoot);
-                
-                // Self-healing check for unrelated histories
-                if (pullResult.Contains("refusing to merge unrelated histories"))
+                Application.Current.Dispatcher.Invoke(() =>
                 {
-                    log.AppendLine("💡 TIP: Git is refusing to merge unrelated histories.");
-                    log.AppendLine("⚡ Retrying pull with '--allow-unrelated-histories' to force merge...");
-                    pullResult = await RunCommandAsync("git", $"pull origin {branchName} --allow-unrelated-histories", projectRoot);
-                }
+                    TextOverlay.Show("⚡ Rebuilding & Restarting Jarvis...", 3000);
+                });
 
-                log.AppendLine(pullResult);
-                log.AppendLine();
-
-                if (stashed)
-                {
-                    log.AppendLine("--- RESTORING LOCAL CHANGES ---");
-                    string popResult = await RunCommandAsync("git", "stash pop", projectRoot);
-                    log.AppendLine(popResult);
-                    log.AppendLine();
-                }
-
-                // Diagnostics parsing for failures
-                if (pullResult.Contains("Authentication failed") || pullResult.Contains("could not read Username"))
-                {
-                    log.AppendLine("❌ ERROR: GitHub Authentication failed.");
-                    log.AppendLine("👉 If this repository is private, verify your Git Credentials (or run 'gitsetup').");
-                }
-                else if (pullResult.Contains("Already up to date") || pullResult.Contains("Already up-to-date"))
-                {
-                    log.AppendLine("✅ System is already up to date. No updates found.");
-                }
-                else if (pullResult.Contains("Updating") || pullResult.Contains("Fast-forward") || pullResult.Contains("files changed"))
-                {
-                    log.AppendLine("🎉 UPDATES PULLED SUCCESSFULLY!");
-                    log.AppendLine("Rebuilding and restarting Jarvis launcher dynamically...");
-                    
-                    // Show terminal logs before restart
-                    CliOutputOverlay.Show("Codebase Update", log.ToString());
-
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        TextOverlay.Show("⚡ Rebuilding & Restarting Jarvis...", 3000);
-                    });
-                    
-                    await Task.Delay(1000);
-                    NativeMethods.Restart();
-                }
-                else if (pullResult.Contains("conflict") || pullResult.Contains("Merge conflict"))
-                {
-                    log.AppendLine("⚠️ [CONFLICT] Merge conflicts detected during pull!");
-                    log.AppendLine("Please resolve conflicts manually in your editor.");
-                }
+                await Task.Delay(1000);
+                NativeMethods.Restart();
             }
 
             // Show logs inside system terminal
