@@ -649,6 +649,7 @@ namespace JarvisLauncher
                 string musicDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Music", _activeFolder.FolderName);
                 if (!Directory.Exists(musicDir)) Directory.CreateDirectory(musicDir);
 
+                DateTime startTime = DateTime.Now.AddSeconds(-2);
                 string outputTemplate = Path.Combine(musicDir, "%(title)s.%(ext)s");
                 string? localPath = null;
 
@@ -657,9 +658,11 @@ namespace JarvisLauncher
                 {
                     string tsOutput = await DownloadMediaRunner.DownloadAsync(url, musicDir);
 
-                    // Scan target download location for newly downloaded MP3 file
+                    // Scan target download location for newly created MP3 file after startTime
                     var files = Directory.GetFiles(musicDir, "*.mp3");
-                    string? newest = files.OrderByDescending(File.GetLastWriteTime).FirstOrDefault();
+                    string? newest = files.Where(f => File.GetLastWriteTime(f) >= startTime)
+                                          .OrderByDescending(File.GetLastWriteTime)
+                                          .FirstOrDefault();
                     if (!string.IsNullOrEmpty(newest) && File.Exists(newest) && new FileInfo(newest).Length > 10000)
                     {
                         localPath = newest;
@@ -687,7 +690,9 @@ namespace JarvisLauncher
                         {
                             await proc.WaitForExitAsync();
                             var files = Directory.GetFiles(musicDir, "*.mp3");
-                            string? newest = files.OrderByDescending(File.GetLastWriteTime).FirstOrDefault();
+                            string? newest = files.Where(f => File.GetLastWriteTime(f) >= startTime)
+                                                  .OrderByDescending(File.GetLastWriteTime)
+                                                  .FirstOrDefault();
                             if (!string.IsNullOrEmpty(newest) && File.Exists(newest) && new FileInfo(newest).Length > 10000)
                             {
                                 localPath = newest;
