@@ -25,7 +25,10 @@ namespace JarvisLauncher
                    query.StartsWith("fetch ") || query == "fetch" ||
                    query == "monitor" || query == "stats" ||
                    query == "tabs" || query == "tab" || query == "browsers" || query == "browser" ||
-                   query.StartsWith("vol ") || query == "vol";
+                   query.StartsWith("vol ") || query == "vol" ||
+                   query.StartsWith("open ") || query == "open" ||
+                   query.StartsWith("edit ") || query == "edit" ||
+                   query.StartsWith("view ") || query == "view";
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -34,6 +37,54 @@ namespace JarvisLauncher
             query = query.Trim();
             var parts = query.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
             string cmd = parts[0].ToLower();
+
+            // --- 0. OPEN & EDIT FILE COMMANDS ---
+            if (cmd == "open" || cmd == "edit" || cmd == "view")
+            {
+                if (parts.Length > 1)
+                {
+                    string path = parts[1].Trim().Trim('"', '\'');
+                    if (File.Exists(path) || Directory.Exists(path))
+                    {
+                        suggestions.Add(new CommandResult
+                        {
+                            Title = $"📂 Open: {Path.GetFileName(path)}",
+                            Description = $"Open '{path}' in default Windows application",
+                            Similarity = 3.0,
+                            Execute = () => OpenFileNatively(path)
+                        });
+
+                        suggestions.Add(new CommandResult
+                        {
+                            Title = $"📝 Edit: {Path.GetFileName(path)}",
+                            Description = $"Open '{path}' in default text editor",
+                            Similarity = 2.8,
+                            Execute = () => OpenFileInEditor(path)
+                        });
+                    }
+                    else
+                    {
+                        suggestions.Add(new CommandResult
+                        {
+                            Title = $"📂 Open Path: {path}",
+                            Description = "Attempt to open specified file or directory path",
+                            Similarity = 2.5,
+                            Execute = () => OpenFileNatively(path)
+                        });
+                    }
+                }
+                else
+                {
+                    suggestions.Add(new CommandResult
+                    {
+                        Title = "📂 Open File...",
+                        Description = "Pick a file from dialog to open in default application",
+                        Similarity = 2.0,
+                        Execute = InteractiveOpenFile
+                    });
+                }
+                return suggestions;
+            }
 
             // --- 1. GLOBAL DESKTOP & WEB SEARCH ---
             if (cmd == "search")
@@ -425,10 +476,44 @@ namespace JarvisLauncher
             }
         }
 
+        private static void InteractiveOpenFile()
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Select File to Open",
+                Filter = "All Files (*.*)|*.*"
+            };
+
+            if (dlg.ShowDialog() == true)
+            {
+                OpenFileNatively(dlg.FileName);
+            }
+        }
+
+        private static void OpenFileInEditor(string filePath)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "notepad.exe",
+                    Arguments = $"\"{filePath}\"",
+                    UseShellExecute = true
+                });
+                TextOverlay.Show($"📝 Editing: {Path.GetFileName(filePath)}", 1500);
+            }
+            catch (Exception ex)
+            {
+                TextOverlay.Show($"⚠️ Failed to edit: {ex.Message}", 2500);
+            }
+        }
+
         public List<CommandDesc> GetCommandDescriptions()
         {
             return new List<CommandDesc>
             {
+                new CommandDesc("open [file]", "Open file or folder in default Windows application", "open C:\\doc.pdf"),
+                new CommandDesc("edit <file>", "Open file in default text editor", "edit main.cs"),
                 new CommandDesc("google <query>", "Search Google in default browser", "google WPF layouts"),
                 new CommandDesc("search <query>", "Search files across Desktop & Documents", "search report"),
                 new CommandDesc("snippet / snip", "Manage and copy saved text snippets", "snip"),

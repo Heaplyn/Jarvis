@@ -1,6 +1,6 @@
 // Developer: heaplyn
-// Date: 2026-08-09
-// Summary: Handles CLI commands to stage, commit, and push the active project repository directly to GitHub.
+// Date: 2026-08-10
+// Summary: Handles CLI commands to execute FFmpeg video/audio conversions, MP3 extraction, GIF creation, video compression, and trimming.
 
 using System;
 using System.Collections.Generic;
@@ -17,7 +17,7 @@ namespace JarvisLauncher
         public bool CanHandle(string query)
         {
             query = query.Trim().ToLower();
-            return query.StartsWith("ffmpeg");
+            return query.StartsWith("ffmpeg") || query.StartsWith("convert ") || query == "convert";
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -25,231 +25,370 @@ namespace JarvisLauncher
             var suggestions = new List<CommandResult>();
             string trimmed = query.Trim();
             string lower = trimmed.ToLower();
-            var parts = trimmed.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+            var parts = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-            // "git status", "git log", "git diff" — run directly
-            if (lower == "git status" || lower == "git st")
-            {
-                suggestions.Add(new CommandResult { Title = "📋 Git Status", Description = "Show current working tree status", Similarity = 3.0, Execute = () => RunGitQuick("status") });
-                return suggestions;
-            }
-            if (lower == "git log" || lower == "git l")
-            {
-                suggestions.Add(new CommandResult { Title = "📜 Git Log (last 15)", Description = "Show recent commit history", Similarity = 3.0, Execute = () => RunGitQuick("log --oneline -n 15") });
-                return suggestions;
-            }
-            if (lower == "git diff")
-            {
-                suggestions.Add(new CommandResult { Title = "🔍 Git Diff", Description = "Show uncommitted file changes", Similarity = 3.0, Execute = () => RunGitQuick("diff --stat") });
-                return suggestions;
-            }
+            double similarity = SearchUtil.GetSimilarity(parts[0].ToLower(), "ffmpeg");
 
-            // "push <message>" or "git push <message>"
-            string? commitMessage = null;
-            if (lower.StartsWith("push ")) commitMessage = trimmed.Substring(5).Trim().Trim('"', '\'');
-            else if (lower.StartsWith("gitpush ")) commitMessage = trimmed.Substring(8).Trim().Trim('"', '\'');
-            else if (lower.StartsWith("git push ")) commitMessage = trimmed.Substring(9).Trim().Trim('"', '\'');
-
-            double similarity = SearchUtil.GetSimilarity(parts[0].ToLower(), "push");
-
-            if (!string.IsNullOrWhiteSpace(commitMessage))
+            if (lower == "ffmpeg" || lower == "convert")
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🚀 Push: \"{commitMessage}\" → GitHub",
-                    Description = "Stage all, commit, and push to remote",
-                    Similarity = similarity,
-                    Execute = () => ExecuteGitPush(commitMessage)
+                    Title = "🎵 FFmpeg: Extract MP3 Audio...",
+                    Description = "Select a video/audio file to extract 192k MP3 audio track",
+                    Similarity = similarity + 0.5,
+                    Execute = InteractiveExtractMp3
                 });
+
+                suggestions.Add(new CommandResult
+                {
+                    Title = "🎞️ FFmpeg: Convert Video to Animated GIF...",
+                    Description = "Select a video file to convert to high quality animated GIF",
+                    Similarity = similarity + 0.4,
+                    Execute = InteractiveConvertToGif
+                });
+
+                suggestions.Add(new CommandResult
+                {
+                    Title = "📉 FFmpeg: Compress Video File Size...",
+                    Description = "Select a video file to compress using H.264 (CRF 28)",
+                    Similarity = similarity + 0.3,
+                    Execute = InteractiveCompressVideo
+                });
+
+                suggestions.Add(new CommandResult
+                {
+                    Title = "🔇 FFmpeg: Mute Video (Remove Audio)...",
+                    Description = "Select a video file to strip its audio stream",
+                    Similarity = similarity + 0.2,
+                    Execute = InteractiveMuteVideo
+                });
+
+                suggestions.Add(new CommandResult
+                {
+                    Title = "🔄 FFmpeg: Convert Media Format...",
+                    Description = "Select input file and output format to convert",
+                    Similarity = similarity + 0.1,
+                    Execute = InteractiveConvertFormat
+                });
+
+                return suggestions;
             }
-            else
+
+            // "ffmpeg mp3 [path]"
+            if (lower.StartsWith("ffmpeg mp3") || lower.StartsWith("mp3 "))
             {
-                // bare "git" or "push" — show the full git menu
-                suggestions.Add(new CommandResult { Title = "🚀 Push Project → GitHub...", Description = "Type a commit message: 'push <message>'", Similarity = similarity, Execute = null });
-                suggestions.Add(new CommandResult { Title = "📋 Git Status", Description = "Show current working tree status", Similarity = similarity - 0.1, Execute = () => RunGitQuick("status") });
-                suggestions.Add(new CommandResult { Title = "📜 Git Log (last 15)", Description = "Show recent commit history", Similarity = similarity - 0.2, Execute = () => RunGitQuick("log --oneline -n 15") });
-                suggestions.Add(new CommandResult { Title = "🔍 Git Diff", Description = "Show uncommitted file changes", Similarity = similarity - 0.3, Execute = () => RunGitQuick("diff --stat") });
+                string target = parts.Length > 2 ? trimmed.Substring(trimmed.IndexOf("mp3", StringComparison.OrdinalIgnoreCase) + 3).Trim().Trim('"', '\'') : "";
+                if (!string.IsNullOrEmpty(target) && File.Exists(target))
+                {
+                    string output = Path.ChangeExtension(target, ".mp3");
+                    suggestions.Add(new CommandResult
+                    {
+                        Title = $"🎵 Extract MP3: {Path.GetFileName(target)}",
+                        Description = $"Save to {Path.GetFileName(output)}",
+                        Similarity = 3.0,
+                        Execute = () => ExecuteExtractMp3(target, output)
+                    });
+                }
+                else
+                {
+                    suggestions.Add(new CommandResult
+                    {
+                        Title = "🎵 Extract MP3 Audio...",
+                        Description = "Pick file to extract MP3",
+                        Similarity = 2.8,
+                        Execute = InteractiveExtractMp3
+                    });
+                }
+                return suggestions;
+            }
+
+            // "ffmpeg gif [path]"
+            if (lower.StartsWith("ffmpeg gif"))
+            {
+                string target = parts.Length > 2 ? trimmed.Substring(11).Trim().Trim('"', '\'') : "";
+                if (!string.IsNullOrEmpty(target) && File.Exists(target))
+                {
+                    string output = Path.ChangeExtension(target, ".gif");
+                    suggestions.Add(new CommandResult
+                    {
+                        Title = $"🎞️ Convert GIF: {Path.GetFileName(target)}",
+                        Description = $"Save to {Path.GetFileName(output)}",
+                        Similarity = 3.0,
+                        Execute = () => ExecuteConvertToGif(target, output)
+                    });
+                }
+                else
+                {
+                    suggestions.Add(new CommandResult
+                    {
+                        Title = "🎞️ Convert Video to GIF...",
+                        Description = "Pick video file to convert to GIF",
+                        Similarity = 2.8,
+                        Execute = InteractiveConvertToGif
+                    });
+                }
+                return suggestions;
+            }
+
+            // "ffmpeg compress [path]"
+            if (lower.StartsWith("ffmpeg compress"))
+            {
+                string target = parts.Length > 2 ? trimmed.Substring(16).Trim().Trim('"', '\'') : "";
+                if (!string.IsNullOrEmpty(target) && File.Exists(target))
+                {
+                    string dir = Path.GetDirectoryName(target) ?? "";
+                    string fileName = Path.GetFileNameWithoutExtension(target);
+                    string ext = Path.GetExtension(target);
+                    string output = Path.Combine(dir, $"{fileName}_compressed{ext}");
+
+                    suggestions.Add(new CommandResult
+                    {
+                        Title = $"📉 Compress Video: {Path.GetFileName(target)}",
+                        Description = $"Save to {Path.GetFileName(output)}",
+                        Similarity = 3.0,
+                        Execute = () => ExecuteCompressVideo(target, output)
+                    });
+                }
+                else
+                {
+                    suggestions.Add(new CommandResult
+                    {
+                        Title = "📉 Compress Video File Size...",
+                        Description = "Pick video file to compress",
+                        Similarity = 2.8,
+                        Execute = InteractiveCompressVideo
+                    });
+                }
+                return suggestions;
+            }
+
+            // "ffmpeg mute [path]"
+            if (lower.StartsWith("ffmpeg mute"))
+            {
+                string target = parts.Length > 2 ? trimmed.Substring(12).Trim().Trim('"', '\'') : "";
+                if (!string.IsNullOrEmpty(target) && File.Exists(target))
+                {
+                    string dir = Path.GetDirectoryName(target) ?? "";
+                    string fileName = Path.GetFileNameWithoutExtension(target);
+                    string ext = Path.GetExtension(target);
+                    string output = Path.Combine(dir, $"{fileName}_muted{ext}");
+
+                    suggestions.Add(new CommandResult
+                    {
+                        Title = $"🔇 Mute Video: {Path.GetFileName(target)}",
+                        Description = $"Save to {Path.GetFileName(output)}",
+                        Similarity = 3.0,
+                        Execute = () => ExecuteMuteVideo(target, output)
+                    });
+                }
+                else
+                {
+                    suggestions.Add(new CommandResult
+                    {
+                        Title = "🔇 Mute Video...",
+                        Description = "Pick video file to remove audio stream",
+                        Similarity = 2.8,
+                        Execute = InteractiveMuteVideo
+                    });
+                }
+                return suggestions;
+            }
+
+            // "ffmpeg convert <in> <out>" or "ffmpeg <raw_args>"
+            if (lower.StartsWith("ffmpeg "))
+            {
+                string rawArgs = trimmed.Substring(7).Trim();
+                suggestions.Add(new CommandResult
+                {
+                    Title = $"🎬 Execute FFmpeg Command: ffmpeg {rawArgs}",
+                    Description = "Run custom FFmpeg parameters",
+                    Similarity = similarity,
+                    Execute = () => RunFFmpegCommandAsync(rawArgs, rawArgs)
+                });
             }
 
             return suggestions;
         }
 
-        private static void RunGitQuick(string gitArgs)
+        private static void InteractiveExtractMp3()
         {
-            TextOverlay.Show($"⚡ Running: git {gitArgs}", 1500);
-            Task.Run(async () =>
+            var dlg = new Microsoft.Win32.OpenFileDialog
             {
-                string projectRoot = GetProjectRoot();
-                string result = await RunCommandAsync("git", gitArgs, projectRoot);
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    CliOutputOverlay.Show($"git {gitArgs}", result);
-                });
-            });
-        }
+                Title = "Select Video/Audio File to Extract MP3",
+                Filter = "Media Files (*.mp4;*.mov;*.mkv;*.avi;*.webm;*.wav;*.flac;*.m4a)|*.mp4;*.mov;*.mkv;*.avi;*.webm;*.wav;*.flac;*.m4a|All Files (*.*)|*.*"
+            };
 
-        private static void ExecuteGitPush(string commitMessage)
-        {
-            TextOverlay.Show("⚡ Initiating GitHub push...", 2500);
-
-            Task.Run(async () =>
+            if (dlg.ShowDialog() == true)
             {
-                string result = await RunGitPushAsync(commitMessage);
-
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    CliOutputOverlay.Show("GitHub Push Log", result);
-                });
-            });
-        }
-
-        private static string GetProjectRoot()
-        {
-            string devPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\.."));
-            if (Directory.Exists(Path.Combine(devPath, ".git")))
-            {
-                return devPath;
+                string input = dlg.FileName;
+                string output = Path.ChangeExtension(input, ".mp3");
+                ExecuteExtractMp3(input, output);
             }
-            return AppDomain.CurrentDomain.BaseDirectory;
         }
 
-        private static async Task<string> RunGitPushAsync(string message)
+        private static void ExecuteExtractMp3(string input, string output)
         {
-            var log = new StringBuilder();
-            string projectRoot = GetProjectRoot();
+            _ = RunFFmpegCommandAsync($"-i \"{input}\" -vn -ar 44100 -ac 2 -b:a 192k \"{output}\" -y", $"Extract MP3: {Path.GetFileName(input)}");
+        }
 
-            log.AppendLine($"Working directory: {projectRoot}\n");
-
-            // 0. Auto-clean staged heavy directories & credentials to enforce .gitignore
-            log.AppendLine("--- UNTRACKING HEAVY & PRIVATE FOLDERS ---");
-            await RunCommandAsync("git", "rm -r --cached Modules/Layer0/DownloadMedia/flaresolverr", projectRoot);
-            await RunCommandAsync("git", "rm -r --cached Modules/Layer0/DownloadMedia/node_modules", projectRoot);
-            await RunCommandAsync("git", "rm -r --cached Modules/Layer0/DownloadMedia/downloads", projectRoot);
-            await RunCommandAsync("git", "rm -r --cached bin", projectRoot);
-            await RunCommandAsync("git", "rm -r --cached obj", projectRoot);
-            await RunCommandAsync("git", "rm --cached Data/SystemSettings.json", projectRoot);
-            log.AppendLine("Tracked folders and local settings removed from git cache index.");
-            log.AppendLine();
-
-            // 1. Git Add
-            log.AppendLine("--- STAGING CHANGES ---");
-            string addResult = await RunCommandAsync("git", "add .", projectRoot);
-            log.AppendLine(string.IsNullOrWhiteSpace(addResult) ? "Stage complete (git add .)" : addResult);
-            log.AppendLine();
-
-            // 2. Git Commit
-            log.AppendLine("--- COMMITTING CHANGES ---");
-            string escapedMsg = message.Replace("\"", "\\\"");
-            string commitResult = await RunCommandAsync("git", $"commit -m \"{escapedMsg}\"", projectRoot);
-            log.AppendLine(commitResult);
-            log.AppendLine();
-
-            if (commitResult.Contains("nothing to commit") || commitResult.Contains("working tree clean"))
+        private static void InteractiveConvertToGif()
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
             {
-                log.AppendLine("ℹ️ No changes detected. Skipping push process.");
-                return log.ToString();
+                Title = "Select Video File to Convert to GIF",
+                Filter = "Video Files (*.mp4;*.mov;*.mkv;*.avi;*.webm)|*.mp4;*.mov;*.mkv;*.avi;*.webm|All Files (*.*)|*.*"
+            };
+
+            if (dlg.ShowDialog() == true)
+            {
+                string input = dlg.FileName;
+                string output = Path.ChangeExtension(input, ".gif");
+                ExecuteConvertToGif(input, output);
             }
+        }
 
-            // 3. Git Push
-            log.AppendLine("--- PUSHING TO GITHUB ---");
-            string pushResult = await RunCommandAsync("git", "push", projectRoot);
-            log.AppendLine(pushResult);
+        private static void ExecuteConvertToGif(string input, string output)
+        {
+            _ = RunFFmpegCommandAsync($"-i \"{input}\" -vf \"fps=15,scale=480:-1:flags=lanczos\" \"{output}\" -y", $"Convert to GIF: {Path.GetFileName(input)}");
+        }
 
-            // Self-healing check: If the push was rejected due to large files or secret push protection
-            if (pushResult.Contains("exceeds GitHub's file size limit") || 
-                pushResult.Contains("Large files detected") || 
-                pushResult.Contains("pre-receive hook declined") ||
-                pushResult.Contains("push declined") ||
-                pushResult.Contains("violations found"))
+        private static void InteractiveCompressVideo()
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
             {
-                log.AppendLine("\n⚠️ WARNING: Push rejected due to rule violations (e.g. large files or hardcoded credentials) in local history.");
-                log.AppendLine("🔄 Attempting automatic self-healing recovery: Soft-resetting history and re-committing to enforce .gitignore...");
+                Title = "Select Video File to Compress",
+                Filter = "Video Files (*.mp4;*.mov;*.mkv;*.avi;*.webm)|*.mp4;*.mov;*.mkv;*.avi;*.webm|All Files (*.*)|*.*"
+            };
 
-                // Detect current branch name dynamically
-                string branchName = await RunCommandAsync("git", "rev-parse --abbrev-ref HEAD", projectRoot);
-                branchName = branchName.Trim();
-                if (string.IsNullOrEmpty(branchName) || branchName.Contains("Error") || branchName.Contains("fatal"))
+            if (dlg.ShowDialog() == true)
+            {
+                string input = dlg.FileName;
+                string dir = Path.GetDirectoryName(input) ?? "";
+                string fileName = Path.GetFileNameWithoutExtension(input);
+                string ext = Path.GetExtension(input);
+                string output = Path.Combine(dir, $"{fileName}_compressed{ext}");
+                ExecuteCompressVideo(input, output);
+            }
+        }
+
+        private static void ExecuteCompressVideo(string input, string output)
+        {
+            _ = RunFFmpegCommandAsync($"-i \"{input}\" -vcodec libx264 -crf 28 \"{output}\" -y", $"Compress Video: {Path.GetFileName(input)}");
+        }
+
+        private static void InteractiveMuteVideo()
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Select Video File to Mute (Remove Audio)",
+                Filter = "Video Files (*.mp4;*.mov;*.mkv;*.avi;*.webm)|*.mp4;*.mov;*.mkv;*.avi;*.webm|All Files (*.*)|*.*"
+            };
+
+            if (dlg.ShowDialog() == true)
+            {
+                string input = dlg.FileName;
+                string dir = Path.GetDirectoryName(input) ?? "";
+                string fileName = Path.GetFileNameWithoutExtension(input);
+                string ext = Path.GetExtension(input);
+                string output = Path.Combine(dir, $"{fileName}_muted{ext}");
+                ExecuteMuteVideo(input, output);
+            }
+        }
+
+        private static void ExecuteMuteVideo(string input, string output)
+        {
+            _ = RunFFmpegCommandAsync($"-i \"{input}\" -an -vcodec copy \"{output}\" -y", $"Mute Video: {Path.GetFileName(input)}");
+        }
+
+        private static void InteractiveConvertFormat()
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Select File to Convert Format",
+                Filter = "All Media Files (*.*)|*.*"
+            };
+
+            if (dlg.ShowDialog() == true)
+            {
+                string input = dlg.FileName;
+                var saveDlg = new Microsoft.Win32.SaveFileDialog
                 {
-                    branchName = "main"; // Default fallback
+                    Title = "Save Converted Output File As",
+                    FileName = Path.GetFileNameWithoutExtension(input),
+                    Filter = "MP4 Video (*.mp4)|*.mp4|MP3 Audio (*.mp3)|*.mp3|WAV Audio (*.wav)|*.wav|GIF Animation (*.gif)|*.gif|All Files (*.*)|*.*"
+                };
+
+                if (saveDlg.ShowDialog() == true)
+                {
+                    string output = saveDlg.FileName;
+                    _ = RunFFmpegCommandAsync($"-i \"{input}\" \"{output}\" -y", $"Convert Format: {Path.GetFileName(input)} → {Path.GetFileName(output)}");
                 }
-                log.AppendLine($"Current branch resolved: {branchName}");
-
-                // Run: git reset --soft origin/{branchName}
-                log.AppendLine($"⚡ Resetting commits back to remote origin/{branchName}...");
-                string resetResult = await RunCommandAsync("git", $"reset --soft origin/{branchName}", projectRoot);
-                log.AppendLine(string.IsNullOrWhiteSpace(resetResult) ? "Reset complete." : resetResult);
-
-                // Run: git commit -m "..."
-                log.AppendLine("⚡ Re-committing changes...");
-                string reCommitResult = await RunCommandAsync("git", $"commit -m \"{escapedMsg}\"", projectRoot);
-                log.AppendLine(reCommitResult);
-
-                // Retry: git push
-                log.AppendLine("⚡ Retrying push to GitHub...");
-                string retryPushResult = await RunCommandAsync("git", "push", projectRoot);
-                log.AppendLine(retryPushResult);
             }
-
-            return log.ToString();
         }
 
-        private static async Task<string> RunCommandAsync(string fileName, string arguments, string workingDirectory)
+        private static async Task RunFFmpegCommandAsync(string arguments, string title)
         {
-            var output = new StringBuilder();
-            var errors = new StringBuilder();
-            var tcs = new TaskCompletionSource<string>();
+            TextOverlay.Show($"🎬 FFmpeg: {title}...", 2500);
 
-            var process = new Process
+            await Task.Run(async () =>
             {
-                StartInfo = new ProcessStartInfo
+                var output = new StringBuilder();
+                var errors = new StringBuilder();
+
+                var psi = new ProcessStartInfo
                 {
-                    FileName = fileName,
+                    FileName = "ffmpeg",
                     Arguments = arguments,
-                    WorkingDirectory = workingDirectory,
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
-                    CreateNoWindow = true,
-                    EnvironmentVariables = { }
-                },
-                EnableRaisingEvents = true
-            };
+                    CreateNoWindow = true
+                };
 
-            string? userPath = Environment.GetEnvironmentVariable("PATH");
-            if (!string.IsNullOrEmpty(userPath))
-            {
-                process.StartInfo.EnvironmentVariables["PATH"] = userPath;
-            }
+                try
+                {
+                    using var proc = Process.Start(psi);
+                    if (proc != null)
+                    {
+                        proc.OutputDataReceived += (_, e) => { if (e.Data != null) output.AppendLine(e.Data); };
+                        proc.ErrorDataReceived += (_, e) => { if (e.Data != null) errors.AppendLine(e.Data); };
 
-            process.OutputDataReceived += (_, e) => { if (e.Data != null) output.AppendLine(e.Data); };
-            process.ErrorDataReceived += (_, e) => { if (e.Data != null) errors.AppendLine(e.Data); };
-            process.Exited += (_, _) =>
-            {
-                process.Dispose();
-                string stdout = output.ToString().Trim();
-                string stderr = errors.ToString().Trim();
-                tcs.TrySetResult(string.IsNullOrEmpty(stderr) ? stdout : $"{stdout}\n{stderr}");
-            };
+                        proc.BeginOutputReadLine();
+                        proc.BeginErrorReadLine();
+                        
+                        bool exited = proc.WaitForExit(60000);
+                        if (!exited)
+                        {
+                            proc.Kill();
+                        }
 
-            try
-            {
-                process.Start();
-                process.BeginOutputReadLine();
-                process.BeginErrorReadLine();
-            }
-            catch (Exception ex)
-            {
-                return $"Error executing command: {ex.Message}";
-            }
-
-            return await tcs.Task;
+                        string result = (output.ToString() + "\n" + errors.ToString()).Trim();
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            CliOutputOverlay.Show($"FFmpeg - {title}", string.IsNullOrWhiteSpace(result) ? "Command completed with no output." : result);
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        CliOutputOverlay.Show($"FFmpeg Error - {title}", $"Failed to run FFmpeg: {ex.Message}\n\nTip: Make sure FFmpeg is installed on your PC or available in PATH.");
+                    });
+                }
+            });
         }
 
         public List<CommandDesc> GetCommandDescriptions()
         {
             return new List<CommandDesc>
             {
-                new CommandDesc("ffmpeg <args>", "Execute FFmpeg video/audio converter commands", "ffmpeg -i input.mp4 output.mp3")
+                new CommandDesc("ffmpeg", "Open FFmpeg multimedia processing menu", "ffmpeg"),
+                new CommandDesc("ffmpeg mp3 [file]", "Extract MP3 audio track from video/audio file", "ffmpeg mp3 clip.mp4"),
+                new CommandDesc("ffmpeg gif [file]", "Convert video clip to animated GIF", "ffmpeg gif clip.mp4"),
+                new CommandDesc("ffmpeg compress [file]", "Compress video file size (H.264)", "ffmpeg compress clip.mp4"),
+                new CommandDesc("ffmpeg mute [file]", "Remove audio stream from video file", "ffmpeg mute clip.mp4"),
+                new CommandDesc("ffmpeg <custom_args>", "Execute custom FFmpeg CLI commands", "ffmpeg -i input.mp4 output.mp3")
             };
         }
     }

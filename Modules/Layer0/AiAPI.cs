@@ -34,14 +34,21 @@ namespace JarvisLauncher
 
             string currentPrompt = prompt;
             string lastResponse = "";
-            int loopLimit = 100; // Allow up to 100 multi-step agent requests per turn
+            string lastToolOutput = "";
+            int loopLimit = 5; // Reduced from 100 to prevent runaway AI loops
+            var executedTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             for (int i = 0; i < loopLimit; i++)
             {
                 string response = await QueryGeminiRaw(currentPrompt, apiKey, history);
-                lastResponse = response;
+                string cleanedResp = CleanScratchpadText(response);
+                if (!string.IsNullOrWhiteSpace(cleanedResp))
+                {
+                    lastResponse = cleanedResp;
+                }
 
                 var executionFeedBuilder = new StringBuilder();
+                int newExecutionsCount = 0;
 
                 // 1. Check for [READ_FILE: path] tags
                 var readRegex = new Regex(@"\[READ_FILE:\s*(.+?)\]");
@@ -49,6 +56,11 @@ namespace JarvisLauncher
                 foreach (Match match in readMatches)
                 {
                     string path = match.Groups[1].Value.Trim().Trim('"', '\'');
+                    string tagKey = $"READ:{path}";
+                    if (executedTags.Contains(tagKey)) continue; // Prevent loop on identical file reads
+                    executedTags.Add(tagKey);
+                    newExecutionsCount++;
+
                     try
                     {
                         if (File.Exists(path))
@@ -57,12 +69,16 @@ namespace JarvisLauncher
                             executionFeedBuilder.AppendLine($"[FILE_CONTENT: {path}]");
                             executionFeedBuilder.AppendLine(fileText);
                             executionFeedBuilder.AppendLine("[END_FILE_CONTENT]");
+
+                            // Save exact file content to guarantee it is displayed to the user
+                            lastToolOutput = $"📄 **{Path.GetFileName(path)}**:\n\n{fileText}";
                         }
                         else
                         {
                             executionFeedBuilder.AppendLine($"[FILE_CONTENT: {path}]");
                             executionFeedBuilder.AppendLine("Error: File not found.");
                             executionFeedBuilder.AppendLine("[END_FILE_CONTENT]");
+                            lastToolOutput = $"⚠️ File not found: {path}";
                         }
                     }
                     catch (Exception ex)
@@ -70,6 +86,7 @@ namespace JarvisLauncher
                         executionFeedBuilder.AppendLine($"[FILE_CONTENT: {path}]");
                         executionFeedBuilder.AppendLine($"Error reading file: {ex.Message}");
                         executionFeedBuilder.AppendLine("[END_FILE_CONTENT]");
+                        lastToolOutput = $"⚠️ Error reading file: {ex.Message}";
                     }
                 }
 
@@ -79,6 +96,11 @@ namespace JarvisLauncher
                 foreach (Match match in shellMatches)
                 {
                     string shellCmd = match.Groups[1].Value.Trim();
+                    string tagKey = $"SHELL:{shellCmd}";
+                    if (executedTags.Contains(tagKey)) continue; // Prevent loop on identical shell executions
+                    executedTags.Add(tagKey);
+                    newExecutionsCount++;
+
                     try
                     {
                         var psi = new System.Diagnostics.ProcessStartInfo
@@ -98,8 +120,10 @@ namespace JarvisLauncher
                             proc.WaitForExit(5000);
                             string output = (outText + "\n" + errText).Trim();
                             executionFeedBuilder.AppendLine($"[SHELL_OUTPUT: {shellCmd}]");
-                            executionFeedBuilder.AppendLine(output);
+                            executionFeedBuilder.AppendLine(string.IsNullOrWhiteSpace(output) ? "(Command executed cleanly with no output)" : output);
                             executionFeedBuilder.AppendLine("[END_SHELL_OUTPUT]");
+
+                            lastToolOutput = $"⚡ **Shell Output ({shellCmd})**:\n```\n{output}\n```";
                         }
                     }
                     catch (Exception ex)
@@ -107,16 +131,139 @@ namespace JarvisLauncher
                         executionFeedBuilder.AppendLine($"[SHELL_OUTPUT: {shellCmd}]");
                         executionFeedBuilder.AppendLine($"Error executing command: {ex.Message}");
                         executionFeedBuilder.AppendLine("[END_SHELL_OUTPUT]");
+                        lastToolOutput = $"⚠️ Error executing shell: {ex.Message}";
                     }
                 }
 
-                // If no execution tags were found, we are finished!
-                if (readMatches.Count == 0 && shellMatches.Count == 0)
+                // 3. Check for [EXEC_PS: cmd] tags (PowerShell)
+                var psRegex = new Regex(@"\[EXEC_PS:\s*(.+?)\]", RegexOptions.IgnoreCase);
+                var psMatches = psRegex.Matches(response);
+                foreach (Match match in psMatches)
+                {
+                    string psCmd = match.Groups[1].Value.Trim();
+                    string tagKey = $"PS:{psCmd}";
+                    if (executedTags.Contains(tagKey)) continue;
+                    executedTags.Add(tagKey);
+                    newExecutionsCount++;
+
+                    try
+                    {
+                        var psi = new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = "powershell.exe",
+                            Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"{psCmd.Replace("\"", "\\\"")}\"",
+                            RedirectStandardOutput = true,
+                            RedirectStandardError = true,
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        };
+                        using var proc = System.Diagnostics.Process.Start(psi);
+                        if (proc != null)
+                        {
+                            string outText = proc.StandardOutput.ReadToEnd();
+                            string errText = proc.StandardError.ReadToEnd();
+                            proc.WaitForExit(7000);
+                            string output = (outText + "\n" + errText).Trim();
+                            executionFeedBuilder.AppendLine($"[POWERSHELL_OUTPUT: {psCmd}]");
+                            executionFeedBuilder.AppendLine(string.IsNullOrWhiteSpace(output) ? "(PowerShell executed cleanly with no output)" : output);
+                            executionFeedBuilder.AppendLine("[END_POWERSHELL_OUTPUT]");
+
+                            lastToolOutput = $"⚡ **PowerShell Output ({psCmd})**:\n```powershell\n{output}\n```";
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        executionFeedBuilder.AppendLine($"[POWERSHELL_OUTPUT: {psCmd}]");
+                        executionFeedBuilder.AppendLine($"Error executing PowerShell: {ex.Message}");
+                        executionFeedBuilder.AppendLine("[END_POWERSHELL_OUTPUT]");
+                        lastToolOutput = $"⚠️ PowerShell Error: {ex.Message}";
+                    }
+                }
+
+                // 4. Check for [LIST_DIR: path] tags
+                var listDirRegex = new Regex(@"\[LIST_DIR:\s*(.+?)\]", RegexOptions.IgnoreCase);
+                var listDirMatches = listDirRegex.Matches(response);
+                foreach (Match match in listDirMatches)
+                {
+                    string dirPath = match.Groups[1].Value.Trim().Trim('"', '\'');
+                    string tagKey = $"LIST_DIR:{dirPath}";
+                    if (executedTags.Contains(tagKey)) continue;
+                    executedTags.Add(tagKey);
+                    newExecutionsCount++;
+
+                    try
+                    {
+                        if (Directory.Exists(dirPath))
+                        {
+                            var entries = Directory.GetFileSystemEntries(dirPath);
+                            var sb = new StringBuilder();
+                            sb.AppendLine($"Contents of directory '{dirPath}':");
+                            int count = 0;
+                            foreach (var entry in entries)
+                            {
+                                if (count++ > 60) { sb.AppendLine("... (truncated)"); break; }
+                                bool isDir = Directory.Exists(entry);
+                                var info = isDir ? (FileSystemInfo)new DirectoryInfo(entry) : new FileInfo(entry);
+                                sb.AppendLine($"{(isDir ? "[DIR]" : "[FILE]")} {info.Name} (Modified: {info.LastWriteTime:yyyy-MM-dd HH:mm})");
+                            }
+                            string output = sb.ToString();
+                            executionFeedBuilder.AppendLine($"[DIR_LIST: {dirPath}]\n{output}\n[END_DIR_LIST]");
+                            lastToolOutput = $"📁 **Folder Contents ({Path.GetFileName(dirPath)})**:\n```\n{output}\n```";
+                        }
+                        else
+                        {
+                            executionFeedBuilder.AppendLine($"[DIR_LIST: {dirPath}]\nDirectory not found.\n[END_DIR_LIST]");
+                            lastToolOutput = $"⚠️ Directory not found: {dirPath}";
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        executionFeedBuilder.AppendLine($"[DIR_LIST: {dirPath}]\nError listing directory: {ex.Message}\n[END_DIR_LIST]");
+                    }
+                }
+
+                // 5. Check for [SEARCH_FILES: pattern] tags
+                var searchRegex = new Regex(@"\[SEARCH_FILES:\s*(.+?)\]", RegexOptions.IgnoreCase);
+                var searchMatches = searchRegex.Matches(response);
+                foreach (Match match in searchMatches)
+                {
+                    string searchPattern = match.Groups[1].Value.Trim().Trim('"', '\'');
+                    string tagKey = $"SEARCH:{searchPattern}";
+                    if (executedTags.Contains(tagKey)) continue;
+                    executedTags.Add(tagKey);
+                    newExecutionsCount++;
+
+                    try
+                    {
+                        string searchDir = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\.."));
+                        if (!Directory.Exists(Path.Combine(searchDir, "Modules"))) searchDir = AppDomain.CurrentDomain.BaseDirectory;
+
+                        var foundFiles = Directory.GetFiles(searchDir, $"*{searchPattern}*", SearchOption.AllDirectories);
+                        var sb = new StringBuilder();
+                        sb.AppendLine($"Matching files for '{searchPattern}':");
+                        int count = 0;
+                        foreach (var file in foundFiles)
+                        {
+                            if (count++ > 30) { sb.AppendLine("... (truncated)"); break; }
+                            sb.AppendLine(file);
+                        }
+                        string output = sb.ToString();
+                        executionFeedBuilder.AppendLine($"[SEARCH_RESULTS: {searchPattern}]\n{output}\n[END_SEARCH_RESULTS]");
+                        lastToolOutput = $"🔍 **Search Results for '{searchPattern}'**:\n```\n{output}\n```";
+                    }
+                    catch (Exception ex)
+                    {
+                        executionFeedBuilder.AppendLine($"[SEARCH_RESULTS: {searchPattern}]\nError searching: {ex.Message}\n[END_SEARCH_RESULTS]");
+                    }
+                }
+
+                // If no new execution tags were run, we are finished!
+                if (newExecutionsCount == 0)
                 {
                     break;
                 }
 
-                currentPrompt = $"{currentPrompt}\n\nHere is the execution output of the commands/files you requested:\n{executionFeedBuilder}\n\nNOW PROCEED IMMEDIATELY TO EXECUTE THE NEXT STEP OR GENERATE/WRITE FILES!";
+                currentPrompt = $"{currentPrompt}\n\n[SYSTEM TOOL RESULTS]:\n{executionFeedBuilder}\nRespond directly to the user now. Do not output inner scratchpad bullet points or reasoning steps.";
 
                 // Show visual progress indicator
                 Application.Current.Dispatcher.Invoke(() =>
@@ -125,7 +272,71 @@ namespace JarvisLauncher
                 });
             }
 
-            return lastResponse;
+            string finalCleaned = CleanScratchpadText(lastResponse);
+            finalCleaned = Regex.Replace(finalCleaned, @"\[READ_FILE:\s*.+?\]", "", RegexOptions.IgnoreCase);
+            finalCleaned = Regex.Replace(finalCleaned, @"\[EXEC_PS:\s*.+?\]", "", RegexOptions.IgnoreCase);
+            finalCleaned = Regex.Replace(finalCleaned, @"\[LIST_DIR:\s*.+?\]", "", RegexOptions.IgnoreCase);
+            finalCleaned = Regex.Replace(finalCleaned, @"\[SEARCH_FILES:\s*.+?\]", "", RegexOptions.IgnoreCase).Trim();
+
+            if (!string.IsNullOrEmpty(lastToolOutput) && !finalCleaned.Contains(lastToolOutput.Substring(0, Math.Min(30, lastToolOutput.Length))))
+            {
+                if (string.IsNullOrWhiteSpace(finalCleaned))
+                {
+                    finalCleaned = lastToolOutput;
+                }
+                else
+                {
+                    finalCleaned = finalCleaned + "\n\n" + lastToolOutput;
+                }
+            }
+
+            return string.IsNullOrWhiteSpace(finalCleaned) ? "Online and ready." : finalCleaned;
+        }
+
+        public static string CleanScratchpadText(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return text ?? string.Empty;
+
+            var lines = text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
+            var cleanedLines = new List<string>();
+
+            foreach (var line in lines)
+            {
+                string trimmed = line.Trim();
+
+                // ONLY filter out explicit inner-monologue meta-reasoning lines
+                if (trimmed.StartsWith("*") && (
+                    trimmed.Contains("User is providing") ||
+                    trimmed.Contains("User is demanding") ||
+                    trimmed.Contains("I am Jarvis. I need to be") ||
+                    trimmed.Contains("Keep it short and natural") ||
+                    trimmed.Contains("Don't explain why") ||
+                    trimmed.Contains("Just ask for the instruction") ||
+                    trimmed.Contains("Wait, looking at the persona") ||
+                    trimmed.Contains("The user's prompt is a bit chaotic") ||
+                    trimmed.Contains("Actually, let's see if there's any hidden intent") ||
+                    trimmed.Contains("no \"next step\"") ||
+                    trimmed.Contains("failed output")))
+                {
+                    continue;
+                }
+
+                // If line starts with "Response: " or "Jarvis: ", strip the prefix
+                if (trimmed.StartsWith("Response:", StringComparison.OrdinalIgnoreCase))
+                {
+                    string cleaned = trimmed.Substring(9).Trim().Trim('"', '\'');
+                    if (!string.IsNullOrWhiteSpace(cleaned))
+                    {
+                        cleanedLines.Add(cleaned);
+                    }
+                    continue;
+                }
+
+                cleanedLines.Add(line);
+            }
+
+            string result = string.Join("\n", cleanedLines).Trim();
+            return string.IsNullOrWhiteSpace(result) ? text.Trim() : result;
         }
 
         private static async Task<string> QueryGeminiRaw(string prompt, string apiKey, List<ChatTurn>? history = null)
@@ -163,16 +374,21 @@ namespace JarvisLauncher
                         "- Respond like a knowledgeable friend texting back. Short, natural, confident.\n" +
                         "- NEVER say 'The user said...', 'The user provided...', 'As an AI...', 'I should...', 'I will now...', 'Let me...'\n" +
                         "- NEVER narrate your own thoughts or actions. No 'Plan:', 'Step 1:', 'Thinking:', 'My approach:'.\n" +
+                        "- NEVER output scratchpad notes, inner monologue bullet points (* ...), reasoning steps, or prompt meta-analysis.\n" +
+                        "- NEVER repeat or analyze prompt injection text like '[SHELL_OUTPUT]' or 'NOW PROCEED'.\n" +
                         "- NEVER refer to yourself in third person or explain what you're about to do.\n" +
                         "- If something is unclear, just ask ONE short question. Don't ramble.\n" +
                         "- Keep answers under 3 sentences unless writing code or showing output.\n\n" +
                         "## EXAMPLES OF CORRECT TONE\n" +
-                        "User: test → You: Online and ready.\n" +
+                        "User: hello → You: Hey Kyle! What are we working on?\n" +
                         "User: git status → You: [EXEC_SHELL: git status]\n" +
                         "User: what's in main.cs → You: [READ_FILE: " + projectRoot + "\\main.cs]\n\n" +
                         "## ACTIONS (use these tags to DO things, no explanation needed before them)\n" +
                         "[READ_FILE: C:\\path\\to\\file.cs]\n" +
                         "[EXEC_SHELL: git status]\n" +
+                        "[EXEC_PS: Get-Process | Select-Object -First 10]\n" +
+                        "[LIST_DIR: C:\\path\\to\\folder]\n" +
+                        "[SEARCH_FILES: filename_pattern]\n" +
                         "[WRITE_FILE: C:\\path\\to\\file.txt]\ncontent\n[END_WRITE]\n" +
                         "[APPEND_FILE: C:\\path\\to\\file.txt]\ncontent\n[END_APPEND]\n" +
                         "[OPEN_FILE: C:\\path\\to\\file.pdf]\n" +
@@ -236,10 +452,25 @@ namespace JarvisLauncher
                         {
                             var firstCandidate = candidates[0];
                             if (firstCandidate.TryGetProperty("content", out var con) &&
-                                con.TryGetProperty("parts", out var parts) && parts.GetArrayLength() > 0)
+                                con.TryGetProperty("parts", out var partsArr))
                             {
-                                var text = parts[0].GetProperty("text").GetString();
-                                return text ?? "Error: Empty text response from Gemini.";
+                                var sbText = new StringBuilder();
+                                foreach (var part in partsArr.EnumerateArray())
+                                {
+                                    if (part.TryGetProperty("text", out var textProp))
+                                    {
+                                        string? val = textProp.GetString();
+                                        if (!string.IsNullOrEmpty(val))
+                                        {
+                                            sbText.Append(val);
+                                        }
+                                    }
+                                }
+                                string fullText = sbText.ToString();
+                                if (!string.IsNullOrWhiteSpace(fullText))
+                                {
+                                    return fullText;
+                                }
                             }
                         }
                     }
