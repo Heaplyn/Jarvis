@@ -1,183 +1,53 @@
 // Developer: heaplyn
-// Date: 2026-08-09
-// Summary: Spawns the DownloadMedia TypeScript CLI script, auto-installing Node dependencies and Playwright browsers on first run.
+// Date: 2026-08-10
+// Summary: Spawns the Discord Music Downloader TypeScript CLI script to download audio links via Lucida or YT-DLP.
 
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Windows;
 
 namespace JarvisLauncher
 {
     public static class DownloadMediaRunner
     {
-        public static string GetScriptDirectory()
+        public static Task<string> EnsureDependenciesAsync()
         {
-            // 1. Look in the compiled binary execution folder (Publish target)
-            string binPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Modules", "Layer0", "DownloadMedia");
-            if (Directory.Exists(binPath))
-            {
-                return binPath;
-            }
-
-            // 2. Fallback to the development source folder (3 levels up from bin/Debug/net8.0-windows)
-            string devPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\Modules\Layer0\DownloadMedia"));
-            if (Directory.Exists(devPath))
-            {
-                return devPath;
-            }
-
-            return binPath; // Default fallback path
-        }
-
-        private static string GetProjectRoot()
-        {
-            string devPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\.."));
-            if (Directory.Exists(Path.Combine(devPath, "Modules")))
-            {
-                return devPath;
-            }
-            return AppDomain.CurrentDomain.BaseDirectory;
-        }
-
-        private static string GetConfiguredDownloadDirectory()
-        {
-            string customDir = SettingsManager.Current.DownloadDirectory;
-            if (!string.IsNullOrWhiteSpace(customDir))
-            {
-                return customDir;
-            }
-
-            // Default to 'Downloads' folder in the project root folder
-            string defaultDir = Path.Combine(GetProjectRoot(), "Downloads");
-            if (!Directory.Exists(defaultDir))
-            {
-                try { Directory.CreateDirectory(defaultDir); } catch { }
-            }
-            return defaultDir;
-        }
-
-        public static async Task<string> EnsureDependenciesAsync()
-        {
-            string scriptDir = GetScriptDirectory();
-            if (!Directory.Exists(scriptDir))
-            {
-                return "Error: DownloadMedia script directory not found.";
-            }
-
-            string nodeModulesPath = Path.Combine(scriptDir, "node_modules");
-            string flaresolverrPath = Path.Combine(scriptDir, "flaresolverr");
-
-            bool needsNpm = !Directory.Exists(nodeModulesPath);
-            bool needsFlare = !Directory.Exists(flaresolverrPath) || !Directory.Exists(flaresolverrPath) || Directory.GetFileSystemEntries(flaresolverrPath).Length == 0;
-
-            if (needsNpm)
-            {
-                // Notify the user on the UI thread
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    TextOverlay.Show("📦 Installing downloader dependencies (first run)...", 6000);
-                });
-
-                // Run npm install
-                string npmResult = await RunSetupCommandAsync("npm.cmd", "install", scriptDir);
-                if (npmResult.StartsWith("Error:"))
-                {
-                    return $"Error: Failed to install npm dependencies:\n{npmResult}\n\nMake sure Node.js is installed on your system.";
-                }
-
-                // Run playwright install chromium
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    TextOverlay.Show("🌐 Configuring Playwright browser packages...", 5000);
-                });
-
-                string pwResult = await RunSetupCommandAsync("npx.cmd", "playwright install chromium", scriptDir);
-                if (pwResult.StartsWith("Error:"))
-                {
-                    return $"Error: Failed to configure Playwright browser packages:\n{pwResult}";
-                }
-            }
-
-            if (needsFlare)
-            {
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    TextOverlay.Show("⚡ Downloading FlareSolverr bypass proxy server...", 5000);
-                });
-
-                // Run node setup.js
-                string fsResult = await RunSetupCommandAsync("node", "setup.js", scriptDir);
-                if (fsResult.StartsWith("Error:"))
-                {
-                    return $"Error: Failed to setup FlareSolverr:\n{fsResult}";
-                }
-
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    TextOverlay.Show("✅ FlareSolverr successfully configured!", 3000);
-                });
-            }
-
-            return "Success";
+            return Task.FromResult("Success");
         }
 
         public static async Task<string> DownloadAsync(string url, string? customDestinationDir = null)
         {
-            string scriptDir = GetScriptDirectory();
+            string projectDir = @"C:\Users\Kyle\Downloads\Projects\Discord Music Downloader";
 
-            // Verify the script directory exists before launching
-            if (!Directory.Exists(scriptDir))
+            if (!Directory.Exists(projectDir))
             {
-                return $"Error: DownloadMedia script directory not found. Checked locations:\n" +
-                       $"- {Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Modules", "Layer0", "DownloadMedia")}\n" +
-                       $"- {Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\Modules\Layer0\DownloadMedia"))}";
-            }
-
-            // Ensure dependencies are resolved before starting
-            string setupResult = await EnsureDependenciesAsync();
-            if (setupResult.StartsWith("Error:"))
-            {
-                return setupResult;
+                return $"Error: Discord Music Downloader directory not found at: {projectDir}";
             }
 
             var output = new StringBuilder();
             var errors = new StringBuilder();
             var tcs = new TaskCompletionSource<string>();
 
-            // Escape double quotes inside URL parameters to prevent CLI argument injection
+            // Escape quotes in URL to prevent CLI parser breakages
             string escapedUrl = url.Replace("\"", "\\\"");
 
-            string downloadDir = !string.IsNullOrWhiteSpace(customDestinationDir) && Directory.Exists(customDestinationDir) 
-                ? customDestinationDir 
-                : GetConfiguredDownloadDirectory();
-            string escapedDownloadDir = downloadDir.Replace("\\", "/");
-
-            // Run "node" directly using Node 20.6+'s native ESM import hooks to bypass npx.cmd's pathing bugs on Windows
             var process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
                     FileName               = "node",
-                    Arguments              = $"--import tsx DownloadMedia.ts \"{escapedUrl}\" \"{escapedDownloadDir}\"",
-                    WorkingDirectory       = scriptDir,
+                    Arguments              = $"--import tsx src/downloadmedia.ts \"{escapedUrl}\"",
+                    WorkingDirectory       = projectDir,
                     UseShellExecute        = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError  = true,
-                    CreateNoWindow         = true,
-                    EnvironmentVariables   = { }
+                    CreateNoWindow         = true
                 },
                 EnableRaisingEvents = true
             };
-
-            // Inherit the current user PATH into the spawned process to locate node
-            string? userPath = Environment.GetEnvironmentVariable("PATH");
-            if (!string.IsNullOrEmpty(userPath))
-            {
-                process.StartInfo.EnvironmentVariables["PATH"] = userPath;
-            }
 
             process.OutputDataReceived += (_, e) =>
             {
@@ -214,71 +84,75 @@ namespace JarvisLauncher
             }
             catch (Exception ex)
             {
-                return $"Error: Failed to start Node process.\n{ex.Message}\n\nMake sure Node.js is installed and on your PATH.";
+                return $"Error: Failed to start npx process.\n{ex.Message}\n\nMake sure Node.js is installed and on your PATH.";
             }
 
-            return await tcs.Task;
-        }
+            string resultStr = await tcs.Task;
 
-        private static async Task<string> RunSetupCommandAsync(string fileName, string arguments, string workingDirectory)
-        {
-            var output = new StringBuilder();
-            var errors = new StringBuilder();
-            var tcs = new TaskCompletionSource<string>();
-
-            var process = new Process
+            // Search for "Path: " in the console output to extract the downloaded file location
+            string searchKey = "Path: ";
+            int pathIndex = resultStr.IndexOf(searchKey);
+            if (pathIndex >= 0)
             {
-                StartInfo = new ProcessStartInfo
+                int start = pathIndex + searchKey.Length;
+                int end = resultStr.IndexOf('\n', start);
+                string filePath = (end >= 0 ? resultStr.Substring(start, end - start) : resultStr.Substring(start)).Trim();
+                filePath = filePath.Replace("\r", "").Trim(); // Strip carriage returns
+
+                if (File.Exists(filePath))
                 {
-                    FileName               = fileName,
-                    Arguments              = arguments,
-                    WorkingDirectory       = workingDirectory,
-                    UseShellExecute        = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError  = true,
-                    CreateNoWindow         = true,
-                    EnvironmentVariables   = { }
-                },
-                EnableRaisingEvents = true
-            };
-
-            string? userPath = Environment.GetEnvironmentVariable("PATH");
-            if (!string.IsNullOrEmpty(userPath))
-            {
-                process.StartInfo.EnvironmentVariables["PATH"] = userPath;
-            }
-
-            process.OutputDataReceived += (_, e) => { if (e.Data != null) output.AppendLine(e.Data); };
-            process.ErrorDataReceived  += (_, e) => { if (e.Data != null) errors.AppendLine(e.Data); };
-            process.Exited += (_, _) =>
-            {
-                int exitCode = -1;
-                try { exitCode = process.ExitCode; } catch { }
-                process.Dispose();
-
-                if (exitCode == 0)
-                {
-                    tcs.TrySetResult("Success");
+                    if (!string.IsNullOrEmpty(customDestinationDir))
+                    {
+                        try
+                        {
+                            if (!Directory.Exists(customDestinationDir))
+                            {
+                                Directory.CreateDirectory(customDestinationDir);
+                            }
+                            string destPath = Path.Combine(customDestinationDir, Path.GetFileName(filePath));
+                            if (File.Exists(destPath))
+                            {
+                                File.Delete(destPath);
+                            }
+                            File.Move(filePath, destPath);
+                            return $"Success:{destPath}";
+                        }
+                        catch (Exception ex)
+                        {
+                            return $"Error moving downloaded file: {ex.Message}. File remains at: {filePath}";
+                        }
+                    }
+                    return $"Success:{filePath}";
                 }
-                else
+            }
+
+            // Fallback sweep if "Path: " was not explicitly logged but script reported success
+            if (resultStr.Contains("DOWNLOAD SUCCESSFUL"))
+            {
+                try
                 {
-                    string stderr = errors.ToString().Trim();
-                    tcs.TrySetResult($"Error: Exit code {exitCode}. Details:\n{stderr}");
+                    string dlDir = Path.Combine(projectDir, "downloads");
+                    if (Directory.Exists(dlDir))
+                    {
+                        var files = Directory.GetFiles(dlDir);
+                        var newestFile = files.OrderByDescending(File.GetLastWriteTime).FirstOrDefault();
+                        if (newestFile != null && File.Exists(newestFile) && (DateTime.Now - File.GetLastWriteTime(newestFile)).TotalSeconds < 60)
+                        {
+                            if (!string.IsNullOrEmpty(customDestinationDir))
+                            {
+                                string destPath = Path.Combine(customDestinationDir, Path.GetFileName(newestFile));
+                                if (File.Exists(destPath)) File.Delete(destPath);
+                                File.Move(newestFile, destPath);
+                                return $"Success:{destPath}";
+                            }
+                            return $"Success:{newestFile}";
+                        }
+                    }
                 }
-            };
-
-            try
-            {
-                process.Start();
-                process.BeginOutputReadLine();
-                process.BeginErrorReadLine();
-            }
-            catch (Exception ex)
-            {
-                tcs.TrySetResult($"Error: {ex.Message}");
+                catch { }
             }
 
-            return await tcs.Task;
+            return $"Error: Downloader script completed but file wasn't resolved. Console output:\n{resultStr}";
         }
     }
 }

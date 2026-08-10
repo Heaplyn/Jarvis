@@ -42,6 +42,12 @@ namespace JarvisLauncher
         private StackPanel? _downloadsQueuePanel;
         private bool _isDownloadsDrawerOpen = false;
 
+        // Mass Action UI controls
+        private Border _massActionBar;
+        private TextBlock _massActionTitle;
+        private ComboBox _massDestinationComboBox;
+        private readonly HashSet<string> _selectedTrackIds = new HashSet<string>();
+
         public class DownloadQueueItem
         {
             public string Url { get; set; } = string.Empty;
@@ -113,6 +119,7 @@ namespace JarvisLauncher
                 try
                 {
                     ChromeStreamTracker.KillIfRunning();
+                    ChromeRemoteControl.Shutdown();
                     if (_streamProcess != null )//&& !_streamProcess.HasExited)
                     {
                         _streamProcess.Kill(entireProcessTree: true);
@@ -149,6 +156,7 @@ namespace JarvisLauncher
 
             var mainGrid = new Grid { Margin = new Thickness(10) };
             mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Folder Selection Bar & Add Buttons
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Mass Action Bar
             mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Track List View
             mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Player Controls & Progress Bar
 
@@ -208,6 +216,67 @@ namespace JarvisLauncher
             Grid.SetRow(topBarBorder, 0);
             mainGrid.Children.Add(topBarBorder);
 
+            // 1.5 Mass Action Bar Setup
+            _massActionBar = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(25, 255, 255, 255)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(8),
+                Margin = new Thickness(0, 0, 0, 10),
+                Visibility = Visibility.Collapsed
+            };
+            _massActionBar.SetResourceReference(Border.BorderBrushProperty, "WindowBorderBrush");
+
+            var massGrid = new Grid();
+            massGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            massGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            massGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            massGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            massGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            _massActionTitle = new TextBlock
+            {
+                Text = "Selected: 0 tracks",
+                VerticalAlignment = VerticalAlignment.Center,
+                FontSize = 12,
+                FontWeight = FontWeights.Bold
+            };
+            _massActionTitle.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+            Grid.SetColumn(_massActionTitle, 0);
+            massGrid.Children.Add(_massActionTitle);
+
+            _massDestinationComboBox = new ComboBox
+            {
+                Width = 150,
+                Margin = new Thickness(8, 0, 4, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                FontSize = 12
+            };
+            Grid.SetColumn(_massDestinationComboBox, 1);
+            massGrid.Children.Add(_massDestinationComboBox);
+
+            var massMoveBtn = CreateButton("📦 Move Selected", (s, e) => MassMoveTracks());
+            Grid.SetColumn(massMoveBtn, 2);
+            massGrid.Children.Add(massMoveBtn);
+
+            var massDeleteBtn = CreateButton("❌ Delete Selected", (s, e) => MassDeleteTracks());
+            Grid.SetColumn(massDeleteBtn, 3);
+            massGrid.Children.Add(massDeleteBtn);
+
+            var massCancelBtn = CreateButton("Cancel", (s, e) =>
+            {
+                _selectedTrackIds.Clear();
+                RenderTracksList();
+                UpdateMassActionBarVisibility();
+            });
+            Grid.SetColumn(massCancelBtn, 4);
+            massGrid.Children.Add(massCancelBtn);
+
+            _massActionBar.Child = massGrid;
+            Grid.SetRow(_massActionBar, 1);
+            mainGrid.Children.Add(_massActionBar);
+
             // 2. Center Track List Grid (splits track list and downloads drawer side-by-side)
             var centerGrid = new Grid();
             centerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Track List
@@ -262,7 +331,7 @@ namespace JarvisLauncher
             Grid.SetColumn(_downloadsDrawerGrid, 1);
             centerGrid.Children.Add(_downloadsDrawerGrid);
 
-            Grid.SetRow(centerGrid, 1);
+            Grid.SetRow(centerGrid, 2);
             mainGrid.Children.Add(centerGrid);
 
             // 3. Player Bar (Now Playing + Controls + Progress Slider)
@@ -308,10 +377,17 @@ namespace JarvisLauncher
                 IsMoveToPointEnabled = true
             };
             _positionSlider.PreviewMouseDown += (s, e) => _isDraggingSlider = true;
-            _positionSlider.PreviewMouseUp += (s, e) =>
+            _positionSlider.PreviewMouseUp += async (s, e) =>
             {
                 _isDraggingSlider = false;
-                if (_mediaPlayer.NaturalDuration.HasTimeSpan)
+                if (_currentTrack == null) return;
+
+                if (_currentTrack.IsStreamUrl || _currentTrack.PathOrUrl.StartsWith("http://") || _currentTrack.PathOrUrl.StartsWith("https://"))
+                {
+                    double targetSec = _positionSlider.Value;
+                    await ChromeRemoteControl.SeekAsync(_currentTrack.PathOrUrl, targetSec);
+                }
+                else if (_mediaPlayer.NaturalDuration.HasTimeSpan)
                 {
                     double targetSec = (_positionSlider.Value / 100.0) * _mediaPlayer.NaturalDuration.TimeSpan.TotalSeconds;
                     _mediaPlayer.Position = TimeSpan.FromSeconds(targetSec);
@@ -348,7 +424,7 @@ namespace JarvisLauncher
             playerStack.Children.Add(controlsPanel);
 
             playerBorder.Child = playerStack;
-            Grid.SetRow(playerBorder, 2);
+            Grid.SetRow(playerBorder, 3);
             mainGrid.Children.Add(playerBorder);
 
             this.UserContent = mainGrid;
@@ -377,6 +453,8 @@ namespace JarvisLauncher
                 var folder = _library.Folders.FirstOrDefault(f => f.FolderName == name);
                 if (folder != null)
                 {
+                    _selectedTrackIds.Clear();
+                    UpdateMassActionBarVisibility();
                     _activeFolder = folder;
                     _library.LastActiveFolderId = folder.Id;
                     MusicPlaylistManager.SaveLibrary(_library);
@@ -415,13 +493,36 @@ namespace JarvisLauncher
                     Background = (_currentTrack?.Id == track.Id)
                         ? new SolidColorBrush(Color.FromArgb(50, 128, 80, 230))
                         : new SolidColorBrush(Color.FromArgb(15, 255, 255, 255)),
-                    Cursor = Cursors.Hand
+                    Cursor = Cursors.Hand,
+                    ToolTip = "Left-click to Play. Right-click for options (Rename, Move to Folder). Check box to select multiple."
                 };
 
                 var itemGrid = new Grid();
-                itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Column 0: CheckBox
+                itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Column 1: Icon
+                itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Column 2: Title Stack
+                itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Column 3: Rename Button
+                itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Column 4: Delete Button
+
+                var selectCheckBox = new CheckBox
+                {
+                    IsChecked = _selectedTrackIds.Contains(track.Id),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 8, 0),
+                    Cursor = Cursors.Hand
+                };
+                selectCheckBox.Checked += (s, e) =>
+                {
+                    _selectedTrackIds.Add(track.Id);
+                    UpdateMassActionBarVisibility();
+                };
+                selectCheckBox.Unchecked += (s, e) =>
+                {
+                    _selectedTrackIds.Remove(track.Id);
+                    UpdateMassActionBarVisibility();
+                };
+                Grid.SetColumn(selectCheckBox, 0);
+                itemGrid.Children.Add(selectCheckBox);
 
                 var iconText = new TextBlock
                 {
@@ -430,7 +531,7 @@ namespace JarvisLauncher
                     Margin = new Thickness(0, 0, 8, 0),
                     VerticalAlignment = VerticalAlignment.Center
                 };
-                Grid.SetColumn(iconText, 0);
+                Grid.SetColumn(iconText, 1);
                 itemGrid.Children.Add(iconText);
 
                 var titleStack = new StackPanel();
@@ -452,26 +553,279 @@ namespace JarvisLauncher
                 pathBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
                 titleStack.Children.Add(pathBlock);
 
-                Grid.SetColumn(titleStack, 1);
+                Grid.SetColumn(titleStack, 2);
                 itemGrid.Children.Add(titleStack);
+
+                var renameBtn = CreateButton("✏️", (s, e) =>
+                {
+                    e.Handled = true;
+                    RenameTrackPrompt(track);
+                });
+                renameBtn.Padding = new Thickness(6, 2, 6, 2);
+                Grid.SetColumn(renameBtn, 3);
+                itemGrid.Children.Add(renameBtn);
 
                 var deleteBtn = CreateButton("❌", (s, e) =>
                 {
+                    e.Handled = true;
                     _activeFolder.Tracks.Remove(track);
                     MusicPlaylistManager.SaveLibrary(_library);
                     RenderTracksList();
                 });
                 deleteBtn.Padding = new Thickness(6, 2, 6, 2);
-                Grid.SetColumn(deleteBtn, 2);
+                Grid.SetColumn(deleteBtn, 4);
                 itemGrid.Children.Add(deleteBtn);
 
                 trackItemBorder.Child = itemGrid;
 
-                // Click track to play
-                trackItemBorder.MouseLeftButtonDown += (s, e) => PlayTrack(track);
+                // Click track to play (checking if they clicked checkbox to prevent play triggering)
+                trackItemBorder.MouseLeftButtonDown += (s, e) =>
+                {
+                    if (e.OriginalSource is DependencyObject depObj)
+                    {
+                        var parent = depObj;
+                        while (parent != null && parent != trackItemBorder)
+                        {
+                            if (parent is CheckBox) return;
+                            parent = VisualTreeHelper.GetParent(parent);
+                        }
+                    }
+                    PlayTrack(track);
+                };
+
+                // Context menu setup
+                var contextMenu = new ContextMenu();
+                var renameMenuItem = new MenuItem { Header = "✏️ Rename Track" };
+                renameMenuItem.Click += (s, e) => RenameTrackPrompt(track);
+                contextMenu.Items.Add(renameMenuItem);
+
+                var moveMenuItem = new MenuItem { Header = "📦 Move to Folder" };
+                bool hasOtherFolders = false;
+                foreach (var folder in _library.Folders)
+                {
+                    if (folder.Id == _activeFolder?.Id) continue;
+                    hasOtherFolders = true;
+                    var folderItem = new MenuItem { Header = folder.FolderName };
+                    folderItem.Click += (s, e) => MoveTrackToFolder(track, folder);
+                    moveMenuItem.Items.Add(folderItem);
+                }
+                if (!hasOtherFolders)
+                {
+                    var noFolderItem = new MenuItem { Header = "(No other folders)", IsEnabled = false };
+                    moveMenuItem.Items.Add(noFolderItem);
+                }
+                contextMenu.Items.Add(moveMenuItem);
+
+                var deleteMenuItem = new MenuItem { Header = "❌ Delete Track" };
+                deleteMenuItem.Click += (s, e) =>
+                {
+                    _activeFolder.Tracks.Remove(track);
+                    MusicPlaylistManager.SaveLibrary(_library);
+                    RenderTracksList();
+                };
+                contextMenu.Items.Add(deleteMenuItem);
+
+                trackItemBorder.ContextMenu = contextMenu;
 
                 _tracksPanel.Children.Add(trackItemBorder);
             }
+        }
+
+        private void UpdateMassActionBarVisibility()
+        {
+            if (_massActionBar == null) return;
+
+            if (_selectedTrackIds.Count > 0)
+            {
+                _massActionTitle.Text = $"Selected: {_selectedTrackIds.Count} tracks";
+                
+                // Populate destination folders dropdown
+                _massDestinationComboBox.Items.Clear();
+                foreach (var folder in _library.Folders)
+                {
+                    if (folder.Id != _activeFolder?.Id)
+                    {
+                        _massDestinationComboBox.Items.Add(folder.FolderName);
+                    }
+                }
+                
+                if (_massDestinationComboBox.Items.Count > 0)
+                {
+                    _massDestinationComboBox.SelectedIndex = 0;
+                    _massDestinationComboBox.IsEnabled = true;
+                }
+                else
+                {
+                    _massDestinationComboBox.Items.Add("(No other folders)");
+                    _massDestinationComboBox.SelectedIndex = 0;
+                    _massDestinationComboBox.IsEnabled = false;
+                }
+
+                _massActionBar.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                _massActionBar.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void MassMoveTracks()
+        {
+            if (_activeFolder == null || _selectedTrackIds.Count == 0) return;
+
+            string? targetFolderName = _massDestinationComboBox.SelectedItem as string;
+            if (string.IsNullOrEmpty(targetFolderName) || targetFolderName == "(No other folders)")
+            {
+                TextOverlay.Show("⚠️ Select a valid destination folder!", 2500);
+                return;
+            }
+
+            var destFolder = _library.Folders.FirstOrDefault(f => f.FolderName == targetFolderName);
+            if (destFolder == null) return;
+
+            var tracksToMove = _activeFolder.Tracks.Where(t => _selectedTrackIds.Contains(t.Id)).ToList();
+            if (tracksToMove.Count == 0) return;
+
+            foreach (var track in tracksToMove)
+            {
+                _activeFolder.Tracks.Remove(track);
+                if (!destFolder.Tracks.Any(t => t.PathOrUrl == track.PathOrUrl))
+                {
+                    destFolder.Tracks.Add(track);
+                }
+            }
+
+            _selectedTrackIds.Clear();
+            MusicPlaylistManager.SaveLibrary(_library);
+            UpdateMassActionBarVisibility();
+            RenderTracksList();
+            TextOverlay.Show($"📦 Moved {tracksToMove.Count} tracks to '{destFolder.FolderName}'", 2500);
+        }
+
+        private void MassDeleteTracks()
+        {
+            if (_activeFolder == null || _selectedTrackIds.Count == 0) return;
+
+            var result = MessageBox.Show($"Are you sure you want to delete these {_selectedTrackIds.Count} tracks from the folder?", 
+                                         "Confirm Mass Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (result != MessageBoxResult.Yes) return;
+
+            _activeFolder.Tracks.RemoveAll(t => _selectedTrackIds.Contains(t.Id));
+
+            _selectedTrackIds.Clear();
+            MusicPlaylistManager.SaveLibrary(_library);
+            UpdateMassActionBarVisibility();
+            RenderTracksList();
+            TextOverlay.Show("❌ Selected tracks deleted!", 2500);
+        }
+
+        private void RenameTrackPrompt(MusicTrack track)
+        {
+            InputPromptOverlay.Show($"Rename track '{track.Title}':", (newName) =>
+            {
+                if (string.IsNullOrWhiteSpace(newName)) return;
+
+                newName = newName.Trim();
+                bool wasPlayingCurrent = false;
+                TimeSpan resumePosition = TimeSpan.Zero;
+                
+                // If it is the currently playing local song, release the lock on the file
+                if (_currentTrack?.Id == track.Id && _isPlaying && !_currentTrack.IsStreamUrl)
+                {
+                    wasPlayingCurrent = true;
+                    resumePosition = _mediaPlayer.Position;
+                    try
+                    {
+                        _mediaPlayer.Stop();
+                        _mediaPlayer.Close();
+                    }
+                    catch { }
+                }
+
+                // If it is a local file, rename the physical file on disk to sync with metadata name
+                if (!track.IsStreamUrl && File.Exists(track.PathOrUrl))
+                {
+                    try
+                    {
+                        string directory = Path.GetDirectoryName(track.PathOrUrl) ?? string.Empty;
+                        string extension = Path.GetExtension(track.PathOrUrl);
+                        
+                        // Sanitize new name for file system safety
+                        string sanitizedName = string.Join("_", newName.Split(Path.GetInvalidFileNameChars())).Trim();
+                        if (string.IsNullOrEmpty(sanitizedName))
+                        {
+                            TextOverlay.Show("⚠️ Invalid track file name!", 3000);
+                            return;
+                        }
+                        
+                        string newPath = Path.Combine(directory, sanitizedName + extension);
+                        if (newPath != track.PathOrUrl)
+                        {
+                            if (File.Exists(newPath))
+                            {
+                                TextOverlay.Show("⚠️ A file with that name already exists!", 3000);
+                                if (wasPlayingCurrent)
+                                {
+                                    _mediaPlayer.Open(new Uri(Path.GetFullPath(track.PathOrUrl)));
+                                    _mediaPlayer.Position = resumePosition;
+                                    _mediaPlayer.Play();
+                                }
+                                return;
+                            }
+                            
+                            File.Move(track.PathOrUrl, newPath);
+                            track.PathOrUrl = newPath;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        TextOverlay.Show($"⚠️ Failed to rename local file: {ex.Message}", 3000);
+                        if (wasPlayingCurrent)
+                        {
+                            _mediaPlayer.Open(new Uri(Path.GetFullPath(track.PathOrUrl)));
+                            _mediaPlayer.Position = resumePosition;
+                            _mediaPlayer.Play();
+                        }
+                        return;
+                    }
+                }
+
+                track.Title = newName;
+                MusicPlaylistManager.SaveLibrary(_library);
+                RenderTracksList();
+
+                if (_currentTrack?.Id == track.Id)
+                {
+                    _nowPlayingTitle.Text = track.Title;
+                    if (wasPlayingCurrent)
+                    {
+                        try
+                        {
+                            _mediaPlayer.Open(new Uri(Path.GetFullPath(track.PathOrUrl)));
+                            _mediaPlayer.Position = resumePosition;
+                            _mediaPlayer.Play();
+                        }
+                        catch { }
+                    }
+                }
+                
+                TextOverlay.Show("Track renamed successfully!", 2000);
+            });
+        }
+
+        private void MoveTrackToFolder(MusicTrack track, MusicFolder destinationFolder)
+        {
+            if (_activeFolder == null) return;
+            
+            _activeFolder.Tracks.Remove(track);
+            if (!destinationFolder.Tracks.Any(t => t.PathOrUrl == track.PathOrUrl))
+            {
+                destinationFolder.Tracks.Add(track);
+            }
+            
+            MusicPlaylistManager.SaveLibrary(_library);
+            RenderTracksList();
+            TextOverlay.Show($"Moved track to '{destinationFolder.FolderName}'", 2000);
         }
 
         private void PlayTrack(MusicTrack track)
@@ -494,6 +848,7 @@ namespace JarvisLauncher
                 try
                 {
                     ChromeStreamTracker.KillIfRunning();
+                    ChromeRemoteControl.Shutdown();
                     if (_streamProcess != null && !_streamProcess.HasExited)
                     {
                         _streamProcess.Kill(entireProcessTree: true);
@@ -504,6 +859,12 @@ namespace JarvisLauncher
 
                 if (track.IsStreamUrl || track.PathOrUrl.StartsWith("http://") || track.PathOrUrl.StartsWith("https://"))
                 {
+                    // Enable slider and timer for web streams control via remote debugger
+                    _positionSlider.Value = 0;
+                    _positionSlider.IsEnabled = true;
+                    _timeLabel.Text = "Live Web Stream (Connecting...)";
+                    _playTimer.Start();
+
                     try
                     {
                         // Launch Chrome process using default Google user profile credentials
@@ -518,7 +879,7 @@ namespace JarvisLauncher
                             var psi = new System.Diagnostics.ProcessStartInfo
                             {
                                 FileName = chromePath,
-                                Arguments = $"--app=\"{track.PathOrUrl}\" --new-window --profile-directory=\"Default\"",
+                                Arguments = $"--app=\"{track.PathOrUrl}\" --new-window --remote-debugging-port=9222 --user-data-dir=\"{Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Jarvis", "ChromeDebugProfile")}\"",
                                 UseShellExecute = true
                             };
                             ChromeStreamTracker.MarkLaunchTime();
@@ -531,7 +892,7 @@ namespace JarvisLauncher
                             var psi = new System.Diagnostics.ProcessStartInfo
                             {
                                 FileName = "msedge.exe",
-                                Arguments = $"--app=\"{track.PathOrUrl}\" --new-window",
+                                Arguments = $"--app=\"{track.PathOrUrl}\" --new-window --remote-debugging-port=9222 --user-data-dir=\"{Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Jarvis", "EdgeDebugProfile")}\"",
                                 UseShellExecute = true
                             };
                             ChromeStreamTracker.MarkLaunchTime();
@@ -552,7 +913,7 @@ namespace JarvisLauncher
                         ChromeStreamTracker.Set(_streamProcess);
                     }
 
-                    TextOverlay.Show($"🌐 Opening Web Stream (Google Logged In):\n{track.Title}", 3000);
+                    TextOverlay.Show($"🌐 Opening Web Stream (Remote Debugging Enabled):\n{track.Title}", 3000);
                     _isPlaying = true;
                     _playPauseBtn.Content = "⏸️ Pause";
                     RenderTracksList();
@@ -576,6 +937,9 @@ namespace JarvisLauncher
                     _mediaPlayer.Play();
                     _isPlaying = true;
                     _playPauseBtn.Content = "⏸️ Pause";
+                    
+                    // Enable position slider and start playhead timer
+                    _positionSlider.IsEnabled = true;
                     _playTimer.Start();
                 }
                 catch
@@ -599,8 +963,17 @@ namespace JarvisLauncher
 
         private void TogglePlayPause()
         {
+            if (_currentTrack == null)
+            {
+                if (_activeFolder != null && _activeFolder.Tracks.Count > 0)
+                {
+                    PlayTrack(_activeFolder.Tracks[0]);
+                }
+                return;
+            }
+
             // 1. If currently playing a local MP3 track via WPF MediaPlayer
-            if (_currentTrack != null && !_currentTrack.IsStreamUrl && File.Exists(_currentTrack.PathOrUrl))
+            if (!_currentTrack.IsStreamUrl && File.Exists(_currentTrack.PathOrUrl))
             {
                 if (_isPlaying)
                 {
@@ -629,6 +1002,11 @@ namespace JarvisLauncher
             NativeMethods.SendMediaKey(NativeMethods.VK_MEDIA_NEXT);
 
             if (_activeFolder == null || _activeFolder.Tracks.Count == 0) return;
+            if (_currentTrack == null)
+            {
+                PlayTrack(_activeFolder.Tracks[0]);
+                return;
+            }
             int index = _activeFolder.Tracks.FindIndex(t => t.Id == _currentTrack?.Id);
             int nextIndex = (index + 1) % _activeFolder.Tracks.Count;
             PlayTrack(_activeFolder.Tracks[nextIndex]);
@@ -639,19 +1017,50 @@ namespace JarvisLauncher
             NativeMethods.SendMediaKey(NativeMethods.VK_MEDIA_PREV);
 
             if (_activeFolder == null || _activeFolder.Tracks.Count == 0) return;
+            if (_currentTrack == null)
+            {
+                PlayTrack(_activeFolder.Tracks[0]);
+                return;
+            }
             int index = _activeFolder.Tracks.FindIndex(t => t.Id == _currentTrack?.Id);
             int prevIndex = index <= 0 ? _activeFolder.Tracks.Count - 1 : index - 1;
             PlayTrack(_activeFolder.Tracks[prevIndex]);
         }
 
-        private void PlayTimer_Tick(object? sender, EventArgs e)
+        private async void PlayTimer_Tick(object? sender, EventArgs e)
         {
+            if (_currentTrack == null) return;
+
+            if (_currentTrack.IsStreamUrl || _currentTrack.PathOrUrl.StartsWith("http://") || _currentTrack.PathOrUrl.StartsWith("https://"))
+            {
+                if (!_isDraggingSlider)
+                {
+                    var (current, duration) = await ChromeRemoteControl.GetPositionAsync(_currentTrack.PathOrUrl);
+                    if (duration > 0)
+                    {
+                        _positionSlider.IsEnabled = true;
+                        _positionSlider.Maximum = duration;
+                        _positionSlider.Value = current;
+                        _timeLabel.Text = $"{TimeSpan.FromSeconds(current):mm\\:ss} / {TimeSpan.FromSeconds(duration):mm\\:ss}";
+                    }
+                    else
+                    {
+                        _positionSlider.IsEnabled = false;
+                        _positionSlider.Value = 0;
+                        _timeLabel.Text = "Live Web Stream (Connecting...)";
+                    }
+                }
+                return;
+            }
+
             if (!_isDraggingSlider && _mediaPlayer.NaturalDuration.HasTimeSpan)
             {
                 double total = _mediaPlayer.NaturalDuration.TimeSpan.TotalSeconds;
                 double current = _mediaPlayer.Position.TotalSeconds;
                 if (total > 0)
                 {
+                    _positionSlider.IsEnabled = true;
+                    _positionSlider.Maximum = 100;
                     _positionSlider.Value = (current / total) * 100.0;
                     _timeLabel.Text = $"{_mediaPlayer.Position:mm\\:ss} / {_mediaPlayer.NaturalDuration.TimeSpan:mm\\:ss}";
                 }
@@ -849,22 +1258,24 @@ namespace JarvisLauncher
                 string outputTemplate = Path.Combine(musicDir, "%(title)s.%(ext)s");
                 string? localPath = null;
 
+                string tsOutput = string.Empty;
                 // 1. Primary Engine: DownloadMediaRunner (TypeScript CLI Playwright + Lucida fetcher)
                 try
                 {
-                    string tsOutput = await DownloadMediaRunner.DownloadAsync(url, musicDir);
-
-                    // Scan target download location for newly created MP3 file after startTime
-                    var files = Directory.GetFiles(musicDir, "*.mp3");
-                    string? newest = files.Where(f => File.GetLastWriteTime(f) >= startTime)
-                                          .OrderByDescending(File.GetLastWriteTime)
-                                          .FirstOrDefault();
-                    if (!string.IsNullOrEmpty(newest) && File.Exists(newest) && new FileInfo(newest).Length > 10000)
+                    tsOutput = await DownloadMediaRunner.DownloadAsync(url, musicDir);
+                    if (tsOutput.StartsWith("Success:"))
                     {
-                        localPath = newest;
+                        string path = tsOutput.Substring("Success:".Length).Replace("\r", "").Trim();
+                        if (File.Exists(path))
+                        {
+                            localPath = path;
+                        }
                     }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    tsOutput = $"Exception: {ex.Message}";
+                }
 
                 // 2. Fallback Engine: yt-dlp / cmd.exe MP3 conversion
                 if (string.IsNullOrEmpty(localPath) || !File.Exists(localPath))
@@ -927,6 +1338,19 @@ namespace JarvisLauncher
                     try { hostTitle = new Uri(url).Host; } catch { }
                     UpdateQueueItemStatus(queueItem, "Finished", $"Web Stream ({hostTitle})");
 
+                    // Write error output to DownloadError.log file
+                    try
+                    {
+                        string logDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
+                        if (!Directory.Exists(logDir)) Directory.CreateDirectory(logDir);
+                        string logPath = Path.Combine(logDir, "DownloadError.log");
+                        File.WriteAllText(logPath, $"URL: {url}\nPrimary Engine Output:\n{tsOutput}\n");
+                    }
+                    catch { }
+
+                    // Display CLI Output Terminal Overlay with the errors
+                    CliOutputOverlay.Show("Media Downloader Error Output", $"Downloader failed for url: {url}\n\nConsole output:\n{tsOutput}");
+
                     Application.Current.Dispatcher.Invoke(() =>
                     {
                         var streamTrack = new MusicTrack
@@ -938,7 +1362,7 @@ namespace JarvisLauncher
 
                         MusicPlaylistManager.AddTrackToFolderAndAllSongs(_library, _activeFolder, streamTrack);
                         RenderTracksList();
-                        TextOverlay.Show($"🌐 Added Web Stream Track ({hostTitle})", 3500);
+                        TextOverlay.Show($"⚠️ Download failed, playing Web Stream ({hostTitle})", 4000);
 
                         PlayTrack(streamTrack);
                     });

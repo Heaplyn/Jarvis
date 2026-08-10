@@ -46,7 +46,7 @@ namespace JarvisLauncher
             this.AllowsTransparency = true;
             this.Background = Brushes.Transparent;
             this.ShowInTaskbar = true;
-            this.Topmost = true;
+            this.Topmost = SettingsManager.Current.AlwaysOnTop;
             this.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             this.Opacity = 0; // Hidden initially for fade-in
 

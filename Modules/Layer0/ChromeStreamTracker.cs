@@ -6,22 +6,56 @@
 
 using System;
 using System.Diagnostics;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using System.Linq;
 
 namespace JarvisLauncher
 {
     public static class ChromeStreamTracker
     {
+        private static readonly List<IntPtr> _spawnedWindows = new List<IntPtr>();
+        private static List<IntPtr> _preLaunchWindows = new List<IntPtr>();
         private static Process? _process = null;
         private static int _pid = -1;
 
-        /// <summary>True if the tracked Chrome stream process is alive.</summary>
+        static ChromeStreamTracker()
+        {
+            AppDomain.CurrentDomain.ProcessExit += (s, e) => KillIfRunning();
+        }
+
+        private static List<IntPtr> GetChromeWindows()
+        {
+            var list = new List<IntPtr>();
+            try
+            {
+                NativeMethods.EnumWindows((hWnd, lParam) =>
+                {
+                    var sb = new System.Text.StringBuilder(256);
+                    if (NativeMethods.GetClassName(hWnd, sb, sb.Capacity) > 0)
+                    {
+                        if (sb.ToString() == "Chrome_WidgetWin_1")
+                        {
+                            list.Add(hWnd);
+                        }
+                    }
+                    return true;
+                }, IntPtr.Zero);
+            }
+            catch { }
+            return list;
+        }
+
+        /// <summary>True if the tracked Chrome stream process or any window is alive.</summary>
         public static bool IsRunning
         {
             get
             {
-                if (_process == null) return false;
-                try { return !_process.HasExited; }
-                catch { return false; }
+                lock (_spawnedWindows)
+                {
+                    _spawnedWindows.RemoveAll(hWnd => !NativeMethods.IsWindow(hWnd));
+                    return _spawnedWindows.Count > 0 || (_process != null && !_process.HasExited);
+                }
             }
         }
 
@@ -30,76 +64,71 @@ namespace JarvisLauncher
 
         /// <summary>
         /// Register a newly spawned Chrome/Edge stream process.
-        /// Automatically kills any previously tracked process first.
         /// </summary>
         public static void Set(Process? process)
         {
-            KillIfRunning(); // always kill old one first
-
             _process = process;
             _pid = process != null ? process.Id : -1;
         }
 
+        /// <summary>Call this just before Process.Start so we can find newly spawned Chrome windows.</summary>
+        public static void MarkLaunchTime()
+        {
+            _preLaunchWindows = GetChromeWindows();
+
+            // Run off-thread to capture newly spawned windows near this launch event
+            Task.Run(async () =>
+            {
+                await Task.Delay(1500); // Allow browser to initialize process tree and open windows
+
+                var postLaunchWindows = GetChromeWindows();
+                var newWindows = postLaunchWindows.Except(_preLaunchWindows).ToList();
+
+                lock (_spawnedWindows)
+                {
+                    foreach (var hWnd in newWindows)
+                    {
+                        if (!_spawnedWindows.Contains(hWnd))
+                        {
+                            _spawnedWindows.Add(hWnd);
+                        }
+                    }
+                    System.Diagnostics.Debug.WriteLine($"[ChromeStreamTracker] Tracking window handles: {string.Join(", ", _spawnedWindows)}");
+                }
+            });
+        }
+
         /// <summary>
-        /// Kill the tracked stream process and all chrome children spawned from it.
+        /// Kill the tracked stream process and all chrome windows spawned from it.
         /// </summary>
         public static void KillIfRunning()
         {
-            int pidToKill = _pid;
-
-            // Clear state immediately before attempting kill
-            _process = null;
-            _pid = -1;
-
-            if (pidToKill <= 0) return;
-
-            // Kill(entireProcessTree:true) walks the entire child tree from the root PID.
-            // This handles Chrome even if the initial launcher process is still alive.
-            try
+            lock (_spawnedWindows)
             {
-                var proc = Process.GetProcessById(pidToKill);
-                proc.Kill(entireProcessTree: true);
-                proc.WaitForExit(2000);
-            }
-            catch { }
-
-            // If Chrome's launcher already exited (common), it spawned children under a new parent.
-            // Re-check: kill any remaining chrome process whose PID we can still reach via stored PID.
-            // Since we can't use WMI without a package, scan chrome processes by creation time proximity.
-            KillRecentChromeAppProcesses();
-        }
-
-        // Timestamp recorded just before launching the stream - used to find newly spawned Chrome procs
-        private static DateTime _launchTime = DateTime.MinValue;
-
-        /// <summary>Call this just before Process.Start so we can find newly spawned Chrome windows.</summary>
-        public static void MarkLaunchTime() => _launchTime = DateTime.Now;
-
-        private static void KillRecentChromeAppProcesses()
-        {
-            if (_launchTime == DateTime.MinValue) return;
-
-            string[] browserNames = { "chrome", "msedge" };
-            foreach (var name in browserNames)
-            {
-                foreach (var proc in Process.GetProcessesByName(name))
+                foreach (var hWnd in _spawnedWindows)
                 {
-                    try
+                    if (NativeMethods.IsWindow(hWnd))
                     {
-                        // Only target Chrome processes that started within 5 seconds of our stream launch
-                        // AND have a visible window (app window mode always has a main window)
-                        if (proc.StartTime >= _launchTime.AddSeconds(-1) &&
-                            proc.StartTime <= _launchTime.AddSeconds(5) &&
-                            proc.MainWindowHandle != IntPtr.Zero)
-                        {
-                            proc.Kill(entireProcessTree: true);
-                        }
+                        NativeMethods.PostMessage(hWnd, NativeMethods.WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
                     }
-                    catch { }
                 }
+                _spawnedWindows.Clear();
             }
 
-            _launchTime = DateTime.MinValue;
+            // Kill main process handler if set
+            if (_process != null)
+            {
+                try
+                {
+                    if (!_process.HasExited)
+                    {
+                        _process.Kill(entireProcessTree: true);
+                    }
+                }
+                catch { }
+                _process = null;
+            }
+            _pid = -1;
         }
     }
 }

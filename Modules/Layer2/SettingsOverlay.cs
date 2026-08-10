@@ -23,6 +23,7 @@ namespace JarvisLauncher
         private readonly CheckBox _startWithWinCheckBox;
         private readonly CheckBox _playSoundsCheckBox;
         private readonly CheckBox _autoHideCheckBox;
+        private readonly CheckBox _alwaysOnTopCheckBox;
         private readonly Slider _opacitySlider;
         private readonly TextBlock _opacityValueLabel;
 
@@ -192,6 +193,9 @@ namespace JarvisLauncher
             _autoHideCheckBox = CreateCheckBox("🙈 Auto-hide HUD search bar after executing commands");
             formPanel.Children.Add(_autoHideCheckBox);
 
+            _alwaysOnTopCheckBox = CreateCheckBox("📌 Keep Jarvis HUD windows Always On Top");
+            formPanel.Children.Add(_alwaysOnTopCheckBox);
+
             scrollViewer.Content = formPanel;
             Grid.SetRow(scrollViewer, 0);
             mainGrid.Children.Add(scrollViewer);
@@ -253,6 +257,7 @@ namespace JarvisLauncher
             _startWithWinCheckBox.IsChecked = settings.StartWithWindows;
             _playSoundsCheckBox.IsChecked = settings.PlaySounds;
             _autoHideCheckBox.IsChecked = settings.AutoHideOnExecute;
+            _alwaysOnTopCheckBox.IsChecked = settings.AlwaysOnTop;
         }
 
         private void SaveSettings()
@@ -279,11 +284,25 @@ namespace JarvisLauncher
                 settings.StartWithWindows = _startWithWinCheckBox.IsChecked == true;
                 settings.PlaySounds = _playSoundsCheckBox.IsChecked == true;
                 settings.AutoHideOnExecute = _autoHideCheckBox.IsChecked == true;
+                settings.AlwaysOnTop = _alwaysOnTopCheckBox.IsChecked == true;
 
                 // Handle Windows Startup Registry key toggle
                 ConfigureWindowsStartup(settings.StartWithWindows);
 
                 SettingsManager.Save();
+
+                // Dynamic update of all open overlay windows in real-time
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    foreach (Window win in Application.Current.Windows)
+                    {
+                        if (win is BaseOverlay baseOverlay)
+                        {
+                            baseOverlay.Topmost = settings.AlwaysOnTop;
+                        }
+                    }
+                });
+
                 TextOverlay.Show("💾 Settings saved successfully!", 2500);
                 FadeOutAndClose();
             }
