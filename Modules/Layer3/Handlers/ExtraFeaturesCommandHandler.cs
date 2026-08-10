@@ -34,12 +34,32 @@ namespace JarvisLauncher
             var parts = query.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
             string cmd = parts[0].ToLower();
 
-            // --- 1. GLOBAL DESKTOP SEARCH ---
+            // --- 1. GLOBAL DESKTOP & WEB SEARCH ---
             if (cmd == "search")
             {
                 if (parts.Length > 1)
                 {
                     string target = parts[1].Trim();
+
+                    // Option A: Search Google Web Browser
+                    suggestions.Add(new CommandResult
+                    {
+                        Title       = $"🌐 Search Google for \"{target}\"",
+                        Description = $"Open browser to search Google for '{target}'",
+                        Similarity  = 2.5,
+                        Execute     = () => OpenWebBrowser($"https://www.google.com/search?q={Uri.EscapeDataString(target)}")
+                    });
+
+                    // Option B: Search DuckDuckGo Web Browser
+                    suggestions.Add(new CommandResult
+                    {
+                        Title       = $"🦆 Search DuckDuckGo for \"{target}\"",
+                        Description = $"Open browser to search DuckDuckGo for '{target}'",
+                        Similarity  = 2.4,
+                        Execute     = () => OpenWebBrowser($"https://duckduckgo.com/?q={Uri.EscapeDataString(target)}")
+                    });
+
+                    // Option C: Local Files Search
                     var foundFiles = SearchDesktopFiles(target);
                     foreach (var file in foundFiles)
                     {
@@ -57,10 +77,10 @@ namespace JarvisLauncher
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title       = "Search Desktop Files...",
-                        Description = "Type a filename or keyword (e.g. 'search report')",
+                        Title       = "Search Web in Browser...",
+                        Description = "Type query (e.g. 'search how to build a PC')",
                         Similarity  = 1.5,
-                        Execute     = () => InputPromptOverlay.Show("Enter file name to search:", (q) => ExecuteSearch(q))
+                        Execute     = () => InputPromptOverlay.Show("Enter web query to search:", (q) => OpenWebBrowser($"https://www.google.com/search?q={Uri.EscapeDataString(q)}"))
                     });
                 }
             }
@@ -338,6 +358,19 @@ namespace JarvisLauncher
                 TextOverlay.Show($"🚀 Opening: {Path.GetFileName(filePath)}", 2500);
             }
             catch { }
+        }
+
+        private static void OpenWebBrowser(string url)
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
+                TextOverlay.Show("🌐 Opening default browser...", 2500);
+            }
+            catch (Exception ex)
+            {
+                TextOverlay.Show($"⚠️ Browser launch failed: {ex.Message}", 3000);
+            }
         }
     }
 }

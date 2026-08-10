@@ -1,5 +1,9 @@
 [
   {
+    "Content": "C:\\Users\\Kyle\\Downloads\\Projects\\Jarvis",
+    "Timestamp": "2026-08-09T20:28:44.1722713-05:00"
+  },
+  {
     "Content": "C:\\Users\\Kyle\\Downloads\\Projects\\Jarvis\\Modules\\Layer2\\ProcessManagerOverlay.cs(62,17): error CS0117: \u0027Grid\u0027 does not contain a definition for \u0027Padding\u0027\r\nC:\\Users\\Kyle\\Downloads\\Projects\\Jarvis\\Modules\\Layer3\\Handlers\\NewIdeasCommandHandler.cs(64,63): error CS0117: \u0027NativeMethods\u0027 does not contain a definition for \u0027SendKeyCombo\u0027\r\nC:\\Users\\Kyle\\Downloads\\Projects\\Jarvis\\Modules\\Layer3\\Handlers\\NewIdeasCommandHandler.cs(74,63): error CS0117: \u0027NativeMethods\u0027 does not contain a definition for \u0027SendKeyCombo\u0027\r\nC:\\Users\\Kyle\\Downloads\\Projects\\Jarvis\\Modules\\Layer3\\Handlers\\NewIdeasCommandHandler.cs(85,59): error CS0117: \u0027NativeMethods\u0027 does not contain a definition for \u0027SendKeyCombo\u0027\r\nC:\\Users\\Kyle\\Downloads\\Projects\\Jarvis\\Modules\\Layer3\\Handlers\\NewIdeasCommandHandler.cs(92,59): error CS0117: \u0027NativeMethods\u0027 does not contain a definition for \u0027SendKeyCombo\u0027",
     "Timestamp": "2026-08-09T20:21:38.6818318-05:00"
   },
