@@ -85,13 +85,13 @@ namespace JarvisLauncher
 
         private static async Task<string> QueryGeminiRaw(string prompt, string apiKey)
         {
-            // List of candidate models to try in sequence upon receiving rate-limit (429) or not-found (404) errors
+            // List of candidate models tried in sequence: Uses high-tier Pro models first, falling back to Flash models upon 429 (quota) or 404 errors.
             string[] models = new[] {
-                "gemini-1.5-flash-latest",
-                "gemini-1.5-flash",
-                "gemini-2.0-flash-exp",
                 "gemini-1.5-pro-latest",
-                "gemini-3.5-flash"
+                "gemini-1.5-pro",
+                "gemini-2.0-flash-exp",
+                "gemini-1.5-flash-latest",
+                "gemini-1.5-flash"
             };
 
             string lastError = "";

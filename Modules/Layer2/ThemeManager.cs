@@ -80,6 +80,65 @@ namespace JarvisLauncher
                     selectedBorderHex = "#66007acc";
                     break;
 
+                case "dracula":
+                case "vampire":
+                case "gothic":
+                    bgHex = "#F2282A36"; 
+                    borderHex = "#BD93F9";
+                    caretHex = "#FF79C6";
+                    hoverHex = "#1CBD93F9";
+                    selectedHex = "#33BD93F9";
+                    selectedBorderHex = "#80BD93F9";
+                    break;
+
+                case "sunset":
+                case "vaporwave":
+                case "synthwave":
+                case "dusk":
+                    bgHex = "#F21A0F2C"; 
+                    borderHex = "#FF7B00";
+                    caretHex = "#FF007F";
+                    hoverHex = "#1CFF7B00";
+                    selectedHex = "#33FF007F";
+                    selectedBorderHex = "#80FF7B00";
+                    break;
+
+                case "crimson":
+                case "red":
+                case "blood":
+                case "ruby":
+                    bgHex = "#F21A0508"; 
+                    borderHex = "#DC143C";
+                    caretHex = "#FF2400";
+                    hoverHex = "#1CDC143C";
+                    selectedHex = "#33DC143C";
+                    selectedBorderHex = "#80DC143C";
+                    break;
+
+                case "gold":
+                case "amber":
+                case "luxury":
+                case "yellow":
+                    bgHex = "#F2141005"; 
+                    borderHex = "#FFD700";
+                    caretHex = "#FFBF00";
+                    hoverHex = "#1CFFD700";
+                    selectedHex = "#33FFD700";
+                    selectedBorderHex = "#80FFD700";
+                    break;
+
+                case "nordic":
+                case "nord":
+                case "arctic":
+                case "frost":
+                    bgHex = "#F22E3440"; 
+                    borderHex = "#88C0D0";
+                    caretHex = "#81A1C1";
+                    hoverHex = "#1C88C0D0";
+                    selectedHex = "#3388C0D0";
+                    selectedBorderHex = "#8088C0D0";
+                    break;
+
                 case "purple":
                 default:
                     // Keep default purple accents

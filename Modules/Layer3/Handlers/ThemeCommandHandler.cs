@@ -37,7 +37,10 @@ namespace JarvisLauncher
             else
             {
                 // List all available themes
-                var themes = new string[] { "purple", "dark", "blue", "green", "cyberpunk", "glass" };
+                var themes = new string[] { 
+                    "purple", "dark", "blue", "green", "cyberpunk", "glass",
+                    "dracula", "sunset", "crimson", "gold", "nordic" 
+                };
                 foreach (var th in themes)
                 {
                     bool isCurrent = th.Equals(currentTheme, StringComparison.OrdinalIgnoreCase);
