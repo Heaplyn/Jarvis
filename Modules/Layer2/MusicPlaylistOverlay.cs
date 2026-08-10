@@ -10,6 +10,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using System.Collections.Generic;
 
 namespace JarvisLauncher
 {
@@ -34,6 +35,24 @@ namespace JarvisLauncher
 
         private bool _isPlaying = false;
         private bool _isDraggingSlider = false;
+
+        // Downloads queue UI controls
+        private Button? _downloadsToggleBtn;
+        private Grid? _downloadsDrawerGrid;
+        private StackPanel? _downloadsQueuePanel;
+        private bool _isDownloadsDrawerOpen = false;
+
+        public class DownloadQueueItem
+        {
+            public string Url { get; set; } = string.Empty;
+            public string Status { get; set; } = "Pending";
+            public string Title { get; set; } = "Locating track...";
+            public Border? BorderElement { get; set; }
+            public TextBlock? StatusTextBlock { get; set; }
+            public TextBlock? TitleTextBlock { get; set; }
+        }
+
+        private readonly List<DownloadQueueItem> _downloadQueue = new List<DownloadQueueItem>();
 
         public static void OpenPlayer()
         {
@@ -94,7 +113,7 @@ namespace JarvisLauncher
                 try
                 {
                     ChromeStreamTracker.KillIfRunning();
-                    if (_streamProcess != null && !_streamProcess.HasExited)
+                    if (_streamProcess != null )//&& !_streamProcess.HasExited)
                     {
                         _streamProcess.Kill(entireProcessTree: true);
                     }
@@ -175,10 +194,12 @@ namespace JarvisLauncher
             var newFolderBtn = CreateButton("➕ New Folder", (s, e) => CreateNewFolderPrompt());
             var addFileBtn = CreateButton("🎵 Add Audio File", (s, e) => BrowseAndAddFile());
             var addUrlBtn = CreateButton("🔗 Add Link/URL", (s, e) => AddUrlStreamPrompt());
+            _downloadsToggleBtn = CreateButton("📥 Downloads (0)", (s, e) => ToggleDownloadsDrawer());
 
             buttonStack.Children.Add(newFolderBtn);
             buttonStack.Children.Add(addFileBtn);
             buttonStack.Children.Add(addUrlBtn);
+            buttonStack.Children.Add(_downloadsToggleBtn);
 
             Grid.SetColumn(buttonStack, 2);
             topGrid.Children.Add(buttonStack);
@@ -187,7 +208,11 @@ namespace JarvisLauncher
             Grid.SetRow(topBarBorder, 0);
             mainGrid.Children.Add(topBarBorder);
 
-            // 2. Center Track List
+            // 2. Center Track List Grid (splits track list and downloads drawer side-by-side)
+            var centerGrid = new Grid();
+            centerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Track List
+            centerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });                     // Downloads Sidebar
+
             var listScrollViewer = new ScrollViewer
             {
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
@@ -196,8 +221,49 @@ namespace JarvisLauncher
 
             _tracksPanel = new StackPanel();
             listScrollViewer.Content = _tracksPanel;
-            Grid.SetRow(listScrollViewer, 1);
-            mainGrid.Children.Add(listScrollViewer);
+            Grid.SetColumn(listScrollViewer, 0);
+            centerGrid.Children.Add(listScrollViewer);
+
+            // Construct Downloads Sidebar Drawer
+            _downloadsDrawerGrid = new Grid
+            {
+                Width = 0,
+                Visibility = Visibility.Collapsed,
+                Margin = new Thickness(10, 0, 0, 10)
+            };
+            _downloadsDrawerGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Header
+            _downloadsDrawerGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Scroll list
+
+            var dlHeaderBorder = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(15, 255, 255, 255)),
+                Padding = new Thickness(6),
+                CornerRadius = new CornerRadius(4),
+                Margin = new Thickness(0, 0, 0, 6)
+            };
+            var dlTitle = new TextBlock
+            {
+                Text = "📥 DOWNLOAD QUEUE",
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            dlTitle.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
+            dlHeaderBorder.Child = dlTitle;
+            Grid.SetRow(dlHeaderBorder, 0);
+            _downloadsDrawerGrid.Children.Add(dlHeaderBorder);
+
+            var dlScrollViewer = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            _downloadsQueuePanel = new StackPanel();
+            dlScrollViewer.Content = _downloadsQueuePanel;
+            Grid.SetRow(dlScrollViewer, 1);
+            _downloadsDrawerGrid.Children.Add(dlScrollViewer);
+
+            Grid.SetColumn(_downloadsDrawerGrid, 1);
+            centerGrid.Children.Add(_downloadsDrawerGrid);
+
+            Grid.SetRow(centerGrid, 1);
+            mainGrid.Children.Add(centerGrid);
 
             // 3. Player Bar (Now Playing + Controls + Progress Slider)
             var playerBorder = new Border
@@ -648,6 +714,102 @@ namespace JarvisLauncher
             });
         }
 
+        private void ToggleDownloadsDrawer()
+        {
+            if (_downloadsDrawerGrid == null) return;
+
+            if (!_isDownloadsDrawerOpen)
+            {
+                _downloadsDrawerGrid.Width = 200;
+                _downloadsDrawerGrid.Visibility = Visibility.Visible;
+                _isDownloadsDrawerOpen = true;
+            }
+            else
+            {
+                _downloadsDrawerGrid.Width = 0;
+                _downloadsDrawerGrid.Visibility = Visibility.Collapsed;
+                _isDownloadsDrawerOpen = false;
+            }
+        }
+
+        private void UpdateDownloadsToggleBtnText()
+        {
+            if (_downloadsToggleBtn == null) return;
+            int activeCount = _downloadQueue.Count(q => q.Status == "Pending" || q.Status == "Downloading...");
+            _downloadsToggleBtn.Content = $"📥 Downloads ({activeCount})";
+        }
+
+        private void AddQueueItemToPanel(DownloadQueueItem item)
+        {
+            if (_downloadsQueuePanel == null) return;
+
+            var rowBorder = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(10, 255, 255, 255)),
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(6),
+                Margin = new Thickness(0, 2, 0, 2),
+                BorderThickness = new Thickness(1)
+            };
+            rowBorder.SetResourceReference(Border.BorderBrushProperty, "WindowBorderBrush");
+
+            var stack = new StackPanel();
+            var titleBlock = new TextBlock
+            {
+                Text = item.Title,
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            titleBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+            item.TitleTextBlock = titleBlock;
+
+            var statusBlock = new TextBlock
+            {
+                Text = $"Status: {item.Status}",
+                FontSize = 10,
+                Margin = new Thickness(0, 2, 0, 0)
+            };
+            statusBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
+            item.StatusTextBlock = statusBlock;
+
+            stack.Children.Add(titleBlock);
+            stack.Children.Add(statusBlock);
+            rowBorder.Child = stack;
+
+            item.BorderElement = rowBorder;
+            _downloadsQueuePanel.Children.Add(rowBorder);
+        }
+
+        private void UpdateQueueItemStatus(DownloadQueueItem item, string status, string? updatedTitle = null)
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                item.Status = status;
+                if (item.StatusTextBlock != null)
+                {
+                    item.StatusTextBlock.Text = $"Status: {status}";
+                    if (status == "Finished")
+                        item.StatusTextBlock.Foreground = Brushes.LightGreen;
+                    else if (status == "Failed")
+                        item.StatusTextBlock.Foreground = Brushes.Red;
+                    else
+                        item.StatusTextBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
+                }
+
+                if (updatedTitle != null)
+                {
+                    item.Title = updatedTitle;
+                    if (item.TitleTextBlock != null)
+                    {
+                        item.TitleTextBlock.Text = updatedTitle;
+                    }
+                }
+
+                UpdateDownloadsToggleBtnText();
+            });
+        }
+
         public void ExecuteDownloadProcess(string rawUrl)
         {
             if (_activeFolder == null) return;
@@ -658,10 +820,28 @@ namespace JarvisLauncher
                 url = "https://" + url;
             }
 
-            TextOverlay.Show("📥 Starting media download (DownloadMediaRunner engine)...", 4000);
+            var queueItem = new DownloadQueueItem
+            {
+                Url = url,
+                Status = "Pending",
+                Title = "Parsing URL..."
+            };
+
+            _downloadQueue.Add(queueItem);
+            AddQueueItemToPanel(queueItem);
+            UpdateDownloadsToggleBtnText();
+
+            // Auto-open downloads drawer if closed so the user sees progress
+            if (!_isDownloadsDrawerOpen)
+            {
+                ToggleDownloadsDrawer();
+            }
+
+            TextOverlay.Show("📥 Added media to downloads queue...", 3000);
 
             System.Threading.Tasks.Task.Run(async () =>
             {
+                UpdateQueueItemStatus(queueItem, "Downloading...", "Downloading media...");
                 string musicDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Music", _activeFolder.FolderName);
                 if (!Directory.Exists(musicDir)) Directory.CreateDirectory(musicDir);
 
@@ -722,6 +902,7 @@ namespace JarvisLauncher
                 if (!string.IsNullOrEmpty(localPath) && File.Exists(localPath))
                 {
                     string songTitle = Path.GetFileNameWithoutExtension(localPath);
+                    UpdateQueueItemStatus(queueItem, "Finished", songTitle);
 
                     var newTrack = new MusicTrack
                     {
@@ -742,11 +923,12 @@ namespace JarvisLauncher
                 else
                 {
                     // Web Stream fallback if all local MP3 engines fail
+                    string hostTitle = url;
+                    try { hostTitle = new Uri(url).Host; } catch { }
+                    UpdateQueueItemStatus(queueItem, "Finished", $"Web Stream ({hostTitle})");
+
                     Application.Current.Dispatcher.Invoke(() =>
                     {
-                        string hostTitle = url;
-                        try { hostTitle = new Uri(url).Host; } catch { }
-
                         var streamTrack = new MusicTrack
                         {
                             Title = $"Web Stream ({hostTitle})",

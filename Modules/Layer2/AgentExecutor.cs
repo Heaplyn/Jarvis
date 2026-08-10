@@ -36,11 +36,13 @@ namespace JarvisLauncher
                     }
 
                     File.WriteAllText(path, content);
+                    ChatOverlay.LogConsoleAction("Write File", $"Path: {path}\nLength: {content.Length} chars\nResult: SUCCESS");
                     TextOverlay.Show($"📝 AI Wrote File:\n{Path.GetFileName(path)}", 3000);
                     logs += $"\n[SUCCESS] Wrote file: {path}";
                 }
                 catch (Exception ex)
                 {
+                    ChatOverlay.LogConsoleAction("Write File Failed", $"Path: {path}\nError: {ex.Message}");
                     TextOverlay.Show($"⚠️ AI Write Failed:\n{ex.Message}", 4000);
                     logs += $"\n[ERROR] Failed writing to {path}: {ex.Message}";
                 }
@@ -65,11 +67,13 @@ namespace JarvisLauncher
                     }
 
                     File.AppendAllText(path, content);
+                    ChatOverlay.LogConsoleAction("Append File", $"Path: {path}\nLength: {content.Length} chars\nResult: SUCCESS");
                     TextOverlay.Show($"📝 AI Appended to File:\n{Path.GetFileName(path)}", 3000);
                     logs += $"\n[SUCCESS] Appended to file: {path}";
                 }
                 catch (Exception ex)
                 {
+                    ChatOverlay.LogConsoleAction("Append File Failed", $"Path: {path}\nError: {ex.Message}");
                     TextOverlay.Show($"⚠️ AI Append Failed:\n{ex.Message}", 4000);
                     logs += $"\n[ERROR] Failed appending to {path}: {ex.Message}";
                 }
@@ -94,22 +98,26 @@ namespace JarvisLauncher
                             if (bestMatch.Execute != null)
                             {
                                 bestMatch.Execute.Invoke();
+                                ChatOverlay.LogConsoleAction("Run Command", $"Command: '{commandQuery}'\nResult: SUCCESS");
                                 TextOverlay.Show($"⚡ AI Executed:\n\"{commandQuery}\"", 3000);
                                 logs += $"\n[SUCCESS] Executed command: {commandQuery}";
                             }
                             else
                             {
+                                ChatOverlay.LogConsoleAction("Run Command Failed", $"Command: '{commandQuery}'\nError: No execution action defined.");
                                 logs += $"\n[ERROR] Command '{commandQuery}' has no executable actions defined.";
                             }
                         }
                         else
                         {
+                            ChatOverlay.LogConsoleAction("Run Command Failed", $"Command: '{commandQuery}'\nError: Command is not recognized.");
                             logs += $"\n[ERROR] Command '{commandQuery}' is not recognized.";
                         }
                     });
                 }
                 catch (Exception ex)
                 {
+                    ChatOverlay.LogConsoleAction("Run Command Error", $"Command: '{commandQuery}'\nError: {ex.Message}");
                     logs += $"\n[ERROR] Command '{commandQuery}' failed: {ex.Message}";
                 }
             }
@@ -131,10 +139,12 @@ namespace JarvisLauncher
                         });
                     });
                     TextOverlay.Show($"🚀 AI Opened File:\n{Path.GetFileName(path)}", 3000);
+                    ChatOverlay.LogConsoleAction("Open File", $"Path: {path}\nResult: SUCCESS");
                     logs += $"\n[SUCCESS] Opened file natively: {path}";
                 }
                 catch (Exception ex)
                 {
+                    ChatOverlay.LogConsoleAction("Open File Failed", $"Path: {path}\nError: {ex.Message}");
                     logs += $"\n[ERROR] Failed opening file {path}: {ex.Message}";
                 }
             }
@@ -151,10 +161,12 @@ namespace JarvisLauncher
                     {
                         TextEditorOverlay.OpenFile(path);
                     });
+                    ChatOverlay.LogConsoleAction("Open Editor", $"Path: {path}\nResult: SUCCESS");
                     logs += $"\n[SUCCESS] Opened file in built-in editor: {path}";
                 }
                 catch (Exception ex)
                 {
+                    ChatOverlay.LogConsoleAction("Open Editor Failed", $"Path: {path}\nError: {ex.Message}");
                     logs += $"\n[ERROR] Failed opening editor for {path}: {ex.Message}";
                 }
             }
@@ -171,10 +183,12 @@ namespace JarvisLauncher
                     {
                         FileGridOverlay.PinFile(path);
                     });
+                    ChatOverlay.LogConsoleAction("Pin File", $"Path: {path}\nResult: SUCCESS");
                     logs += $"\n[SUCCESS] Pinned file to dashboard: {path}";
                 }
                 catch (Exception ex)
                 {
+                    ChatOverlay.LogConsoleAction("Pin File Failed", $"Path: {path}\nError: {ex.Message}");
                     logs += $"\n[ERROR] Failed pinning file {path}: {ex.Message}";
                 }
             }
@@ -203,11 +217,13 @@ namespace JarvisLauncher
                         string errText = proc.StandardError.ReadToEnd();
                         proc.WaitForExit(5000);
                         string output = (outText + "\n" + errText).Trim();
+                        ChatOverlay.LogConsoleAction("Execute Shell", $"Cmd: {cmd}\nOutput:\n{output}");
                         logs += $"\n[SUCCESS] Executed shell '{cmd}':\n{output}";
                     }
                 }
                 catch (Exception ex)
                 {
+                    ChatOverlay.LogConsoleAction("Execute Shell Failed", $"Cmd: {cmd}\nError: {ex.Message}");
                     logs += $"\n[ERROR] Executing shell '{cmd}' failed: {ex.Message}";
                 }
             }
