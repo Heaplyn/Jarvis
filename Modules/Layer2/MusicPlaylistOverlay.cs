@@ -919,12 +919,15 @@ namespace JarvisLauncher
                             var psi = new System.Diagnostics.ProcessStartInfo
                             {
                                 FileName = chromePath,
-                                Arguments = $"--app=\"{track.PathOrUrl}\" --new-window --remote-debugging-port=9222 --user-data-dir=\"{Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Jarvis", "ChromeDebugProfile")}\"",
+                                Arguments = $"--app=\"{track.PathOrUrl}\" --new-window --remote-debugging-port=9222 " +
+                                            $"--autoplay-policy=no-user-gesture-required --no-user-gesture-required-for-autoplay " +
+                                            $"--user-data-dir=\"{Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Jarvis", "ChromeDebugProfile")}\"",
                                 UseShellExecute = true
                             };
                             ChromeStreamTracker.MarkLaunchTime();
                             _streamProcess = System.Diagnostics.Process.Start(psi);
                             ChromeStreamTracker.Set(_streamProcess);
+                            NativeMethods.FocusProcessInstance(_streamProcess);
                         }
                         else
                         {
@@ -932,7 +935,9 @@ namespace JarvisLauncher
                             var psi = new System.Diagnostics.ProcessStartInfo
                             {
                                 FileName = "msedge.exe",
-                                Arguments = $"--app=\"{track.PathOrUrl}\" --new-window --remote-debugging-port=9222 --user-data-dir=\"{Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Jarvis", "EdgeDebugProfile")}\"",
+                                Arguments = $"--app=\"{track.PathOrUrl}\" --new-window --remote-debugging-port=9222 " +
+                                            $"--autoplay-policy=no-user-gesture-required --no-user-gesture-required-for-autoplay " +
+                                            $"--user-data-dir=\"{Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Jarvis", "EdgeDebugProfile")}\"",
                                 UseShellExecute = true
                             };
                             ChromeStreamTracker.MarkLaunchTime();
@@ -951,6 +956,31 @@ namespace JarvisLauncher
                         ChromeStreamTracker.MarkLaunchTime();
                         _streamProcess = System.Diagnostics.Process.Start(fallbackPsi);
                         ChromeStreamTracker.Set(_streamProcess);
+
+                        System.Threading.Tasks.Task.Run(async () =>
+                        {
+                            // Wait for the browser process and WebSocket debugging target to initialize
+                            await System.Threading.Tasks.Task.Delay(2500);
+
+                            try
+                            {
+                                // Query duration/position to establish CDP connection via ChromeRemoteControl
+                                await ChromeRemoteControl.GetPositionAsync(track.PathOrUrl);
+
+                                // Optional: Call your ChromeRemoteControl JS execution helper if available
+                                // to force media play on all video and audio DOM nodes:
+                                /*
+                                string playScript = @"
+                                    document.querySelectorAll('video, audio').forEach(m => {
+                                        m.muted = false;
+                                        m.play().catch(e => console.log('Autoplay trigger: ', e));
+                                    });
+                                ";
+                                await ChromeRemoteControl.ExecuteScriptAsync(track.PathOrUrl, playScript);
+                                */
+                            }
+                            catch { }
+                        });
                     }
 
                     TextOverlay.Show($"🌐 Opening Web Stream (Remote Debugging Enabled):\n{track.Title}", 3000);
@@ -1039,7 +1069,7 @@ namespace JarvisLauncher
 
         private void PlayNextTrack()
         {
-            NativeMethods.SendMediaKey(NativeMethods.VK_MEDIA_NEXT);
+            //NativeMethods.SendMediaKey(NativeMethods.VK_MEDIA_NEXT);
 
             if (_activeFolder == null || _activeFolder.Tracks.Count == 0) return;
             if (_currentTrack == null)
