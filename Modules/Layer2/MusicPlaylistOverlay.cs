@@ -93,6 +93,7 @@ namespace JarvisLauncher
                 _mediaPlayer.Close();
                 try
                 {
+                    ChromeStreamTracker.KillIfRunning();
                     if (_streamProcess != null && !_streamProcess.HasExited)
                     {
                         _streamProcess.Kill(entireProcessTree: true);
@@ -423,27 +424,15 @@ namespace JarvisLauncher
                 }
                 catch { }
 
-                // Kill existing web stream process and orphan browser app processes
+                // Kill existing web stream process via global tracker + local handle
                 try
                 {
+                    ChromeStreamTracker.KillIfRunning();
                     if (_streamProcess != null && !_streamProcess.HasExited)
                     {
                         _streamProcess.Kill(entireProcessTree: true);
-                        _streamProcess = null;
                     }
-
-                    // Scan for orphan app window processes launched by web streams
-                    foreach (var proc in System.Diagnostics.Process.GetProcessesByName("chrome"))
-                    {
-                        try
-                        {
-                            if (proc.MainWindowTitle.Contains("YouTube") || proc.MainWindowTitle.Contains("Spotify") || proc.MainWindowTitle.Contains("SoundCloud"))
-                            {
-                                proc.Kill(entireProcessTree: true);
-                            }
-                        }
-                        catch { }
-                    }
+                    _streamProcess = null;
                 }
                 catch { }
 
@@ -466,7 +455,9 @@ namespace JarvisLauncher
                                 Arguments = $"--app=\"{track.PathOrUrl}\" --new-window --profile-directory=\"Default\"",
                                 UseShellExecute = true
                             };
+                            ChromeStreamTracker.MarkLaunchTime();
                             _streamProcess = System.Diagnostics.Process.Start(psi);
+                            ChromeStreamTracker.Set(_streamProcess);
                         }
                         else
                         {
@@ -477,7 +468,9 @@ namespace JarvisLauncher
                                 Arguments = $"--app=\"{track.PathOrUrl}\" --new-window",
                                 UseShellExecute = true
                             };
+                            ChromeStreamTracker.MarkLaunchTime();
                             _streamProcess = System.Diagnostics.Process.Start(psi);
+                            ChromeStreamTracker.Set(_streamProcess);
                         }
                     }
                     catch
@@ -488,7 +481,9 @@ namespace JarvisLauncher
                             FileName = track.PathOrUrl,
                             UseShellExecute = true
                         };
+                        ChromeStreamTracker.MarkLaunchTime();
                         _streamProcess = System.Diagnostics.Process.Start(fallbackPsi);
+                        ChromeStreamTracker.Set(_streamProcess);
                     }
 
                     TextOverlay.Show($"🌐 Opening Web Stream (Google Logged In):\n{track.Title}", 3000);

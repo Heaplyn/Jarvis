@@ -146,108 +146,74 @@ namespace JarvisLauncher
 
         private async Task SendUserMessage(string message)
         {
-            // 1. Add User Message Bubble for this turn
+            // 1. Add user bubble
             AddMessageBubble(message, isAi: false);
 
-            // 2. Determine turn number & create a brand new dedicated AI response message bubble for this chained turn
+            // 2. Create AI response bubble with initial thinking text
             int turnNumber = (_conversationHistory.Count / 2) + 1;
-            string initialStatus = turnNumber > 1 
-                ? $"🧠 [Turn {turnNumber}] Analyzing chained context & formulating response..." 
-                : "🧠 Jarvis is initializing deep reasoning...";
+            var (aiBorder, aiTextBox) = AddMessageBubbleWithControl("🧠 Thinking...", isAi: true, isItalic: true);
 
-            var (aiBorder, aiTextBox) = AddMessageBubbleWithControl(initialStatus, isAi: true, isItalic: true);
-
-            var cts = new System.Threading.CancellationTokenSource();
-
-            // Start background status updates directly inside this turn's new AI response bubble
-            var thinkingTask = Task.Run(async () =>
-            {
-                string[] thinkingPhases = turnNumber > 1
-                    ? new[]
-                    {
-                        $"🧠 [Turn {turnNumber}] Analyzing chained conversation history...",
-                        "🔍 Searching local codebase & workspace memory...",
-                        "⚡ Evaluating previous turn context & instructions...",
-                        "📡 Querying Gemini AI model endpoints...",
-                        "⚙️ Executing follow-up agent file operations...",
-                        "📝 Synthesizing chained response...",
-                        "✨ Finalizing formatting and output verification..."
-                    }
-                    : new[]
-                    {
-                        "🧠 Analyzing query structure & intentions...",
-                        "🔍 Searching local codebase & workspace memory...",
-                        "⚡ Formulating deep reasoning context...",
-                        "📡 Querying Gemini AI model endpoints...",
-                        "⚙️ Evaluating file operations and shell commands...",
-                        "📝 Synthesizing comprehensive response...",
-                        "✨ Finalizing formatting and output verification..."
-                    };
-
-                int index = 0;
-                while (!cts.Token.IsCancellationRequested)
-                {
-                    string currentThought = thinkingPhases[index % thinkingPhases.Length];
-                    Application.Current.Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        if (!cts.Token.IsCancellationRequested)
-                        {
-                            aiTextBox.Text = currentThought;
-                            _scrollViewer.UpdateLayout();
-                            _scrollViewer.ScrollToBottom();
-                        }
-                    }));
-
-                    index++;
-                    try { await Task.Delay(3000, cts.Token); } catch { break; }
+            // 3. Thinking animation via DispatcherTimer — stays entirely on the UI thread, no cross-thread issues
+            string[] thinkingPhases = turnNumber > 1
+                ? new[] {
+                    $"🧠 [Turn {turnNumber}] Analyzing context...",
+                    "🔍 Searching codebase & memory...",
+                    "📡 Querying AI model...",
+                    "📝 Synthesizing response...",
+                    "✨ Finalizing output..."
                 }
-            });
+                : new[] {
+                    "🧠 Analyzing your request...",
+                    "🔍 Searching codebase & memory...",
+                    "📡 Querying AI model...",
+                    "📝 Synthesizing response...",
+                    "✨ Finalizing output..."
+                };
+            int phaseIndex = 0;
+            var thinkingTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            thinkingTimer.Tick += (s, e) =>
+            {
+                aiTextBox.Text = thinkingPhases[phaseIndex % thinkingPhases.Length];
+                phaseIndex++;
+                _scrollViewer.ScrollToBottom();
+            };
+            thinkingTimer.Start();
 
+            // 4. Run AI on background thread — awaiting without ConfigureAwait(false) so we resume on UI thread
             string finalResult = "";
             try
             {
-                // 3. Run Gemini on a background thread — AiAPI.AskGemini internally calls Dispatcher.Invoke
-                // which would deadlock if called directly from the UI thread context.
-                var conversationSnapshot = new List<ChatTurn>(_conversationHistory);
-                string aiResponse = await Task.Run(async () => await AiAPI.AskGemini(message, conversationSnapshot)).ConfigureAwait(false);
-
-                // 4. Run through filesystem agent parser (also off-thread; it uses BeginInvoke internally)
+                var snapshot = new List<ChatTurn>(_conversationHistory);
+                string aiResponse = await Task.Run(async () => await AiAPI.AskGemini(message, snapshot));
                 finalResult = AgentExecutor.ProcessAIResponse(aiResponse);
             }
             catch (Exception ex)
             {
-                finalResult = $"⚠️ Error generating response: {ex.Message}";
+                finalResult = $"⚠️ Error: {ex.Message}";
                 LogConversationTurn(message, $"ERROR: {ex.Message}");
             }
             finally
             {
-                // Cancel the thinking animation and wait for it to fully stop before writing result
-                cts.Cancel();
-                try { await thinkingTask; } catch { }
-                cts.Dispose();
+                thinkingTimer.Stop(); // back on UI thread — safe
             }
 
-            // Write final result AFTER thinking task is fully stopped — no race possible
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                aiTextBox.Text = finalResult;
-                aiTextBox.FontStyle = FontStyles.Normal;
-                _scrollViewer.UpdateLayout();
-                _scrollViewer.ScrollToBottom();
-            });
+            // 5. Write final result — we are on the UI thread, direct access is safe
+            aiTextBox.Text = finalResult;
+            aiTextBox.FontStyle = FontStyles.Normal;
+            _scrollViewer.UpdateLayout();
+            _scrollViewer.ScrollToBottom();
 
             if (!finalResult.StartsWith("⚠️"))
             {
-                // 6. Chain conversation turns together for future messages (retains up to 100 turns / 200 items)
+                // Chain conversation turns
                 _conversationHistory.Add(new ChatTurn { Role = "user", Text = message });
                 _conversationHistory.Add(new ChatTurn { Role = "model", Text = finalResult });
 
                 if (_conversationHistory.Count > 200)
                 {
-                    _conversationHistory.RemoveRange(0, 2); // Maintain rolling 100-turn window
+                    _conversationHistory.RemoveRange(0, 2);
                 }
 
-                // 7. Log conversation turn to .txt file
                 LogConversationTurn(message, finalResult);
             }
         }
