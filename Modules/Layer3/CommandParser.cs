@@ -53,7 +53,8 @@ namespace JarvisLauncher
         EXTRA_FEATURES,
         NEW_IDEAS,
         MUSIC_PLAYLIST,
-        STICKY_NOTE
+        STICKY_NOTE,
+        GAME_DEV_TOOLBOX
     };
 
     public static class CommandParser
@@ -112,6 +113,7 @@ namespace JarvisLauncher
             RegisterHandler(CommandType.NEW_IDEAS, "Window snap, macros, ping, jumps, task manager GUI, time, and hash", () => new NewIdeasCommandHandler());
             RegisterHandler(CommandType.MUSIC_PLAYLIST, "Interactive Music Player & Playlist Manager GUI", () => new MusicPlaylistCommandHandler());
             RegisterHandler(CommandType.STICKY_NOTE, "Visual Desktop Sticky Notes widget", () => new StickyNotesCommandHandler());
+            RegisterHandler(CommandType.GAME_DEV_TOOLBOX, "Roblox Studio and Blender developer utilities dashboard", () => new GameDevToolboxCommandHandler());
         }
 
         private static void RegisterHandler(CommandType type, string description, Func<ICommandHandler> factory)

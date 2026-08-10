@@ -36,6 +36,16 @@ namespace JarvisLauncher
         private bool _isPlaying = false;
         private bool _isDraggingSlider = false;
 
+        private enum LoopMode
+        {
+            Off,
+            Track,
+            Folder
+        }
+        private LoopMode _loopMode = LoopMode.Folder;
+        private Button? _loopBtn;
+        private bool _trackAdvanceTriggered = false;
+
         // Downloads queue UI controls
         private Button? _downloadsToggleBtn;
         private Grid? _downloadsDrawerGrid;
@@ -133,7 +143,34 @@ namespace JarvisLauncher
             _playTimer.Interval = TimeSpan.FromMilliseconds(500);
             _playTimer.Tick += PlayTimer_Tick;
 
-            _mediaPlayer.MediaEnded += (s, e) => PlayNextTrack();
+            _mediaPlayer.MediaEnded += (s, e) =>
+            {
+                if (_loopMode == LoopMode.Track)
+                {
+                    if (_currentTrack != null) PlayTrack(_currentTrack);
+                }
+                else if (_loopMode == LoopMode.Folder)
+                {
+                    PlayNextTrack();
+                }
+                else
+                {
+                    if (_activeFolder != null && _currentTrack != null)
+                    {
+                        int index = _activeFolder.Tracks.FindIndex(t => t.Id == _currentTrack.Id);
+                        if (index >= 0 && index < _activeFolder.Tracks.Count - 1)
+                        {
+                            PlayTrack(_activeFolder.Tracks[index + 1]);
+                        }
+                        else
+                        {
+                            _mediaPlayer.Stop();
+                            _isPlaying = false;
+                            _playPauseBtn.Content = "▶️ Play";
+                        }
+                    }
+                }
+            };
             _mediaPlayer.MediaFailed += (s, e) =>
             {
                 if (_currentTrack != null && File.Exists(_currentTrack.PathOrUrl))
@@ -410,16 +447,18 @@ namespace JarvisLauncher
 
             playerStack.Children.Add(sliderGrid);
 
-            // Buttons Bar (Prev, Play/Pause, Next)
+            // Buttons Bar (Prev, Play/Pause, Next, Loop)
             var controlsPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6, 0, 0) };
 
             var prevBtn = CreateButton("⏮️ Prev", (s, e) => PlayPrevTrack());
             _playPauseBtn = CreateButton("▶️ Play", (s, e) => TogglePlayPause());
             var nextBtn = CreateButton("⏭️ Next", (s, e) => PlayNextTrack());
+            _loopBtn = CreateButton("🔁 Folder", (s, e) => ToggleLoopMode());
 
             controlsPanel.Children.Add(prevBtn);
             controlsPanel.Children.Add(_playPauseBtn);
             controlsPanel.Children.Add(nextBtn);
+            controlsPanel.Children.Add(_loopBtn);
 
             playerStack.Children.Add(controlsPanel);
 
@@ -832,6 +871,7 @@ namespace JarvisLauncher
         {
             try
             {
+                _trackAdvanceTriggered = false;
                 _currentTrack = track;
                 _nowPlayingTitle.Text = track.Title;
                 _nowPlayingArtist.Text = track.IsStreamUrl ? $"Stream Link: {track.PathOrUrl}" : $"Local File: {track.PathOrUrl}";
@@ -1042,6 +1082,50 @@ namespace JarvisLauncher
                         _positionSlider.Maximum = duration;
                         _positionSlider.Value = current;
                         _timeLabel.Text = $"{TimeSpan.FromSeconds(current):mm\\:ss} / {TimeSpan.FromSeconds(duration):mm\\:ss}";
+
+                        // Check if the stream has finished playing (within 1.5 seconds of the end)
+                        if (current >= duration - 1.5 && !_trackAdvanceTriggered)
+                        {
+                            _trackAdvanceTriggered = true;
+                            if (_loopMode == LoopMode.Track)
+                            {
+                                await ChromeRemoteControl.SeekAsync(_currentTrack.PathOrUrl, 0);
+                                _trackAdvanceTriggered = false;
+                            }
+                            else if (_loopMode == LoopMode.Folder)
+                            {
+                                PlayNextTrack();
+                            }
+                            else
+                            {
+                                if (_activeFolder != null)
+                                {
+                                    int index = _activeFolder.Tracks.FindIndex(t => t.Id == _currentTrack.Id);
+                                    if (index >= 0 && index < _activeFolder.Tracks.Count - 1)
+                                    {
+                                        PlayTrack(_activeFolder.Tracks[index + 1]);
+                                    }
+                                    else
+                                    {
+                                        try
+                                        {
+                                            ChromeStreamTracker.KillIfRunning();
+                                            ChromeRemoteControl.Shutdown();
+                                            if (_streamProcess != null && !_streamProcess.HasExited)
+                                            {
+                                                _streamProcess.Kill(entireProcessTree: true);
+                                            }
+                                        }
+                                        catch { }
+                                        _streamProcess = null;
+                                        _isPlaying = false;
+                                        _playPauseBtn.Content = "▶️ Play";
+                                        _playTimer.Stop();
+                                        _timeLabel.Text = "Live Web Stream (Finished)";
+                                    }
+                                }
+                            }
+                        }
                     }
                     else
                     {
@@ -1385,6 +1469,29 @@ namespace JarvisLauncher
             btn.SetResourceReference(Button.ForegroundProperty, "TextPrimaryBrush");
             btn.Click += onClick;
             return btn;
+        }
+        private void ToggleLoopMode()
+        {
+            if (_loopBtn == null) return;
+
+            if (_loopMode == LoopMode.Off)
+            {
+                _loopMode = LoopMode.Track;
+                _loopBtn.Content = "🔂 Track";
+                TextOverlay.Show("🔂 Repeat Mode: Current Track", 2000);
+            }
+            else if (_loopMode == LoopMode.Track)
+            {
+                _loopMode = LoopMode.Folder;
+                _loopBtn.Content = "🔁 Folder";
+                TextOverlay.Show("🔁 Repeat Mode: Current Folder", 2000);
+            }
+            else
+            {
+                _loopMode = LoopMode.Off;
+                _loopBtn.Content = "🔁 Off";
+                TextOverlay.Show("🔁 Repeat Mode: Off", 2000);
+            }
         }
     }
 }
