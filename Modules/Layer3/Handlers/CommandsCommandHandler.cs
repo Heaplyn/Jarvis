@@ -93,6 +93,8 @@ namespace JarvisLauncher
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "time <city>", "Look up global time & UTC offset", "time Tokyo"));
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "hash <file>", "Compute file SHA-256 checksum", "hash notes.txt"));
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "music / playlist", "Open Music Player & Playlist GUI", "music"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "download <url>", "Download audio/link to playlist on disk", "download https://..."));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "tabs / browser", "Inspect active browser tab titles", "tabs"));
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "> <cmd>", "Run terminal command in cmd.exe", ">dir"));
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "$ <cmd>", "Run command in PowerShell", "$Get-Process"));
 

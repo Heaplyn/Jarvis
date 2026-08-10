@@ -24,6 +24,7 @@ namespace JarvisLauncher
                    query.StartsWith("app ") || query == "app" || query == "apps" ||
                    query.StartsWith("fetch ") || query == "fetch" ||
                    query == "monitor" || query == "stats" ||
+                   query == "tabs" || query == "tab" || query == "browsers" || query == "browser" ||
                    query.StartsWith("vol ") || query == "vol";
         }
 
@@ -229,7 +230,58 @@ namespace JarvisLauncher
                 }
             }
 
+            // --- 7. BROWSER TABS INSPECTION ---
+            if (cmd == "tabs" || cmd == "tab" || cmd == "browsers" || cmd == "browser")
+            {
+                suggestions.Add(new CommandResult
+                {
+                    Title = "🌐 Inspect Open Browser Tabs & Windows",
+                    Description = "Scans Chrome, Edge, Firefox, Brave, and Opera active window/tab titles",
+                    Similarity = 3.0,
+                    Execute = () => InspectBrowserTabs()
+                });
+            }
+
             return suggestions;
+        }
+
+        private static void InspectBrowserTabs()
+        {
+            var browserNames = new[] { "chrome", "msedge", "firefox", "brave", "opera", "vivaldi" };
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("🌐 ACTIVE BROWSER TABS & WINDOWS INSPECTION REPORT");
+            sb.AppendLine("-----------------------------------------------------------------------");
+
+            int totalCount = 0;
+            foreach (var proc in Process.GetProcesses())
+            {
+                try
+                {
+                    string pName = proc.ProcessName.ToLower();
+                    if (Array.Exists(browserNames, b => b == pName))
+                    {
+                        string title = proc.MainWindowTitle;
+                        if (!string.IsNullOrWhiteSpace(title))
+                        {
+                            totalCount++;
+                            sb.AppendLine($"• [{proc.ProcessName.ToUpper()}] {title}");
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            if (totalCount == 0)
+            {
+                sb.AppendLine("No active browser windows with visible tab titles were found.");
+            }
+            else
+            {
+                sb.AppendLine("-----------------------------------------------------------------------");
+                sb.AppendLine($"Total Visible Browser Windows/Tabs Detected: {totalCount}");
+            }
+
+            CliOutputOverlay.Show("🌐 Browser Tabs Inspector", sb.ToString());
         }
 
         private static List<string> SearchDesktopFiles(string keyword)

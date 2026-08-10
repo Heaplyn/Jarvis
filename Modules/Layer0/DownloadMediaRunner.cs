@@ -124,7 +124,7 @@ namespace JarvisLauncher
             return "Success";
         }
 
-        public static async Task<string> DownloadAsync(string url)
+        public static async Task<string> DownloadAsync(string url, string? customDestinationDir = null)
         {
             string scriptDir = GetScriptDirectory();
 
@@ -150,7 +150,9 @@ namespace JarvisLauncher
             // Escape double quotes inside URL parameters to prevent CLI argument injection
             string escapedUrl = url.Replace("\"", "\\\"");
 
-            string downloadDir = GetConfiguredDownloadDirectory();
+            string downloadDir = !string.IsNullOrWhiteSpace(customDestinationDir) && Directory.Exists(customDestinationDir) 
+                ? customDestinationDir 
+                : GetConfiguredDownloadDirectory();
             string escapedDownloadDir = downloadDir.Replace("\\", "/");
 
             // Run "node" directly using Node 20.6+'s native ESM import hooks to bypass npx.cmd's pathing bugs on Windows

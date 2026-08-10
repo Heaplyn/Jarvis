@@ -90,15 +90,17 @@ export class LucidaClient {
         // 1. Fetch fresh cookies from FlareSolverr
         await this.bypassCloudflare();
 
-        // 2. Launch headless browser
-        const browser = await chromium.launch({
-            headless: true,
-            args: ['--disable-blink-features=AutomationControlled'] // Hides automated webdriver variable
-        });
+        // 2. Launch browser with persistent User Data Directory (preserves Google and media account logins)
+        const userDataDir = path.resolve(__dirname, 'user_data');
+        if (!fs.existsSync(userDataDir)) {
+            fs.mkdirSync(userDataDir, { recursive: true });
+        }
 
-        const context = await browser.newContext({
+        const context = await chromium.launchPersistentContext(userDataDir, {
+            headless: false, // Visible window allows completing interactive Google Login when prompted
             acceptDownloads: true,
-            userAgent: this.userAgent
+            userAgent: this.userAgent,
+            args: ['--disable-blink-features=AutomationControlled', '--no-first-run', '--no-default-browser-check']
         });
 
         // 3. Inject FlareSolverr cookies
@@ -106,7 +108,7 @@ export class LucidaClient {
             await context.addCookies(this.cookies);
         }
 
-        const page = await context.newPage();
+        const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
 
         try {
             // URL-encode target link
@@ -138,7 +140,7 @@ export class LucidaClient {
             console.log(`Downloading file to: ${filepath}`);
             await download.saveAs(filepath);
 
-            await browser.close();
+            await context.close();
 
             const stats = fs.statSync(filepath);
             return {
@@ -153,7 +155,7 @@ export class LucidaClient {
                 await page.screenshot({ path: path.join(downloadDir, 'debug_error.png') });
             } catch {}
 
-            await browser.close();
+            await context.close();
             return {
                 success: false,
                 error: `Browser automation error: ${e.message || e}`

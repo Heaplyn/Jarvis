@@ -56,6 +56,30 @@ namespace JarvisLauncher
             });
         }
 
+        public static void DownloadTrackFromUrl(string url)
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                OpenPlayer();
+                if (string.IsNullOrWhiteSpace(url))
+                {
+                    InputPromptOverlay.Show("Enter Audio / YouTube / Soundcloud Link to Download MP3:", (input) =>
+                    {
+                        if (!string.IsNullOrWhiteSpace(input))
+                        {
+                            _instance?.ExecuteDownloadProcess(input.Trim());
+                        }
+                    });
+                }
+                else
+                {
+                    _instance?.ExecuteDownloadProcess(url);
+                }
+            });
+        }
+
+        private System.Diagnostics.Process? _streamProcess = null;
+
         private MusicPlaylistOverlay()
             : base("🎵 JARVIS MUSIC PLAYER & PLAYLIST ORGANIZER", width: 680, height: 520)
         {
@@ -67,6 +91,14 @@ namespace JarvisLauncher
             {
                 _playTimer.Stop();
                 _mediaPlayer.Close();
+                try
+                {
+                    if (_streamProcess != null && !_streamProcess.HasExited)
+                    {
+                        _streamProcess.Kill(entireProcessTree: true);
+                    }
+                }
+                catch { }
                 _instance = null;
             };
 
@@ -77,7 +109,22 @@ namespace JarvisLauncher
             _mediaPlayer.MediaEnded += (s, e) => PlayNextTrack();
             _mediaPlayer.MediaFailed += (s, e) =>
             {
-                TextOverlay.Show($"⚠️ Media Playback Error: {e.ErrorException?.Message ?? "Invalid format"}", 3500);
+                if (_currentTrack != null && File.Exists(_currentTrack.PathOrUrl))
+                {
+                    try
+                    {
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = Path.GetFullPath(_currentTrack.PathOrUrl),
+                            UseShellExecute = true
+                        });
+                        TextOverlay.Show($"🎵 Playing in Windows Media Player:\n{_currentTrack.Title}", 3000);
+                    }
+                    catch
+                    {
+                        TextOverlay.Show($"⚠️ Media Playback Error: {e.ErrorException?.Message ?? "Invalid format"}", 3500);
+                    }
+                }
             };
 
             var mainGrid = new Grid { Margin = new Thickness(10) };
@@ -368,15 +415,64 @@ namespace JarvisLauncher
                 _nowPlayingTitle.Text = track.Title;
                 _nowPlayingArtist.Text = track.IsStreamUrl ? $"Stream Link: {track.PathOrUrl}" : $"Local File: {track.PathOrUrl}";
 
+                // Kill existing web stream process if currently playing another stream
+                try
+                {
+                    if (_streamProcess != null && !_streamProcess.HasExited)
+                    {
+                        _streamProcess.Kill(entireProcessTree: true);
+                        _streamProcess = null;
+                    }
+                }
+                catch { }
+
                 if (track.IsStreamUrl || track.PathOrUrl.StartsWith("http://") || track.PathOrUrl.StartsWith("https://"))
                 {
-                    // Open web streams natively in browser
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    try
                     {
-                        FileName = track.PathOrUrl,
-                        UseShellExecute = true
-                    });
-                    TextOverlay.Show($"🌐 Opening web stream: {track.Title}", 3000);
+                        // Launch Chrome process using default Google user profile credentials
+                        string chromePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Google", "Chrome", "Application", "chrome.exe");
+                        if (!File.Exists(chromePath))
+                        {
+                            chromePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Google", "Chrome", "Application", "chrome.exe");
+                        }
+
+                        if (File.Exists(chromePath))
+                        {
+                            var psi = new System.Diagnostics.ProcessStartInfo
+                            {
+                                FileName = chromePath,
+                                Arguments = $"--app=\"{track.PathOrUrl}\" --new-window --profile-directory=\"Default\"",
+                                UseShellExecute = true
+                            };
+                            _streamProcess = System.Diagnostics.Process.Start(psi);
+                        }
+                        else
+                        {
+                            // Fallback to Edge app window mode
+                            var psi = new System.Diagnostics.ProcessStartInfo
+                            {
+                                FileName = "msedge.exe",
+                                Arguments = $"--app=\"{track.PathOrUrl}\" --new-window",
+                                UseShellExecute = true
+                            };
+                            _streamProcess = System.Diagnostics.Process.Start(psi);
+                        }
+                    }
+                    catch
+                    {
+                        // Fallback default browser process launch
+                        var fallbackPsi = new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = track.PathOrUrl,
+                            UseShellExecute = true
+                        };
+                        _streamProcess = System.Diagnostics.Process.Start(fallbackPsi);
+                    }
+
+                    TextOverlay.Show($"🌐 Opening Web Stream (Google Logged In):\n{track.Title}", 3000);
+                    _isPlaying = true;
+                    _playPauseBtn.Content = "⏸️ Pause";
                     RenderTracksList();
                     return;
                 }
@@ -388,16 +484,28 @@ namespace JarvisLauncher
                     return;
                 }
 
-                _mediaPlayer.Stop();
-                _mediaPlayer.Close();
+                try
+                {
+                    _mediaPlayer.Stop();
+                    _mediaPlayer.Close();
 
-                Uri targetUri = new Uri(Path.GetFullPath(track.PathOrUrl), UriKind.Absolute);
-
-                _mediaPlayer.Open(targetUri);
-                _mediaPlayer.Play();
-                _isPlaying = true;
-                _playPauseBtn.Content = "⏸️ Pause";
-                _playTimer.Start();
+                    Uri targetUri = new Uri(Path.GetFullPath(track.PathOrUrl), UriKind.Absolute);
+                    _mediaPlayer.Open(targetUri);
+                    _mediaPlayer.Play();
+                    _isPlaying = true;
+                    _playPauseBtn.Content = "⏸️ Pause";
+                    _playTimer.Start();
+                }
+                catch
+                {
+                    // Native Windows Shell Fallback: Launch track in default Windows Media Player app
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = Path.GetFullPath(track.PathOrUrl),
+                        UseShellExecute = true
+                    });
+                    TextOverlay.Show($"🎵 Playing in default media app:\n{track.Title}", 3000);
+                }
 
                 RenderTracksList();
             }
@@ -409,31 +517,35 @@ namespace JarvisLauncher
 
         private void TogglePlayPause()
         {
-            if (_currentTrack == null)
+            // 1. If currently playing a local MP3 track via WPF MediaPlayer
+            if (_currentTrack != null && !_currentTrack.IsStreamUrl && File.Exists(_currentTrack.PathOrUrl))
             {
-                if (_activeFolder != null && _activeFolder.Tracks.Count > 0)
+                if (_isPlaying)
                 {
-                    PlayTrack(_activeFolder.Tracks[0]);
+                    _mediaPlayer.Pause();
+                    _isPlaying = false;
+                    _playPauseBtn.Content = "▶️ Play";
+                }
+                else
+                {
+                    _mediaPlayer.Play();
+                    _isPlaying = true;
+                    _playPauseBtn.Content = "⏸️ Pause";
                 }
                 return;
             }
 
-            if (_isPlaying)
-            {
-                _mediaPlayer.Pause();
-                _isPlaying = false;
-                _playPauseBtn.Content = "▶️ Play";
-            }
-            else
-            {
-                _mediaPlayer.Play();
-                _isPlaying = true;
-                _playPauseBtn.Content = "⏸️ Pause";
-            }
+            // 2. If playing a web stream or external app, dispatch system-wide Virtual Media Key to toggle Play/Pause
+            NativeMethods.SendMediaKey(NativeMethods.VK_MEDIA_PLAY_PAUSE);
+            
+            _isPlaying = !_isPlaying;
+            _playPauseBtn.Content = _isPlaying ? "⏸️ Pause" : "▶️ Play";
         }
 
         private void PlayNextTrack()
         {
+            NativeMethods.SendMediaKey(NativeMethods.VK_MEDIA_NEXT);
+
             if (_activeFolder == null || _activeFolder.Tracks.Count == 0) return;
             int index = _activeFolder.Tracks.FindIndex(t => t.Id == _currentTrack?.Id);
             int nextIndex = (index + 1) % _activeFolder.Tracks.Count;
@@ -442,6 +554,8 @@ namespace JarvisLauncher
 
         private void PlayPrevTrack()
         {
+            NativeMethods.SendMediaKey(NativeMethods.VK_MEDIA_PREV);
+
             if (_activeFolder == null || _activeFolder.Tracks.Count == 0) return;
             int index = _activeFolder.Tracks.FindIndex(t => t.Id == _currentTrack?.Id);
             int prevIndex = index <= 0 ? _activeFolder.Tracks.Count - 1 : index - 1;
@@ -499,10 +613,9 @@ namespace JarvisLauncher
                     PathOrUrl = dialog.FileName,
                     IsStreamUrl = false
                 };
-                _activeFolder.Tracks.Add(track);
-                MusicPlaylistManager.SaveLibrary(_library);
+                MusicPlaylistManager.AddTrackToFolderAndAllSongs(_library, _activeFolder, track);
                 RenderTracksList();
-                TextOverlay.Show($"🎵 Added track '{fn}'!", 2500);
+                TextOverlay.Show($"🎵 Added track '{fn}' to Playlist & All Songs!", 2500);
             }
         }
 
@@ -510,110 +623,121 @@ namespace JarvisLauncher
         {
             if (_activeFolder == null) return;
 
-            InputPromptOverlay.Show("Enter Audio Link / YouTube / Soundcloud URL:", (input) =>
+            InputPromptOverlay.Show("Enter Audio / YouTube / Soundcloud Link to Download MP3:", (input) =>
             {
                 if (!string.IsNullOrWhiteSpace(input))
                 {
-                    string url = input.Trim();
-                    if (!url.StartsWith("http://") && !url.StartsWith("https://"))
+                    ExecuteDownloadProcess(input.Trim());
+                }
+            });
+        }
+
+        public void ExecuteDownloadProcess(string rawUrl)
+        {
+            if (_activeFolder == null) return;
+
+            string url = rawUrl.Trim();
+            if (!url.StartsWith("http://") && !url.StartsWith("https://"))
+            {
+                url = "https://" + url;
+            }
+
+            TextOverlay.Show("📥 Starting media download (DownloadMediaRunner engine)...", 4000);
+
+            System.Threading.Tasks.Task.Run(async () =>
+            {
+                string musicDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Music", _activeFolder.FolderName);
+                if (!Directory.Exists(musicDir)) Directory.CreateDirectory(musicDir);
+
+                string outputTemplate = Path.Combine(musicDir, "%(title)s.%(ext)s");
+                string? localPath = null;
+
+                // 1. Primary Engine: DownloadMediaRunner (TypeScript CLI Playwright + Lucida fetcher)
+                try
+                {
+                    string tsOutput = await DownloadMediaRunner.DownloadAsync(url, musicDir);
+
+                    // Scan target download location for newly downloaded MP3 file
+                    var files = Directory.GetFiles(musicDir, "*.mp3");
+                    string? newest = files.OrderByDescending(File.GetLastWriteTime).FirstOrDefault();
+                    if (!string.IsNullOrEmpty(newest) && File.Exists(newest) && new FileInfo(newest).Length > 10000)
                     {
-                        url = "https://" + url;
+                        localPath = newest;
                     }
+                }
+                catch { }
 
-                    TextOverlay.Show("📥 Downloading & Converting MP3...", 4000);
-
-                    System.Threading.Tasks.Task.Run(async () =>
+                // 2. Fallback Engine: yt-dlp / cmd.exe MP3 conversion
+                if (string.IsNullOrEmpty(localPath) || !File.Exists(localPath))
+                {
+                    try
                     {
-                        try
+                        var psi = new System.Diagnostics.ProcessStartInfo
                         {
-                            string musicDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Music", _activeFolder.FolderName);
-                            if (!Directory.Exists(musicDir)) Directory.CreateDirectory(musicDir);
+                            FileName = "cmd.exe",
+                            Arguments = $"/c yt-dlp -x --audio-format mp3 --audio-quality 0 --no-playlist -o \"{outputTemplate}\" \"{url}\" || python -m yt_dlp -x --audio-format mp3 -o \"{outputTemplate}\" \"{url}\"",
+                            UseShellExecute = false,
+                            CreateNoWindow = true,
+                            RedirectStandardOutput = true,
+                            RedirectStandardError = true
+                        };
 
-                            string outputTemplate = Path.Combine(musicDir, "%(title)s.%(ext)s");
-
-                            // Use yt-dlp to download and convert to valid playable MP3
-                            var psi = new System.Diagnostics.ProcessStartInfo
+                        using var proc = System.Diagnostics.Process.Start(psi);
+                        if (proc != null)
+                        {
+                            await proc.WaitForExitAsync();
+                            var files = Directory.GetFiles(musicDir, "*.mp3");
+                            string? newest = files.OrderByDescending(File.GetLastWriteTime).FirstOrDefault();
+                            if (!string.IsNullOrEmpty(newest) && File.Exists(newest) && new FileInfo(newest).Length > 10000)
                             {
-                                FileName = "yt-dlp",
-                                Arguments = $"-x --audio-format mp3 -o \"{outputTemplate}\" \"{url}\"",
-                                UseShellExecute = false,
-                                CreateNoWindow = true,
-                                RedirectStandardOutput = true,
-                                RedirectStandardError = true
-                            };
-
-                            using var proc = System.Diagnostics.Process.Start(psi);
-                            if (proc != null)
-                            {
-                                await proc.WaitForExitAsync();
-
-                                var downloadedFiles = Directory.GetFiles(musicDir, "*.mp3");
-                                string? newestMp3 = downloadedFiles.OrderByDescending(File.GetLastWriteTime).FirstOrDefault();
-
-                                if (!string.IsNullOrEmpty(newestMp3) && File.Exists(newestMp3))
-                                {
-                                    string songTitle = Path.GetFileNameWithoutExtension(newestMp3);
-
-                                    var track = new MusicTrack
-                                    {
-                                        Title = songTitle,
-                                        PathOrUrl = newestMp3,
-                                        IsStreamUrl = false
-                                    };
-
-                                    Application.Current.Dispatcher.Invoke(() =>
-                                    {
-                                        _activeFolder.Tracks.Add(track);
-                                        MusicPlaylistManager.SaveLibrary(_library);
-                                        RenderTracksList();
-                                        TextOverlay.Show($"✅ Downloaded MP3: '{songTitle}'!", 3000);
-                                    });
-                                    return;
-                                }
+                                localPath = newest;
                             }
-
-                            // Fallback to direct HTTP download if yt-dlp is not present
-                            string fileName = "Track_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".mp3";
-                            string localPath = Path.Combine(musicDir, fileName);
-
-                            using var client = new System.Net.Http.HttpClient();
-                            byte[] audioBytes = await client.GetByteArrayAsync(url);
-                            File.WriteAllBytes(localPath, audioBytes);
-
-                            string directTitle = Path.GetFileNameWithoutExtension(localPath);
-                            var directTrack = new MusicTrack
-                            {
-                                Title = directTitle,
-                                PathOrUrl = localPath,
-                                IsStreamUrl = false
-                            };
-
-                            Application.Current.Dispatcher.Invoke(() =>
-                            {
-                                _activeFolder.Tracks.Add(directTrack);
-                                MusicPlaylistManager.SaveLibrary(_library);
-                                RenderTracksList();
-                                TextOverlay.Show($"✅ Downloaded Direct Audio: '{directTitle}'!", 3000);
-                            });
                         }
-                        catch (Exception ex)
+                    }
+                    catch { }
+                }
+
+                // If valid MP3 binary was saved to disk:
+                if (!string.IsNullOrEmpty(localPath) && File.Exists(localPath))
+                {
+                    string songTitle = Path.GetFileNameWithoutExtension(localPath);
+
+                    var newTrack = new MusicTrack
+                    {
+                        Title = songTitle,
+                        PathOrUrl = localPath,
+                        IsStreamUrl = false
+                    };
+
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        MusicPlaylistManager.AddTrackToFolderAndAllSongs(_library, _activeFolder, newTrack);
+                        RenderTracksList();
+                        TextOverlay.Show($"✅ Downloaded MP3 to Playlist & All Songs:\n'{songTitle}'", 3500);
+
+                        PlayTrack(newTrack);
+                    });
+                }
+                else
+                {
+                    // Web Stream fallback if all local MP3 engines fail
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        string hostTitle = url;
+                        try { hostTitle = new Uri(url).Host; } catch { }
+
+                        var streamTrack = new MusicTrack
                         {
-                            Application.Current.Dispatcher.Invoke(() =>
-                            {
-                                string streamTitle = url;
-                                try { streamTitle = new Uri(url).Host; } catch { }
-                                var streamTrack = new MusicTrack
-                                {
-                                    Title = $"Stream ({streamTitle})",
-                                    PathOrUrl = url,
-                                    IsStreamUrl = true
-                                };
-                                _activeFolder.Tracks.Add(streamTrack);
-                                MusicPlaylistManager.SaveLibrary(_library);
-                                RenderTracksList();
-                                TextOverlay.Show($"🔗 Added Stream Link ({ex.Message})", 3000);
-                            });
-                        }
+                            Title = $"Web Stream ({hostTitle})",
+                            PathOrUrl = url,
+                            IsStreamUrl = true
+                        };
+
+                        MusicPlaylistManager.AddTrackToFolderAndAllSongs(_library, _activeFolder, streamTrack);
+                        RenderTracksList();
+                        TextOverlay.Show($"🌐 Added Web Stream Track ({hostTitle})", 3500);
+
+                        PlayTrack(streamTrack);
                     });
                 }
             });

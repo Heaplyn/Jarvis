@@ -43,6 +43,22 @@ namespace JarvisLauncher
 
         public const uint KEYEVENTF_KEYUP = 0x0002;
 
+        public const byte VK_MEDIA_NEXT = 0xB0;
+        public const byte VK_MEDIA_PREV = 0xB1;
+        public const byte VK_MEDIA_STOP = 0xB2;
+        public const byte VK_MEDIA_PLAY_PAUSE = 0xB3;
+
+        public static void SendMediaKey(byte mediaKeyVk)
+        {
+            try
+            {
+                keybd_event(mediaKeyVk, 0, 0, UIntPtr.Zero);
+                Thread.Sleep(20);
+                keybd_event(mediaKeyVk, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
+            }
+            catch { }
+        }
+
         public static void SendKeyCombo(byte modifierVk, byte keyVk)
         {
             try

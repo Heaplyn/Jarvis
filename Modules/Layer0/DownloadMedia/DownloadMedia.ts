@@ -23,7 +23,8 @@ async function download_yt(url: string) {
                 extractAudio: true,
                 audioFormat: 'mp3',
                 audioQuality: '0',
-                noPlaylist: true
+                noPlaylist: true,
+                cookiesFromBrowser: 'chrome'
             })
             .run();
 
