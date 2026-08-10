@@ -37,26 +37,26 @@ namespace JarvisLauncher
             var label = new TextBlock
             {
                 Text = promptMessage,
-                Foreground = (Brush)Application.Current.Resources["TextPrimaryBrush"],
                 FontSize = 13,
                 FontFamily = new FontFamily("Segoe UI Semibold"),
                 Margin = new Thickness(0, 0, 0, 8)
             };
+            label.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
             Grid.SetRow(label, 0);
             grid.Children.Add(label);
 
             _inputTextBox = new TextBox
             {
                 Text = defaultText,
-                Background = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)),
-                Foreground = (Brush)Application.Current.Resources["TextPrimaryBrush"],
-                CaretBrush = (Brush)Application.Current.Resources["AccentCaretBrush"],
-                BorderBrush = (Brush)Application.Current.Resources["SelectedBorderBrush"],
+                Background = Brushes.Transparent,
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(6, 4, 6, 4),
                 FontSize = 14,
                 FontFamily = new FontFamily("Segoe UI")
             };
+            _inputTextBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
+            _inputTextBox.SetResourceReference(TextBox.CaretBrushProperty, "AccentCaretBrush");
+            _inputTextBox.SetResourceReference(TextBox.BorderBrushProperty, "SelectedBorderBrush");
             _inputTextBox.KeyDown += TextBox_KeyDown;
             Grid.SetRow(_inputTextBox, 1);
             grid.Children.Add(_inputTextBox);

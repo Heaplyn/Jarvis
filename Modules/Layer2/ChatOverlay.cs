@@ -75,9 +75,9 @@ namespace JarvisLauncher
             var divider = new Border
             {
                 Height = 1,
-                Background = new SolidColorBrush(Color.FromArgb(38, 255, 255, 255)),
                 Margin = new Thickness(0, 0, 0, 8)
             };
+            divider.SetResourceReference(Border.BackgroundProperty, "WindowBorderBrush");
             Grid.SetRow(divider, 1);
             contentGrid.Children.Add(divider);
 
@@ -87,10 +87,7 @@ namespace JarvisLauncher
             _inputTextBox = new TextBox
             {
                 Background = Brushes.Transparent,
-                BorderBrush = new SolidColorBrush(Color.FromArgb(128, 128, 80, 230)),
                 BorderThickness = new Thickness(1),
-                Foreground = Brushes.White,
-                CaretBrush = Brushes.White,
                 FontSize = 13,
                 FontFamily = new FontFamily("Segoe UI"),
                 TextWrapping = TextWrapping.Wrap,
@@ -100,17 +97,20 @@ namespace JarvisLauncher
                 MaxHeight = 80,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto
             };
+            _inputTextBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
+            _inputTextBox.SetResourceReference(TextBox.CaretBrushProperty, "AccentCaretBrush");
+            _inputTextBox.SetResourceReference(TextBox.BorderBrushProperty, "SelectedBorderBrush");
 
             _placeholderTextBlock = new TextBlock
             {
                 Text = "Ask Jarvis... (Press Enter to send)",
-                Foreground = new SolidColorBrush(Color.FromArgb(90, 255, 255, 255)),
                 FontSize = 13,
                 FontFamily = new FontFamily("Segoe UI"),
                 IsHitTestVisible = false,
                 Margin = new Thickness(10, 8, 10, 8),
                 VerticalAlignment = VerticalAlignment.Center
             };
+            _placeholderTextBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextPlaceholderBrush");
 
             _inputTextBox.TextChanged += (s, e) =>
             {

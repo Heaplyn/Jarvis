@@ -54,7 +54,6 @@ namespace JarvisLauncher
                 IsReadOnly = true,
                 AcceptsReturn = true,
                 Background = Brushes.Transparent,
-                Foreground = new SolidColorBrush(Color.FromRgb(0, 255, 66)), // Retro terminal green
                 BorderThickness = new Thickness(0),
                 FontFamily = new FontFamily("Consolas, Courier New"),
                 FontSize = 13,
@@ -63,6 +62,8 @@ namespace JarvisLauncher
                 TextWrapping = TextWrapping.Wrap,
                 Padding = new Thickness(4)
             };
+            _textBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
+            _textBox.SetResourceReference(TextBox.CaretBrushProperty, "AccentCaretBrush");
 
             this.UserContent = _textBox;
         }

@@ -68,8 +68,6 @@ namespace JarvisLauncher
             // 1. Drop shadow container
             _mainBorder = new Border
             {
-                Background = bgBrush,
-                BorderBrush = borderBrush,
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(12),
                 Padding = new Thickness(12),
@@ -81,6 +79,8 @@ namespace JarvisLauncher
                     ShadowDepth = 2
                 }
             };
+            _mainBorder.SetResourceReference(Border.BackgroundProperty, "WindowBackgroundBrush");
+            _mainBorder.SetResourceReference(Border.BorderBrushProperty, "WindowBorderBrush");
 
             // 2. Main Grid Layout
             _mainGrid = new Grid();
@@ -96,12 +96,12 @@ namespace JarvisLauncher
             _titleTextBlock = new TextBlock
             {
                 Text = title,
-                Foreground = new SolidColorBrush(Color.FromArgb(178, 255, 255, 255)), // Semi-translucent white
                 FontSize = 12,
                 FontWeight = FontWeights.Bold,
                 FontFamily = new FontFamily("Segoe UI Semibold, Arial"),
                 VerticalAlignment = VerticalAlignment.Center
             };
+            _titleTextBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
             Grid.SetColumn(_titleTextBlock, 0);
             headerGrid.Children.Add(_titleTextBlock);
 
@@ -129,7 +129,6 @@ namespace JarvisLauncher
             _minimizeButton = new Button
             {
                 Content = "—", // Em-dash
-                Foreground = txtBrush,
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
                 FontSize = 14,
@@ -143,6 +142,7 @@ namespace JarvisLauncher
                 Style = style,
                 Margin = new Thickness(0, 0, 4, 0)
             };
+            _minimizeButton.SetResourceReference(Button.ForegroundProperty, "TextPrimaryBrush");
             _minimizeButton.Click += (s, e) => ToggleMiniMode();
             controlStack.Children.Add(_minimizeButton);
 
@@ -150,7 +150,6 @@ namespace JarvisLauncher
             _closeButton = new Button
             {
                 Content = "×",
-                Foreground = txtBrush,
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
                 FontSize = 18,
@@ -163,6 +162,7 @@ namespace JarvisLauncher
                 Focusable = false,
                 Style = style
             };
+            _closeButton.SetResourceReference(Button.ForegroundProperty, "TextPrimaryBrush");
             _closeButton.Click += (s, e) => FadeOutAndClose();
             controlStack.Children.Add(_closeButton);
 
