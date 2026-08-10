@@ -30,11 +30,17 @@ namespace JarvisLauncher
         private TextBlock _attachedFileText;
         private Button _attachButton;
 
+        // History controls
+        private Border _historyContainer;
+        private ListBox _historyListBox;
+
         // Visual Console controls
         private Border _consoleContainer;
         private TextBox _consoleTextBox;
         private Button _consoleToggleBtn;
         private bool _isConsoleExpanded = false;
+
+        public static void ShowOverlay() => ShowChat();
 
         public static void ShowChat()
         {
@@ -86,12 +92,82 @@ namespace JarvisLauncher
 
             // 1. Root Grid for the inner Content
             var contentGrid = new Grid();
+            contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Header Toolbar
+            contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // History Drawer
             contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Chat History
             contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Divider
             contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Console Drawer
             contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Input Box Area
 
-            // 2. Scrollable Chat History
+            // --- Header Toolbar (Row 0) ---
+            var toolbarGrid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+            toolbarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            toolbarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            toolbarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var newChatBtn = new Button
+            {
+                Content = "✨ New Chat",
+                FontSize = 11,
+                Padding = new Thickness(8, 3, 8, 3),
+                Margin = new Thickness(0, 0, 6, 0),
+                Cursor = Cursors.Hand
+            };
+            newChatBtn.SetResourceReference(Button.BackgroundProperty, "HoverBackgroundBrush");
+            newChatBtn.SetResourceReference(Button.ForegroundProperty, "TextPrimaryBrush");
+            newChatBtn.Click += (s, e) => StartNewChatSession();
+            Grid.SetColumn(newChatBtn, 1);
+            toolbarGrid.Children.Add(newChatBtn);
+
+            var historyBtn = new Button
+            {
+                Content = "📜 History",
+                FontSize = 11,
+                Padding = new Thickness(8, 3, 8, 3),
+                Margin = new Thickness(0, 0, 0, 0),
+                Cursor = Cursors.Hand
+            };
+            historyBtn.SetResourceReference(Button.BackgroundProperty, "HoverBackgroundBrush");
+            historyBtn.SetResourceReference(Button.ForegroundProperty, "TextPrimaryBrush");
+            historyBtn.Click += (s, e) => ToggleHistoryDrawer();
+            Grid.SetColumn(historyBtn, 2);
+            toolbarGrid.Children.Add(historyBtn);
+
+            Grid.SetRow(toolbarGrid, 0);
+            contentGrid.Children.Add(toolbarGrid);
+
+            // --- Collapsible History Drawer (Row 1) ---
+            _historyContainer = new Border
+            {
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4),
+                Margin = new Thickness(0, 0, 0, 8),
+                Padding = new Thickness(4),
+                Visibility = Visibility.Collapsed
+            };
+            _historyContainer.SetResourceReference(Border.BorderBrushProperty, "WindowBorderBrush");
+            _historyContainer.SetResourceReference(Border.BackgroundProperty, "WindowBackgroundBrush");
+
+            _historyListBox = new ListBox
+            {
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                FontSize = 11,
+                MaxHeight = 120
+            };
+            _historyListBox.SetResourceReference(ListBox.ForegroundProperty, "TextPrimaryBrush");
+            _historyListBox.SelectionChanged += (s, e) =>
+            {
+                if (_historyListBox.SelectedItem is string logFile && !logFile.StartsWith("("))
+                {
+                    LoadPastChatLog(logFile);
+                }
+            };
+            _historyContainer.Child = _historyListBox;
+            Grid.SetRow(_historyContainer, 1);
+            contentGrid.Children.Add(_historyContainer);
+
+            // 2. Scrollable Chat History (Row 2)
             _scrollViewer = new ScrollViewer
             {
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
@@ -101,23 +177,23 @@ namespace JarvisLauncher
 
             _chatHistoryPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom };
             _scrollViewer.Content = _chatHistoryPanel;
-            Grid.SetRow(_scrollViewer, 0);
+            Grid.SetRow(_scrollViewer, 2);
             contentGrid.Children.Add(_scrollViewer);
 
             // Add starting welcome message
             AddMessageBubble("Hello! I am your Jarvis AI Companion. How can I help you customize your system or files today?", isAi: true);
 
-            // 3. Thin Divider
+            // 3. Thin Divider (Row 3)
             var divider = new Border
             {
                 Height = 1,
                 Margin = new Thickness(0, 0, 0, 8)
             };
             divider.SetResourceReference(Border.BackgroundProperty, "WindowBorderBrush");
-            Grid.SetRow(divider, 1);
+            Grid.SetRow(divider, 3);
             contentGrid.Children.Add(divider);
 
-            // --- Collapsible Console Drawer (Row 2) ---
+            // --- Collapsible Console Drawer (Row 4) ---
             _consoleContainer = new Border
             {
                 BorderThickness = new Thickness(1),
@@ -184,7 +260,7 @@ namespace JarvisLauncher
             consoleLayoutGrid.Children.Add(_consoleTextBox);
 
             _consoleContainer.Child = consoleLayoutGrid;
-            Grid.SetRow(_consoleContainer, 2);
+            Grid.SetRow(_consoleContainer, 4);
             contentGrid.Children.Add(_consoleContainer);
 
             // 4. Input Area Grid (Row 3)
@@ -434,6 +510,98 @@ namespace JarvisLauncher
             }
             _scrollViewer.UpdateLayout();
             _scrollViewer.ScrollToBottom();
+        }
+
+        private void StartNewChatSession()
+        {
+            _chatHistoryPanel.Children.Clear();
+            _conversationHistory.Clear();
+            RemoveAttachment();
+            if (_historyContainer != null) _historyContainer.Visibility = Visibility.Collapsed;
+            AddMessageBubble("✨ New Chat Session started! How can I help you today?", isAi: true);
+            TextOverlay.Show("✨ New Chat Session", 1500);
+        }
+
+        private void ToggleHistoryDrawer()
+        {
+            if (_historyContainer.Visibility == Visibility.Collapsed)
+            {
+                PopulateHistoryList();
+                _historyContainer.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                _historyContainer.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private void PopulateHistoryList()
+        {
+            _historyListBox.Items.Clear();
+            string dataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Conversations");
+            if (Directory.Exists(dataDir))
+            {
+                var files = Directory.GetFiles(dataDir, "ChatLog_*.txt");
+                Array.Sort(files, (a, b) => File.GetLastWriteTime(b).CompareTo(File.GetLastWriteTime(a)));
+
+                foreach (var f in files)
+                {
+                    _historyListBox.Items.Add(Path.GetFileName(f));
+                }
+            }
+
+            if (_historyListBox.Items.Count == 0)
+            {
+                _historyListBox.Items.Add("(No past conversation logs found)");
+            }
+        }
+
+        private void LoadPastChatLog(string fileName)
+        {
+            try
+            {
+                string dataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Conversations");
+                string filePath = Path.Combine(dataDir, fileName);
+                if (!File.Exists(filePath)) return;
+
+                string text = File.ReadAllText(filePath);
+                _chatHistoryPanel.Children.Clear();
+                _conversationHistory.Clear();
+                _historyContainer.Visibility = Visibility.Collapsed;
+
+                AddMessageBubble($"📜 Loaded session log: {fileName}", isAi: true, isItalic: true);
+
+                // Parse turns separated by "=========================================================================="
+                string[] turns = text.Split("==========================================================================", StringSplitOptions.RemoveEmptyEntries);
+                foreach (var turn in turns)
+                {
+                    string trimmed = turn.Trim();
+                    if (string.IsNullOrWhiteSpace(trimmed)) continue;
+
+                    int userIdx = trimmed.IndexOf("USER: ");
+                    int jarvisIdx = trimmed.IndexOf("JARVIS: ");
+
+                    if (userIdx >= 0 && jarvisIdx > userIdx)
+                    {
+                        string userMsg = trimmed.Substring(userIdx + 6, jarvisIdx - (userIdx + 6)).Trim().TrimEnd('-', '\r', '\n');
+                        string jarvisMsg = trimmed.Substring(jarvisIdx + 8).Trim();
+
+                        if (!string.IsNullOrWhiteSpace(userMsg)) AddMessageBubble(userMsg, isAi: false);
+                        if (!string.IsNullOrWhiteSpace(jarvisMsg)) AddMessageBubble(jarvisMsg, isAi: true);
+
+                        _conversationHistory.Add(new ChatTurn { Role = "user", Text = userMsg });
+                        _conversationHistory.Add(new ChatTurn { Role = "model", Text = jarvisMsg });
+                    }
+                }
+
+                _scrollViewer.UpdateLayout();
+                _scrollViewer.ScrollToBottom();
+                TextOverlay.Show($"📜 Loaded history: {fileName}", 2000);
+            }
+            catch (Exception ex)
+            {
+                AddMessageBubble($"⚠️ Error loading history log: {ex.Message}", isAi: true);
+            }
         }
 
         private bool _isFolderContext = false;
