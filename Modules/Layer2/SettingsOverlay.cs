@@ -1,6 +1,6 @@
 // Developer: heaplyn
 // Date: 2026-08-09
-// Summary: Interactive Settings & Options GUI window overlay allowing visual configuration of API keys, themes, download paths, and system behaviors.
+// Summary: Interactive Settings & Options GUI window overlay allowing visual configuration of API keys, themes, startup behavior, sounds, search engine, and transparency.
 
 using System;
 using System.IO;
@@ -19,6 +19,12 @@ namespace JarvisLauncher
         private readonly TextBox _githubTokenBox;
         private readonly TextBox _downloadDirBox;
         private readonly ComboBox _themeComboBox;
+        private readonly ComboBox _searchEngineComboBox;
+        private readonly CheckBox _startWithWinCheckBox;
+        private readonly CheckBox _playSoundsCheckBox;
+        private readonly CheckBox _autoHideCheckBox;
+        private readonly Slider _opacitySlider;
+        private readonly TextBlock _opacityValueLabel;
 
         public static void OpenSettings()
         {
@@ -43,7 +49,7 @@ namespace JarvisLauncher
         }
 
         private SettingsOverlay()
-            : base("JARVIS SYSTEM SETTINGS", width: 520, height: 440)
+            : base("JARVIS SYSTEM SETTINGS", width: 560, height: 480)
         {
             this.Closed += (s, e) => { _instance = null; };
 
@@ -126,6 +132,66 @@ namespace JarvisLauncher
             };
             formPanel.Children.Add(_themeComboBox);
 
+            // 5. Default Web Search Engine
+            formPanel.Children.Add(CreateLabel("🌐 Default Web Search Engine:"));
+            _searchEngineComboBox = new ComboBox
+            {
+                Margin = new Thickness(0, 0, 0, 8),
+                Padding = new Thickness(6, 4, 6, 4),
+                FontSize = 13,
+                FontFamily = new FontFamily("Segoe UI")
+            };
+            _searchEngineComboBox.Items.Add("Google");
+            _searchEngineComboBox.Items.Add("DuckDuckGo");
+            _searchEngineComboBox.Items.Add("Bing");
+            formPanel.Children.Add(_searchEngineComboBox);
+
+            // 6. Window Opacity / Transparency Slider
+            var opacityStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 4) };
+            var opacityLabel = CreateLabel("👁️ HUD Window Opacity: ");
+            opacityLabel.Margin = new Thickness(0);
+            opacityStack.Children.Add(opacityLabel);
+
+            _opacityValueLabel = new TextBlock
+            {
+                Text = "100%",
+                FontSize = 12,
+                FontWeight = FontWeights.Bold,
+                FontFamily = new FontFamily("Segoe UI"),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            _opacityValueLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+            opacityStack.Children.Add(_opacityValueLabel);
+            formPanel.Children.Add(opacityStack);
+
+            _opacitySlider = new Slider
+            {
+                Minimum = 0.3,
+                Maximum = 1.0,
+                Value = 1.0,
+                TickFrequency = 0.05,
+                IsSnapToTickEnabled = true,
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            _opacitySlider.ValueChanged += (s, e) =>
+            {
+                int pct = (int)(_opacitySlider.Value * 100);
+                _opacityValueLabel.Text = $"{pct}%";
+            };
+            formPanel.Children.Add(_opacitySlider);
+
+            // 7. Checkbox Toggles
+            formPanel.Children.Add(CreateLabel("⚙️ System Behaviors & Preferences:"));
+
+            _startWithWinCheckBox = CreateCheckBox("🚀 Start Jarvis automatically with Windows");
+            formPanel.Children.Add(_startWithWinCheckBox);
+
+            _playSoundsCheckBox = CreateCheckBox("🔊 Play sound alerts on notification popups");
+            formPanel.Children.Add(_playSoundsCheckBox);
+
+            _autoHideCheckBox = CreateCheckBox("🙈 Auto-hide HUD search bar after executing commands");
+            formPanel.Children.Add(_autoHideCheckBox);
+
             scrollViewer.Content = formPanel;
             Grid.SetRow(scrollViewer, 0);
             mainGrid.Children.Add(scrollViewer);
@@ -179,6 +245,14 @@ namespace JarvisLauncher
             _githubTokenBox.Text = settings.GithubToken;
             _downloadDirBox.Text = settings.DownloadDirectory;
             _themeComboBox.SelectedItem = settings.Theme;
+
+            _searchEngineComboBox.SelectedItem = string.IsNullOrEmpty(settings.DefaultSearchEngine) ? "Google" : settings.DefaultSearchEngine;
+            _opacitySlider.Value = settings.WindowOpacity > 0.2 ? settings.WindowOpacity : 1.0;
+            _opacityValueLabel.Text = $"{(int)(_opacitySlider.Value * 100)}%";
+
+            _startWithWinCheckBox.IsChecked = settings.StartWithWindows;
+            _playSoundsCheckBox.IsChecked = settings.PlaySounds;
+            _autoHideCheckBox.IsChecked = settings.AutoHideOnExecute;
         }
 
         private void SaveSettings()
@@ -196,6 +270,19 @@ namespace JarvisLauncher
                     ThemeManager.ApplyTheme(selectedTheme);
                 }
 
+                if (_searchEngineComboBox.SelectedItem is string selectedEngine)
+                {
+                    settings.DefaultSearchEngine = selectedEngine;
+                }
+
+                settings.WindowOpacity = _opacitySlider.Value;
+                settings.StartWithWindows = _startWithWinCheckBox.IsChecked == true;
+                settings.PlaySounds = _playSoundsCheckBox.IsChecked == true;
+                settings.AutoHideOnExecute = _autoHideCheckBox.IsChecked == true;
+
+                // Handle Windows Startup Registry key toggle
+                ConfigureWindowsStartup(settings.StartWithWindows);
+
                 SettingsManager.Save();
                 TextOverlay.Show("💾 Settings saved successfully!", 2500);
                 FadeOutAndClose();
@@ -204,6 +291,30 @@ namespace JarvisLauncher
             {
                 TextOverlay.Show($"⚠️ Failed to save settings: {ex.Message}", 3000);
             }
+        }
+
+        private void ConfigureWindowsStartup(bool enable)
+        {
+            try
+            {
+                string keyName = "JarvisHUDLauncher";
+                string? exePath = Environment.ProcessPath;
+                if (string.IsNullOrEmpty(exePath)) return;
+
+                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", true);
+                if (key != null)
+                {
+                    if (enable)
+                    {
+                        key.SetValue(keyName, $"\"{exePath}\"");
+                    }
+                    else
+                    {
+                        key.DeleteValue(keyName, false);
+                    }
+                }
+            }
+            catch { }
         }
 
         private void BrowseDownloadDir()
@@ -260,6 +371,20 @@ namespace JarvisLauncher
             box.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
             box.SetResourceReference(TextBox.CaretBrushProperty, "AccentCaretBrush");
             box.SetResourceReference(TextBox.BorderBrushProperty, "SelectedBorderBrush");
+            return box;
+        }
+
+        private CheckBox CreateCheckBox(string labelText)
+        {
+            var box = new CheckBox
+            {
+                Content = labelText,
+                Margin = new Thickness(0, 4, 0, 6),
+                FontSize = 12,
+                FontFamily = new FontFamily("Segoe UI"),
+                Cursor = Cursors.Hand
+            };
+            box.SetResourceReference(CheckBox.ForegroundProperty, "TextPrimaryBrush");
             return box;
         }
     }
