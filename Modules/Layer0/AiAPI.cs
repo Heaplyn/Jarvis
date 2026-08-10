@@ -85,12 +85,11 @@ namespace JarvisLauncher
 
         private static async Task<string> QueryGeminiRaw(string prompt, string apiKey)
         {
-            // List of candidate models tried in sequence: Uses high-tier Pro models first, falling back to Flash models upon 429 (quota) or 404 errors.
+            // List of candidate models tried in sequence
             string[] models = new[] {
-                "gemini-1.5-pro-latest",
-                "gemini-1.5-pro",
-                "gemini-2.0-flash-exp",
-                "gemini-1.5-flash-latest",
+                "gemini-2.0-flash",
+                "gemini-1.5-flash-8b",
+                "gemini-2.0-flash-lite",
                 "gemini-1.5-flash"
             };
 
@@ -167,14 +166,9 @@ namespace JarvisLauncher
 
                     if (!response.IsSuccessStatusCode)
                     {
-                        // If model is NotFound (404) or QuotaExhausted (429), log and fall back to the next model in sequence
-                        if (response.StatusCode == System.Net.HttpStatusCode.NotFound || 
-                            response.StatusCode == (System.Net.HttpStatusCode)429)
-                        {
-                            lastError = $"Model '{model}' failed with status {response.StatusCode}.\nResponse: {responseBody}";
-                            continue;
-                        }
-                        return $"Error: API returned status {response.StatusCode}\n{responseBody}";
+                        // Log error and unconditionally retry with the next candidate model
+                        lastError = $"Model '{model}' returned HTTP status {response.StatusCode}.\nDetails: {responseBody}";
+                        continue;
                     }
 
                     using (var doc = JsonDocument.Parse(responseBody))

@@ -45,6 +45,10 @@ namespace JarvisLauncher
             Grid.SetRow(label, 0);
             grid.Children.Add(label);
 
+            var inputRowGrid = new Grid();
+            inputRowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            inputRowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
             _inputTextBox = new TextBox
             {
                 Text = defaultText,
@@ -58,8 +62,26 @@ namespace JarvisLauncher
             _inputTextBox.SetResourceReference(TextBox.CaretBrushProperty, "AccentCaretBrush");
             _inputTextBox.SetResourceReference(TextBox.BorderBrushProperty, "SelectedBorderBrush");
             _inputTextBox.KeyDown += TextBox_KeyDown;
-            Grid.SetRow(_inputTextBox, 1);
-            grid.Children.Add(_inputTextBox);
+            Grid.SetColumn(_inputTextBox, 0);
+            inputRowGrid.Children.Add(_inputTextBox);
+
+            var browseButton = new Button
+            {
+                Content = "📁 Browse...",
+                Margin = new Thickness(8, 0, 0, 0),
+                Padding = new Thickness(10, 2, 10, 2),
+                Cursor = Cursors.Hand,
+                FontSize = 12,
+                FontFamily = new FontFamily("Segoe UI")
+            };
+            browseButton.SetResourceReference(Button.BackgroundProperty, "HoverBackgroundBrush");
+            browseButton.SetResourceReference(Button.ForegroundProperty, "TextPrimaryBrush");
+            browseButton.Click += (s, e) => BrowseFile();
+            Grid.SetColumn(browseButton, 1);
+            inputRowGrid.Children.Add(browseButton);
+
+            Grid.SetRow(inputRowGrid, 1);
+            grid.Children.Add(inputRowGrid);
 
             this.UserContent = grid;
 
@@ -68,6 +90,21 @@ namespace JarvisLauncher
                 _inputTextBox.Focus();
                 _inputTextBox.SelectAll();
             };
+        }
+
+        private void BrowseFile()
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Select File"
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                _inputTextBox.Text = dialog.FileName;
+                _onSubmit?.Invoke(dialog.FileName);
+                FadeOutAndClose();
+            }
         }
 
         private void TextBox_KeyDown(object sender, KeyEventArgs e)
