@@ -19,6 +19,9 @@ namespace JarvisLauncher
         {
             base.OnStartup(e);
 
+            // Run Self-Healing Manager audit & global exception hooks
+            SelfHealingManager.Initialize();
+
             // Initialize main window
             _mainWindow = new MainWindow();
 

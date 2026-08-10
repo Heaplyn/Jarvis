@@ -52,7 +52,8 @@ namespace JarvisLauncher
         GRID,
         PRODUCTIVITY,
         EXTRA_FEATURES,
-        NEW_IDEAS
+        NEW_IDEAS,
+        MUSIC_PLAYLIST
     };
 
     public static class CommandParser
@@ -149,7 +150,9 @@ namespace JarvisLauncher
             { CommandType.EXTRA_FEATURES,
             new CommandDictType("Desktop file search, snippets, apps, and web summarizer", new ExtraFeaturesCommandHandler()) },
             { CommandType.NEW_IDEAS,
-            new CommandDictType("Window snap, macros, ping, jumps, task manager GUI, time, and hash", new NewIdeasCommandHandler()) }
+            new CommandDictType("Window snap, macros, ping, jumps, task manager GUI, time, and hash", new NewIdeasCommandHandler()) },
+            { CommandType.MUSIC_PLAYLIST,
+            new CommandDictType("Interactive Music Player & Playlist Manager GUI", new MusicPlaylistCommandHandler()) }
         };
 
         public static List<CommandResult> GetSuggestions(string query)
@@ -162,6 +165,22 @@ namespace JarvisLauncher
             }
 
             query = query.Trim();
+
+            // Handle inline command chaining via '|' or '&&'
+            if (query.Contains(" | ") || query.Contains(" && "))
+            {
+                string[] chainParts = query.Split(new[] { " | ", " && " }, StringSplitOptions.RemoveEmptyEntries);
+                if (chainParts.Length > 1)
+                {
+                    suggestions.Add(new CommandResult
+                    {
+                        Title       = $"⚡ Execute Chained Pipeline ({chainParts.Length} Commands)",
+                        Description = $"Run: {query}",
+                        Similarity  = 5.0, // High priority match
+                        Execute     = () => ExecuteChainedPipeline(chainParts)
+                    });
+                }
+            }
 
             // 1. Expand aliases before evaluation
             string expandedQuery = query;
@@ -200,6 +219,31 @@ namespace JarvisLauncher
             suggestions.Sort((a, b) => b.Similarity.CompareTo(a.Similarity));
 
             return suggestions;
+        }
+
+        private static void ExecuteChainedPipeline(string[] chainParts)
+        {
+            System.Threading.Tasks.Task.Run(async () =>
+            {
+                int count = 0;
+                foreach (var cmd in chainParts)
+                {
+                    string trimmedCmd = cmd.Trim();
+                    if (string.IsNullOrEmpty(trimmedCmd)) continue;
+
+                    var subSuggestions = GetSuggestions(trimmedCmd);
+                    if (subSuggestions.Count > 0 && subSuggestions[0].Execute != null)
+                    {
+                        System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            subSuggestions[0].Execute?.Invoke();
+                        });
+                        count++;
+                        await System.Threading.Tasks.Task.Delay(300); // Brief delay between actions
+                    }
+                }
+                TextOverlay.Show($"⚡ Chained Pipeline Executed ({count} actions completed)", 3000);
+            });
         }
 
         public static void Initialize()
