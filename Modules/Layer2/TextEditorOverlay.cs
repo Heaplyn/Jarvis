@@ -115,11 +115,11 @@ namespace JarvisLauncher
             _statusLabel = new TextBlock
             {
                 Text = $"Editing: {displayPath}",
-                Foreground = (Brush)Application.Current.Resources["TextPrimaryBrush"],
                 FontSize = 12,
                 FontFamily = new FontFamily("Segoe UI"),
                 VerticalAlignment = VerticalAlignment.Center
             };
+            _statusLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
             Grid.SetColumn(_statusLabel, 0);
             toolbarGrid.Children.Add(_statusLabel);
 
@@ -130,8 +130,6 @@ namespace JarvisLauncher
             var saveBtn = new Button
             {
                 Content = "Save (Ctrl+S)",
-                Background = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)),
-                Foreground = (Brush)Application.Current.Resources["TextPrimaryBrush"],
                 BorderThickness = new Thickness(0),
                 Padding = new Thickness(10, 2, 10, 2),
                 Margin = new Thickness(0, 0, 8, 0),
@@ -139,20 +137,22 @@ namespace JarvisLauncher
                 FontFamily = new FontFamily("Segoe UI"),
                 FontSize = 11
             };
+            saveBtn.SetResourceReference(Button.BackgroundProperty, "HoverBackgroundBrush");
+            saveBtn.SetResourceReference(Button.ForegroundProperty, "TextPrimaryBrush");
             saveBtn.Click += (s, e) => SaveFile();
             buttonStack.Children.Add(saveBtn);
 
             var closeBtn = new Button
             {
                 Content = "Close",
-                Background = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)),
-                Foreground = (Brush)Application.Current.Resources["TextPrimaryBrush"],
                 BorderThickness = new Thickness(0),
                 Padding = new Thickness(10, 2, 10, 2),
                 Cursor = Cursors.Hand,
                 FontFamily = new FontFamily("Segoe UI"),
                 FontSize = 11
             };
+            closeBtn.SetResourceReference(Button.BackgroundProperty, "HoverBackgroundBrush");
+            closeBtn.SetResourceReference(Button.ForegroundProperty, "TextPrimaryBrush");
             closeBtn.Click += (s, e) => HandleCloseCheck();
             buttonStack.Children.Add(closeBtn);
 
@@ -169,8 +169,6 @@ namespace JarvisLauncher
                 AcceptsReturn = true,
                 AcceptsTab = true,
                 Background = Brushes.Transparent,
-                Foreground = (Brush)Application.Current.Resources["TextPrimaryBrush"],
-                CaretBrush = (Brush)Application.Current.Resources["AccentCaretBrush"],
                 BorderThickness = new Thickness(0),
                 FontFamily = new FontFamily("Consolas, Courier New"),
                 FontSize = 13,
@@ -179,6 +177,8 @@ namespace JarvisLauncher
                 TextWrapping = TextWrapping.Wrap,
                 Padding = new Thickness(6)
             };
+            _editTextBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
+            _editTextBox.SetResourceReference(TextBox.CaretBrushProperty, "AccentCaretBrush");
             _editTextBox.TextChanged += (s, e) => EvaluateModifiedState();
             _editTextBox.PreviewKeyDown += TextBox_PreviewKeyDown;
 

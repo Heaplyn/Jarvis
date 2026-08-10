@@ -135,7 +135,6 @@ namespace JarvisLauncher
             var textBlock = new TextBlock
             {
                 Text = filename,
-                Foreground = (Brush)Application.Current.Resources["TextPrimaryBrush"],
                 FontSize = 10,
                 FontFamily = new FontFamily("Segoe UI Semibold"),
                 TextAlignment = TextAlignment.Center,
@@ -143,6 +142,7 @@ namespace JarvisLauncher
                 MaxHeight = 32,
                 Margin = new Thickness(0, 6, 0, 0)
             };
+            textBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
             stack.Children.Add(textBlock);
 
             cardBorder.Child = stack;
