@@ -50,7 +50,8 @@ namespace JarvisLauncher
         EDIT,
         OPEN,
         GRID,
-        PRODUCTIVITY
+        PRODUCTIVITY,
+        EXTRA_FEATURES
     };
 
     public static class CommandParser
@@ -143,7 +144,9 @@ namespace JarvisLauncher
             { CommandType.GRID,
             new CommandDictType("Manage visual files launchpad dashboard", new GridCommandHandler()) },
             { CommandType.PRODUCTIVITY,
-            new CommandDictType("Manage quick notes and desktop reminders", new ProductivityCommandHandler()) }
+            new CommandDictType("Manage quick notes and desktop reminders", new ProductivityCommandHandler()) },
+            { CommandType.EXTRA_FEATURES,
+            new CommandDictType("Desktop file search, snippets, apps, and web summarizer", new ExtraFeaturesCommandHandler()) }
         };
 
         public static List<CommandResult> GetSuggestions(string query)

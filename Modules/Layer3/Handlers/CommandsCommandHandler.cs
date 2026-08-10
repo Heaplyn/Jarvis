@@ -79,6 +79,12 @@ namespace JarvisLauncher
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "note <text>", "Quickly append text to notes.txt", "note Meeting at 3pm"));
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "remind <time> <msg>", "Set popup alert (e.g. 5m, 30s)", "remind 10m Break"));
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "settings / options", "Open visual Options & Settings GUI", "settings"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "search <query>", "Search files across Desktop/Documents", "search report"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "snippet / snip", "Manage and copy saved text snippets", "snip"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "app <name>", "Launch software application shortcut", "app chrome"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "fetch <url>", "Scrape & summarize webpage with AI", "fetch https://..."));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "monitor / stats", "Toggle live floating system monitor", "monitor"));
+            sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "vol night/gaming", "Quick volume preset profiles", "vol night"));
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "> <cmd>", "Run terminal command in cmd.exe", ">dir"));
             sb.AppendLine(string.Format("{0,-18} {1,-32} {2}", "$ <cmd>", "Run command in PowerShell", "$Get-Process"));
 
