@@ -30,5 +30,13 @@ namespace JarvisLauncher
 
             return suggestions;
         }
+
+        public List<CommandDesc> GetCommandDescriptions()
+        {
+            return new List<CommandDesc>
+            {
+                new CommandDesc("dev / roblox / blender", "Roblox & Blender game creator toolbox GUI", "dev")
+            };
+        }
     }
 }

@@ -253,5 +253,13 @@ namespace JarvisLauncher
 
             CliOutputOverlay.Show("Tasks List", sb.ToString());
         }
+
+        public List<CommandDesc> GetCommandDescriptions()
+        {
+            return new List<CommandDesc>
+            {
+                new CommandDesc("todo <add/done/list>", "Manage local Todo tasks list", "todo list")
+            };
+        }
     }
 }

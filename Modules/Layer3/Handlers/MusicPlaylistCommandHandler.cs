@@ -55,5 +55,14 @@ namespace JarvisLauncher
 
             return suggestions;
         }
+
+        public List<CommandDesc> GetCommandDescriptions()
+        {
+            return new List<CommandDesc>
+            {
+                new CommandDesc("music / playlist", "Open Music Player & Playlist Manager GUI", "music"),
+                new CommandDesc("download <url>", "Download music/audio link to playlist folder", "download https://...")
+            };
+        }
     }
 }

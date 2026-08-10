@@ -133,5 +133,15 @@ namespace JarvisLauncher
             }
             return AppDomain.CurrentDomain.BaseDirectory;
         }
+
+        public List<CommandDesc> GetCommandDescriptions()
+        {
+            return new List<CommandDesc>
+            {
+                new CommandDesc("grid / files", "View pinned files launchpad grid", "grid"),
+                new CommandDesc("pin <filename>", "Pin file to launchpad dashboard", "pin C:\\notes.txt"),
+                new CommandDesc("unpin <filename>", "Remove file from launchpad grid", "unpin C:\\notes.txt")
+            };
+        }
     }
 }

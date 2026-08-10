@@ -424,5 +424,19 @@ namespace JarvisLauncher
                 TextOverlay.Show($"⚠️ Browser launch failed: {ex.Message}", 3000);
             }
         }
+
+        public List<CommandDesc> GetCommandDescriptions()
+        {
+            return new List<CommandDesc>
+            {
+                new CommandDesc("google <query>", "Search Google in default browser", "google WPF layouts"),
+                new CommandDesc("search <query>", "Search files across Desktop & Documents", "search report"),
+                new CommandDesc("snippet / snip", "Manage and copy saved text snippets", "snip"),
+                new CommandDesc("app <name>", "Launch software application shortcut", "app chrome"),
+                new CommandDesc("fetch <url>", "Scrape & summarize webpage with AI", "fetch https://..."),
+                new CommandDesc("vol night/gaming", "Quick volume preset profiles", "vol night"),
+                new CommandDesc("tabs / browser", "Inspect active browser tab titles", "tabs")
+            };
+        }
     }
 }

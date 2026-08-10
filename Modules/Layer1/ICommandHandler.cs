@@ -11,5 +11,7 @@ namespace JarvisLauncher
         bool CanHandle(string query);
         List<CommandResult> GetSuggestions(string query);
         void OnStart() { }
+        List<CommandDesc> GetCommandDescriptions() => new List<CommandDesc>();
     }
 }
+

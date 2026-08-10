@@ -244,5 +244,13 @@ namespace JarvisLauncher
 
             return await tcs.Task;
         }
+
+        public List<CommandDesc> GetCommandDescriptions()
+        {
+            return new List<CommandDesc>
+            {
+                new CommandDesc("ffmpeg <args>", "Execute FFmpeg video/audio converter commands", "ffmpeg -i input.mp4 output.mp3")
+            };
+        }
     }
 }
