@@ -5,7 +5,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace JarvisLauncher
+namespace JarvisLauncher.Modules.Layer3.Handlers
 {
     public class AliasCommandHandler : ICommandHandler
     {
@@ -32,7 +32,7 @@ namespace JarvisLauncher
                 {
                     string shortcut = parts[1].ToLower();
                     // Extract expansion (everything after the shortcut keyword)
-                    string expansion = query.Substring(query.IndexOf(parts[1]) + parts[1].Length).Trim();
+                    string expansion = query[(query.IndexOf(parts[1]) + parts[1].Length)..].Trim();
 
                     suggestions.Add(new CommandResult
                     {
@@ -85,12 +85,12 @@ namespace JarvisLauncher
                 if (parts.Length > 1)
                 {
                     string shortcut = parts[1].ToLower();
-                    if (SettingsManager.Current.Aliases.ContainsKey(shortcut))
+                    if (SettingsManager.Current.Aliases.TryGetValue(shortcut, out string expansion))
                     {
                         suggestions.Add(new CommandResult
                         {
                             Title = $"Remove Alias: '{shortcut}'",
-                            Description = $"Delete the shortcut mapping to: \"{SettingsManager.Current.Aliases[shortcut]}\"",
+                            Description = $"Delete the shortcut mapping to: \"{expansion}\"",
                             Execute = () => RemoveAlias(shortcut),
                             Similarity = similarity
                         });
@@ -156,6 +156,16 @@ namespace JarvisLauncher
             {
                 TextOverlay.Show($"⚠️ Failed to remove alias: {ex.Message}", 3000);
             }
+        }
+
+        public List<CommandDesc> GetCommandDescriptions()
+        {
+            return new List<CommandDesc>
+            {
+                new CommandDesc("alias <n> <cmd>", "Create persistent command alias", "alias gp push"),
+                new CommandDesc("alias list", "List registered custom aliases", "alias list"),
+                new CommandDesc("alias remove <n>", "Delete a custom command alias", "alias remove gp")
+            };
         }
     }
 }

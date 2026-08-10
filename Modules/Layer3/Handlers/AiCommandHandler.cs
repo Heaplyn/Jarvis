@@ -83,5 +83,13 @@ namespace JarvisLauncher
                 }
             });
         }
+
+        public List<CommandDesc> GetCommandDescriptions()
+        {
+            return new List<CommandDesc>
+            {
+                new CommandDesc("ai <prompt> / ask", "Ask Jarvis AI assistant questions or tasks", "ai explain quantum computing")
+            };
+        }
     }
 }

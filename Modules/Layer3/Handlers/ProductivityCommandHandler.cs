@@ -157,5 +157,14 @@ namespace JarvisLauncher
             }
             return AppDomain.CurrentDomain.BaseDirectory;
         }
+
+        public List<CommandDesc> GetCommandDescriptions()
+        {
+            return new List<CommandDesc>
+            {
+                new CommandDesc("note <text>", "Quickly append text to notes.txt", "note Meeting at 3pm"),
+                new CommandDesc("remind <time> <msg>", "Set popup alert timer (e.g. 5m, 30s)", "remind 10m Break")
+            };
+        }
     }
 }

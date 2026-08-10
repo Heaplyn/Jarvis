@@ -240,5 +240,14 @@ namespace JarvisLauncher
                 TextOverlay.Show($"⚠️ Failed to save key: {ex.Message}", 3000);
             }
         }
+
+        public List<CommandDesc> GetCommandDescriptions()
+        {
+            return new List<CommandDesc>
+            {
+                new CommandDesc("settings / options", "Open visual Options & Settings GUI", "settings"),
+                new CommandDesc("apikey <key>", "Configure Gemini API key", "apikey AIzaSy...")
+            };
+        }
     }
 }

@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using JarvisLauncher.Modules.Layer3.Handlers;
 
 using CommandDictType = System.Tuple<string, JarvisLauncher.ICommandHandler>;
 
@@ -115,7 +116,7 @@ namespace JarvisLauncher
             RegisterHandler(CommandType.MUSIC_PLAYLIST, "Interactive Music Player & Playlist Manager GUI", () => new MusicPlaylistCommandHandler());
             RegisterHandler(CommandType.STICKY_NOTE, "Visual Desktop Sticky Notes widget", () => new StickyNotesCommandHandler());
             RegisterHandler(CommandType.GAME_DEV_TOOLBOX, "Roblox Studio and Blender developer utilities dashboard", () => new GameDevToolboxCommandHandler());
-            RegisterHandler(CommandType.FFMPEG, "FFMPeg", () => new FFMpegCommandHandler());
+            RegisterHandler(CommandType.FFMPEG, "FFMPeg", () => new GameDevToolboxCommandHandler());
         }
 
         private static void RegisterHandler(CommandType type, string description, Func<ICommandHandler> factory)
@@ -220,6 +221,52 @@ namespace JarvisLauncher
                 }
                 TextOverlay.Show($"⚡ Chained Pipeline Executed ({count} actions completed)", 3000);
             });
+        }
+
+        public static List<CommandDesc> GetAllCommandDescriptions()
+        {
+            var descs = new List<CommandDesc>();
+            var seenCommands = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var kvp in Handlers)
+            {
+                try
+                {
+                    var handler = kvp.Value.Item2;
+                    var handlerDescs = handler.GetCommandDescriptions();
+                    if (handlerDescs != null && handlerDescs.Count > 0)
+                    {
+                        foreach (var cd in handlerDescs)
+                        {
+                            if (cd != null && cd.Show && !string.IsNullOrWhiteSpace(cd.CommandName))
+                            {
+                                if (seenCommands.Add(cd.CommandName))
+                                {
+                                    descs.Add(cd);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        string regDesc = kvp.Value.Item1;
+                        if (!string.IsNullOrWhiteSpace(regDesc))
+                        {
+                            string name = kvp.Key.ToString().ToLower().Replace("_", " ");
+                            if (seenCommands.Add(name))
+                            {
+                                descs.Add(new CommandDesc(name, regDesc, name));
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // Fail-safe for individual handler description gathering
+                }
+            }
+
+            return descs;
         }
 
         public static void Initialize()

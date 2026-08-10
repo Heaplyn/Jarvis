@@ -34,5 +34,13 @@ namespace JarvisLauncher
 
             return suggestions;
         }
+
+        public List<CommandDesc> GetCommandDescriptions()
+        {
+            return new List<CommandDesc>
+            {
+                new CommandDesc("notes / sticky", "Open desktop Sticky Notes widget", "notes")
+            };
+        }
     }
 }

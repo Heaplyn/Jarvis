@@ -485,5 +485,19 @@ namespace JarvisLauncher
                 TextOverlay.Show($"⚠️ Hash error: {ex.Message}", 3000);
             }
         }
+
+        public List<CommandDesc> GetCommandDescriptions()
+        {
+            return new List<CommandDesc>
+            {
+                new CommandDesc("snap left/right", "Snap foreground window to screen half", "snap left"),
+                new CommandDesc("macro <name>", "Execute multi-command action chain", "macro focus"),
+                new CommandDesc("ping <host>", "Check network roundtrip latency", "ping 8.8.8.8"),
+                new CommandDesc("jump <folder>", "Quick jump to system folder path", "jump downloads"),
+                new CommandDesc("procs / taskmgr", "Open interactive Process Manager GUI", "procs"),
+                new CommandDesc("time <city>", "Look up global time & UTC offset", "time Tokyo"),
+                new CommandDesc("hash <file>", "Compute file SHA-256 checksum", "hash notes.txt")
+            };
+        }
     }
 }
