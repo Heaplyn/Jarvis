@@ -17,7 +17,9 @@ namespace JarvisLauncher
         public bool CanHandle(string query)
         {
             query = query.Trim().ToLower();
-            return query.StartsWith("ffmpeg") || query.StartsWith("convert ") || query == "convert";
+            if (string.IsNullOrEmpty(query)) return false;
+            string firstWord = query.Split(' ')[0];
+            return "ffmpeg".StartsWith(firstWord) || "convert".StartsWith(firstWord) || firstWord.StartsWith("ffmpeg") || firstWord.StartsWith("convert");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -26,10 +28,11 @@ namespace JarvisLauncher
             string trimmed = query.Trim();
             string lower = trimmed.ToLower();
             var parts = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            string firstWord = parts.Length > 0 ? parts[0].ToLower() : "";
 
-            double similarity = SearchUtil.GetSimilarity(parts[0].ToLower(), "ffmpeg");
+            double similarity = SearchUtil.GetSimilarity(firstWord, "ffmpeg");
 
-            if (lower == "ffmpeg" || lower == "convert")
+            if ("ffmpeg".StartsWith(firstWord) || "convert".StartsWith(firstWord) || lower == "ffmpeg" || lower == "convert")
             {
                 suggestions.Add(new CommandResult
                 {

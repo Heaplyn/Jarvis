@@ -16,19 +16,35 @@ namespace JarvisLauncher
     {
         private static readonly HttpClient _httpClient = new HttpClient();
 
+        private static bool IsMatch(string input, string target)
+        {
+            if (string.IsNullOrEmpty(input)) return false;
+            return target.StartsWith(input) || input.StartsWith(target);
+        }
+
         public bool CanHandle(string query)
         {
             query = query.Trim().ToLower();
-            return query.StartsWith("search ") || query == "search" ||
-                   query.StartsWith("snip") || query.StartsWith("snippet") ||
-                   query.StartsWith("app ") || query == "app" || query == "apps" ||
-                   query.StartsWith("fetch ") || query == "fetch" ||
-                   query == "monitor" || query == "stats" ||
-                   query == "tabs" || query == "tab" || query == "browsers" || query == "browser" ||
-                   query.StartsWith("vol ") || query == "vol" ||
-                   query.StartsWith("open ") || query == "open" ||
-                   query.StartsWith("edit ") || query == "edit" ||
-                   query.StartsWith("view ") || query == "view";
+            string firstWord = query.Split(' ')[0];
+
+            return IsMatch(firstWord, "search") ||
+                   IsMatch(firstWord, "snippet") || IsMatch(firstWord, "snip") ||
+                   IsMatch(firstWord, "app") || IsMatch(firstWord, "apps") ||
+                   IsMatch(firstWord, "fetch") ||
+                   IsMatch(firstWord, "monitor") || IsMatch(firstWord, "stats") ||
+                   IsMatch(firstWord, "tabs") || IsMatch(firstWord, "tab") || IsMatch(firstWord, "browser") ||
+                   IsMatch(firstWord, "vol") || IsMatch(firstWord, "volume") ||
+                   IsMatch(firstWord, "open") ||
+                   IsMatch(firstWord, "edit") ||
+                   IsMatch(firstWord, "view") ||
+                   IsMatch(firstWord, "mobile") || IsMatch(firstWord, "phone") ||
+                   IsMatch(firstWord, "tunnel") || IsMatch(firstWord, "cloudflare") || IsMatch(firstWord, "cloudflared") ||
+                   IsMatch(firstWord, "wifi") || IsMatch(firstWord, "net") ||
+                   IsMatch(firstWord, "ping") ||
+                   IsMatch(firstWord, "uptime") ||
+                   IsMatch(firstWord, "flushdns") || IsMatch(firstWord, "dns") ||
+                   IsMatch(firstWord, "speak") || IsMatch(firstWord, "tts") ||
+                   IsMatch(firstWord, "copy");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -38,8 +54,167 @@ namespace JarvisLauncher
             var parts = query.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
             string cmd = parts[0].ToLower();
 
-            // --- 0. OPEN & EDIT FILE COMMANDS ---
-            if (cmd == "open" || cmd == "edit" || cmd == "view")
+            if (IsMatch(cmd, "wifi") || IsMatch(cmd, "net"))
+            {
+                bool wantPass = query.ToLower().Contains("pass");
+                suggestions.Add(new CommandResult
+                {
+                    Title = wantPass ? "🔑 View Wi-Fi Password" : "📶 View Wi-Fi Network Info",
+                    Description = wantPass ? "Display saved Wi-Fi password for current network" : "Display connected Wi-Fi SSID, signal, & local IP",
+                    Similarity = 4.0,
+                    Execute = () => ShowWifiInfo(wantPass)
+                });
+                return suggestions;
+            }
+
+            if (IsMatch(cmd, "uptime"))
+            {
+                suggestions.Add(new CommandResult
+                {
+                    Title = "⏱️ System Uptime",
+                    Description = "Display host PC uptime in days, hours, and minutes",
+                    Similarity = 4.0,
+                    Execute = ShowUptime
+                });
+                return suggestions;
+            }
+
+            if (IsMatch(cmd, "flushdns") || IsMatch(cmd, "dns"))
+            {
+                suggestions.Add(new CommandResult
+                {
+                    Title = "⚡ Flush DNS Resolver Cache",
+                    Description = "Purge Windows DNS cache to fix network issues",
+                    Similarity = 4.0,
+                    Execute = FlushDns
+                });
+                return suggestions;
+            }
+
+            if (IsMatch(cmd, "ping"))
+            {
+                string host = parts.Length > 1 ? parts[1].Trim() : "google.com";
+                suggestions.Add(new CommandResult
+                {
+                    Title = $"📡 Ping {host}",
+                    Description = $"Measure network roundtrip latency to {host}",
+                    Similarity = 4.0,
+                    Execute = () => PingHost(host)
+                });
+                return suggestions;
+            }
+
+            if (IsMatch(cmd, "speak") || IsMatch(cmd, "tts"))
+            {
+                string textToSpeak = parts.Length > 1 ? parts[1].Trim() : "Hello Kyle!";
+                suggestions.Add(new CommandResult
+                {
+                    Title = $"🗣️ Speak: \"{textToSpeak}\"",
+                    Description = "Synthesize and read text out loud via Windows Speech engine",
+                    Similarity = 4.0,
+                    Execute = () => SpeakText(textToSpeak)
+                });
+                return suggestions;
+            }
+
+            if (IsMatch(cmd, "copy"))
+            {
+                string copyText = parts.Length > 1 ? parts[1].Trim() : "";
+                suggestions.Add(new CommandResult
+                {
+                    Title = $"📋 Copy to Clipboard: \"{copyText}\"",
+                    Description = "Set text directly to system clipboard",
+                    Similarity = 4.0,
+                    Execute = () => { try { Clipboard.SetText(copyText); TextOverlay.Show("📋 Copied to Clipboard!", 2000); } catch {} }
+                });
+                return suggestions;
+            }
+
+            if (IsMatch(cmd, "tunnel") || IsMatch(cmd, "cloudflare") || IsMatch(cmd, "cloudflared"))
+            {
+                if (parts.Length > 1 && parts[1].Trim().Length > 5)
+                {
+                    string tokenStr = parts[1].Replace("token", "").Trim();
+                    suggestions.Add(new CommandResult
+                    {
+                        Title = $"🔑 Save Permanent Cloudflare Token",
+                        Description = $"Save token & bind static custom domain on every restart",
+                        Similarity = 4.5,
+                        Execute = () =>
+                        {
+                            CloudflareTunnelManager.SaveTunnelToken(tokenStr);
+                            TextOverlay.Show("🔑 Permanent Cloudflare Token Saved!\nRestart tunnel to bind.", 4000);
+                        }
+                    });
+                }
+
+                bool isRunning = CloudflareTunnelManager.IsRunning;
+                string activeUrl = CloudflareTunnelManager.PublicUrl ?? "";
+
+                suggestions.Add(new CommandResult
+                {
+                    Title = isRunning ? $"🌐 Cloudflare Tunnel Active: {activeUrl}" : "🌐 Start Cloudflare Public Web Tunnel",
+                    Description = isRunning ? "Click to open public HTTPS URL in browser" : "Auto-downloads cloudflared.exe & hosts Jarvis Mobile App to the public web",
+                    Similarity = 3.5,
+                    Execute = () =>
+                    {
+                        System.Threading.Tasks.Task.Run(async () =>
+                        {
+                            try
+                            {
+                                string url = await CloudflareTunnelManager.StartTunnelAsync(8080);
+                                MobileOverlay.ShowQrPairingWindow(url);
+                                OpenWebBrowser(url);
+                            }
+                            catch (Exception ex)
+                            {
+                                TextOverlay.Show($"⚠️ Cloudflare Error: {ex.Message}", 3000);
+                            }
+                        });
+                    }
+                });
+                return suggestions;
+            }
+
+            if (IsMatch(cmd, "mobile") || IsMatch(cmd, "phone"))
+            {
+                string dnsUrl = MobileBridgeServer.JarvisDomain;
+                string ipUrl = MobileBridgeServer.ServerUrl;
+
+                suggestions.Add(new CommandResult
+                {
+                    Title = "📷 Scan QR Code to Pair Phone Instantly",
+                    Description = "Display QR Code on PC monitor — scan with phone camera to connect in 1 second",
+                    Similarity = 4.2,
+                    Execute = () => MobileOverlay.ShowQrPairingWindow()
+                });
+
+                suggestions.Add(new CommandResult
+                {
+                    Title = "📱 Open Mobile Companion Hub Overlay",
+                    Description = "Configure connection links, Cloudflare public tunnel, and phone capabilities",
+                    Similarity = 4.0,
+                    Execute = () => MobileOverlay.ShowOverlay()
+                });
+
+                suggestions.Add(new CommandResult
+                {
+                    Title = $"🌐 Connect Mobile via DNS: {dnsUrl}",
+                    Description = $"Open {dnsUrl} or {ipUrl} on phone browser to connect AI Chat & PC Deck",
+                    Similarity = 3.5,
+                    Execute = () => OpenWebBrowser(dnsUrl)
+                });
+                suggestions.Add(new CommandResult
+                {
+                    Title = $"📱 Connect Mobile via IP: {ipUrl}",
+                    Description = "Direct local network IP connection",
+                    Similarity = 3.0,
+                    Execute = () => OpenWebBrowser(ipUrl)
+                });
+                return suggestions;
+            }
+
+            if (IsMatch(cmd, "open") || IsMatch(cmd, "edit") || IsMatch(cmd, "view"))
             {
                 if (parts.Length > 1)
                 {
@@ -508,10 +683,148 @@ namespace JarvisLauncher
             }
         }
 
+        private static void ShowWifiInfo(bool showPassword)
+        {
+            Task.Run(() =>
+            {
+                try
+                {
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = "netsh",
+                        Arguments = "wlan show interfaces",
+                        RedirectStandardOutput = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+                    using var proc = Process.Start(psi);
+                    string output = proc?.StandardOutput.ReadToEnd() ?? "";
+                    proc?.WaitForExit(2000);
+
+                    string ssid = "Connected Network";
+                    var match = System.Text.RegularExpressions.Regex.Match(output, @"\bSSID\s*:\s*(.+)");
+                    if (match.Success) ssid = match.Groups[1].Value.Trim();
+
+                    if (showPassword)
+                    {
+                        var passPsi = new ProcessStartInfo
+                        {
+                            FileName = "netsh",
+                            Arguments = $"wlan show profile name=\"{ssid}\" key=clear",
+                            RedirectStandardOutput = true,
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        };
+                        using var passProc = Process.Start(passPsi);
+                        string passOutput = passProc?.StandardOutput.ReadToEnd() ?? "";
+                        passProc?.WaitForExit(2000);
+
+                        string keyContent = "Not found";
+                        var keyMatch = System.Text.RegularExpressions.Regex.Match(passOutput, @"Key Content\s*:\s*(.+)");
+                        if (keyMatch.Success) keyContent = keyMatch.Groups[1].Value.Trim();
+
+                        TextOverlay.Show($"📶 Wi-Fi: {ssid}\n🔑 Password: {keyContent}", 6000);
+                    }
+                    else
+                    {
+                        string ip = MobileBridgeServer.GetLocalIPAddress();
+                        TextOverlay.Show($"📶 Wi-Fi: {ssid}\n🌐 Local IP: {ip}", 5000);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    TextOverlay.Show($"📶 Wi-Fi Info: {ex.Message}", 4000);
+                }
+            });
+        }
+
+        private static void ShowUptime()
+        {
+            TimeSpan uptime = TimeSpan.FromMilliseconds(Environment.TickCount64);
+            TextOverlay.Show($"⏱️ PC Uptime: {uptime.Days}d {uptime.Hours}h {uptime.Minutes}m {uptime.Seconds}s", 4500);
+        }
+
+        private static void FlushDns()
+        {
+            Task.Run(() =>
+            {
+                try
+                {
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = "ipconfig",
+                        Arguments = "/flushdns",
+                        RedirectStandardOutput = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+                    using var proc = Process.Start(psi);
+                    proc?.WaitForExit(3000);
+                    TextOverlay.Show("⚡ Windows DNS Resolver Cache Flushed Successfully!", 3500);
+                }
+                catch (Exception ex)
+                {
+                    TextOverlay.Show($"⚠️ Flush DNS Failed: {ex.Message}", 3500);
+                }
+            });
+        }
+
+        private static void PingHost(string host)
+        {
+            Task.Run(async () =>
+            {
+                try
+                {
+                    using var p = new System.Net.NetworkInformation.Ping();
+                    var reply = await p.SendPingAsync(host, 3000);
+                    if (reply.Status == System.Net.NetworkInformation.IPStatus.Success)
+                    {
+                        TextOverlay.Show($"📡 Ping to {host}: {reply.RoundtripTime} ms ({reply.Address})", 4000);
+                    }
+                    else
+                    {
+                        TextOverlay.Show($"⚠️ Ping to {host} failed: {reply.Status}", 4000);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    TextOverlay.Show($"⚠️ Ping error: {ex.Message}", 4000);
+                }
+            });
+        }
+
+        private static void SpeakText(string text)
+        {
+            Task.Run(() =>
+            {
+                try
+                {
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = "powershell.exe",
+                        Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"Add-Type -AssemblyName System.Speech; $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer; $synth.Speak('{text.Replace("'", "''")}')\"",
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+                    Process.Start(psi);
+                }
+                catch { }
+            });
+        }
+
         public List<CommandDesc> GetCommandDescriptions()
         {
             return new List<CommandDesc>
             {
+                new CommandDesc("wifi / net", "Show connected Wi-Fi network SSID & local IP", "wifi"),
+                new CommandDesc("wifi pass", "Show saved Wi-Fi password for current network", "wifi pass"),
+                new CommandDesc("ping <host>", "Measure network latency / roundtrip response time", "ping google.com"),
+                new CommandDesc("uptime", "Display host PC running time in days, hours, & mins", "uptime"),
+                new CommandDesc("flushdns / dns", "Flush Windows DNS resolver cache", "flushdns"),
+                new CommandDesc("speak / tts <text>", "Synthesize and read text out loud via TTS", "speak Jarvis online"),
+                new CommandDesc("copy <text>", "Copy text directly to system clipboard", "copy hello world"),
+                new CommandDesc("tunnel / cloudflare", "Host Jarvis Mobile Web App to public HTTPS web via Cloudflare Tunnel", "tunnel"),
+                new CommandDesc("mobile / phone", "Connect mobile phone app to Jarvis AI & PC control deck", "mobile"),
                 new CommandDesc("open [file]", "Open file or folder in default Windows application", "open C:\\doc.pdf"),
                 new CommandDesc("edit <file>", "Open file in default text editor", "edit main.cs"),
                 new CommandDesc("google <query>", "Search Google in default browser", "google WPF layouts"),

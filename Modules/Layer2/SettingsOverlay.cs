@@ -193,8 +193,30 @@ namespace JarvisLauncher
             _autoHideCheckBox = CreateCheckBox("🙈 Auto-hide HUD search bar after executing commands");
             formPanel.Children.Add(_autoHideCheckBox);
 
-            _alwaysOnTopCheckBox = CreateCheckBox("📌 Keep Jarvis HUD windows Always On Top");
+            _alwaysOnTopCheckBox = CreateCheckBox("📌 Keep HUD launcher window always on top");
             formPanel.Children.Add(_alwaysOnTopCheckBox);
+
+            // 8. Global Hotkeys Reference Card
+            formPanel.Children.Add(CreateLabel("⌨️ Registered Global System Keybinds:"));
+            var keybindBorder = new Border
+            {
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(10),
+                Margin = new Thickness(0, 4, 0, 10)
+            };
+            keybindBorder.SetResourceReference(Border.BorderBrushProperty, "WindowBorderBrush");
+            keybindBorder.SetResourceReference(Border.BackgroundProperty, "HoverBackgroundBrush");
+
+            var kbStack = new StackPanel();
+            kbStack.Children.Add(new TextBlock { Text = "• ~ (Tilde) / Backtick : Toggle Jarvis Launcher HUD", FontSize = 11, Margin = new Thickness(0, 2, 0, 2) });
+            kbStack.Children.Add(new TextBlock { Text = "• Ctrl + Alt + M : Toggle Mobile Companion Hub Overlay", FontSize = 11, Margin = new Thickness(0, 2, 0, 2) });
+            kbStack.Children.Add(new TextBlock { Text = "• Ctrl + Shift + A : Toggle AI Companion Chat Overlay", FontSize = 11, Margin = new Thickness(0, 2, 0, 2) });
+            kbStack.Children.Add(new TextBlock { Text = "• Ctrl + Shift + R : Restart Jarvis System", FontSize = 11, Margin = new Thickness(0, 2, 0, 2) });
+            kbStack.Children.Add(new TextBlock { Text = "• Ctrl + Shift + C : Terminate / Exit Jarvis", FontSize = 11, Margin = new Thickness(0, 2, 0, 2) });
+
+            keybindBorder.Child = kbStack;
+            formPanel.Children.Add(keybindBorder);
 
             scrollViewer.Content = formPanel;
             Grid.SetRow(scrollViewer, 0);

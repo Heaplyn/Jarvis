@@ -21,9 +21,13 @@ namespace JarvisLauncher
         private const int HOTKEY_ID = 9000;
         private const int CTRL_SHIFT_C_ID = 9001;
         private const int CTRL_SHIFT_R_ID = 9002;
+        private const int CTRL_ALT_M_ID = 9003;
+        private const int CTRL_SHIFT_A_ID = 9004;
         private const uint VK_OEM_3 = 0xC0; // Backtick (`) / Tilde (~) key on US keyboard
         private const uint VK_C = 0x43;      // 'C' key
         private const uint VK_R = 0x52;      // 'R' key
+        private const uint VK_M = 0x4D;      // 'M' key
+        private const uint VK_A = 0x41;      // 'A' key
 
         private HwndSource? _hwndSource;
         private IntPtr _previousForegroundWindow = IntPtr.Zero;
@@ -40,6 +44,13 @@ namespace JarvisLauncher
 
             // Initialize Clipboard History Manager
             ClipboardHistoryManager.Initialize();
+
+            // Start Mobile Bridge HTTP & REST Server (for phone AI chat & PC remote control deck)
+            try
+            {
+                MobileBridgeServer.Start(8080);
+            }
+            catch { }
 
             // Apply persistent theme from settings
             try
@@ -106,6 +117,13 @@ namespace JarvisLauncher
             {
                 MessageBox.Show("Could not register global hotkey (Ctrl+Shift+R) - check if another app is using it.", "Jarvis HUD Launcher Error", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
+
+            // Register Hotkey: Ctrl + Alt + M (Mobile Companion Hub Overlay)
+            uint ctrlAlt = NativeMethods.MOD_CONTROL | NativeMethods.MOD_ALT;
+            NativeMethods.RegisterHotKey(helper.Handle, CTRL_ALT_M_ID, ctrlAlt, VK_M);
+
+            // Register Hotkey: Ctrl + Shift + A (AI Chat Overlay)
+            NativeMethods.RegisterHotKey(helper.Handle, CTRL_SHIFT_A_ID, ctrlShift, VK_A);
         }
 
         private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -117,6 +135,16 @@ namespace JarvisLauncher
                 {
                     ToggleHUD();
                     handled = true;
+                }
+                else if (hotkeyId == CTRL_ALT_M_ID)
+                {
+                    handled = true;
+                    MobileOverlay.ShowOverlay();
+                }
+                else if (hotkeyId == CTRL_SHIFT_A_ID)
+                {
+                    handled = true;
+                    ChatOverlay.ShowChat();
                 }
                 else if (hotkeyId == CTRL_SHIFT_C_ID)
                 {

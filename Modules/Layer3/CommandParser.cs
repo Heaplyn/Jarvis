@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using JarvisLauncher.Modules.Layer3.Handlers;
 
 using CommandDictType = System.Tuple<string, JarvisLauncher.ICommandHandler>;
@@ -192,10 +193,60 @@ namespace JarvisLauncher
                 }
             }
 
+            // 2. Global fuzzy & partial prefix matching against ALL registered Jarvis command definitions
+            try
+            {
+                var allDescs = GetAllCommandDescriptions();
+                string lowerQuery = expandedQuery.ToLower().Trim();
+
+                foreach (var cd in allDescs)
+                {
+                    if (cd == null || string.IsNullOrWhiteSpace(cd.CommandName)) continue;
+
+                    string cmdName = cd.CommandName.ToLower();
+                    string example = (cd.CommandExample ?? "").ToLower();
+                    string desc = (cd.CommandDescription ?? "").ToLower();
+
+                    bool isMatch = cmdName.StartsWith(lowerQuery) ||
+                                   example.StartsWith(lowerQuery) ||
+                                   cmdName.Contains(lowerQuery) ||
+                                   desc.Contains(lowerQuery);
+
+                    if (isMatch)
+                    {
+                        double sim = cmdName.StartsWith(lowerQuery) ? 4.5 : (example.StartsWith(lowerQuery) ? 4.0 : 2.5);
+
+                        // Avoid duplicates if specific handler already produced exact card
+                        if (!suggestions.Any(s => s.Title.IndexOf(cd.CommandName, StringComparison.OrdinalIgnoreCase) >= 0 || (!string.IsNullOrEmpty(cd.CommandExample) && s.Title.IndexOf(cd.CommandExample, StringComparison.OrdinalIgnoreCase) >= 0)))
+                        {
+                            string runTarget = !string.IsNullOrWhiteSpace(cd.CommandExample) ? cd.CommandExample : cd.CommandName;
+                            suggestions.Add(new CommandResult
+                            {
+                                Title = $"⚡ Command: {cd.CommandName}",
+                                Description = $"{cd.CommandDescription} (Example: {cd.CommandExample})",
+                                Similarity = sim,
+                                Execute = () => ExecuteFirstSuggestion(runTarget)
+                            });
+                        }
+                    }
+                }
+            }
+            catch { }
+
             // Sort suggestions in descending order of similarity
             suggestions.Sort((a, b) => b.Similarity.CompareTo(a.Similarity));
 
             return suggestions;
+        }
+
+        public static void ExecuteFirstSuggestion(string query)
+        {
+            if (string.IsNullOrWhiteSpace(query)) return;
+            var suggestions = GetSuggestions(query);
+            if (suggestions.Count > 0 && suggestions[0].Execute != null)
+            {
+                suggestions[0].Execute?.Invoke();
+            }
         }
 
         private static void ExecuteChainedPipeline(string[] chainParts)
