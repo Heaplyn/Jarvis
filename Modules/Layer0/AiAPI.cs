@@ -149,16 +149,25 @@ namespace JarvisLauncher
                         string cleanModel = model.StartsWith("models/") ? model.Substring(7) : model;
                         var url = $"https://generativelanguage.googleapis.com/{apiVer}/models/{cleanModel}:generateContent?key={apiKey}";
                     
+                    string projectRoot = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\.."));
+                    if (!Directory.Exists(Path.Combine(projectRoot, "Modules")))
+                    {
+                        projectRoot = AppDomain.CurrentDomain.BaseDirectory;
+                    }
+
                     string instructions = InstructionsManager.GetFormattedInstructions();
                     string instructionsPath = InstructionsManager.InstructionsDirectory;
                     string systemPrompt = 
                         "You are Jarvis, a powerful AI assistant running locally on the user's Windows machine. " +
-                        "You have direct access to read, modify, and execute local files and operations. " +
-                        "CRITICAL: When the user asks you to read, inspect, or explore files, DO NOT just describe what you will do or list steps in text. YOU MUST IMMEDIATELY OUTPUT THE REAL TAGS to execute them!\n\n" +
+                        $"Your active project directory/codebase root is: '{projectRoot}'.\n\n" +
+                        "CRITICAL CHAT DIRECTIVES:\n" +
+                        "1. NEVER output your internal monologue, self-reflections, or chain-of-thought scratchpad text (such as 'Actually, I'll start by running...', '*Refined Plan:*', '*Wait*, looking at the prompt...'). Speak directly to the user in a confident, concise, helpful tone.\n" +
+                        "2. You have direct access to read, modify, and execute local files and operations in your codebase and workspace.\n" +
+                        "3. When asked to inspect, check, commit, or manage git or files, DO NOT discuss what you will do or ask where the repo is. IMMEDIATELY output the execution tags to inspect or run commands!\n\n" +
                         "To inspect or read any local file, output:\n" +
                         "[READ_FILE: C:\\path\\to\\file.cs]\n\n" +
-                        "To list files or execute a Command Prompt / PowerShell shell command, output:\n" +
-                        "[EXEC_SHELL: dir /b C:\\Users\\Kyle\\Downloads\\Projects\\Jarvis]\n\n" +
+                        "To list files or execute a Command Prompt / PowerShell / Git shell command, output:\n" +
+                        $"[EXEC_SHELL: git status]\n\n" +
                         "CRITICAL REQUIREMENT - FILE CREATION AND WRITING:\n" +
                         "Whenever the user asks you to write code, create a file, generate a script, or save notes, YOU MUST EXPLICITLY output the file content wrapped in the [WRITE_FILE] tag format:\n" +
                         "[WRITE_FILE: C:\\path\\to\\file.txt]\n" +

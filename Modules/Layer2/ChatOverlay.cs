@@ -157,7 +157,7 @@ namespace JarvisLauncher
 
             var (aiBorder, aiTextBox) = AddMessageBubbleWithControl(initialStatus, isAi: true, isItalic: true);
 
-            using var cts = new System.Threading.CancellationTokenSource();
+            var cts = new System.Threading.CancellationTokenSource();
 
             // Start background status updates directly inside this turn's new AI response bubble
             var thinkingTask = Task.Run(async () =>
@@ -188,47 +188,56 @@ namespace JarvisLauncher
                 while (!cts.Token.IsCancellationRequested)
                 {
                     string currentThought = thinkingPhases[index % thinkingPhases.Length];
-                    Application.Current.Dispatcher.Invoke(() =>
+                    Application.Current.Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        aiTextBox.Text = currentThought;
-                        _scrollViewer.UpdateLayout();
-                        _scrollViewer.ScrollToBottom();
-                    });
+                        if (!cts.Token.IsCancellationRequested)
+                        {
+                            aiTextBox.Text = currentThought;
+                            _scrollViewer.UpdateLayout();
+                            _scrollViewer.ScrollToBottom();
+                        }
+                    }));
 
                     index++;
-                    try { await Task.Delay(3500, cts.Token); } catch { break; }
+                    try { await Task.Delay(3000, cts.Token); } catch { break; }
                 }
             });
 
+            string finalResult = "";
             try
             {
-                // 3. Ask Gemini with full multi-turn chained history context
-                string aiResponse = await AiAPI.AskGemini(message, _conversationHistory);
+                // 3. Run Gemini on a background thread — AiAPI.AskGemini internally calls Dispatcher.Invoke
+                // which would deadlock if called directly from the UI thread context.
+                var conversationSnapshot = new List<ChatTurn>(_conversationHistory);
+                string aiResponse = await Task.Run(async () => await AiAPI.AskGemini(message, conversationSnapshot)).ConfigureAwait(false);
 
-                // 4. Run through filesystem agent parser
-                string finalResult = AgentExecutor.ProcessAIResponse(aiResponse);
-
-                // Stop thinking animation loop
+                // 4. Run through filesystem agent parser (also off-thread; it uses BeginInvoke internally)
+                finalResult = AgentExecutor.ProcessAIResponse(aiResponse);
+            }
+            catch (Exception ex)
+            {
+                finalResult = $"⚠️ Error generating response: {ex.Message}";
+                LogConversationTurn(message, $"ERROR: {ex.Message}");
+            }
+            finally
+            {
+                // Cancel the thinking animation and wait for it to fully stop before writing result
                 cts.Cancel();
+                try { await thinkingTask; } catch { }
+                cts.Dispose();
+            }
 
-                // 5. Multi-message rendering: Remove thinking bubble and spawn separate response bubbles for each block
-                var messageBlocks = SplitIntoMultipleMessages(finalResult);
+            // Write final result AFTER thinking task is fully stopped — no race possible
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                aiTextBox.Text = finalResult;
+                aiTextBox.FontStyle = FontStyles.Normal;
+                _scrollViewer.UpdateLayout();
+                _scrollViewer.ScrollToBottom();
+            });
 
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    // Remove temporary thinking indicator bubble
-                    _chatHistoryPanel.Children.Remove(aiBorder);
-
-                    // Render every message block as a distinct, dedicated AI chat bubble for this turn!
-                    foreach (var block in messageBlocks)
-                    {
-                        AddMessageBubble(block, isAi: true);
-                    }
-
-                    _scrollViewer.UpdateLayout();
-                    _scrollViewer.ScrollToBottom();
-                });
-
+            if (!finalResult.StartsWith("⚠️"))
+            {
                 // 6. Chain conversation turns together for future messages (retains up to 100 turns / 200 items)
                 _conversationHistory.Add(new ChatTurn { Role = "user", Text = message });
                 _conversationHistory.Add(new ChatTurn { Role = "model", Text = finalResult });
@@ -240,16 +249,6 @@ namespace JarvisLauncher
 
                 // 7. Log conversation turn to .txt file
                 LogConversationTurn(message, finalResult);
-            }
-            catch (Exception ex)
-            {
-                cts.Cancel();
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    aiTextBox.Text = $"⚠️ Error generating response: {ex.Message}";
-                    aiTextBox.FontStyle = FontStyles.Normal;
-                });
-                LogConversationTurn(message, $"ERROR: {ex.Message}");
             }
         }
 

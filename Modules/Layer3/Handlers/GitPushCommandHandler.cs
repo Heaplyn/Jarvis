@@ -23,33 +23,69 @@ namespace JarvisLauncher
         public List<CommandResult> GetSuggestions(string query)
         {
             var suggestions = new List<CommandResult>();
-            var parts = query.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+            string trimmed = query.Trim();
+            string lower = trimmed.ToLower();
+            var parts = trimmed.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+
+            // "git status", "git log", "git diff" — run directly
+            if (lower == "git status" || lower == "git st")
+            {
+                suggestions.Add(new CommandResult { Title = "📋 Git Status", Description = "Show current working tree status", Similarity = 3.0, Execute = () => RunGitQuick("status") });
+                return suggestions;
+            }
+            if (lower == "git log" || lower == "git l")
+            {
+                suggestions.Add(new CommandResult { Title = "📜 Git Log (last 15)", Description = "Show recent commit history", Similarity = 3.0, Execute = () => RunGitQuick("log --oneline -n 15") });
+                return suggestions;
+            }
+            if (lower == "git diff")
+            {
+                suggestions.Add(new CommandResult { Title = "🔍 Git Diff", Description = "Show uncommitted file changes", Similarity = 3.0, Execute = () => RunGitQuick("diff --stat") });
+                return suggestions;
+            }
+
+            // "push <message>" or "git push <message>"
+            string? commitMessage = null;
+            if (lower.StartsWith("push ")) commitMessage = trimmed.Substring(5).Trim().Trim('"', '\'');
+            else if (lower.StartsWith("gitpush ")) commitMessage = trimmed.Substring(8).Trim().Trim('"', '\'');
+            else if (lower.StartsWith("git push ")) commitMessage = trimmed.Substring(9).Trim().Trim('"', '\'');
 
             double similarity = SearchUtil.GetSimilarity(parts[0].ToLower(), "push");
 
-            if (parts.Length > 1)
+            if (!string.IsNullOrWhiteSpace(commitMessage))
             {
-                string commitMessage = parts[1].Trim().Trim('"', '\'');
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"Push: \"{commitMessage}\" to GitHub",
-                    Description = "Stages all files, commits, and pushes to remote",
+                    Title = $"🚀 Push: \"{commitMessage}\" → GitHub",
+                    Description = "Stage all, commit, and push to remote",
                     Similarity = similarity,
                     Execute = () => ExecuteGitPush(commitMessage)
                 });
             }
             else
             {
-                suggestions.Add(new CommandResult
-                {
-                    Title = "Push Project to GitHub...",
-                    Description = "Type a commit message (e.g. 'push added git features')",
-                    Similarity = similarity,
-                    Execute = null
-                });
+                // bare "git" or "push" — show the full git menu
+                suggestions.Add(new CommandResult { Title = "🚀 Push Project → GitHub...", Description = "Type a commit message: 'push <message>'", Similarity = similarity, Execute = null });
+                suggestions.Add(new CommandResult { Title = "📋 Git Status", Description = "Show current working tree status", Similarity = similarity - 0.1, Execute = () => RunGitQuick("status") });
+                suggestions.Add(new CommandResult { Title = "📜 Git Log (last 15)", Description = "Show recent commit history", Similarity = similarity - 0.2, Execute = () => RunGitQuick("log --oneline -n 15") });
+                suggestions.Add(new CommandResult { Title = "🔍 Git Diff", Description = "Show uncommitted file changes", Similarity = similarity - 0.3, Execute = () => RunGitQuick("diff --stat") });
             }
 
             return suggestions;
+        }
+
+        private static void RunGitQuick(string gitArgs)
+        {
+            TextOverlay.Show($"⚡ Running: git {gitArgs}", 1500);
+            Task.Run(async () =>
+            {
+                string projectRoot = GetProjectRoot();
+                string result = await RunCommandAsync("git", gitArgs, projectRoot);
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    CliOutputOverlay.Show($"git {gitArgs}", result);
+                });
+            });
         }
 
         private static void ExecuteGitPush(string commitMessage)
