@@ -638,14 +638,14 @@ namespace JarvisLauncher
                 renameMenuItem.Click += (s, e) => RenameTrackPrompt(track);
                 contextMenu.Items.Add(renameMenuItem);
 
-                var moveMenuItem = new MenuItem { Header = "📦 Move to Folder" };
+                var moveMenuItem = new MenuItem { Header = "📦 Copy to Folder" };
                 bool hasOtherFolders = false;
                 foreach (var folder in _library.Folders)
                 {
                     if (folder.Id == _activeFolder?.Id) continue;
                     hasOtherFolders = true;
                     var folderItem = new MenuItem { Header = folder.FolderName };
-                    folderItem.Click += (s, e) => MoveTrackToFolder(track, folder);
+                    folderItem.Click += (s, e) => CopyTrackToFolder(track, folder); // CopyTrackToFolder
                     moveMenuItem.Items.Add(folderItem);
                 }
                 if (!hasOtherFolders)
@@ -857,6 +857,20 @@ namespace JarvisLauncher
             if (_activeFolder == null) return;
             
             _activeFolder.Tracks.Remove(track);
+            if (!destinationFolder.Tracks.Any(t => t.PathOrUrl == track.PathOrUrl))
+            {
+                destinationFolder.Tracks.Add(track);
+            }
+            
+            MusicPlaylistManager.SaveLibrary(_library);
+            RenderTracksList();
+            TextOverlay.Show($"Moved track to '{destinationFolder.FolderName}'", 2000);
+        }
+private void CopyTrackToFolder(MusicTrack track, MusicFolder destinationFolder)
+        {
+            if (_activeFolder == null) return;
+            
+            //_activeFolder.Tracks.Remove(track);
             if (!destinationFolder.Tracks.Any(t => t.PathOrUrl == track.PathOrUrl))
             {
                 destinationFolder.Tracks.Add(track);

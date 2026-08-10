@@ -54,7 +54,8 @@ namespace JarvisLauncher
         NEW_IDEAS,
         MUSIC_PLAYLIST,
         STICKY_NOTE,
-        GAME_DEV_TOOLBOX
+        GAME_DEV_TOOLBOX,
+        FFMPEG
     };
 
     public static class CommandParser
@@ -114,6 +115,7 @@ namespace JarvisLauncher
             RegisterHandler(CommandType.MUSIC_PLAYLIST, "Interactive Music Player & Playlist Manager GUI", () => new MusicPlaylistCommandHandler());
             RegisterHandler(CommandType.STICKY_NOTE, "Visual Desktop Sticky Notes widget", () => new StickyNotesCommandHandler());
             RegisterHandler(CommandType.GAME_DEV_TOOLBOX, "Roblox Studio and Blender developer utilities dashboard", () => new GameDevToolboxCommandHandler());
+            RegisterHandler(CommandType.FFMPEG, "FFMPeg", () => new FFMpegCommandHandler());
         }
 
         private static void RegisterHandler(CommandType type, string description, Func<ICommandHandler> factory)
