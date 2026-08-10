@@ -14,6 +14,7 @@ namespace JarvisLauncher
         public static string ProcessAIResponse(string aiResponse)
         {
             if (string.IsNullOrEmpty(aiResponse)) return aiResponse;
+            aiResponse = AiAPI.CleanScratchpadText(aiResponse);
 
             string logs = "";
 
@@ -228,12 +229,65 @@ namespace JarvisLauncher
                 }
             }
 
-            if (!string.IsNullOrEmpty(logs))
+            // 8. Process EXEC_PS tags: [EXEC_PS: Get-Process]
+            var psRegex = new Regex(@"\[EXEC_PS:\s*(.+?)\]", RegexOptions.IgnoreCase);
+            var psMatches = psRegex.Matches(aiResponse);
+            foreach (Match m in psMatches)
             {
-                return aiResponse + "\n\n--- AGENT EXECUTION SUMMARY ---\n" + logs;
+                string cmd = m.Groups[1].Value.Trim();
+                try
+                {
+                    var psi = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "powershell.exe",
+                        Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"{cmd.Replace("\"", "\\\"")}\"",
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+                    using var proc = System.Diagnostics.Process.Start(psi);
+                    if (proc != null)
+                    {
+                        string outText = proc.StandardOutput.ReadToEnd();
+                        string errText = proc.StandardError.ReadToEnd();
+                        proc.WaitForExit(7000);
+                        string output = (outText + "\n" + errText).Trim();
+                        ChatOverlay.LogConsoleAction("Execute PowerShell", $"Cmd: {cmd}\nOutput:\n{output}");
+                        logs += $"\n[SUCCESS] Executed PowerShell '{cmd}':\n{output}";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ChatOverlay.LogConsoleAction("Execute PowerShell Failed", $"Cmd: {cmd}\nError: {ex.Message}");
+                    logs += $"\n[ERROR] Executing PowerShell '{cmd}' failed: {ex.Message}";
+                }
             }
 
-            return aiResponse;
+            string cleanedDisplay = aiResponse;
+            cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[READ_FILE:\s*.+?\]", "", RegexOptions.IgnoreCase);
+            cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[WRITE_FILE:\s*.+?\][\s\S]*?\[END_WRITE\]", "", RegexOptions.IgnoreCase);
+            cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[APPEND_FILE:\s*.+?\][\s\S]*?\[END_APPEND\]", "", RegexOptions.IgnoreCase);
+            cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[RUN_COMMAND:\s*.+?\]", "", RegexOptions.IgnoreCase);
+            cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[OPEN_FILE:\s*.+?\]", "", RegexOptions.IgnoreCase);
+            cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[OPEN_EDITOR:\s*.+?\]", "", RegexOptions.IgnoreCase);
+            cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[PIN_FILE:\s*.+?\]", "", RegexOptions.IgnoreCase);
+            cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[EXEC_SHELL:\s*.+?\]", "", RegexOptions.IgnoreCase);
+            cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[EXEC_PS:\s*.+?\]", "", RegexOptions.IgnoreCase);
+            cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[LIST_DIR:\s*.+?\]", "", RegexOptions.IgnoreCase);
+            cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[SEARCH_FILES:\s*.+?\]", "", RegexOptions.IgnoreCase);
+            cleanedDisplay = cleanedDisplay.Trim();
+
+            if (!string.IsNullOrEmpty(logs))
+            {
+                if (string.IsNullOrWhiteSpace(cleanedDisplay))
+                {
+                    return "⚡ Executed action summary:" + logs;
+                }
+                return cleanedDisplay + "\n\n--- AGENT EXECUTION SUMMARY ---" + logs;
+            }
+
+            return string.IsNullOrWhiteSpace(cleanedDisplay) ? aiResponse.Trim() : cleanedDisplay;
         }
     }
 }

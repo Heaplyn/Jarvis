@@ -24,6 +24,12 @@ namespace JarvisLauncher
         private TextBox _inputTextBox;
         private TextBlock _placeholderTextBlock;
 
+        // Attachment controls
+        private string? _attachedFilePath = null;
+        private Border _attachedFileBadge;
+        private TextBlock _attachedFileText;
+        private Button _attachButton;
+
         // Visual Console controls
         private Border _consoleContainer;
         private TextBox _consoleTextBox;
@@ -182,8 +188,65 @@ namespace JarvisLauncher
             contentGrid.Children.Add(_consoleContainer);
 
             // 4. Input Area Grid (Row 3)
-            var inputGrid = new Grid();
-            
+            var inputContainerStack = new StackPanel();
+
+            // Attachment Pill Badge
+            _attachedFileBadge = new Border
+            {
+                CornerRadius = new CornerRadius(4),
+                Padding = new Thickness(6, 3, 6, 3),
+                Margin = new Thickness(0, 0, 0, 4),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Visibility = Visibility.Collapsed
+            };
+            _attachedFileBadge.SetResourceReference(Border.BackgroundProperty, "HoverBackgroundBrush");
+            _attachedFileBadge.SetResourceReference(Border.BorderBrushProperty, "SelectedBorderBrush");
+
+            var badgeStack = new StackPanel { Orientation = Orientation.Horizontal };
+            _attachedFileText = new TextBlock { FontSize = 11, FontWeight = FontWeights.Medium, VerticalAlignment = VerticalAlignment.Center };
+            _attachedFileText.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+            badgeStack.Children.Add(_attachedFileText);
+
+            var removeAttachBtn = new Button
+            {
+                Content = " ✕ ",
+                FontSize = 10,
+                Margin = new Thickness(6, 0, 0, 0),
+                Padding = new Thickness(2, 0, 2, 0),
+                Cursor = Cursors.Hand,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0)
+            };
+            removeAttachBtn.SetResourceReference(Button.ForegroundProperty, "TextSecondaryBrush");
+            removeAttachBtn.Click += (s, e) => RemoveAttachment();
+            badgeStack.Children.Add(removeAttachBtn);
+            _attachedFileBadge.Child = badgeStack;
+            inputContainerStack.Children.Add(_attachedFileBadge);
+
+            // Input Row with Plus (+) Button and Textbox
+            var inputRowGrid = new Grid();
+            inputRowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            inputRowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            _attachButton = new Button
+            {
+                Content = "➕",
+                ToolTip = "Attach file to AI Chat (or drag & drop file here)",
+                FontSize = 14,
+                FontWeight = FontWeights.Bold,
+                Width = 34,
+                Height = 36,
+                Margin = new Thickness(0, 0, 6, 0),
+                Cursor = Cursors.Hand,
+                VerticalAlignment = VerticalAlignment.Stretch
+            };
+            _attachButton.SetResourceReference(Button.BackgroundProperty, "HoverBackgroundBrush");
+            _attachButton.SetResourceReference(Button.ForegroundProperty, "TextPrimaryBrush");
+            _attachButton.Click += (s, e) => AttachFileInteractive();
+            Grid.SetColumn(_attachButton, 0);
+            inputRowGrid.Children.Add(_attachButton);
+
+            var textboxOverlayGrid = new Grid();
             _inputTextBox = new TextBox
             {
                 Background = Brushes.Transparent,
@@ -203,7 +266,7 @@ namespace JarvisLauncher
 
             _placeholderTextBlock = new TextBlock
             {
-                Text = "Ask Jarvis... (Press Enter to send)",
+                Text = "Ask Jarvis or drag file... (Press Enter)",
                 FontSize = 13,
                 FontFamily = new FontFamily("Segoe UI"),
                 IsHitTestVisible = false,
@@ -223,7 +286,7 @@ namespace JarvisLauncher
                 {
                     e.Handled = true;
                     string message = _inputTextBox.Text.Trim();
-                    if (!string.IsNullOrEmpty(message))
+                    if (!string.IsNullOrEmpty(message) || _attachedFilePath != null)
                     {
                         _inputTextBox.Text = string.Empty;
                         await SendUserMessage(message);
@@ -231,13 +294,125 @@ namespace JarvisLauncher
                 }
             };
 
-            inputGrid.Children.Add(_inputTextBox);
-            inputGrid.Children.Add(_placeholderTextBlock);
+            textboxOverlayGrid.Children.Add(_inputTextBox);
+            textboxOverlayGrid.Children.Add(_placeholderTextBlock);
+            Grid.SetColumn(textboxOverlayGrid, 1);
+            inputRowGrid.Children.Add(textboxOverlayGrid);
 
-            Grid.SetRow(inputGrid, 3);
-            contentGrid.Children.Add(inputGrid);
+            inputContainerStack.Children.Add(inputRowGrid);
+
+            // Drag and Drop File & Folder Support
+            contentGrid.AllowDrop = true;
+            contentGrid.DragOver += (s, e) =>
+            {
+                if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                {
+                    e.Effects = DragDropEffects.Copy;
+                    e.Handled = true;
+                }
+            };
+            contentGrid.Drop += (s, e) =>
+            {
+                if (e.Data.GetDataPresent(DataFormats.FileDrop) && e.Data.GetData(DataFormats.FileDrop) is string[] files && files.Length > 0)
+                {
+                    string path = files[0];
+                    if (Directory.Exists(path))
+                    {
+                        AttachFolder(path);
+                    }
+                    else
+                    {
+                        AttachFile(path);
+                    }
+                    e.Handled = true;
+                }
+            };
+
+            Grid.SetRow(inputContainerStack, 3);
+            contentGrid.Children.Add(inputContainerStack);
 
             this.UserContent = contentGrid;
+        }
+
+        private void AttachFileInteractive()
+        {
+            var cm = new ContextMenu();
+
+            var fileItem = new MenuItem { Header = "📄 Attach Single File..." };
+            fileItem.Click += (s, e) =>
+            {
+                var dlg = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Select File Attachment for Jarvis AI",
+                    Filter = "All Files (*.*)|*.*"
+                };
+                if (dlg.ShowDialog() == true)
+                {
+                    AttachFile(dlg.FileName);
+                }
+            };
+            cm.Items.Add(fileItem);
+
+            var folderItem = new MenuItem { Header = "📁 Select Folder for Context..." };
+            folderItem.Click += (s, e) =>
+            {
+                try
+                {
+                    var dlg = new Microsoft.Win32.OpenFolderDialog
+                    {
+                        Title = "Select Folder for AI Context"
+                    };
+                    if (dlg.ShowDialog() == true)
+                    {
+                        AttachFolder(dlg.FolderName);
+                    }
+                }
+                catch
+                {
+                    var dlg = new Microsoft.Win32.OpenFileDialog
+                    {
+                        Title = "Select Any File Inside Desired Folder",
+                        Filter = "All Files (*.*)|*.*"
+                    };
+                    if (dlg.ShowDialog() == true)
+                    {
+                        string dir = Path.GetDirectoryName(dlg.FileName) ?? "";
+                        if (!string.IsNullOrEmpty(dir)) AttachFolder(dir);
+                    }
+                }
+            };
+            cm.Items.Add(folderItem);
+
+            cm.IsOpen = true;
+        }
+
+        private void AttachFile(string filePath)
+        {
+            if (File.Exists(filePath))
+            {
+                _attachedFilePath = filePath;
+                _isFolderContext = false;
+                _attachedFileText.Text = $"📎 Attached: {Path.GetFileName(filePath)}";
+                _attachedFileBadge.Visibility = Visibility.Visible;
+            }
+        }
+
+        private void AttachFolder(string folderPath)
+        {
+            if (Directory.Exists(folderPath))
+            {
+                _attachedFilePath = folderPath;
+                _isFolderContext = true;
+                _attachedFileText.Text = $"📁 Folder Context: {Path.GetFileName(folderPath)}";
+                _attachedFileBadge.Visibility = Visibility.Visible;
+            }
+        }
+
+        private void RemoveAttachment()
+        {
+            _attachedFilePath = null;
+            _isFolderContext = false;
+            _attachedFileBadge.Visibility = Visibility.Collapsed;
         }
 
         private void ToggleConsole()
@@ -261,12 +436,113 @@ namespace JarvisLauncher
             _scrollViewer.ScrollToBottom();
         }
 
+        private bool _isFolderContext = false;
         private readonly List<ChatTurn> _conversationHistory = new List<ChatTurn>();
 
         private async Task SendUserMessage(string message)
         {
+            string displayMessage = message;
+            string apiMessage = message;
+
+            if (_isFolderContext && !string.IsNullOrEmpty(_attachedFilePath) && Directory.Exists(_attachedFilePath))
+            {
+                string folderPath = _attachedFilePath;
+                string folderName = Path.GetFileName(folderPath);
+
+                displayMessage = string.IsNullOrEmpty(message)
+                    ? $"📁 Folder Context: {folderName}"
+                    : $"📁 Folder Context: {folderName}\n{message}";
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"[FOLDER_CONTEXT: {folderPath}]");
+                sb.AppendLine($"Root Folder Name: {folderName}\n");
+
+                try
+                {
+                    var allFiles = Directory.GetFiles(folderPath, "*.*", SearchOption.AllDirectories);
+                    sb.AppendLine($"Structure ({allFiles.Length} total files):");
+                    int count = 0;
+                    foreach (var file in allFiles)
+                    {
+                        if (count++ > 50) { sb.AppendLine("... (truncated list)"); break; }
+                        string relative = Path.GetRelativePath(folderPath, file);
+                        sb.AppendLine($"- {relative}");
+                    }
+                    sb.AppendLine("\n--- FILE CONTENTS ---");
+
+                    int readCount = 0;
+                    foreach (var file in allFiles)
+                    {
+                        if (readCount >= 20) break;
+                        string ext = Path.GetExtension(file).ToLower();
+                        bool isCodeOrText = ext == ".txt" || ext == ".cs" || ext == ".lua" || ext == ".luau" ||
+                                           ext == ".json" || ext == ".xml" || ext == ".md" || ext == ".py" ||
+                                           ext == ".js" || ext == ".ts" || ext == ".html" || ext == ".css" || ext == ".bat" || ext == ".ps1";
+
+                        if (isCodeOrText)
+                        {
+                            try
+                            {
+                                var fileInfo = new FileInfo(file);
+                                if (fileInfo.Length < 100000)
+                                {
+                                    string relative = Path.GetRelativePath(folderPath, file);
+                                    string text = File.ReadAllText(file);
+                                    sb.AppendLine($"\nFILE: {relative}");
+                                    sb.AppendLine("```");
+                                    sb.AppendLine(text);
+                                    sb.AppendLine("```");
+                                    readCount++;
+                                }
+                            }
+                            catch { }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    sb.AppendLine($"Error scanning folder: {ex.Message}");
+                }
+
+                apiMessage = $"{sb.ToString()}\n\n[USER INSTRUCTION]: {message}";
+                RemoveAttachment();
+            }
+            else if (!string.IsNullOrEmpty(_attachedFilePath) && File.Exists(_attachedFilePath))
+            {
+                string filePath = _attachedFilePath;
+                string fileName = Path.GetFileName(filePath);
+                string fileExt = Path.GetExtension(filePath).ToLower();
+
+                displayMessage = string.IsNullOrEmpty(message)
+                    ? $"📎 Attached: {fileName}"
+                    : $"📎 Attached: {fileName}\n{message}";
+
+                bool isText = fileExt == ".txt" || fileExt == ".cs" || fileExt == ".lua" || fileExt == ".luau" ||
+                             fileExt == ".json" || fileExt == ".xml" || fileExt == ".md" || fileExt == ".py" ||
+                             fileExt == ".js" || fileExt == ".ts" || fileExt == ".html" || fileExt == ".css" || fileExt == ".bat" || fileExt == ".ps1";
+
+                if (isText)
+                {
+                    try
+                    {
+                        string content = File.ReadAllText(filePath);
+                        apiMessage = $"[ATTACHED_FILE: {filePath}]\n```\n{content}\n```\n\n{message}";
+                    }
+                    catch
+                    {
+                        apiMessage = $"[ATTACHED_FILE: {filePath}]\n\n{message}";
+                    }
+                }
+                else
+                {
+                    apiMessage = $"[ATTACHED_FILE: {filePath}]\n\n{message}";
+                }
+
+                RemoveAttachment();
+            }
+
             // 1. Add user bubble
-            AddMessageBubble(message, isAi: false);
+            AddMessageBubble(displayMessage, isAi: false);
 
             // 2. Create AI response bubble with initial thinking text
             int turnNumber = (_conversationHistory.Count / 2) + 1;
@@ -303,7 +579,7 @@ namespace JarvisLauncher
             try
             {
                 var snapshot = new List<ChatTurn>(_conversationHistory);
-                string aiResponse = await Task.Run(async () => await AiAPI.AskGemini(message, snapshot));
+                string aiResponse = await Task.Run(async () => await AiAPI.AskGemini(apiMessage, snapshot));
                 finalResult = AgentExecutor.ProcessAIResponse(aiResponse);
             }
             catch (Exception ex)
@@ -317,6 +593,10 @@ namespace JarvisLauncher
             }
 
             // 5. Write final result — we are on the UI thread, direct access is safe
+            if (string.IsNullOrWhiteSpace(finalResult))
+            {
+                finalResult = "⚠️ No response text returned from AI.";
+            }
             aiTextBox.Text = finalResult;
             aiTextBox.FontStyle = FontStyles.Normal;
             _scrollViewer.UpdateLayout();
