@@ -12,7 +12,7 @@ namespace JarvisLauncher
         public bool CanHandle(string query)
         {
             query = query.Trim().ToLower();
-            return query.StartsWith("setkey") || query.StartsWith("getkey");
+            return query.StartsWith("setkey") || query.StartsWith("getkey") || query == "settings" || query == "options" || query == "config";
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -26,7 +26,17 @@ namespace JarvisLauncher
             string cmd = parts[0].ToLower();
             double similarity = 2.0; // High priority match
 
-            if (cmd == "setkey")
+            if (cmd == "settings" || cmd == "options" || cmd == "config")
+            {
+                suggestions.Add(new CommandResult
+                {
+                    Title       = "⚙️ Open Settings & Options GUI",
+                    Description = "Visually configure API keys, download folders, and color themes",
+                    Similarity  = similarity + 1.0,
+                    Execute     = () => SettingsOverlay.OpenSettings()
+                });
+            }
+            else if (cmd == "setkey")
             {
                 if (parts.Length > 2)
                 {
