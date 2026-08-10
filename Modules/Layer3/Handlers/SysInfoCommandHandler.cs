@@ -68,7 +68,7 @@ namespace JarvisLauncher
         {
             try
             {
-                object val = Microsoft.Win32.Registry.GetValue(@"HKEY_LOCAL_MACHINE\HARDWARE\DESCRIPTION\System\CentralProcessor\0", "ProcessorNameString", "");
+                object? val = Microsoft.Win32.Registry.GetValue(@"HKEY_LOCAL_MACHINE\HARDWARE\DESCRIPTION\System\CentralProcessor\0", "ProcessorNameString", "");
                 return val?.ToString()?.Trim() ?? "Unknown CPU";
             }
             catch { return "Unknown CPU"; }
@@ -81,7 +81,7 @@ namespace JarvisLauncher
                 for (int i = 0; i < 5; i++)
                 {
                     string path = $@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Class\{{4d36e968-e325-11ce-bfc1-08002be10318}}\000{i}";
-                    object val = Microsoft.Win32.Registry.GetValue(path, "DriverDesc", null);
+                    object? val = Microsoft.Win32.Registry.GetValue(path, "DriverDesc", null);
                     if (val != null)
                     {
                         return val.ToString() ?? "Unknown GPU";
