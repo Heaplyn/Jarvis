@@ -9,6 +9,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
+using System.Net.NetworkInformation;
 
 namespace JarvisLauncher
 {
@@ -23,6 +24,16 @@ namespace JarvisLauncher
         private readonly TextBlock _threadsTextBlock;
         private readonly ProgressBar _cpuProgressBar;
         private readonly ProgressBar _ramProgressBar;
+
+        // Expanded resources
+        private readonly TextBlock _diskTextBlock;
+        private readonly ProgressBar _diskProgressBar;
+        private readonly TextBlock _netTextBlock;
+        private readonly TextBlock _uptimeTextBlock;
+
+        private long _lastBytesReceived = 0;
+        private long _lastBytesSent = 0;
+        private DateTime _lastNetworkTime = DateTime.MinValue;
 
         public static void ToggleMonitor()
         {
@@ -42,7 +53,7 @@ namespace JarvisLauncher
         }
 
         private SystemMonitorOverlay()
-            : base("JARVIS LIVE SYSTEM MONITOR", width: 340, height: 180)
+            : base("JARVIS LIVE SYSTEM MONITOR", width: 340, height: 320)
         {
             this.Closed += (s, e) => 
             { 
@@ -61,10 +72,12 @@ namespace JarvisLauncher
                 _cpuCounter = new PerformanceCounter();
             }
 
-            var grid = new Grid { Margin = new Thickness(6) };
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var grid = new Grid { Margin = new Thickness(8) };
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // CPU
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // RAM
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Disk
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Network
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Processes & Uptime
 
             // CPU Row
             var cpuStack = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
@@ -108,16 +121,63 @@ namespace JarvisLauncher
             Grid.SetRow(ramStack, 1);
             grid.Children.Add(ramStack);
 
-            // System Threads / Process Info
+            // Disk Row
+            var diskStack = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
+            _diskTextBlock = new TextBlock
+            {
+                Text = "💾 Disk C: Space: Freeing details...",
+                FontSize = 12,
+                FontFamily = new FontFamily("Segoe UI Semibold")
+            };
+            _diskTextBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+            diskStack.Children.Add(_diskTextBlock);
+
+            _diskProgressBar = new ProgressBar
+            {
+                Height = 8,
+                Maximum = 100,
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+            diskStack.Children.Add(_diskProgressBar);
+            Grid.SetRow(diskStack, 2);
+            grid.Children.Add(diskStack);
+
+            // Network Row
+            var netStack = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
+            _netTextBlock = new TextBlock
+            {
+                Text = "🌐 Net: Down 0.0 KB/s | Up 0.0 KB/s",
+                FontSize = 11,
+                FontFamily = new FontFamily("Segoe UI Semibold")
+            };
+            _netTextBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+            netStack.Children.Add(_netTextBlock);
+            Grid.SetRow(netStack, 3);
+            grid.Children.Add(netStack);
+
+            // Processes & Uptime Row
+            var infoStack = new StackPanel { Margin = new Thickness(0, 0, 0, 4) };
             _threadsTextBlock = new TextBlock
             {
                 Text = "⚙️ Running Processes: 0",
                 FontSize = 11,
-                FontFamily = new FontFamily("Segoe UI")
+                FontFamily = new FontFamily("Segoe UI"),
+                Margin = new Thickness(0, 0, 0, 2)
             };
             _threadsTextBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
-            Grid.SetRow(_threadsTextBlock, 2);
-            grid.Children.Add(_threadsTextBlock);
+            infoStack.Children.Add(_threadsTextBlock);
+
+            _uptimeTextBlock = new TextBlock
+            {
+                Text = "🕒 System Uptime: 0h 0m 0s",
+                FontSize = 11,
+                FontFamily = new FontFamily("Segoe UI")
+            };
+            _uptimeTextBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
+            infoStack.Children.Add(_uptimeTextBlock);
+
+            Grid.SetRow(infoStack, 4);
+            grid.Children.Add(infoStack);
 
             this.UserContent = grid;
 
@@ -133,14 +193,15 @@ namespace JarvisLauncher
         {
             try
             {
-                // CPU %
+                // 1. CPU %
                 float cpuVal = 0;
                 try { cpuVal = _cpuCounter.NextValue(); } catch { }
                 _cpuTextBlock.Text = $"⚡ CPU Usage: {cpuVal:F1}%";
                 _cpuProgressBar.Value = Math.Min(100, Math.Max(0, cpuVal));
 
-                // Memory Info
+                // 2. Memory Info
                 var memStatus = new NativeMethods.MEMORYSTATUSEX();
+                memStatus.dwLength = (uint)System.Runtime.InteropServices.Marshal.SizeOf(typeof(NativeMethods.MEMORYSTATUSEX));
                 if (NativeMethods.GlobalMemoryStatusEx(ref memStatus))
                 {
                     double totalGB = memStatus.ullTotalPhys / (1024.0 * 1024.0 * 1024.0);
@@ -152,11 +213,92 @@ namespace JarvisLauncher
                     _ramProgressBar.Value = ramPct;
                 }
 
-                // Process Count
+                // 3. Disk Info (Drive C:)
+                try
+                {
+                    var driveC = new DriveInfo("C");
+                    if (driveC.IsReady)
+                    {
+                        double totalGB = driveC.TotalSize / (1024.0 * 1024.0 * 1024.0);
+                        double freeGB = driveC.AvailableFreeSpace / (1024.0 * 1024.0 * 1024.0);
+                        double usedGB = totalGB - freeGB;
+                        double usePct = (usedGB / totalGB) * 100.0;
+
+                        _diskTextBlock.Text = $"💾 Disk C: {usedGB:F1} GB / {totalGB:F1} GB ({usePct:F0}% Used)";
+                        _diskProgressBar.Value = usePct;
+                    }
+                }
+                catch { }
+
+                // 4. Real-time Network Speeds
+                try
+                {
+                    long currentRecv = 0;
+                    long currentSent = 0;
+                    var interfaces = NetworkInterface.GetAllNetworkInterfaces();
+                    foreach (var ni in interfaces)
+                    {
+                        if (ni.OperationalStatus == OperationalStatus.Up && 
+                            ni.NetworkInterfaceType != NetworkInterfaceType.Loopback)
+                        {
+                            if (ni.Supports(NetworkInterfaceComponent.IPv4))
+                            {
+                                var ipv4Stats = ni.GetIPv4Statistics();
+                                currentRecv += ipv4Stats.BytesReceived;
+                                currentSent += ipv4Stats.BytesSent;
+                            }
+                        }
+                    }
+
+                    DateTime now = DateTime.Now;
+                    if (_lastNetworkTime != DateTime.MinValue)
+                    {
+                        double seconds = (now - _lastNetworkTime).TotalSeconds;
+                        if (seconds > 0)
+                        {
+                            double downloadSpeed = (currentRecv - _lastBytesReceived) / seconds; // Bytes/sec
+                            double uploadSpeed = (currentSent - _lastBytesSent) / seconds;
+
+                            // Convert to appropriate unit (KB/s or MB/s)
+                            string downStr = FormatSpeed(downloadSpeed);
+                            string upStr = FormatSpeed(uploadSpeed);
+
+                            _netTextBlock.Text = $"🌐 Network: ⬇️ {downStr} | ⬆️ {upStr}";
+                        }
+                    }
+
+                    _lastBytesReceived = currentRecv;
+                    _lastBytesSent = currentSent;
+                    _lastNetworkTime = now;
+                }
+                catch { }
+
+                // 5. Process Count
                 int procCount = Process.GetProcesses().Length;
                 _threadsTextBlock.Text = $"⚙️ Active System Processes: {procCount}";
+
+                // 6. System Uptime
+                try
+                {
+                    long uptimeMs = Environment.TickCount64;
+                    var uptime = TimeSpan.FromMilliseconds(uptimeMs);
+                    _uptimeTextBlock.Text = $"🕒 System Uptime: {uptime.Days}d {uptime.Hours}h {uptime.Minutes}m {uptime.Seconds}s";
+                }
+                catch { }
             }
             catch { }
+        }
+
+        private string FormatSpeed(double bytesPerSecond)
+        {
+            if (bytesPerSecond >= 1024 * 1024)
+            {
+                return $"{(bytesPerSecond / (1024.0 * 1024.0)):F1} MB/s";
+            }
+            else
+            {
+                return $"{(bytesPerSecond / 1024.0):F1} KB/s";
+            }
         }
     }
 }
