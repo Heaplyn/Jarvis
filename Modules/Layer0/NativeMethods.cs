@@ -5,6 +5,7 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Diagnostics;
 
 namespace JarvisLauncher
 {
@@ -47,6 +48,56 @@ namespace JarvisLauncher
         public const byte VK_MEDIA_PREV = 0xB1;
         public const byte VK_MEDIA_STOP = 0xB2;
         public const byte VK_MEDIA_PLAY_PAUSE = 0xB3;
+
+        // --- Window Focus & Management Helpers ---
+        [DllImport("user32.dll")]
+        public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+        [DllImport("user32.dll")]
+        public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool IsWindowVisible(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool IsIconic(IntPtr hWnd);
+        public const int SW_RESTORE = 9;
+
+        /// <summary>
+        /// Brings a process window to the front and focuses it by process name.
+        /// </summary>
+        public static bool FocusProcess(string processName)
+        {
+            Process[] processes = Process.GetProcessesByName(processName);
+
+            if (processes.Length == 0)
+            {
+                return false;
+            }
+
+            Process targetProcess = processes[0];
+            return FocusProcessInstance(targetProcess);
+        }
+
+        /// <summary>
+        /// Brings a process window to the front and focuses it by Process instance.
+        /// </summary>
+        public static bool FocusProcessInstance(Process? process)
+        {
+            if (process == null || process.HasExited) return false;
+
+            process.Refresh();
+            IntPtr handle = process.MainWindowHandle;
+
+            if (handle != IntPtr.Zero)
+            {
+                ShowWindow(handle, SW_RESTORE);
+                return SetForegroundWindow(handle);
+            }
+
+            return false;
+        }
 
         public static void SendMediaKey(byte mediaKeyVk)
         {
@@ -102,7 +153,6 @@ namespace JarvisLauncher
         {
             string projectRoot = @"C:\Users\Kyle\Downloads\Projects\Jarvis";
 
-            // Dynamically search upwards for the project folder containing the .csproj file
             string checkDir = AppDomain.CurrentDomain.BaseDirectory;
             for (int i = 0; i < 5; i++)
             {
@@ -118,21 +168,18 @@ namespace JarvisLauncher
 
             try
             {
-                // Launch a new command prompt to build and run the app
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = "cmd.exe",
                     Arguments = $"/c cd /d \"{projectRoot}\" && dotnet run",
-                    CreateNoWindow = true, // Hide the console window entirely
+                    CreateNoWindow = true,
                     UseShellExecute = false
                 });
                 
-                // Terminate current process immediately to free hotkeys and resources
                 Environment.Exit(0);
             }
             catch
             {
-                // Fallback to launching the built executable directly if cmd fails
                 var exePath = Environment.ProcessPath;
                 if (!string.IsNullOrEmpty(exePath))
                 {

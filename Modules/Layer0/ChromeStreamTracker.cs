@@ -46,6 +46,64 @@ namespace JarvisLauncher
             return list;
         }
 
+    
+        public static bool Focus()
+        {
+            // Strategy 1: Focus using tracked HWND handles (Most reliable for Chrome/Edge)
+            lock (_spawnedWindows)
+            {
+                foreach (var hWnd in _spawnedWindows)
+                {
+                    if (NativeMethods.IsWindow(hWnd) && NativeMethods.IsWindowVisible(hWnd))
+                    {
+                        return BringHWndToForeground(hWnd);
+                    }
+                }
+            }
+
+            // Strategy 2: Search windows by target PID if process is alive
+            if (_process != null && !_process.HasExited)
+            {
+                IntPtr targetHWnd = IntPtr.Zero;
+                uint targetPid = (uint)_process.Id;
+
+                NativeMethods.EnumWindows((hWnd, lParam) =>
+                {
+                    NativeMethods.GetWindowThreadProcessId(hWnd, out uint windowPid);
+                    if (windowPid == targetPid && NativeMethods.IsWindowVisible(hWnd))
+                    {
+                        targetHWnd = hWnd;
+                        return false; // Found match, stop enumeration
+                    }
+                    return true;
+                }, IntPtr.Zero);
+
+                if (targetHWnd != IntPtr.Zero)
+                {
+                    return BringHWndToForeground(targetHWnd);
+                }
+
+                // Strategy 3: Fallback to standard process focus implementation
+                return NativeMethods.FocusProcessInstance(_process);
+            }
+
+            return false;
+        }
+
+        private static bool BringHWndToForeground(IntPtr hWnd)
+        {
+            if (hWnd == IntPtr.Zero) return false;
+
+            // Restore if window is minimized
+            if (NativeMethods.IsIconic(hWnd))
+            {
+                NativeMethods.ShowWindow(hWnd, NativeMethods.SW_RESTORE);
+            }
+
+            return NativeMethods.SetForegroundWindow(hWnd);
+        }
+    
+
         /// <summary>True if the tracked Chrome stream process or any window is alive.</summary>
         public static bool IsRunning
         {
