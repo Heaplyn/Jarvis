@@ -17,10 +17,18 @@ namespace JarvisLauncher
     public class ChatOverlay : BaseOverlay
     {
         private static ChatOverlay? _instance;
+        private static readonly System.Text.StringBuilder _consoleLog = new System.Text.StringBuilder();
+
         private StackPanel _chatHistoryPanel;
         private ScrollViewer _scrollViewer;
         private TextBox _inputTextBox;
         private TextBlock _placeholderTextBlock;
+
+        // Visual Console controls
+        private Border _consoleContainer;
+        private TextBox _consoleTextBox;
+        private Button _consoleToggleBtn;
+        private bool _isConsoleExpanded = false;
 
         public static void ShowChat()
         {
@@ -43,6 +51,25 @@ namespace JarvisLauncher
             });
         }
 
+        public static void LogConsoleAction(string action, string details)
+        {
+            string logLine = $"[{DateTime.Now:HH:mm:ss}] {action.ToUpper()}\n{details}\n----------------------------------\n";
+            lock (_consoleLog)
+            {
+                _consoleLog.AppendLine(logLine);
+            }
+
+            // Update UI thread-safely
+            Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (_instance != null && _instance._consoleTextBox != null)
+                {
+                    _instance._consoleTextBox.Text = _consoleLog.ToString();
+                    _instance._consoleTextBox.ScrollToEnd();
+                }
+            }));
+        }
+
         private ChatOverlay()
             : base("JARVIS AI COMPANION", width: 380, height: 500)
         {
@@ -55,6 +82,7 @@ namespace JarvisLauncher
             var contentGrid = new Grid();
             contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Chat History
             contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Divider
+            contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Console Drawer
             contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Input Box Area
 
             // 2. Scrollable Chat History
@@ -83,7 +111,77 @@ namespace JarvisLauncher
             Grid.SetRow(divider, 1);
             contentGrid.Children.Add(divider);
 
-            // 4. Input Area Grid
+            // --- Collapsible Console Drawer (Row 2) ---
+            _consoleContainer = new Border
+            {
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(4),
+                Margin = new Thickness(0, 0, 0, 8),
+                Padding = new Thickness(6)
+            };
+            _consoleContainer.SetResourceReference(Border.BorderBrushProperty, "WindowBorderBrush");
+            _consoleContainer.SetResourceReference(Border.BackgroundProperty, "WindowBackgroundBrush");
+
+            var consoleLayoutGrid = new Grid();
+            consoleLayoutGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Header
+            consoleLayoutGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Log content
+
+            var consoleHeader = new Grid();
+            consoleHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            consoleHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var consoleTitle = new TextBlock
+            {
+                Text = "⚡ Command Execution Console",
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            consoleTitle.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
+            Grid.SetColumn(consoleTitle, 0);
+            consoleHeader.Children.Add(consoleTitle);
+
+            _consoleToggleBtn = new Button
+            {
+                Content = "Show Console (»)",
+                FontSize = 10,
+                Padding = new Thickness(6, 2, 6, 2),
+                Cursor = Cursors.Hand
+            };
+            _consoleToggleBtn.SetResourceReference(Button.BackgroundProperty, "HoverBackgroundBrush");
+            _consoleToggleBtn.SetResourceReference(Button.ForegroundProperty, "TextPrimaryBrush");
+            _consoleToggleBtn.Click += (s, e) => ToggleConsole();
+            Grid.SetColumn(_consoleToggleBtn, 1);
+            consoleHeader.Children.Add(_consoleToggleBtn);
+
+            Grid.SetRow(consoleHeader, 0);
+            consoleLayoutGrid.Children.Add(consoleHeader);
+
+            _consoleTextBox = new TextBox
+            {
+                Height = 0, // Collapsed initially
+                Visibility = Visibility.Collapsed,
+                IsReadOnly = true,
+                AcceptsReturn = true,
+                TextWrapping = TextWrapping.Wrap,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                FontFamily = new FontFamily("Consolas"),
+                FontSize = 11,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+            _consoleTextBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
+            _consoleTextBox.Text = _consoleLog.ToString();
+
+            Grid.SetRow(_consoleTextBox, 1);
+            consoleLayoutGrid.Children.Add(_consoleTextBox);
+
+            _consoleContainer.Child = consoleLayoutGrid;
+            Grid.SetRow(_consoleContainer, 2);
+            contentGrid.Children.Add(_consoleContainer);
+
+            // 4. Input Area Grid (Row 3)
             var inputGrid = new Grid();
             
             _inputTextBox = new TextBox
@@ -136,10 +234,31 @@ namespace JarvisLauncher
             inputGrid.Children.Add(_inputTextBox);
             inputGrid.Children.Add(_placeholderTextBlock);
 
-            Grid.SetRow(inputGrid, 2);
+            Grid.SetRow(inputGrid, 3);
             contentGrid.Children.Add(inputGrid);
 
             this.UserContent = contentGrid;
+        }
+
+        private void ToggleConsole()
+        {
+            if (!_isConsoleExpanded)
+            {
+                _consoleTextBox.Height = 120;
+                _consoleTextBox.Visibility = Visibility.Visible;
+                _consoleToggleBtn.Content = "Hide Console («)";
+                _isConsoleExpanded = true;
+                _consoleTextBox.ScrollToEnd();
+            }
+            else
+            {
+                _consoleTextBox.Height = 0;
+                _consoleTextBox.Visibility = Visibility.Collapsed;
+                _consoleToggleBtn.Content = "Show Console (»)";
+                _isConsoleExpanded = false;
+            }
+            _scrollViewer.UpdateLayout();
+            _scrollViewer.ScrollToBottom();
         }
 
         private readonly List<ChatTurn> _conversationHistory = new List<ChatTurn>();

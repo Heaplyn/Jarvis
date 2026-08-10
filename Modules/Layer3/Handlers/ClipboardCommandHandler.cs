@@ -58,7 +58,15 @@ namespace JarvisLauncher
             // Standard commands
             suggestions.Add(new CommandResult
             {
-                Title       = "Clear Clipboard History",
+                Title       = "📋 Open Visual Clipboard History",
+                Description = "Browse, search, delete, and pin clipboard clips in a GUI window",
+                Similarity  = similarity + 2.0, // High priority
+                Execute     = () => ClipboardOverlay.Open()
+            });
+
+            suggestions.Add(new CommandResult
+            {
+                Title       = "🧹 Clear Clipboard History",
                 Description = "Empty system clipboard and local history log",
                 Similarity  = similarity + 0.1,
                 Execute     = () => ClearClipboard()

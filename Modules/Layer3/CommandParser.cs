@@ -52,7 +52,8 @@ namespace JarvisLauncher
         PRODUCTIVITY,
         EXTRA_FEATURES,
         NEW_IDEAS,
-        MUSIC_PLAYLIST
+        MUSIC_PLAYLIST,
+        STICKY_NOTE
     };
 
     public static class CommandParser
@@ -149,7 +150,9 @@ namespace JarvisLauncher
             { CommandType.NEW_IDEAS,
             new CommandDictType("Window snap, macros, ping, jumps, task manager GUI, time, and hash", new NewIdeasCommandHandler()) },
             { CommandType.MUSIC_PLAYLIST,
-            new CommandDictType("Interactive Music Player & Playlist Manager GUI", new MusicPlaylistCommandHandler()) }
+            new CommandDictType("Interactive Music Player & Playlist Manager GUI", new MusicPlaylistCommandHandler()) },
+            { CommandType.STICKY_NOTE,
+            new CommandDictType("Visual Desktop Sticky Notes widget", new StickyNotesCommandHandler()) }
         };
 
         public static List<CommandResult> GetSuggestions(string query)
