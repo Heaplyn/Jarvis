@@ -21,6 +21,21 @@ namespace JarvisLauncher
         public double WindowOpacity { get; set; } = 1.0;
         public string DefaultSearchEngine { get; set; } = "Google";
         public System.Collections.Generic.Dictionary<string, string> Aliases { get; set; } = new System.Collections.Generic.Dictionary<string, string>();
+
+        // LLM Backend Selection
+        public string LlmBackend { get; set; } = "Gemini"; // Gemini | OpenAI | Ollama | Custom | P2P
+        public string OpenAIKey { get; set; } = string.Empty;
+        public string OpenAIBaseUrl { get; set; } = "https://api.openai.com/v1";
+        public string OpenAIModel { get; set; } = "gpt-4o-mini";
+        public string OllamaEndpoint { get; set; } = "http://localhost:11434";
+        public string OllamaModel { get; set; } = "llama3";
+        public string CustomLlmEndpoint { get; set; } = string.Empty;
+        public string CustomLlmKey { get; set; } = string.Empty;
+        public string CustomLlmModel { get; set; } = string.Empty;
+
+        // P2P Compute Node Settings
+        public bool P2PServerEnabled { get; set; } = false;
+        public string P2PServerSecret { get; set; } = string.Empty;
     }
 
     public static class SettingsManager

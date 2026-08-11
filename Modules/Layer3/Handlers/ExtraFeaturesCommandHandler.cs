@@ -162,7 +162,7 @@ namespace JarvisLauncher
                         {
                             try
                             {
-                                string url = await CloudflareTunnelManager.StartTunnelAsync(8080);
+                                string url = await CloudflareTunnelManager.StartTunnelAsync(8085);
                                 MobileOverlay.ShowQrPairingWindow(url);
                                 OpenWebBrowser(url);
                             }
@@ -172,6 +172,18 @@ namespace JarvisLauncher
                             }
                         });
                     }
+                });
+                return suggestions;
+            }
+
+            if (IsMatch(cmd, "vercel") || IsMatch(cmd, "deploy vercel"))
+            {
+                suggestions.Add(new CommandResult
+                {
+                    Title = "🚀 Deploy Mobile Companion to Vercel (1-Click Free Hosting)",
+                    Description = "Get a permanent HTTPS URL (https://jarvis.vercel.app) that never expires or gets 502 errors",
+                    Similarity = 4.5,
+                    Execute = () => OpenWebBrowser("https://vercel.com/new")
                 });
                 return suggestions;
             }

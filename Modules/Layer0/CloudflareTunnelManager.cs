@@ -18,7 +18,7 @@ namespace JarvisLauncher
         public static string? PublicUrl => _publicUrl;
         public static bool IsRunning => _tunnelProcess != null && !_tunnelProcess.HasExited;
 
-        public static async Task<string> StartTunnelAsync(int targetPort = 8080)
+        public static async Task<string> StartTunnelAsync(int targetPort = 8085)
         {
             StopTunnel();
 
@@ -61,12 +61,13 @@ namespace JarvisLauncher
             string tokenPath = Path.Combine(toolsDir, "cloudflare_token.txt");
             string domainPath = Path.Combine(toolsDir, "cloudflare_domain.txt");
 
-            string arguments = $"tunnel --url http://localhost:{targetPort}";
+            // NOTE: Do NOT add --http-host-header flag — it corrupts Host headers and causes HttpListener to return 400 → Cloudflare 502/1033
+            string arguments = $"tunnel --url http://127.0.0.1:{targetPort} --no-autoupdate";
 
             if (File.Exists(tokenPath))
             {
                 string savedToken = File.ReadAllText(tokenPath).Trim();
-                if (!string.IsNullOrEmpty(savedToken))
+                if (!string.IsNullOrEmpty(savedToken) && savedToken.StartsWith("eyJ") && savedToken.Length > 30)
                 {
                     arguments = $"tunnel run --token {savedToken}";
                     if (File.Exists(domainPath))
@@ -90,58 +91,45 @@ namespace JarvisLauncher
             _tunnelProcess = new Process { StartInfo = psi };
             var tcs = new TaskCompletionSource<string>();
 
-            _tunnelProcess.ErrorDataReceived += (s, e) =>
+            // URL can appear on either stderr or stdout depending on cloudflared version
+            Action<string?> checkLine = (line) =>
             {
-                if (!string.IsNullOrEmpty(e.Data))
-                {
-                    ChatOverlay.LogConsoleAction("Cloudflare Log", e.Data);
+                if (string.IsNullOrEmpty(line)) return;
+                ChatOverlay.LogConsoleAction("Cloudflare Log", line);
 
-                    // Look for https://....trycloudflare.com
-                    var match = Regex.Match(e.Data, @"https://[a-zA-Z0-9\-]+\.trycloudflare\.com");
-                    if (match.Success)
-                    {
-                        string foundUrl = match.Value;
-                        Task.Run(async () =>
-                        {
-                            // Verify Cloudflare DNS & HTTP endpoint is online
-                            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
-                            for (int i = 0; i < 8; i++)
-                            {
-                                try
-                                {
-                                    var resp = await client.GetAsync(foundUrl);
-                                    if (resp.IsSuccessStatusCode || (int)resp.StatusCode < 500)
-                                    {
-                                        _publicUrl = foundUrl;
-                                        tcs.TrySetResult(_publicUrl);
-                                        return;
-                                    }
-                                }
-                                catch { }
-                                await Task.Delay(1000);
-                            }
-                            _publicUrl = foundUrl;
-                            tcs.TrySetResult(_publicUrl);
-                        });
-                    }
+                // Only match actual tunnel URLs — trycloudflare.com (quick tunnel) or cfargotunnel.com (named tunnel)
+                // Do NOT use a broad regex — cloudflared logs contain https://cloudflare.com links that would be false-positives
+                var match = Regex.Match(line, @"https://[a-zA-Z0-9\-]+\.trycloudflare\.com");
+                if (!match.Success)
+                    match = Regex.Match(line, @"https://[a-zA-Z0-9\-]+\.cfargotunnel\.com");
+
+                if (match.Success)
+                {
+                    _publicUrl = match.Value;
+                    tcs.TrySetResult(_publicUrl);
                 }
             };
 
+            _tunnelProcess.ErrorDataReceived += (s, e) => checkLine(e.Data);
+            _tunnelProcess.OutputDataReceived += (s, e) => checkLine(e.Data);
+
+            TextOverlay.Show("⏳ Connecting Cloudflare Tunnel...\nPlease wait up to 30 seconds.", 6000);
             _tunnelProcess.Start();
             _tunnelProcess.BeginErrorReadLine();
+            _tunnelProcess.BeginOutputReadLine();
 
-            // Wait up to 18 seconds for Cloudflare to assign and propagate public HTTPS URL
-            var completedTask = await Task.WhenAny(tcs.Task, Task.Delay(18000));
+            // Wait up to 30 seconds for Cloudflare to assign and propagate public HTTPS URL
+            var completedTask = await Task.WhenAny(tcs.Task, Task.Delay(30000));
             if (completedTask == tcs.Task)
             {
                 _publicUrl = await tcs.Task;
-                TextOverlay.Show($"🌐 Cloudflare Web Host Live:\n{_publicUrl}", 5000);
+                TextOverlay.Show($"🌐 Cloudflare Tunnel Live:\n{_publicUrl}", 6000);
                 return _publicUrl;
             }
             else
             {
                 if (!string.IsNullOrEmpty(_publicUrl)) return _publicUrl;
-                throw new Exception("Timed out waiting for Cloudflare Tunnel public URL.");
+                throw new Exception("Timed out waiting for Cloudflare Tunnel public URL. Check that cloudflared.exe can reach the internet.");
             }
         }
 
