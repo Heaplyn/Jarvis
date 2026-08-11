@@ -3,7 +3,8 @@
 **/obj/
 bin/
 obj/
-Data/
+Data/*
+!Data/.gitkeep
 
 # Visual Studio / VS Code
 .vs/
