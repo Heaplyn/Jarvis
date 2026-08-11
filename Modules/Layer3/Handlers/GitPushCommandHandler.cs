@@ -120,6 +120,15 @@ namespace JarvisLauncher
 
             log.AppendLine($"Working directory: {projectRoot}\n");
 
+            // Detect current branch name dynamically
+            string branchName = await RunCommandAsync("git", "rev-parse --abbrev-ref HEAD", projectRoot);
+            branchName = branchName.Trim();
+            if (string.IsNullOrEmpty(branchName) || branchName.Contains("Error") || branchName.Contains("fatal"))
+            {
+                branchName = "main"; // Default fallback
+            }
+            log.AppendLine($"Current branch resolved: {branchName}\n");
+
             // 0. Auto-clean staged heavy directories & credentials to enforce .gitignore
             log.AppendLine("--- UNTRACKING HEAVY & PRIVATE FOLDERS ---");
             await RunCommandAsync("git", "rm -r --cached Modules/Layer0/DownloadMedia/flaresolverr", projectRoot);
@@ -127,8 +136,8 @@ namespace JarvisLauncher
             await RunCommandAsync("git", "rm -r --cached Modules/Layer0/DownloadMedia/downloads", projectRoot);
             await RunCommandAsync("git", "rm -r --cached bin", projectRoot);
             await RunCommandAsync("git", "rm -r --cached obj", projectRoot);
-            await RunCommandAsync("git", "rm --cached Data/SystemSettings.json", projectRoot);
-            log.AppendLine("Tracked folders and local settings removed from git cache index.");
+            await RunCommandAsync("git", "rm -r --cached Data", projectRoot);
+            log.AppendLine("Tracked folders, bin/obj, and local Data/ folder removed from git cache index.");
             log.AppendLine();
 
             // 1. Git Add
@@ -150,9 +159,15 @@ namespace JarvisLauncher
                 return log.ToString();
             }
 
+            // 2.5. Git Pull with Rebase to avoid push rejection (update itself properly)
+            log.AppendLine($"--- SYNCING WITH REMOTE (pull --rebase origin {branchName}) ---");
+            string pullResult = await RunCommandAsync("git", $"pull --rebase origin {branchName}", projectRoot);
+            log.AppendLine(string.IsNullOrWhiteSpace(pullResult) ? "Sync complete." : pullResult);
+            log.AppendLine();
+
             // 3. Git Push
-            log.AppendLine("--- PUSHING TO GITHUB ---");
-            string pushResult = await RunCommandAsync("git", "push", projectRoot);
+            log.AppendLine($"--- PUSHING TO GITHUB (push origin {branchName}) ---");
+            string pushResult = await RunCommandAsync("git", $"push origin {branchName}", projectRoot);
             log.AppendLine(pushResult);
 
             // Self-healing check: If the push was rejected due to large files or secret push protection
@@ -165,15 +180,6 @@ namespace JarvisLauncher
                 log.AppendLine("\n⚠️ WARNING: Push rejected due to rule violations (e.g. large files or hardcoded credentials) in local history.");
                 log.AppendLine("🔄 Attempting automatic self-healing recovery: Soft-resetting history and re-committing to enforce .gitignore...");
 
-                // Detect current branch name dynamically
-                string branchName = await RunCommandAsync("git", "rev-parse --abbrev-ref HEAD", projectRoot);
-                branchName = branchName.Trim();
-                if (string.IsNullOrEmpty(branchName) || branchName.Contains("Error") || branchName.Contains("fatal"))
-                {
-                    branchName = "main"; // Default fallback
-                }
-                log.AppendLine($"Current branch resolved: {branchName}");
-
                 // Run: git reset --soft origin/{branchName}
                 log.AppendLine($"⚡ Resetting commits back to remote origin/{branchName}...");
                 string resetResult = await RunCommandAsync("git", $"reset --soft origin/{branchName}", projectRoot);
@@ -185,8 +191,8 @@ namespace JarvisLauncher
                 log.AppendLine(reCommitResult);
 
                 // Retry: git push
-                log.AppendLine("⚡ Retrying push to GitHub...");
-                string retryPushResult = await RunCommandAsync("git", "push", projectRoot);
+                log.AppendLine($"⚡ Retrying push to GitHub (push origin {branchName})...");
+                string retryPushResult = await RunCommandAsync("git", $"push origin {branchName}", projectRoot);
                 log.AppendLine(retryPushResult);
             }
 
