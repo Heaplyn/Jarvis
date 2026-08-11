@@ -28,7 +28,7 @@ namespace JarvisLauncher
         public static string HostnameDomain => $"http://{Environment.MachineName.ToLower()}.local:{_port}";
         public static string JarvisDomain => $"http://jarvis.local:{_port}";
 
-        public static void Start(int port = 8080)
+        public static void Start(int port = 8085)
         {
             if (_isRunning) return;
 
@@ -39,29 +39,27 @@ namespace JarvisLauncher
 
             try
             {
+                // Use http://+:{port}/ to bind all interfaces (http.sys wildcard).
+                // This is required so cloudflared's proxy to 127.0.0.1 is accepted.
                 var listener = new HttpListener();
-                listener.Prefixes.Add($"http://localhost:{_port}/");
-                listener.Prefixes.Add($"http://127.0.0.1:{_port}/");
-                try { listener.Prefixes.Add($"http://[::1]:{_port}/"); } catch { }
-                if (!string.IsNullOrEmpty(_localIp) && _localIp != "127.0.0.1")
-                {
-                    try { listener.Prefixes.Add($"http://{_localIp}:{_port}/"); } catch { }
-                }
+                listener.Prefixes.Add($"http://+:{_port}/");
                 listener.Start();
                 _listener = listener;
                 _isRunning = true;
-                ChatOverlay.LogConsoleAction("Mobile Server Active", $"Listening on localhost, 127.0.0.1, [::1], {_localIp}");
+                ChatOverlay.LogConsoleAction("Mobile Server Active", $"Listening on http://+:{_port}/ (all interfaces)");
             }
             catch (Exception ex)
             {
-                ChatOverlay.LogConsoleAction("Mobile Server Multi-Prefix Failed, Falling Back", ex.Message);
+                // Wildcard failed (no netsh ACL), fall back to specific IPs
+                ChatOverlay.LogConsoleAction("Mobile Server Wildcard Failed, Falling Back", ex.Message);
                 try
                 {
                     var listener = new HttpListener();
                     listener.Prefixes.Add($"http://127.0.0.1:{_port}/");
+                    listener.Prefixes.Add($"http://localhost:{_port}/");
                     if (!string.IsNullOrEmpty(_localIp) && _localIp != "127.0.0.1")
                     {
-                        listener.Prefixes.Add($"http://{_localIp}:{_port}/");
+                        try { listener.Prefixes.Add($"http://{_localIp}:{_port}/"); } catch { }
                     }
                     listener.Start();
                     _listener = listener;
@@ -157,6 +155,26 @@ namespace JarvisLauncher
             return "127.0.0.1";
         }
 
+        /// <summary>
+        /// Validates the P2P shared secret if one is configured on this node.
+        /// If no secret is set, access is allowed (LAN-open mode).
+        /// </summary>
+        private static bool CheckP2PSecret(HttpListenerRequest req, HttpListenerResponse resp)
+        {
+            string configSecret = SettingsManager.Current.P2PServerSecret;
+            if (string.IsNullOrEmpty(configSecret)) return true; // open mode
+
+            string? provided = req.Headers["X-Jarvis-Secret"];
+            if (provided == configSecret) return true;
+
+            resp.StatusCode = 401;
+            byte[] buf = Encoding.UTF8.GetBytes("{\"error\":\"Invalid or missing X-Jarvis-Secret header.\"}");
+            resp.ContentType = "application/json";
+            resp.OutputStream.Write(buf);
+            resp.Close();
+            return false;
+        }
+
         private static async Task ProcessRequestAsync(HttpListenerContext ctx)
         {
             var req = ctx.Request;
@@ -164,7 +182,7 @@ namespace JarvisLauncher
 
             resp.Headers.Add("Access-Control-Allow-Origin", "*");
             resp.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-            resp.Headers.Add("Access-Control-Allow-Headers", "Content-Type");
+            resp.Headers.Add("Access-Control-Allow-Headers", "Content-Type, X-Jarvis-Secret");
 
             if (req.HttpMethod == "OPTIONS")
             {
@@ -376,6 +394,120 @@ namespace JarvisLauncher
                         await resp.OutputStream.WriteAsync(buf);
                     }
                 }
+                // ── P2P Compute Node Routes ─────────────────────────────────────────────
+                else if (path == "/p2p/health")
+                {
+                    // Lightweight liveness ping — no auth required
+                    string json = JsonSerializer.Serialize(new { status = "ok", pc = Environment.MachineName });
+                    byte[] buf = Encoding.UTF8.GetBytes(json);
+                    resp.ContentType = "application/json";
+                    await resp.OutputStream.WriteAsync(buf);
+                }
+                else if (path == "/p2p/info")
+                {
+                    if (!CheckP2PSecret(req, resp)) return;
+                    if (!SettingsManager.Current.P2PServerEnabled)
+                    {
+                        resp.StatusCode = 403;
+                        byte[] buf403 = Encoding.UTF8.GetBytes("{\"error\":\"P2P server not enabled on this node.\"}");
+                        resp.ContentType = "application/json";
+                        await resp.OutputStream.WriteAsync(buf403);
+                        return;
+                    }
+
+                    var stats = GetSystemStats();
+                    var statsDict = JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, JsonElement>>(
+                        JsonSerializer.Serialize(stats)) ?? new();
+
+                    double cpuLoad = statsDict.TryGetValue("cpuPercent", out var cp) ? cp.GetDouble() : 0;
+                    double ramFree = 0;
+                    if (statsDict.TryGetValue("freeRamMb", out var fr))
+                        ramFree = Math.Round(fr.GetDouble() / 1024.0, 1);
+
+                    // Detect available backends
+                    var backends = new System.Collections.Generic.List<string>();
+                    if (!string.IsNullOrEmpty(SettingsManager.Current.GoogleAIKey)) backends.Add("Gemini");
+                    if (!string.IsNullOrEmpty(SettingsManager.Current.OpenAIKey)) backends.Add("OpenAI");
+                    backends.Add("Ollama"); // Always advertise Ollama; client will fail gracefully if not installed
+
+                    var ollamaModels = await LlmRouter.GetOllamaModelsAsync();
+
+                    string infoJson = JsonSerializer.Serialize(new
+                    {
+                        pc_name = Environment.MachineName,
+                        backends,
+                        models = ollamaModels,
+                        cpu_load = cpuLoad,
+                        ram_free_gb = ramFree,
+                        p2p_version = "1.0"
+                    });
+                    byte[] infoBuf = Encoding.UTF8.GetBytes(infoJson);
+                    resp.ContentType = "application/json";
+                    await resp.OutputStream.WriteAsync(infoBuf);
+                }
+                else if (path == "/p2p/ask" && req.HttpMethod == "POST")
+                {
+                    if (!CheckP2PSecret(req, resp)) return;
+                    if (!SettingsManager.Current.P2PServerEnabled)
+                    {
+                        resp.StatusCode = 403;
+                        byte[] buf403 = Encoding.UTF8.GetBytes("{\"error\":\"P2P server not enabled on this node.\"}");
+                        resp.ContentType = "application/json";
+                        await resp.OutputStream.WriteAsync(buf403);
+                        return;
+                    }
+
+                    using var reader = new StreamReader(req.InputStream, req.ContentEncoding);
+                    string body = await reader.ReadToEndAsync();
+                    using var doc = JsonDocument.Parse(body);
+                    var root = doc.RootElement;
+
+                    string prompt = root.TryGetProperty("prompt", out var pr) ? pr.GetString() ?? "" : "";
+                    string model = root.TryGetProperty("model", out var mo) ? mo.GetString() ?? "auto" : "auto";
+
+                    // Reconstruct chat history if provided
+                    List<ChatTurn>? history = null;
+                    if (root.TryGetProperty("history", out var hist) && hist.ValueKind == JsonValueKind.Array)
+                    {
+                        history = new List<ChatTurn>();
+                        foreach (var item in hist.EnumerateArray())
+                        {
+                            history.Add(new ChatTurn
+                            {
+                                Role = item.TryGetProperty("role", out var ro) ? ro.GetString() ?? "user" : "user",
+                                Text = item.TryGetProperty("text", out var tx) ? tx.GetString() ?? "" : ""
+                            });
+                        }
+                    }
+
+                    if (string.IsNullOrEmpty(prompt))
+                    {
+                        resp.StatusCode = 400;
+                        byte[] buf400 = Encoding.UTF8.GetBytes("{\"error\":\"prompt is required\"}");
+                        resp.ContentType = "application/json";
+                        await resp.OutputStream.WriteAsync(buf400);
+                        return;
+                    }
+
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    // Use the local LlmRouter (but avoid P2P to prevent loops)
+                    string savedBackend = SettingsManager.Current.LlmBackend;
+                    if (savedBackend == "P2P") SettingsManager.Current.LlmBackend = "Gemini"; // prevent P2P loop
+                    string aiResponse = await LlmRouter.AskAsync(prompt, history);
+                    SettingsManager.Current.LlmBackend = savedBackend;
+                    sw.Stop();
+
+                    string askJson = JsonSerializer.Serialize(new
+                    {
+                        response = aiResponse,
+                        model_used = SettingsManager.Current.LlmBackend,
+                        latency_ms = sw.ElapsedMilliseconds,
+                        pc_name = Environment.MachineName
+                    });
+                    byte[] askBuf = Encoding.UTF8.GetBytes(askJson);
+                    resp.ContentType = "application/json";
+                    await resp.OutputStream.WriteAsync(askBuf);
+                }
                 else
                 {
                     resp.StatusCode = 404;
@@ -543,7 +675,7 @@ namespace JarvisLauncher
 
         private static string GetMobileAppHtml()
         {
-            return """
+                return """""
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1017,7 +1149,8 @@ Type any command below (e.g. dir, git status, ping, ipconfig)
     </script>
 </body>
 </html>
-""";
+""""";
         }
-    }
-}
+    } 
+        }
+

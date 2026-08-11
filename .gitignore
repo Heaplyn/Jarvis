@@ -3,6 +3,7 @@
 **/obj/
 bin/
 obj/
+**/Data
 
 # Visual Studio / VS Code
 .vs/

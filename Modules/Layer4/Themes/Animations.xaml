@@ -12,7 +12,7 @@
         <DoubleAnimation Storyboard.TargetName="MainBorder" 
                          Storyboard.TargetProperty="Opacity" 
                          From="0" To="1.0" 
-                         Duration="0:0:0.18"/>
+                         Duration="0:0:0.3"/>
     </Storyboard>
     
     <Storyboard x:Key="SlideOut">

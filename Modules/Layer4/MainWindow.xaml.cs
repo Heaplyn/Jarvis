@@ -48,7 +48,7 @@ namespace JarvisLauncher
             // Start Mobile Bridge HTTP & REST Server (for phone AI chat & PC remote control deck)
             try
             {
-                MobileBridgeServer.Start(8080);
+                MobileBridgeServer.Start(8085);
             }
             catch { }
 
