@@ -116,5 +116,11 @@ namespace JarvisLauncher
             }
             catch { }
         }
+
+        internal static void GetWindow()
+        {
+            throw new NotImplementedException();
+        }
+
     }
 }

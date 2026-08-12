@@ -19,7 +19,9 @@ namespace JarvisLauncher
         private TextBlock _localIpText;
         private TextBlock _dnsText;
         private TextBlock _publicUrlText;
+        private TextBlock _ngrokUrlText;
         private Button _startTunnelBtn;
+        private Button _startNgrokBtn;
 
         // Capability Settings
         public static bool AllowAppLaunching { get; set; } = true;
@@ -69,6 +71,7 @@ namespace JarvisLauncher
             _dnsText = AddLinkRow(linksStack, "🌐 Local DNS Domain:", MobileBridgeServer.JarvisDomain);
             _localIpText = AddLinkRow(linksStack, "📱 Local Wi-Fi IP:", MobileBridgeServer.ServerUrl);
             _publicUrlText = AddLinkRow(linksStack, "🔒 Cloudflare Public:", CloudflareTunnelManager.PublicUrl ?? "(Tunnel Inactive)");
+            _ngrokUrlText = AddLinkRow(linksStack, "🔓 Ngrok Public:", NgrokTunnelManager.PublicUrl ?? "(Tunnel Inactive)");
 
             linksBorder.Child = linksStack;
             Grid.SetRow(linksBorder, 0);
@@ -139,6 +142,33 @@ namespace JarvisLauncher
             tokenBtn.Click += (s, e) => PromptPermanentToken();
             actionStack.Children.Add(tokenBtn);
 
+            var ngrokTokenBtn = new Button
+            {
+                Content = "🔑 Optional: Set Permanent ngrok Token",
+                FontSize = 11,
+                Padding = new Thickness(8, 6, 8, 6),
+                Margin = new Thickness(0, 0, 0, 6),
+                Cursor = Cursors.Hand
+            };
+            ngrokTokenBtn.SetResourceReference(Button.BackgroundProperty, "HoverBackgroundBrush");
+            ngrokTokenBtn.SetResourceReference(Button.ForegroundProperty, "TextPrimaryBrush");
+            ngrokTokenBtn.Click += (s, e) => PromptNgrokToken();
+            actionStack.Children.Add(ngrokTokenBtn);
+
+            _startNgrokBtn = new Button
+            {
+                Content = NgrokTunnelManager.IsRunning ? "🌐 Public ngrok Tunnel Active" : "🌐 Launch Public ngrok Tunnel",
+                FontSize = 12,
+                FontWeight = FontWeights.Bold,
+                Padding = new Thickness(10, 8, 10, 8),
+                Margin = new Thickness(0, 0, 0, 6),
+                Cursor = Cursors.Hand
+            };
+            _startNgrokBtn.SetResourceReference(Button.BackgroundProperty, "HoverBackgroundBrush");
+            _startNgrokBtn.SetResourceReference(Button.ForegroundProperty, "TextPrimaryBrush");
+            _startNgrokBtn.Click += async (s, e) => await ToggleNgrokTunnelAsync();
+            actionStack.Children.Add(_startNgrokBtn);
+
             var qrBtn = new Button
             {
                 Content = "📷 Scan QR Code to Connect Phone Instantly",
@@ -176,6 +206,19 @@ namespace JarvisLauncher
                 catch { }
             };
             actionStack.Children.Add(previewBtn);
+
+            var manageBtn = new Button
+            {
+                Content = "🔧 Manage Tunnels",
+                FontSize = 11,
+                Padding = new Thickness(8, 6, 8, 6),
+                Margin = new Thickness(0, 0, 0, 8),
+                Cursor = Cursors.Hand
+            };
+            manageBtn.SetResourceReference(Button.BackgroundProperty, "HoverBackgroundBrush");
+            manageBtn.SetResourceReference(Button.ForegroundProperty, "TextPrimaryBrush");
+            manageBtn.Click += (s, e) => TunnelOverlay.ShowOverlay();
+            actionStack.Children.Add(manageBtn);
 
             Grid.SetRow(actionStack, 2);
             contentGrid.Children.Add(actionStack);
@@ -267,7 +310,7 @@ namespace JarvisLauncher
             }
         }
 
-        private void PromptPermanentToken()
+        public static void PromptPermanentToken()
         {
             string tokenFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Tools", "cloudflare_token.txt");
             string existingToken = File.Exists(tokenFile) ? File.ReadAllText(tokenFile).Trim() : "";
@@ -312,6 +355,91 @@ namespace JarvisLauncher
             {
                 CloudflareTunnelManager.SaveTunnelToken(txt.Text.Trim());
                 TextOverlay.Show("🔑 Permanent Cloudflare Token Saved!\nRestart tunnel to bind.", 4000);
+                win.Close();
+            };
+            var cancelBtn = new Button { Content = "Cancel", Width = 80, Height = 32, Cursor = Cursors.Hand };
+            cancelBtn.Click += (s, e) => win.Close();
+
+            btnStack.Children.Add(saveBtn);
+            btnStack.Children.Add(cancelBtn);
+            stack.Children.Add(btnStack);
+
+            win.Content = stack;
+            win.ShowDialog();
+        }
+
+        private async Task ToggleNgrokTunnelAsync()
+        {
+            if (NgrokTunnelManager.IsRunning)
+            {
+                NgrokTunnelManager.StopTunnel();
+                _ngrokUrlText.Text = "(Tunnel Inactive)";
+                _startNgrokBtn.Content = "🌐 Launch Public ngrok Tunnel";
+                TextOverlay.Show("🌐 ngrok Tunnel Stopped", 1500);
+            }
+            else
+            {
+                _startNgrokBtn.Content = "⏳ Connecting ngrok Tunnel...";
+                try
+                {
+                    string url = await NgrokTunnelManager.StartTunnelAsync(8085);
+                    _ngrokUrlText.Text = url;
+                    _startNgrokBtn.Content = "🌐 Public ngrok Tunnel Active";
+                    TextOverlay.Show($"🌐 Tunnel Live:\n{url}", 4000);
+                }
+                catch (Exception ex)
+                {
+                    _startNgrokBtn.Content = "🌐 Launch Public ngrok Tunnel";
+                    TextOverlay.Show($"⚠️ ngrok Error: {ex.Message}", 3000);
+                }
+            }
+        }
+
+        public static void PromptNgrokToken()
+        {
+            string tokenFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Tools", "ngrok_token.txt");
+            string existingToken = File.Exists(tokenFile) ? File.ReadAllText(tokenFile).Trim() : "";
+
+            var win = new Window
+            {
+                Title = "🔑 Permanent ngrok Token (Optional)",
+                Width = 460,
+                Height = 220,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                ResizeMode = ResizeMode.NoResize,
+                Background = new SolidColorBrush(Color.FromRgb(15, 23, 42)),
+                Foreground = Brushes.White
+            };
+
+            var stack = new StackPanel { Margin = new Thickness(16) };
+            var lbl = new TextBlock
+            {
+                Text = "Optional: Paste your ngrok authtoken to enable higher-rate/public tunnels:",
+                TextWrapping = TextWrapping.Wrap,
+                FontSize = 12,
+                Margin = new Thickness(0, 0, 0, 10),
+                Foreground = new SolidColorBrush(Color.FromRgb(148, 163, 184))
+            };
+            stack.Children.Add(lbl);
+
+            var txt = new TextBox
+            {
+                Text = existingToken,
+                FontSize = 12,
+                Padding = new Thickness(8),
+                Background = new SolidColorBrush(Color.FromRgb(30, 41, 59)),
+                Foreground = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(56, 189, 248)),
+                Margin = new Thickness(0, 0, 0, 14)
+            };
+            stack.Children.Add(txt);
+
+            var btnStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+            var saveBtn = new Button { Content = "💾 Save Token", Width = 100, Height = 32, Margin = new Thickness(0, 0, 8, 0), Cursor = Cursors.Hand };
+            saveBtn.Click += (s, e) =>
+            {
+                NgrokTunnelManager.SaveAuthToken(txt.Text.Trim());
+                TextOverlay.Show("🔑 ngrok Token Saved!\nRestart tunnel to apply.", 4000);
                 win.Close();
             };
             var cancelBtn = new Button { Content = "Cancel", Width = 80, Height = 32, Cursor = Cursors.Hand };

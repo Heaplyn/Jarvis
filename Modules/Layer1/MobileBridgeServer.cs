@@ -14,6 +14,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows;
+using PathHandler = JarvisLauncher.PathHandler;
 
 namespace JarvisLauncher
 {
@@ -30,6 +31,7 @@ namespace JarvisLauncher
 
         public static void Start(int port = 8085)
         {
+            
             if (_isRunning) return;
 
             _port = port;
@@ -181,7 +183,7 @@ namespace JarvisLauncher
             var resp = ctx.Response;
 
             resp.Headers.Add("Access-Control-Allow-Origin", "*");
-            resp.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            resp.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS, DELETE");
             resp.Headers.Add("Access-Control-Allow-Headers", "Content-Type, X-Jarvis-Secret");
 
             if (req.HttpMethod == "OPTIONS")
@@ -195,6 +197,7 @@ namespace JarvisLauncher
 
             try
             {
+                TextOverlay.Show(path);
                 if (path == "/" || path == "/index.html")
                 {
                     string html = GetMobileAppHtml();
@@ -395,6 +398,84 @@ namespace JarvisLauncher
                     }
                 }
                 // ── P2P Compute Node Routes ─────────────────────────────────────────────
+                else if (path == "/api/files/root" && req.HttpMethod == "GET")
+                {
+                    if (!CheckP2PSecret(req, resp)) return;
+
+                    string json = JsonSerializer.Serialize(new
+                    {
+                        root = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
+                    });
+
+                    byte[] buf = Encoding.UTF8.GetBytes(json);
+                    resp.ContentType = "application/json";
+                    resp.ContentLength64 = buf.Length;
+                    await resp.OutputStream.WriteAsync(buf);
+                }
+                else if (path == "/api/files/list" && req.HttpMethod == "GET")
+                {
+                    if (!CheckP2PSecret(req, resp)) return;
+
+                    string requestedPath = req.QueryString["path"] ?? string.Empty;
+                    string folderPath = ResolveRequestedPath(requestedPath);
+                    var items = ReadDirectoryEntries(folderPath);
+
+                    string json = JsonSerializer.Serialize(items);
+                    byte[] buf = Encoding.UTF8.GetBytes(json);
+                    resp.ContentType = "application/json";
+                    resp.ContentLength64 = buf.Length;
+                    await resp.OutputStream.WriteAsync(buf);
+                }
+                else if (path == "/api/files/upload" && req.HttpMethod == "POST")
+                {
+                    if (!CheckP2PSecret(req, resp)) return;
+
+                    string targetFolder = ResolveRequestedPath(req.QueryString["path"] ?? string.Empty);
+                    string fileName = SanitizeFileName(req.QueryString["name"] ?? "upload.bin");
+                    Directory.CreateDirectory(targetFolder);
+
+                    string destinationPath = Path.Combine(targetFolder, fileName);
+                    using (var output = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                    {
+                        await req.InputStream.CopyToAsync(output);
+                    }
+
+                    string json = JsonSerializer.Serialize(new
+                    {
+                        status = "success",
+                        path = destinationPath
+                    });
+
+                    byte[] buf = Encoding.UTF8.GetBytes(json);
+                    resp.ContentType = "application/json";
+                    resp.ContentLength64 = buf.Length;
+                    await resp.OutputStream.WriteAsync(buf);
+                }
+                else if (path == "/api/files/delete" && req.HttpMethod == "POST")
+                {
+                    if (!CheckP2PSecret(req, resp)) return;
+
+                    using var reader = new StreamReader(req.InputStream, req.ContentEncoding);
+                    string body = await reader.ReadToEndAsync();
+                    using var doc = JsonDocument.Parse(body);
+                    string filePath = doc.RootElement.TryGetProperty("path", out var pProp) ? pProp.GetString() ?? string.Empty : string.Empty;
+                    string resolvedPath = ResolveRequestedPath(filePath);
+
+                    if (Directory.Exists(resolvedPath))
+                    {
+                        Directory.Delete(resolvedPath, true);
+                    }
+                    else if (File.Exists(resolvedPath))
+                    {
+                        File.Delete(resolvedPath);
+                    }
+
+                    string json = JsonSerializer.Serialize(new { status = "success" });
+                    byte[] buf = Encoding.UTF8.GetBytes(json);
+                    resp.ContentType = "application/json";
+                    resp.ContentLength64 = buf.Length;
+                    await resp.OutputStream.WriteAsync(buf);
+                }
                 else if (path == "/p2p/health")
                 {
                     // Lightweight liveness ping — no auth required
@@ -557,6 +638,80 @@ namespace JarvisLauncher
             }
         }
 
+        private static string ResolveRequestedPath(string requestedPath)
+        {
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(requestedPath))
+                {
+                    return Path.GetFullPath(requestedPath);
+                }
+            }
+            catch { }
+
+            return Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        }
+
+        private static List<object> ReadDirectoryEntries(string folderPath)
+        {
+            var items = new List<object>();
+            try
+            {
+                foreach (var directory in Directory.GetDirectories(folderPath).OrderBy(path => path))
+                {
+                    var info = new DirectoryInfo(directory);
+                    items.Add(new
+                    {
+                        name = info.Name,
+                        path = info.FullName,
+                        isDirectory = true,
+                        size = 0L,
+                        modifiedUtc = info.LastWriteTimeUtc
+                    });
+                }
+
+                foreach (var file in Directory.GetFiles(folderPath).OrderBy(path => path))
+                {
+                    var info = new FileInfo(file);
+                    items.Add(new
+                    {
+                        name = info.Name,
+                        path = info.FullName,
+                        isDirectory = false,
+                        size = info.Length,
+                        modifiedUtc = info.LastWriteTimeUtc
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                items.Add(new
+                {
+                    name = "Error",
+                    path = folderPath,
+                    isDirectory = false,
+                    size = 0L,
+                    modifiedUtc = DateTime.UtcNow,
+                    error = ex.Message
+                });
+            }
+
+            return items;
+        }
+
+        private static string SanitizeFileName(string fileName)
+        {
+            try
+            {
+                foreach (var invalid in Path.GetInvalidFileNameChars())
+                {
+                    fileName = fileName.Replace(invalid, '_');
+                }
+            }
+            catch { }
+
+            return string.IsNullOrWhiteSpace(fileName) ? "upload.bin" : fileName;
+        }
         private static byte[] CaptureScreenJpeg()
         {
             try
@@ -675,481 +830,9 @@ namespace JarvisLauncher
 
         private static string GetMobileAppHtml()
         {
-                return """""
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>JARVIS Mobile Companion</title>
-    <meta name="theme-color" content="#0f172a">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background-color: #0b0f19; color: #f8fafc; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        header { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.08); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
-        .logo { font-size: 1.1rem; font-weight: 700; background: linear-gradient(135deg, #60a5fa, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: flex; align-items: center; gap: 8px; }
-        .badge { background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); color: #60a5fa; font-size: 0.7rem; padding: 3px 8px; border-radius: 20px; font-weight: 600; }
-        .tabs { display: flex; background: rgba(15, 23, 42, 0.8); border-bottom: 1px solid rgba(255,255,255,0.08); overflow-x: auto; }
-        .tab-btn { flex: 1; min-width: 70px; padding: 10px 6px; text-align: center; font-size: 0.75rem; font-weight: 600; color: #94a3b8; border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap; }
-        .tab-btn.active { color: #38bdf8; border-bottom-color: #38bdf8; background: rgba(56, 189, 248, 0.08); }
-        .content-area { flex: 1; overflow-y: auto; display: flex; flex-direction: column; position: relative; }
-        .view { display: none; flex: 1; flex-direction: column; }
-        .view.active { display: flex; }
-        
-        /* Popover Autocomplete */
-        .popover { background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 12px; margin: 0 14px 6px 14px; max-height: 160px; overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 4px; backdrop-filter: blur(12px); box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
-        .pop-item { padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; color: #f1f5f9; background: rgba(30, 41, 59, 0.6); transition: background 0.15s; }
-        .pop-item:active { background: rgba(56, 189, 248, 0.25); color: #38bdf8; }
-        .pop-title { font-weight: 600; color: #38bdf8; }
-        .pop-desc { font-size: 0.7rem; color: #94a3b8; margin-top: 2px; }
-
-        /* Chat View */
-        #chat-history { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
-        .msg { max-width: 88%; padding: 12px 14px; border-radius: 14px; font-size: 0.88rem; line-height: 1.45; word-break: break-word; white-space: pre-wrap; }
-        .msg.user { align-self: flex-end; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: #fff; border-bottom-right-radius: 2px; }
-        .msg.ai { align-self: flex-start; background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(255,255,255,0.08); color: #e2e8f0; border-bottom-left-radius: 2px; }
-        .input-bar { padding: 10px 14px; background: rgba(15, 23, 42, 0.95); border-top: 1px solid rgba(255,255,255,0.08); display: flex; gap: 8px; align-items: center; }
-        .input-bar input { flex: 1; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 10px 14px; color: #fff; font-size: 0.88rem; outline: none; }
-        .input-bar button { background: linear-gradient(135deg, #38bdf8, #3b82f6); border: none; width: 38px; height: 38px; border-radius: 50%; color: #fff; font-size: 1rem; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-        
-        /* Terminal View */
-        .terminal-container { flex: 1; background: #050811; padding: 12px; font-family: 'Fira Code', monospace; display: flex; flex-direction: column; overflow: hidden; }
-        #terminal-log { flex: 1; overflow-y: auto; color: #38bdf8; font-size: 0.78rem; line-height: 1.4; white-space: pre-wrap; word-break: break-all; margin-bottom: 10px; }
-        .term-prompt-line { display: flex; gap: 6px; align-items: center; background: rgba(15, 23, 42, 0.9); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.2); }
-        .term-prompt { color: #c084fc; font-weight: 600; font-size: 0.8rem; }
-        .term-input { flex: 1; background: none; border: none; color: #4ade80; font-family: 'Fira Code', monospace; font-size: 0.8rem; outline: none; }
-
-        /* Screenshot View */
-        .screenshot-box { padding: 14px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
-        .stream-bar { display: flex; gap: 8px; width: 100%; justify-content: center; }
-        .stream-btn { background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(255,255,255,0.12); color: #cbd5e1; padding: 6px 12px; border-radius: 8px; font-size: 0.75rem; cursor: pointer; font-weight: 600; }
-        .stream-btn.active { background: #38bdf8; color: #0f172a; border-color: #38bdf8; }
-        .screenshot-img { width: 100%; max-height: 380px; object-fit: contain; border-radius: 10px; border: 1px solid rgba(56, 189, 248, 0.3); background: #000; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
-        
-        /* Control Deck & Stats */
-        .deck-section { padding: 12px 14px; }
-        .section-label { font-size: 0.72rem; color: #94a3b8; text-transform: uppercase; font-weight: 700; margin-bottom: 8px; letter-spacing: 0.5px; }
-        .deck-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px; }
-        .card { background: rgba(30, 41, 59, 0.65); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 4px; cursor: pointer; transition: transform 0.15s; }
-        .card:active { transform: scale(0.97); background: rgba(56, 189, 248, 0.18); }
-        .card-icon { font-size: 1.4rem; }
-        .card-title { font-size: 0.85rem; font-weight: 600; color: #f1f5f9; }
-        .card-desc { font-size: 0.7rem; color: #94a3b8; }
-        .vol-slider-box { background: rgba(30, 41, 59, 0.65); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
-        .vol-slider { width: 100%; accent-color: #38bdf8; cursor: pointer; height: 6px; }
-
-        .btn-action { background: linear-gradient(135deg, #38bdf8, #3b82f6); color: #fff; border: none; padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 0.85rem; cursor: pointer; width: 100%; text-align: center; }
-        
-        .stats-panel { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
-        .stat-box { background: rgba(30, 41, 59, 0.65); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; }
-        .stat-label { font-size: 0.72rem; color: #94a3b8; text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
-        .stat-value { font-size: 1.25rem; font-weight: 700; color: #38bdf8; }
-    </style>
-</head>
-<body>
-    <header>
-        <div class="logo">⚡ JARVIS Mobile</div>
-        <div class="badge" id="status-badge">ONLINE</div>
-    </header>
-
-    <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('chat')">💬 Chat</button>
-        <button class="tab-btn" onclick="switchTab('terminal')">💻 Terminal</button>
-        <button class="tab-btn" onclick="switchTab('commands')">⚡ Commands</button>
-        <button class="tab-btn" onclick="switchTab('screen')">📸 Screen</button>
-        <button class="tab-btn" onclick="switchTab('remote')">🎛️ Deck</button>
-        <button class="tab-btn" onclick="switchTab('stats')">📊 Stats</button>
-    </div>
-
-    <div class="content-area">
-        <!-- 1. AI Chat View -->
-        <div id="view-chat" class="view active">
-            <div id="chat-history">
-                <div class="msg ai">Hello Kyle! Start typing any command or question below for instant mobile suggestions!</div>
-            </div>
-            <div id="autocomplete-popover" class="popover" style="display:none;"></div>
-            <div class="input-bar">
-                <input type="text" id="chat-input" placeholder="Type command (e.g. vol, app, theme, lock)..." onkeydown="if(event.key==='Enter') sendChat()">
-                <button onclick="sendChat()">➔</button>
-            </div>
-        </div>
-
-        <!-- 2. Interactive CLI Terminal View -->
-        <div id="view-terminal" class="view">
-            <div class="terminal-container">
-                <div id="terminal-log">Windows PowerShell [Jarvis PC Terminal]
-Type any command below (e.g. dir, git status, ping, ipconfig)
-------------------------------------------------------------
-</div>
-                <div id="term-popover" class="popover" style="display:none;"></div>
-                <div class="term-prompt-line">
-                    <span class="term-prompt">jarvis@pc:~$</span>
-                    <input type="text" id="term-input" class="term-input" placeholder="Type PowerShell command..." onkeydown="if(event.key==='Enter') runTerminalCmd()">
-                </div>
-            </div>
-        </div>
-
-        <!-- 3. Dedicated Interactive Commands Catalog View -->
-        <div id="view-commands" class="view">
-            <div class="deck-section">
-                <div style="margin-bottom:12px;">
-                    <input type="text" id="cmd-filter" placeholder="🔍 Search commands (wifi, ping, theme, app, vol)..." style="width:100%; background:rgba(30,41,59,0.8); border:1px solid rgba(56,189,248,0.3); border-radius:10px; padding:10px 14px; color:#fff; font-size:0.85rem; outline:none;" oninput="filterCommands(this.value)">
-                </div>
-
-                <div id="cmd-catalog-list">
-                    <div class="section-label">📶 Network & Cloudflare</div>
-                    <div class="deck-grid">
-                        <div class="card cmd-card" onclick="sendCmd('wifi')">
-                            <div class="card-title">📶 wifi</div>
-                            <div class="card-desc">Show connected SSID & IP</div>
-                        </div>
-                        <div class="card cmd-card" onclick="sendCmd('wifi pass')">
-                            <div class="card-title">🔑 wifi pass</div>
-                            <div class="card-desc">Show Wi-Fi password</div>
-                        </div>
-                        <div class="card cmd-card" onclick="sendCmd('ping google.com')">
-                            <div class="card-title">📡 ping google.com</div>
-                            <div class="card-desc">Measure latency</div>
-                        </div>
-                        <div class="card cmd-card" onclick="sendCmd('flushdns')">
-                            <div class="card-title">⚡ flushdns</div>
-                            <div class="card-desc">Flush DNS resolver cache</div>
-                        </div>
-                        <div class="card cmd-card" onclick="sendCmd('tunnel')">
-                            <div class="card-title">🌐 tunnel</div>
-                            <div class="card-desc">Public Cloudflare Tunnel</div>
-                        </div>
-                        <div class="card cmd-card" onclick="sendCmd('mobile')">
-                            <div class="card-title">📱 mobile</div>
-                            <div class="card-desc">Show Mobile Companion HUD</div>
-                        </div>
-                    </div>
-
-                    <div class="section-label">🔊 Volume & Audio</div>
-                    <div class="deck-grid">
-                        <div class="card cmd-card" onclick="sendCmd('vol 20')">
-                            <div class="card-title">🌙 vol 20</div>
-                            <div class="card-desc">Set Night sound 20%</div>
-                        </div>
-                        <div class="card cmd-card" onclick="sendCmd('vol 50')">
-                            <div class="card-title">🔊 vol 50</div>
-                            <div class="card-desc">Set master volume 50%</div>
-                        </div>
-                        <div class="card cmd-card" onclick="sendCmd('vol 100')">
-                            <div class="card-title">🔊 vol 100</div>
-                            <div class="card-desc">Set max volume 100%</div>
-                        </div>
-                        <div class="card cmd-card" onclick="sendCmd('vol 0')">
-                            <div class="card-title">🔇 vol 0</div>
-                            <div class="card-desc">Mute all PC audio</div>
-                        </div>
-                    </div>
-
-                    <div class="section-label">🚀 Applications & Utility</div>
-                    <div class="deck-grid">
-                        <div class="card cmd-card" onclick="sendCmd('app studio')">
-                            <div class="card-title">🎮 app studio</div>
-                            <div class="card-desc">Launch Roblox Studio</div>
-                        </div>
-                        <div class="card cmd-card" onclick="sendCmd('app code')">
-                            <div class="card-title">💻 app code</div>
-                            <div class="card-desc">Open VS Code editor</div>
-                        </div>
-                        <div class="card cmd-card" onclick="sendCmd('app chrome')">
-                            <div class="card-title">🌐 app chrome</div>
-                            <div class="card-desc">Open Chrome Browser</div>
-                        </div>
-                        <div class="card cmd-card" onclick="sendCmd('speak Hello Kyle!')">
-                            <div class="card-title">🗣️ speak [text]</div>
-                            <div class="card-desc">TTS Speech voice</div>
-                        </div>
-                        <div class="card cmd-card" onclick="sendCmd('uptime')">
-                            <div class="card-title">⏱️ uptime</div>
-                            <div class="card-desc">Show system running time</div>
-                        </div>
-                        <div class="card cmd-card" onclick="sendCmd('lock')">
-                            <div class="card-title">🔒 lock</div>
-                            <div class="card-desc">Lock Windows PC</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 3. High Quality PC Screen Mirror View -->
-        <div id="view-screen" class="view">
-            <div class="screenshot-box">
-                <div class="stream-bar">
-                    <button id="btn-stream-1s" class="stream-btn" onclick="setStreamInterval(1000)">🔴 Live 1s</button>
-                    <button id="btn-stream-2s" class="stream-btn" onclick="setStreamInterval(2000)">⚡ 2s Refresh</button>
-                    <button id="btn-stream-off" class="stream-btn active" onclick="setStreamInterval(0)">⏸️ Pause</button>
-                </div>
-                <img id="screen-img" class="screenshot-img" src="/api/screenshot" alt="PC Screen Capture">
-                <button class="btn-action" onclick="refreshScreenshot()">📸 Snap Single Frame</button>
-            </div>
-        </div>
-
-        <!-- 4. Expanded PC Control Deck View -->
-        <div id="view-remote" class="view">
-            <div class="deck-section">
-                <div class="section-label">🔊 Volume & Sound Control</div>
-                <div class="vol-slider-box">
-                    <div style="display:flex; justify-content:space-between; font-size:0.8rem;">
-                        <span>Master Volume</span>
-                        <span id="vol-val-text" style="color:#38bdf8; font-weight:700;">50%</span>
-                    </div>
-                    <input type="range" min="0" max="100" value="50" class="vol-slider" id="vol-range" onchange="setVolume(this.value)">
-                </div>
-                <div class="deck-grid">
-                    <div class="card" onclick="sendCmd('vol 20')">
-                        <div class="card-icon">🌙</div>
-                        <div class="card-title">Night Sound (20%)</div>
-                        <div class="card-desc">Low background volume</div>
-                    </div>
-                    <div class="card" onclick="sendCmd('vol 0')">
-                        <div class="card-icon">🔇</div>
-                        <div class="card-title">Mute PC</div>
-                        <div class="card-desc">Silence all PC audio</div>
-                    </div>
-                </div>
-
-                <div class="section-label">🚀 Application Launch Deck</div>
-                <div class="deck-grid">
-                    <div class="card" onclick="sendCmd('app studio')">
-                        <div class="card-icon">🎮</div>
-                        <div class="card-title">Roblox Studio</div>
-                        <div class="card-desc">Launch Studio IDE</div>
-                    </div>
-                    <div class="card" onclick="sendCmd('app code')">
-                        <div class="card-icon">💻</div>
-                        <div class="card-title">VS Code</div>
-                        <div class="card-desc">Open code workspace</div>
-                    </div>
-                    <div class="card" onclick="sendCmd('app chrome')">
-                        <div class="card-icon">🌐</div>
-                        <div class="card-title">Chrome Browser</div>
-                        <div class="card-desc">Open web browser</div>
-                    </div>
-                    <div class="card" onclick="sendCmd('open C:\\Users\\Kyle\\Downloads')">
-                        <div class="card-icon">📁</div>
-                        <div class="card-title">Downloads Folder</div>
-                        <div class="card-desc">Open File Explorer</div>
-                    </div>
-                </div>
-
-                <div class="section-label">🎨 Appearance & PC Security</div>
-                <div class="deck-grid">
-                    <div class="card" onclick="sendCmd('theme dracula')">
-                        <div class="card-icon">🎨</div>
-                        <div class="card-title">Dracula Theme</div>
-                        <div class="card-desc">Dark purple theme</div>
-                    </div>
-                    <div class="card" onclick="sendCmd('theme nord')">
-                        <div class="card-icon">❄️</div>
-                        <div class="card-title">Nord Theme</div>
-                        <div class="card-desc">Arctic blue theme</div>
-                    </div>
-                    <div class="card" onclick="sendCmd('lock')">
-                        <div class="card-icon">🔒</div>
-                        <div class="card-title">Lock PC</div>
-                        <div class="card-desc">Lock Windows session</div>
-                    </div>
-                    <div class="card" onclick="sendCmd('stats')">
-                        <div class="card-icon">📊</div>
-                        <div class="card-title">System Stats</div>
-                        <div class="card-desc">View active processes</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 5. Live Telemetry View -->
-        <div id="view-stats" class="view">
-            <div class="stats-panel">
-                <div class="stat-box">
-                    <div class="stat-label">Computer Name</div>
-                    <div class="stat-value" id="stat-pc">--</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">RAM Memory Load</div>
-                    <div class="stat-value" id="stat-ram">--%</div>
-                </div>
-                <div class="stat-box">
-                    <div class="stat-label">Active Windows Foreground</div>
-                    <div class="stat-value" id="stat-window" style="font-size: 0.9rem;">--</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        let streamTimer = null;
-
-        function switchTab(name) {
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            event.target.classList.add('active');
-            document.getElementById('view-' + name).classList.add('active');
-            if (name === 'stats') fetchStats();
-            if (name === 'screen') refreshScreenshot();
-            if (name !== 'screen') setStreamInterval(0);
-        }
-
-        function setStreamInterval(ms) {
-            if (streamTimer) clearInterval(streamTimer);
-            document.querySelectorAll('.stream-btn').forEach(b => b.classList.remove('active'));
-
-            if (ms === 1000) document.getElementById('btn-stream-1s').classList.add('active');
-            else if (ms === 2000) document.getElementById('btn-stream-2s').classList.add('active');
-            else document.getElementById('btn-stream-off').classList.add('active');
-
-            if (ms > 0) {
-                refreshScreenshot();
-                streamTimer = setInterval(refreshScreenshot, ms);
-            }
-        }
-
-        let debounceTimer;
-        document.getElementById('chat-input').addEventListener('input', (e) => {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => fetchSuggestions(e.target.value, 'chat-input'), 120);
-        });
-
-        async function fetchSuggestions(query, targetId) {
-            const pop = document.getElementById('autocomplete-popover');
-            if (!query || query.trim().length < 1) {
-                pop.style.display = 'none';
-                return;
-            }
-
-            try {
-                const res = await fetch('/api/suggestions?q=' + encodeURIComponent(query));
-                const items = await res.json();
-
-                if (!items || items.length === 0) {
-                    pop.style.display = 'none';
-                    return;
-                }
-
-                pop.innerHTML = '';
-                items.forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = 'pop-item';
-                    div.innerHTML = '<div class="pop-title">' + item.title + '</div><div class="pop-desc">' + item.desc + '</div>';
-                    div.onclick = () => {
-                        let cmdToRun = item.title.replace('⚡ Command: ', '').replace('📱 ', '').replace('🌐 ', '');
-                        document.getElementById(targetId).value = cmdToRun;
-                        pop.style.display = 'none';
-                        sendChat();
-                    };
-                    pop.appendChild(div);
-                });
-                pop.style.display = 'flex';
-            } catch (e) {
-                pop.style.display = 'none';
-            }
-        }
-
-        async function sendChat() {
-            document.getElementById('autocomplete-popover').style.display = 'none';
-            const input = document.getElementById('chat-input');
-            const prompt = input.value.trim();
-            if (!prompt) return;
-
-            input.value = '';
-            appendMsg(prompt, 'user');
-            const aiBubble = appendMsg('🧠 Thinking...', 'ai');
-
-            try {
-                const res = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ prompt: prompt })
-                });
-                const data = await res.json();
-                aiBubble.innerText = data.response || 'Done.';
-            } catch (err) {
-                aiBubble.innerText = '⚠️ Connection Error: ' + err.message;
-            }
-        }
-
-        async function runTerminalCmd() {
-            const input = document.getElementById('term-input');
-            const log = document.getElementById('terminal-log');
-            const cmd = input.value.trim();
-            if (!cmd) return;
-
-            input.value = '';
-            log.innerText += '\nPS C:\\> ' + cmd + '\nExecuting...';
-            log.scrollTop = log.scrollHeight;
-
-            try {
-                const res = await fetch('/api/terminal', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ command: cmd })
-                });
-                const data = await res.json();
-                log.innerText += '\n' + data.output + '\n------------------------------------------------------------';
-                log.scrollTop = log.scrollHeight;
-            } catch (err) {
-                log.innerText += '\n⚠️ Error executing command: ' + err.message + '\n';
-            }
-        }
-
-        function refreshScreenshot() {
-            const img = document.getElementById('screen-img');
-            img.src = '/api/screenshot?t=' + new Date().getTime();
-        }
-
-        function setVolume(level) {
-            document.getElementById('vol-val-text').innerText = level + '%';
-            sendCmd('vol ' + level);
-        }
-
-        async function sendCmd(cmd) {
-            appendMsg('⚡ Triggered: ' + cmd, 'user');
-            try {
-                const res = await fetch('/api/command', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ command: cmd })
-                });
-                const data = await res.json();
-                appendMsg('✅ ' + data.message, 'ai');
-            } catch (err) {
-                appendMsg('⚠️ Failed running command.', 'ai');
-            }
-        }
-
-        function appendMsg(text, type) {
-            const history = document.getElementById('chat-history');
-            const div = document.createElement('div');
-            div.className = 'msg ' + type;
-            div.innerText = text;
-            history.appendChild(div);
-            history.scrollTop = history.scrollHeight;
-            return div;
-        }
-
-        async function fetchStats() {
-            try {
-                const res = await fetch('/api/stats');
-                const data = await res.json();
-                document.getElementById('stat-pc').innerText = data.computerName;
-                document.getElementById('stat-ram').innerText = data.memoryLoad + '% (' + data.usedRamMb + ' / ' + data.totalRamMb + ' MB)';
-                document.getElementById('stat-window').innerText = data.activeWindow;
-            } catch (e) {}
-        }
-
-        setInterval(fetchStats, 5000);
-        fetchStats();
-    </script>
-</body>
-</html>
-""""";
+            //HTML
+            PathHandler NewPath = new PathHandler();
+                return File.ReadAllText(NewPath.GetCurrentSourceDirectory());
         }
     } 
         }
