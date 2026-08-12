@@ -1,63 +1,63 @@
 // Developer: heaplyn
 // Date: 2026-08-09
-// Summary: Detects active network interfaces and displays local IPv4 addresses. Copy-pastes to clipboard on click.
+// Summary: Command handler to open the Mobile Companion Hub overlay.
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.NetworkInformation;
-using System.Net.Sockets;
-
 
 namespace JarvisLauncher
 {   
-   
     public class PhoneControlCommandHandler : ICommandHandler
     {
-         private static List<string> Aliases = new List<string>{
-        "phone",
-        "control",
-        
+        private static List<string> Aliases = new List<string>
+        {
+            "phone",
+            "mobile",
+            "remote",
+            "bridge",
+            "sync",
+            "control"
+        };
 
-    };
         public bool CanHandle(string query)
         {
             query = query.Trim().ToLower();
-            foreach (var Alias in Aliases)
-            {
-                if (SearchUtil.IsClose(query,Alias))
-                {
-                    return true;
-                }
-            }
-            return false;
+            return Aliases.Any(a => SearchUtil.IsClose(query, a));
         }
 
         public List<CommandResult> GetSuggestions(string query)
         {
             var suggestions = new List<CommandResult>();
             query = query.Trim().ToLower();
-            double similarity = SearchUtil.GetSimilarity(query,Aliases[0]);
-            foreach (var Alias in Aliases)
-            {
-                similarity = Math.Max(similarity,SearchUtil.GetSimilarity(query,Alias));
 
+            double similarity = 0;
+            foreach (var alias in Aliases)
+            {
+                similarity = Math.Max(similarity, SearchUtil.GetSimilarity(query, alias));
             }
             
-           suggestions.Add(new CommandResult
+            suggestions.Add(new CommandResult
+            {
+                Title = "📱 Mobile Companion Hub",
+                Description = "Open connection links and remote control settings",
+                Execute = () =>
                 {
-                    Title = "LLM Gui",
-                    Description = "Opens LLM Gui",
-                    Execute = () =>
-                    {
-                        //var PowerShell = JarvisLauncher.CommandParser;
-                    },
-                    Similarity = similarity
-                });
+                    MobileOverlay.ShowOverlay();
+                },
+                Similarity = similarity + 0.5 // Boost it slightly
+            });
 
             return suggestions;
         }
 
-
+        public List<CommandDesc> GetCommandDescriptions()
+        {
+            return new List<CommandDesc>
+            {
+                new CommandDesc("phone", "Open Mobile Companion Hub", "phone"),
+                new CommandDesc("remote", "Manage phone connectivity", "remote")
+            };
+        }
     }
 }

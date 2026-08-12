@@ -1,6 +1,6 @@
 // Developer: heaplyn
-// Date: 2026-08-09
-// Summary: Interactive Glassmorphic Task Manager overlay displaying top CPU/RAM consuming system processes with one-click termination.
+// Date: 2026-08-12
+// Summary: Advanced Glassmorphic Task Manager overlay with real-time process filtering, sorting, and termination.
 
 using System;
 using System.Collections.Generic;
@@ -19,6 +19,8 @@ namespace JarvisLauncher
         private static ProcessManagerOverlay? _instance;
         private readonly StackPanel _processListPanel;
         private readonly DispatcherTimer _timer;
+        private readonly TextBox _searchBox;
+        private string _searchFilter = string.Empty;
 
         public static void OpenManager()
         {
@@ -43,7 +45,7 @@ namespace JarvisLauncher
         }
 
         private ProcessManagerOverlay()
-            : base("JARVIS PROCESS MANAGER", width: 560, height: 440)
+            : base("JARVIS ADVANCED PROCESS MANAGER", width: 600, height: 500)
         {
             this.Closed += (s, e) =>
             {
@@ -51,11 +53,46 @@ namespace JarvisLauncher
                 _instance = null;
             };
 
-            var rootGrid = new Grid();
+            var rootGrid = new Grid { Margin = new Thickness(10) };
+            rootGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Toolbar
             rootGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Header bar
             rootGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // List
+            rootGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Footer
 
-            // Header labels container
+            // 1. Toolbar (Search)
+            var toolbarGrid = new Grid { Margin = new Thickness(0, 0, 0, 10) };
+            toolbarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            toolbarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            toolbarGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var searchLabel = new TextBlock { Text = "🔍 Filter: ", VerticalAlignment = VerticalAlignment.Center, FontSize = 12, FontWeight = FontWeights.Bold };
+            searchLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
+            Grid.SetColumn(searchLabel, 0);
+            toolbarGrid.Children.Add(searchLabel);
+
+            _searchBox = new TextBox {
+                Padding = new Thickness(5, 2, 5, 2),
+                FontSize = 12,
+                Background = new SolidColorBrush(Color.FromArgb(30, 0, 0, 0)),
+                Foreground = Brushes.White,
+                BorderBrush = Brushes.Gray
+            };
+            _searchBox.TextChanged += (s, e) => {
+                _searchFilter = _searchBox.Text.ToLower().Trim();
+                RefreshProcessList();
+            };
+            Grid.SetColumn(_searchBox, 1);
+            toolbarGrid.Children.Add(_searchBox);
+
+            var refreshBtn = new Button { Content = "🔄 Refresh", Margin = new Thickness(8, 0, 0, 0), Padding = new Thickness(10, 2, 10, 2) };
+            refreshBtn.Click += (s, e) => RefreshProcessList();
+            Grid.SetColumn(refreshBtn, 2);
+            toolbarGrid.Children.Add(refreshBtn);
+
+            Grid.SetRow(toolbarGrid, 0);
+            rootGrid.Children.Add(toolbarGrid);
+
+            // 2. Header labels
             var headerBorder = new Border
             {
                 Background = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255)),
@@ -65,21 +102,21 @@ namespace JarvisLauncher
             };
 
             var headerGrid = new Grid();
-            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2.5, GridUnitType.Star) });
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.2, GridUnitType.Star) });
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             AddHeaderLabel(headerGrid, "Process Name", 0);
             AddHeaderLabel(headerGrid, "PID", 1);
-            AddHeaderLabel(headerGrid, "Memory Usage", 2);
+            AddHeaderLabel(headerGrid, "Memory (Private)", 2);
             AddHeaderLabel(headerGrid, "Action", 3);
 
             headerBorder.Child = headerGrid;
-            Grid.SetRow(headerBorder, 0);
+            Grid.SetRow(headerBorder, 1);
             rootGrid.Children.Add(headerBorder);
 
-            // ScrollViewer for Process Cards
+            // 3. ScrollViewer for Process Cards
             var scrollViewer = new ScrollViewer
             {
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
@@ -88,31 +125,43 @@ namespace JarvisLauncher
 
             _processListPanel = new StackPanel();
             scrollViewer.Content = _processListPanel;
-            Grid.SetRow(scrollViewer, 1);
+            Grid.SetRow(scrollViewer, 2);
             rootGrid.Children.Add(scrollViewer);
+
+            // 4. Footer
+            var footer = new TextBlock { FontSize = 10, Margin = new Thickness(0,5,0,0), Opacity = 0.6, HorizontalAlignment = HorizontalAlignment.Center };
+            footer.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
+            footer.Text = "Auto-refreshes every 5 seconds. Sorted by Memory usage.";
+            Grid.SetRow(footer, 3);
+            rootGrid.Children.Add(footer);
 
             this.UserContent = rootGrid;
 
-            // Timer to auto refresh process list every 3 seconds
-            _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
             _timer.Tick += (s, e) => RefreshProcessList();
             _timer.Start();
         }
 
         public void RefreshProcessList()
         {
+            if (!this.IsVisible) return;
+
             _processListPanel.Children.Clear();
 
             try
             {
                 var processes = Process.GetProcesses()
                     .Where(p => {
-                        try { return !string.IsNullOrEmpty(p.ProcessName); } catch { return false; }
+                        try {
+                            if (string.IsNullOrEmpty(p.ProcessName)) return false;
+                            if (!string.IsNullOrEmpty(_searchFilter) && !p.ProcessName.ToLower().Contains(_searchFilter)) return false;
+                            return true;
+                        } catch { return false; }
                     })
                     .OrderByDescending(p => {
-                        try { return p.WorkingSet64; } catch { return 0; }
+                        try { return p.PrivateMemorySize64; } catch { return 0; }
                     })
-                    .Take(15)
+                    .Take(30)
                     .ToList();
 
                 foreach (var proc in processes)
@@ -127,25 +176,26 @@ namespace JarvisLauncher
         {
             var rowBorder = new Border
             {
-                Margin = new Thickness(0, 2, 0, 4),
-                Padding = new Thickness(10, 8, 10, 8),
-                CornerRadius = new CornerRadius(6),
-                Background = new SolidColorBrush(Color.FromArgb(10, 255, 255, 255))
+                Margin = new Thickness(0, 0, 0, 4),
+                Padding = new Thickness(10, 6, 10, 6),
+                CornerRadius = new CornerRadius(4),
+                Background = new SolidColorBrush(Color.FromArgb(15, 255, 255, 255))
             };
 
             var rowGrid = new Grid();
-            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
+            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2.5, GridUnitType.Star) });
             rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.2, GridUnitType.Star) });
             rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             // Name
             var nameBlock = new TextBlock
             {
                 Text = proc.ProcessName,
-                FontWeight = FontWeights.SemiBold,
+                FontWeight = FontWeights.Medium,
                 FontSize = 12,
-                VerticalAlignment = VerticalAlignment.Center
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis
             };
             nameBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
             Grid.SetColumn(nameBlock, 0);
@@ -156,20 +206,21 @@ namespace JarvisLauncher
             {
                 Text = proc.Id.ToString(),
                 FontSize = 11,
-                VerticalAlignment = VerticalAlignment.Center
+                VerticalAlignment = VerticalAlignment.Center,
+                Opacity = 0.8
             };
             pidBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
             Grid.SetColumn(pidBlock, 1);
             rowGrid.Children.Add(pidBlock);
 
-            // RAM Memory
-            long bytes = 0;
-            try { bytes = proc.WorkingSet64; } catch { }
-            double mb = bytes / (1024.0 * 1024.0);
+            // Memory
+            long memBytes = 0;
+            try { memBytes = proc.PrivateMemorySize64; } catch { }
+            string memStr = (memBytes / 1024 / 1024.0).ToString("F1") + " MB";
 
             var memBlock = new TextBlock
             {
-                Text = $"{mb:F1} MB",
+                Text = memStr,
                 FontSize = 11,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -177,28 +228,27 @@ namespace JarvisLauncher
             Grid.SetColumn(memBlock, 2);
             rowGrid.Children.Add(memBlock);
 
-            // Kill Button
+            // Action
             var killBtn = new Button
             {
-                Content = "💀 End",
-                Padding = new Thickness(8, 2, 8, 2),
-                Cursor = Cursors.Hand,
+                Content = "End Task",
+                Padding = new Thickness(6, 1, 6, 1),
                 FontSize = 10,
-                FontFamily = new FontFamily("Segoe UI")
+                Background = new SolidColorBrush(Color.FromArgb(40, 200, 0, 0)),
+                Foreground = Brushes.White,
+                BorderThickness = new Thickness(0)
             };
-            killBtn.SetResourceReference(Button.BackgroundProperty, "HoverBackgroundBrush");
-            killBtn.SetResourceReference(Button.ForegroundProperty, "TextPrimaryBrush");
             killBtn.Click += (s, e) =>
             {
                 try
                 {
                     proc.Kill();
-                    TextOverlay.Show($"💀 Terminated {proc.ProcessName} (PID: {proc.Id})", 2500);
+                    DebugConsoleOverlay.Log("System", $"Killed process {proc.ProcessName} ({proc.Id})");
                     RefreshProcessList();
                 }
                 catch (Exception ex)
                 {
-                    TextOverlay.Show($"⚠️ Kill failed: {ex.Message}", 3000);
+                    TextOverlay.Show($"⚠️ Failed: {ex.Message}", 2000);
                 }
             };
             Grid.SetColumn(killBtn, 3);

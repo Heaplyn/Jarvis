@@ -85,7 +85,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
                 if (parts.Length > 1)
                 {
                     string shortcut = parts[1].ToLower();
-                    if (SettingsManager.Current.Aliases.TryGetValue(shortcut, out string expansion))
+                    if (SettingsManager.Current.Aliases.TryGetValue(shortcut, out string? expansion))
                     {
                         suggestions.Add(new CommandResult
                         {

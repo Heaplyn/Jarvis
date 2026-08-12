@@ -48,9 +48,12 @@ namespace JarvisLauncher
             // Start Mobile Bridge HTTP & REST Server (for phone AI chat & PC remote control deck)
             try
             {
-                //MobileBridgeServer.Start(8085);
+                MobileBridgeServer.Start(8085);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                try { System.IO.File.WriteAllText("server_fatal.txt", ex.ToString()); } catch { }
+            }
 
             // Apply persistent theme from settings
             try

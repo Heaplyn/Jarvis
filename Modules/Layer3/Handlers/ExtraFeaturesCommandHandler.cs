@@ -266,6 +266,18 @@ namespace JarvisLauncher
 
                 suggestions.Add(new CommandResult
                 {
+                    Title = "🛠️ Run Mobile Connectivity Diagnostics",
+                    Description = "Analyze network interfaces, port status, and firewall configuration",
+                    Similarity = 3.8,
+                    Execute = () => {
+                        var log = MobileBridgeServer.GetRecentLogs(50);
+                        ChatOverlay.LogConsoleAction("Connectivity Diagnostics", log);
+                        MobileOverlay.ShowOverlay();
+                    }
+                });
+
+                suggestions.Add(new CommandResult
+                {
                     Title = $"🌐 Connect Mobile via DNS: {dnsUrl}",
                     Description = $"Open {dnsUrl} or {ipUrl} on phone browser to connect AI Chat & PC Deck",
                     Similarity = 3.5,

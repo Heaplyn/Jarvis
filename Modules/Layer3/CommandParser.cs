@@ -58,7 +58,9 @@ namespace JarvisLauncher
         STICKY_NOTE,
         GAME_DEV_TOOLBOX,
         FFMPEG,
-        LLM
+        LLM,
+        PHONE,
+        DIAGNOSTICS
     };
 
     public static class CommandParser
@@ -120,6 +122,8 @@ namespace JarvisLauncher
             RegisterHandler(CommandType.GAME_DEV_TOOLBOX, "Roblox Studio and Blender developer utilities dashboard", () => new GameDevToolboxCommandHandler());
             RegisterHandler(CommandType.FFMPEG, "FFmpeg video, audio, GIF, and media processing tools", () => new FFMpegCommandHandler());
             RegisterHandler(CommandType.LLM, "LLM Gui", () => new LLMCommandHandler());
+            RegisterHandler(CommandType.PHONE, "Manage mobile companion connectivity", () => new PhoneControlCommandHandler());
+            RegisterHandler(CommandType.DIAGNOSTICS, "System and network connectivity diagnostics hub", () => new DiagnosticsCommandHandler());
         }
 
         private static void RegisterHandler(CommandType type, string description, Func<ICommandHandler> factory)
