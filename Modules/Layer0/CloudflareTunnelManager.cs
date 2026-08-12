@@ -19,7 +19,7 @@ namespace JarvisLauncher
         public static string? PublicUrl => _publicUrl;
         public static bool IsRunning => _tunnelProcess != null && !_tunnelProcess.HasExited;
 
-       public static async Task<string> StartTunnelAsync(int targetPort = 8085)
+        public static async Task<string> StartTunnelAsync(int targetPort = 9000)
 {
     StopTunnel();
 

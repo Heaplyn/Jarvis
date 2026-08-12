@@ -13,7 +13,7 @@ namespace JarvisLauncher
 {
     public class CliOutputOverlay : BaseOverlay
     {
-        private static CliOutputOverlay _instance;
+        private static CliOutputOverlay? _instance;
         private TextBox _textBox;
 
         public static void Show(string commandTitle, string outputContent)

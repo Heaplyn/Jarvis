@@ -1,12 +1,13 @@
 // Developer: heaplyn
 // Date: 2026-08-08
-// Summary: Main application entry point that initializes the tray icon NotifyIcon menu and controls window instances.
+// Summary: Main application entry point.
 
 using System;
 using System.Drawing;
 using System.Windows;
 using System.Windows.Forms;
 using Application = System.Windows.Application;
+using System.Threading.Tasks;
 
 namespace JarvisLauncher
 {
@@ -19,52 +20,43 @@ namespace JarvisLauncher
         {
             base.OnStartup(e);
 
-            // Run Self-Healing Manager audit & global exception hooks
-            SelfHealingManager.Initialize();
+            // 📢 BOOT TEST
+            System.Windows.MessageBox.Show("JARVIS CONNECT V2.5 STARTING", "System Check");
 
-            // Initialize main window
-            _mainWindow = new MainWindow();
-
-            // Run command handler startup initializations
-            CommandParser.Initialize();
-
-            // Setup Tray Icon using WinForms NotifyIcon
-            _notifyIcon = new NotifyIcon
+            try
             {
-                Icon = SystemIcons.Application,
-                Visible = true,
-                Text = "Jarvis HUD Launcher"
-            };
+                SelfHealingManager.Initialize();
+                _mainWindow = new MainWindow();
+                CommandParser.Initialize();
 
-            // Setup Context Menu for Tray Icon
-            var contextMenu = new ContextMenuStrip();
-            contextMenu.Items.Add("Show Launcher", null, (s, ev) => ShowLauncher());
-            contextMenu.Items.Add(new ToolStripSeparator());
-            contextMenu.Items.Add("Exit", null, (s, ev) => ExitApp());
-            _notifyIcon.ContextMenuStrip = contextMenu;
+                _notifyIcon = new NotifyIcon { Icon = SystemIcons.Application, Visible = true, Text = "Jarvis HUD Launcher" };
+                var contextMenu = new ContextMenuStrip();
+                contextMenu.Items.Add("Show Launcher", null, (s, ev) => ShowLauncher());
+                contextMenu.Items.Add(new ToolStripSeparator());
+                contextMenu.Items.Add("Exit", null, (s, ev) => ExitApp());
+                _notifyIcon.ContextMenuStrip = contextMenu;
+                _notifyIcon.DoubleClick += (s, ev) => ShowLauncher();
 
-            // Double click tray icon to show window
-            _notifyIcon.DoubleClick += (s, ev) => ShowLauncher();
+                ShowLauncher();
 
-            // Show window initially (or run in background)
-            // For convenience, we show it on startup
-            ShowLauncher();
+                // Ensure we start on 9000
+                MobileBridgeServer.Start(9000);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Startup Error: {ex.Message}");
+            }
         }
 
         private void ShowLauncher()
         {
-            if (_mainWindow != null)
-            {
-                _mainWindow.ShowHUD();
-            }
+            if (_mainWindow != null) _mainWindow.ShowHUD();
         }
 
         private void ExitApp()
         {
             _notifyIcon?.Dispose();
             _notifyIcon = null;
-
-            // Shut down WPF application
             Application.Current.Shutdown();
         }
 

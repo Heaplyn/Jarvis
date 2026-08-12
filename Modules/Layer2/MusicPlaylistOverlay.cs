@@ -26,12 +26,18 @@ namespace JarvisLauncher
         private readonly DispatcherTimer _playTimer = new DispatcherTimer();
 
         private readonly ComboBox _folderComboBox;
+        private readonly TextBox _searchBox;
+        private string _searchQuery = string.Empty;
         private readonly StackPanel _tracksPanel;
         private readonly TextBlock _nowPlayingTitle;
         private readonly TextBlock _nowPlayingArtist;
         private readonly Slider _positionSlider;
         private readonly TextBlock _timeLabel;
         private readonly Button _playPauseBtn;
+
+        private bool _isShuffle = false;
+        private Button? _shuffleBtn;
+        private Slider? _volumeSlider;
 
         private bool _isPlaying = false;
         private bool _isDraggingSlider = false;
@@ -118,6 +124,20 @@ namespace JarvisLauncher
         private MusicPlaylistOverlay()
             : base("🎵 JARVIS MUSIC PLAYER & PLAYLIST ORGANIZER", width: 680, height: 520)
         {
+            this.AllowDrop = true;
+            this.DragOver += (s, e) => {
+                if (e.Data.GetDataPresent(DataFormats.FileDrop)) e.Effects = DragDropEffects.Copy;
+                else e.Effects = DragDropEffects.None;
+                e.Handled = true;
+            };
+            this.Drop += (s, e) => {
+                if (e.Data.GetDataPresent(DataFormats.FileDrop))
+                {
+                    string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+                    AddFilesFromPaths(files);
+                }
+            };
+
             _library = MusicPlaylistManager.LoadLibrary();
             _activeFolder = _library.Folders.FirstOrDefault(f => f.Id == _library.LastActiveFolderId) 
                             ?? _library.Folders.FirstOrDefault();
@@ -166,7 +186,7 @@ namespace JarvisLauncher
                         {
                             _mediaPlayer.Stop();
                             _isPlaying = false;
-                            _playPauseBtn.Content = "▶️ Play";
+                            if (_playPauseBtn != null) _playPauseBtn.Content = "▶️ Play";
                         }
                     }
                 }
@@ -209,6 +229,7 @@ namespace JarvisLauncher
             var topGrid = new Grid();
             topGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             topGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            topGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.5, GridUnitType.Star) });
             topGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             var folderLabel = new TextBlock
@@ -234,19 +255,39 @@ namespace JarvisLauncher
             Grid.SetColumn(_folderComboBox, 1);
             topGrid.Children.Add(_folderComboBox);
 
+            _searchBox = new TextBox
+            {
+                Margin = new Thickness(10, 0, 10, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Padding = new Thickness(5, 2, 5, 2),
+                FontSize = 12,
+                Background = new SolidColorBrush(Color.FromArgb(30, 0, 0, 0)),
+                Foreground = Brushes.White,
+                BorderBrush = Brushes.Gray,
+                Tag = "Search songs..."
+            };
+            _searchBox.TextChanged += (s, e) => {
+                _searchQuery = _searchBox.Text.ToLower();
+                RenderTracksList();
+            };
+            Grid.SetColumn(_searchBox, 2);
+            topGrid.Children.Add(_searchBox);
+
             var buttonStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 0, 0, 0) };
 
             var newFolderBtn = CreateButton("➕ New Folder", (s, e) => CreateNewFolderPrompt());
-            var addFileBtn = CreateButton("🎵 Add Audio File", (s, e) => BrowseAndAddFile());
-            var addUrlBtn = CreateButton("🔗 Add Link/URL", (s, e) => AddUrlStreamPrompt());
+            var addFileBtn = CreateButton("🎵 Add Files", (s, e) => BrowseAndAddFile());
+            var addUrlBtn = CreateButton("🔗 Add Link", (s, e) => AddUrlStreamPrompt());
+            var clearFolderBtn = CreateButton("🧹 Clear", (s, e) => ClearFolderConfirm());
             _downloadsToggleBtn = CreateButton("📥 Downloads (0)", (s, e) => ToggleDownloadsDrawer());
 
             buttonStack.Children.Add(newFolderBtn);
             buttonStack.Children.Add(addFileBtn);
             buttonStack.Children.Add(addUrlBtn);
+            buttonStack.Children.Add(clearFolderBtn);
             buttonStack.Children.Add(_downloadsToggleBtn);
 
-            Grid.SetColumn(buttonStack, 2);
+            Grid.SetColumn(buttonStack, 3);
             topGrid.Children.Add(buttonStack);
 
             topBarBorder.Child = topGrid;
@@ -447,18 +488,37 @@ namespace JarvisLauncher
 
             playerStack.Children.Add(sliderGrid);
 
-            // Buttons Bar (Prev, Play/Pause, Next, Loop)
+            // Buttons Bar (Prev, Play/Pause, Next, Loop, Shuffle, Volume)
             var controlsPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6, 0, 0) };
 
             var prevBtn = CreateButton("⏮️ Prev", (s, e) => PlayPrevTrack());
             _playPauseBtn = CreateButton("▶️ Play", (s, e) => TogglePlayPause());
             var nextBtn = CreateButton("⏭️ Next", (s, e) => PlayNextTrack());
             _loopBtn = CreateButton("🔁 Folder", (s, e) => ToggleLoopMode());
+            _shuffleBtn = CreateButton("🔀 Shuffle: Off", (s, e) => ToggleShuffle());
 
             controlsPanel.Children.Add(prevBtn);
             controlsPanel.Children.Add(_playPauseBtn);
             controlsPanel.Children.Add(nextBtn);
             controlsPanel.Children.Add(_loopBtn);
+            controlsPanel.Children.Add(_shuffleBtn);
+
+            var volStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(15, 0, 0, 0) };
+            volStack.Children.Add(new TextBlock { Text = "🔊", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,4,0), Foreground = Brushes.White });
+            _volumeSlider = new Slider
+            {
+                Width = 80,
+                Minimum = 0,
+                Maximum = 1,
+                Value = _mediaPlayer.Volume,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            _volumeSlider.ValueChanged += (s, e) =>
+            {
+                _mediaPlayer.Volume = _volumeSlider.Value;
+            };
+            volStack.Children.Add(_volumeSlider);
+            controlsPanel.Children.Add(volStack);
 
             playerStack.Children.Add(controlsPanel);
 
@@ -506,11 +566,24 @@ namespace JarvisLauncher
         {
             _tracksPanel.Children.Clear();
 
-            if (_activeFolder == null || _activeFolder.Tracks.Count == 0)
+            if (_activeFolder == null) return;
+
+            var tracksToRender = _activeFolder.Tracks;
+            if (!string.IsNullOrWhiteSpace(_searchQuery))
+            {
+                tracksToRender = tracksToRender.Where(t =>
+                    t.Title.ToLower().Contains(_searchQuery) ||
+                    t.Artist.ToLower().Contains(_searchQuery) ||
+                    t.PathOrUrl.ToLower().Contains(_searchQuery)).ToList();
+            }
+
+            if (tracksToRender.Count == 0)
             {
                 var emptyLabel = new TextBlock
                 {
-                    Text = "📂 This folder is empty. Click 'Add Audio File' or 'Add Link/URL' to import music!",
+                    Text = string.IsNullOrWhiteSpace(_searchQuery)
+                        ? "📂 This folder is empty. Click 'Add Files' to import music!"
+                        : "🔍 No tracks found matching your search.",
                     FontSize = 13,
                     FontStyle = FontStyles.Italic,
                     Margin = new Thickness(12)
@@ -520,9 +593,9 @@ namespace JarvisLauncher
                 return;
             }
 
-            for (int i = 0; i < _activeFolder.Tracks.Count; i++)
+            for (int i = 0; i < tracksToRender.Count; i++)
             {
-                var track = _activeFolder.Tracks[i];
+                var track = tracksToRender[i];
 
                 var trackItemBorder = new Border
                 {
@@ -1083,9 +1156,15 @@ private void CopyTrackToFolder(MusicTrack track, MusicFolder destinationFolder)
 
         private void PlayNextTrack()
         {
-            //NativeMethods.SendMediaKey(NativeMethods.VK_MEDIA_NEXT);
-
             if (_activeFolder == null || _activeFolder.Tracks.Count == 0) return;
+
+            if (_isShuffle)
+            {
+                int randIndex = new Random().Next(_activeFolder.Tracks.Count);
+                PlayTrack(_activeFolder.Tracks[randIndex]);
+                return;
+            }
+
             if (_currentTrack == null)
             {
                 PlayTrack(_activeFolder.Tracks[0]);
@@ -1098,9 +1177,15 @@ private void CopyTrackToFolder(MusicTrack track, MusicFolder destinationFolder)
 
         private void PlayPrevTrack()
         {
-            NativeMethods.SendMediaKey(NativeMethods.VK_MEDIA_PREV);
-
             if (_activeFolder == null || _activeFolder.Tracks.Count == 0) return;
+
+            if (_isShuffle)
+            {
+                int randIndex = new Random().Next(_activeFolder.Tracks.Count);
+                PlayTrack(_activeFolder.Tracks[randIndex]);
+                return;
+            }
+
             if (_currentTrack == null)
             {
                 PlayTrack(_activeFolder.Tracks[0]);
@@ -1195,6 +1280,21 @@ private void CopyTrackToFolder(MusicTrack track, MusicFolder destinationFolder)
             }
         }
 
+        private void ClearFolderConfirm()
+        {
+            if (_activeFolder == null || _activeFolder.Tracks.Count == 0) return;
+
+            var result = MessageBox.Show($"Are you sure you want to clear all {_activeFolder.Tracks.Count} tracks from '{_activeFolder.FolderName}'?",
+                                         "Clear Folder", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (result == MessageBoxResult.Yes)
+            {
+                _activeFolder.Tracks.Clear();
+                MusicPlaylistManager.SaveLibrary(_library);
+                RenderTracksList();
+                TextOverlay.Show("Folder cleared!", 2000);
+            }
+        }
+
         private void CreateNewFolderPrompt()
         {
             InputPromptOverlay.Show("Enter new Playlist Folder name:", (name) =>
@@ -1213,28 +1313,66 @@ private void CopyTrackToFolder(MusicTrack track, MusicFolder destinationFolder)
             });
         }
 
+        private void AddFilesFromPaths(string[] filePaths)
+        {
+            if (_activeFolder == null || filePaths == null || filePaths.Length == 0) return;
+
+            int count = 0;
+            string[] extensions = { ".mp3", ".wav", ".flac", ".m4a", ".ogg", ".wma" };
+
+            foreach (string path in filePaths)
+            {
+                if (Directory.Exists(path))
+                {
+                    // Recursively add files from directory
+                    var subFiles = Directory.GetFiles(path, "*.*", SearchOption.AllDirectories)
+                                            .Where(f => extensions.Contains(Path.GetExtension(f).ToLower()));
+                    foreach (var sf in subFiles)
+                    {
+                        AddSingleTrack(sf);
+                        count++;
+                    }
+                }
+                else if (File.Exists(path) && extensions.Contains(Path.GetExtension(path).ToLower()))
+                {
+                    AddSingleTrack(path);
+                    count++;
+                }
+            }
+
+            if (count > 0)
+            {
+                RenderTracksList();
+                TextOverlay.Show($"🎵 Added {count} tracks to Playlist!", 2500);
+            }
+        }
+
+        private void AddSingleTrack(string filePath)
+        {
+            string fn = Path.GetFileNameWithoutExtension(filePath);
+            var track = new MusicTrack
+            {
+                Title = fn,
+                PathOrUrl = filePath,
+                IsStreamUrl = false
+            };
+            MusicPlaylistManager.AddTrackToFolderAndAllSongs(_library, _activeFolder!, track);
+        }
+
         private void BrowseAndAddFile()
         {
             if (_activeFolder == null) return;
 
             var dialog = new Microsoft.Win32.OpenFileDialog
             {
-                Title = "Select Music Audio File",
-                Filter = "Audio Files (*.mp3;*.wav;*.flac;*.m4a;*.ogg;*.wma)|*.mp3;*.wav;*.flac;*.m4a;*.ogg;*.wma|All Files (*.*)|*.*"
+                Title = "Select Music Audio Files",
+                Filter = "Audio Files (*.mp3;*.wav;*.flac;*.m4a;*.ogg;*.wma)|*.mp3;*.wav;*.flac;*.m4a;*.ogg;*.wma|All Files (*.*)|*.*",
+                Multiselect = true
             };
 
             if (dialog.ShowDialog() == true)
             {
-                string fn = Path.GetFileNameWithoutExtension(dialog.FileName);
-                var track = new MusicTrack
-                {
-                    Title = fn,
-                    PathOrUrl = dialog.FileName,
-                    IsStreamUrl = false
-                };
-                MusicPlaylistManager.AddTrackToFolderAndAllSongs(_library, _activeFolder, track);
-                RenderTracksList();
-                TextOverlay.Show($"🎵 Added track '{fn}' to Playlist & All Songs!", 2500);
+                AddFilesFromPaths(dialog.FileNames);
             }
         }
 
@@ -1514,6 +1652,16 @@ private void CopyTrackToFolder(MusicTrack track, MusicFolder destinationFolder)
             btn.Click += onClick;
             return btn;
         }
+        private void ToggleShuffle()
+        {
+            _isShuffle = !_isShuffle;
+            if (_shuffleBtn != null)
+            {
+                _shuffleBtn.Content = _isShuffle ? "🔀 Shuffle: On" : "🔀 Shuffle: Off";
+            }
+            TextOverlay.Show(_isShuffle ? "🔀 Shuffle Enabled" : "🔀 Shuffle Disabled", 1500);
+        }
+
         private void ToggleLoopMode()
         {
             if (_loopBtn == null) return;

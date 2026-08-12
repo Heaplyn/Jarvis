@@ -60,7 +60,7 @@ namespace JarvisLauncher
                     cfBtn.Content = "Starting...";
                     try
                     {
-                        string url = await CloudflareTunnelManager.StartTunnelAsync(8085);
+                        string url = await CloudflareTunnelManager.StartTunnelAsync(9000);
                         _cfUrl.Text = url;
                         cfBtn.Content = "Stop";
                         TextOverlay.Show($"Cloudflare live: {url}", 3000);
@@ -99,7 +99,7 @@ namespace JarvisLauncher
                     ngBtn.Content = "Starting...";
                     try
                     {
-                        string url = await NgrokTunnelManager.StartTunnelAsync(8085);
+                        string url = await NgrokTunnelManager.StartTunnelAsync(9000);
                         _ngrokUrl.Text = url;
                         ngBtn.Content = "Stop";
                         TextOverlay.Show($"ngrok live: {url}", 3000);

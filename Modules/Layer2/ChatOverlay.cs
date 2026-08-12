@@ -749,9 +749,11 @@ namespace JarvisLauncher
             string finalResult = "";
             try
             {
+                DebugConsoleOverlay.Log("AI", $"Sending prompt: {(message.Length > 50 ? message.Substring(0, 50) + "..." : message)}");
                 var snapshot = new List<ChatTurn>(_conversationHistory);
                 string aiResponse = await Task.Run(async () => await AiAPI.AskGemini(apiMessage, snapshot));
                 finalResult = AgentExecutor.ProcessAIResponse(aiResponse);
+                DebugConsoleOverlay.Log("AI", $"Received response ({finalResult.Length} chars)");
             }
             catch (Exception ex)
             {
