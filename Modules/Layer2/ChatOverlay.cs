@@ -1,3 +1,4 @@
+
 // Developer: heaplyn
 // Date: 2026-08-09
 // Summary: Draggable, interactive AI chat companion panel with scrollable history and message input.
@@ -92,12 +93,12 @@ namespace JarvisLauncher
 
             // 1. Root Grid for the inner Content
             var contentGrid = new Grid();
-            contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Header Toolbar
-            contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // History Drawer
-            contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Chat History
-            contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Divider
-            contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Console Drawer
-            contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Input Box Area
+            contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Row 0: Header Toolbar
+            contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Row 1: History Drawer
+            contentGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Row 2: Chat History
+            contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Row 3: Divider
+            contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Row 4: Console Drawer
+            contentGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Row 5: Input Box Area
 
             // --- Header Toolbar (Row 0) ---
             var toolbarGrid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
@@ -251,7 +252,8 @@ namespace JarvisLauncher
                 FontSize = 11,
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
-                Margin = new Thickness(0, 4, 0, 0)
+                Margin = new Thickness(0, 4, 0, 0),
+                FocusVisualStyle = null
             };
             _consoleTextBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
             _consoleTextBox.Text = _consoleLog.ToString();
@@ -263,7 +265,7 @@ namespace JarvisLauncher
             Grid.SetRow(_consoleContainer, 4);
             contentGrid.Children.Add(_consoleContainer);
 
-            // 4. Input Area Grid (Row 3)
+            // 4. Input Area Grid (Row 5)
             var inputContainerStack = new StackPanel();
 
             // Attachment Pill Badge
@@ -276,7 +278,7 @@ namespace JarvisLauncher
                 Visibility = Visibility.Collapsed
             };
             _attachedFileBadge.SetResourceReference(Border.BackgroundProperty, "HoverBackgroundBrush");
-            _attachedFileBadge.SetResourceReference(Border.BorderBrushProperty, "SelectedBorderBrush");
+            _attachedFileBadge.SetResourceReference(Border.BorderBrushProperty, "WindowBorderBrush");
 
             var badgeStack = new StackPanel { Orientation = Orientation.Horizontal };
             _attachedFileText = new TextBlock { FontSize = 11, FontWeight = FontWeights.Medium, VerticalAlignment = VerticalAlignment.Center };
@@ -334,11 +336,12 @@ namespace JarvisLauncher
                 Padding = new Thickness(8, 6, 8, 6),
                 MinHeight = 36,
                 MaxHeight = 80,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                FocusVisualStyle = null
             };
             _inputTextBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
             _inputTextBox.SetResourceReference(TextBox.CaretBrushProperty, "AccentCaretBrush");
-            _inputTextBox.SetResourceReference(TextBox.BorderBrushProperty, "SelectedBorderBrush");
+            _inputTextBox.SetResourceReference(TextBox.BorderBrushProperty, "WindowBorderBrush");
 
             _placeholderTextBlock = new TextBlock
             {
@@ -404,7 +407,7 @@ namespace JarvisLauncher
                 }
             };
 
-            Grid.SetRow(inputContainerStack, 3);
+            Grid.SetRow(inputContainerStack, 5);
             contentGrid.Children.Add(inputContainerStack);
 
             this.UserContent = contentGrid;
@@ -890,7 +893,8 @@ namespace JarvisLauncher
                 FontStyle = isItalic ? FontStyles.Italic : FontStyles.Normal,
                 Padding = new Thickness(0),
                 Cursor = Cursors.Arrow,
-                Margin = new Thickness(0)
+                Margin = new Thickness(0),
+                FocusVisualStyle = null
             };
             textBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
 

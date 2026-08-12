@@ -4,6 +4,9 @@
 
 using System;
 using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -19,6 +22,11 @@ namespace JarvisLauncher
         private string _originalText;
         private readonly TextBox _editTextBox;
         private readonly TextBlock _statusLabel;
+        private readonly ListBox _outlineListBox;
+        private readonly TextBlock _outlineStatusLabel;
+        private readonly Border _outlineBorder;
+        private readonly AsyncCSharpFileLoader _fileLoader = new();
+        private CancellationTokenSource? _outlineLoadCts;
 
         public static void OpenFile(string filePath)
         {
@@ -72,7 +80,7 @@ namespace JarvisLauncher
         }
 
         private TextEditorOverlay(string filePath)
-            : base("JARVIS TEXT EDITOR", width: 700, height: 480)
+            : base("JARVIS TEXT EDITOR", width: 900, height: 520)
         {
             _filePath = filePath;
             this.Closed += (s, e) => { _instance = null; };
@@ -162,7 +170,49 @@ namespace JarvisLauncher
             Grid.SetRow(toolbarBorder, 0);
             layoutGrid.Children.Add(toolbarBorder);
 
-            // 2. Editor TextBox (Row 1)
+            // 2. Outline / Editor Grid (Row 1)
+            var editorGrid = new Grid { Margin = new Thickness(0, 0, 0, 0) };
+            editorGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) });
+            editorGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            // Outline panel
+            _outlineBorder = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(32, 255, 255, 255)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(8),
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            _outlineBorder.SetResourceReference(Border.BorderBrushProperty, "WindowBorderBrush");
+
+            var outlineStack = new StackPanel();
+
+            _outlineStatusLabel = new TextBlock
+            {
+                Text = "Loading outline...",
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold,
+                Margin = new Thickness(0, 0, 0, 6)
+            };
+            _outlineStatusLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
+            outlineStack.Children.Add(_outlineStatusLabel);
+
+            _outlineListBox = new ListBox
+            {
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                ItemContainerStyle = new Style(typeof(ListBoxItem))
+            };
+            _outlineListBox.ItemContainerStyle.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(4, 2, 4, 2)));
+            _outlineListBox.SelectionChanged += OutlineListBox_SelectionChanged;
+            outlineStack.Children.Add(_outlineListBox);
+
+            _outlineBorder.Child = outlineStack;
+            Grid.SetColumn(_outlineBorder, 0);
+            editorGrid.Children.Add(_outlineBorder);
+
+            // Editor TextBox
             _editTextBox = new TextBox
             {
                 Text = fileContent,
@@ -181,20 +231,17 @@ namespace JarvisLauncher
             _editTextBox.SetResourceReference(TextBox.CaretBrushProperty, "AccentCaretBrush");
             _editTextBox.TextChanged += (s, e) => EvaluateModifiedState();
             _editTextBox.PreviewKeyDown += TextBox_PreviewKeyDown;
+            Grid.SetColumn(_editTextBox, 1);
+            editorGrid.Children.Add(_editTextBox);
 
-            Grid.SetRow(_editTextBox, 1);
-            layoutGrid.Children.Add(_editTextBox);
-
-            this.UserContent = layoutGrid;
-
-            // Hook Ctrl+S and Escape shortcuts at the window level
-            this.PreviewKeyDown += Window_PreviewKeyDown;
-
+            Grid.SetRow(editorGrid, 1);
+            layoutGrid.Children.Add(editorGrid);
             // Default focus to TextBox on load
-            this.Loaded += (s, e) =>
+            this.Loaded += async (s, e) =>
             {
                 _editTextBox.Focus();
                 _editTextBox.CaretIndex = _editTextBox.Text.Length;
+                await LoadOutlineAsync();
             };
         }
 
@@ -245,6 +292,72 @@ namespace JarvisLauncher
             else
             {
                 FadeOutAndClose();
+            }
+        }
+
+        private async Task LoadOutlineAsync()
+        {
+            if (!Path.GetExtension(_filePath).Equals(".cs", StringComparison.OrdinalIgnoreCase))
+            {
+                _outlineStatusLabel.Text = "Outline not available for this file type.";
+                return;
+            }
+
+            _outlineLoadCts?.Cancel();
+            _outlineLoadCts = new CancellationTokenSource();
+            var token = _outlineLoadCts.Token;
+
+            _outlineStatusLabel.Text = "Loading C# outline...";
+            _outlineListBox.Items.Clear();
+
+            try
+            {
+                var outline = await _fileLoader.LoadFileOutlineAsync(_filePath, token).ConfigureAwait(false);
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    _outlineStatusLabel.Text = outline.Types.Count == 0 ? "No types found in file." : "Click a method to jump to its line.";
+                    foreach (var type in outline.Types)
+                    {
+                        _outlineListBox.Items.Add(new ListBoxItem
+                        {
+                            Content = $"{type.Kind} {type.Name}",
+                            FontWeight = FontWeights.Bold,
+                            IsHitTestVisible = false
+                        });
+
+                        foreach (var method in type.Methods)
+                        {
+                            _outlineListBox.Items.Add(new ListBoxItem
+                            {
+                                Content = $"  {method.ReturnType} {method.Name}({string.Join(", ", method.Parameters.Select(p => p.Type + " " + p.Name))})",
+                                Tag = method.LineNumber,
+                                Padding = new Thickness(8, 2, 4, 2)
+                            });
+                        }
+                    }
+                }).Task;
+            }
+            catch (OperationCanceledException)
+            {
+                _outlineStatusLabel.Text = "Outline loading canceled.";
+            }
+            catch (Exception ex)
+            {
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    _outlineStatusLabel.Text = $"Outline failed: {ex.Message}";
+                }).Task;
+            }
+        }
+
+        private void OutlineListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_outlineListBox.SelectedItem is ListBoxItem item && item.Tag is int lineNumber)
+            {
+                int offset = _editTextBox.GetCharacterIndexFromLineIndex(lineNumber - 1);
+                _editTextBox.Focus();
+                _editTextBox.CaretIndex = offset;
+                _editTextBox.ScrollToLine(lineNumber - 1);
             }
         }
 

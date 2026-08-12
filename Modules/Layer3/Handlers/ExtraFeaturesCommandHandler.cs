@@ -39,6 +39,7 @@ namespace JarvisLauncher
                    IsMatch(firstWord, "view") ||
                    IsMatch(firstWord, "mobile") || IsMatch(firstWord, "phone") ||
                    IsMatch(firstWord, "tunnel") || IsMatch(firstWord, "cloudflare") || IsMatch(firstWord, "cloudflared") ||
+                   IsMatch(firstWord, "ngrok") ||
                    IsMatch(firstWord, "wifi") || IsMatch(firstWord, "net") ||
                    IsMatch(firstWord, "ping") ||
                    IsMatch(firstWord, "uptime") ||
@@ -63,6 +64,18 @@ namespace JarvisLauncher
                     Description = wantPass ? "Display saved Wi-Fi password for current network" : "Display connected Wi-Fi SSID, signal, & local IP",
                     Similarity = 4.0,
                     Execute = () => ShowWifiInfo(wantPass)
+                });
+                return suggestions;
+            }
+
+            if (IsMatch(cmd, "tunnel") && (parts.Length == 1 || parts[1].Trim().ToLower() == "ui"))
+            {
+                suggestions.Add(new CommandResult
+                {
+                    Title = "🔧 Open Tunnel Manager UI",
+                    Description = "Open the compact Tunnel Manager overlay to start/stop tunnels",
+                    Similarity = 4.0,
+                    Execute = () => Application.Current.Dispatcher.Invoke(() => TunnelOverlay.ShowOverlay())
                 });
                 return suggestions;
             }
@@ -169,6 +182,48 @@ namespace JarvisLauncher
                             catch (Exception ex)
                             {
                                 TextOverlay.Show($"⚠️ Cloudflare Error: {ex.Message}", 3000);
+                            }
+                        });
+                    }
+                });
+
+                // ngrok alternatives
+                if (parts.Length > 1 && parts[1].Trim().Length > 5)
+                {
+                    string tokenStr = parts[1].Replace("token", "").Trim();
+                    suggestions.Add(new CommandResult
+                    {
+                        Title = $"🔑 Save Permanent ngrok Token",
+                        Description = $"Save ngrok authtoken for higher-rate/public tunnels",
+                        Similarity = 4.5,
+                        Execute = () =>
+                        {
+                            NgrokTunnelManager.SaveAuthToken(tokenStr);
+                            TextOverlay.Show("🔑 ngrok Token Saved!\nRestart tunnel to apply.", 4000);
+                        }
+                    });
+                }
+
+                bool ngrokRunning = NgrokTunnelManager.IsRunning;
+                string ngrokUrl = NgrokTunnelManager.PublicUrl ?? "";
+                suggestions.Add(new CommandResult
+                {
+                    Title = ngrokRunning ? $"🌐 ngrok Tunnel Active: {ngrokUrl}" : "🌐 Start ngrok Public Web Tunnel",
+                    Description = ngrokRunning ? "Open public ngrok URL in browser" : "Auto-downloads ngrok.exe & hosts Jarvis Mobile App to the public web",
+                    Similarity = 3.2,
+                    Execute = () =>
+                    {
+                        System.Threading.Tasks.Task.Run(async () =>
+                        {
+                            try
+                            {
+                                string url = await NgrokTunnelManager.StartTunnelAsync(8085);
+                                MobileOverlay.ShowQrPairingWindow(url);
+                                OpenWebBrowser(url);
+                            }
+                            catch (Exception ex)
+                            {
+                                TextOverlay.Show($"⚠️ ngrok Error: {ex.Message}", 3000);
                             }
                         });
                     }
