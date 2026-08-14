@@ -10,26 +10,12 @@ namespace JarvisLauncher
 {
     public static class InstructionsManager
     {
-        private static string InstructionsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Instructions");
+        private static string InstructionsDir => Path.Combine(PathHandler.GetDataDirectory(), "Instructions");
 
         public static string InstructionsDirectory => InstructionsDir;
 
         static InstructionsManager()
         {
-            // Dynamically locate the source project folder 'Data/Instructions' directory if developing
-            string checkDir = AppDomain.CurrentDomain.BaseDirectory;
-            for (int i = 0; i < 5; i++)
-            {
-                string dataFolder = Path.Combine(checkDir, "Data", "Instructions");
-                if (Directory.Exists(dataFolder))
-                {
-                    InstructionsDir = dataFolder;
-                    break;
-                }
-                var parent = Directory.GetParent(checkDir);
-                if (parent == null) break;
-                checkDir = parent.FullName;
-            }
         }
 
         public static string GetFormattedInstructions()

@@ -65,17 +65,7 @@ namespace JarvisLauncher
             statusCallback?.Invoke("🎙️ Pre-caching Vosk Offline Neural Speech Model (~40MB)...");
             await VoskEngine.EnsureModelDownloadedAsync(showToast: false);
 
-            // 2. Pre-cache all GitHub Custom TTS Voice Samples
-            statusCallback?.Invoke("🎵 Pre-caching GitHub Custom TTS Voice Samples...");
-            var voices = await TtsSampleDownloader.FetchVoiceSamplesAsync();
-            int downloadedVoices = 0;
-            foreach (var voice in voices)
-            {
-                string path = await TtsSampleDownloader.DownloadVoiceSampleAsync(voice);
-                if (!string.IsNullOrEmpty(path)) downloadedVoices++;
-            }
-
-            statusCallback?.Invoke($"✅ Pre-cache complete! Cached Vosk speech model & {downloadedVoices} TTS voices for 100% offline usage.");
+            statusCallback?.Invoke($"✅ Pre-cache complete! Cached Vosk speech model for 100% offline usage. Import custom sounds in TTS Studio for personal voices.");
             TextOverlay.Show("📶 Jarvis is now 100% Ready For Offline Use!", 3500);
         }
 

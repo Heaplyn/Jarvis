@@ -96,11 +96,12 @@ namespace JarvisLauncher
         {
             if (e.Result == null || string.IsNullOrWhiteSpace(e.Result.Text)) return;
             if (TtsManager.IsSpeakingOrEchoing) return;
-
+    
             string rawText = e.Result.Text.Trim();
             string normalizedText = NormalizeAcousticPhrases(rawText);
             float conf = e.Result.Confidence;
-
+DebugConsoleOverlay.Log("Voice Raw", $"Raw: \"{rawText}\" ({conf * 100:F0}% confidence)");
+    
             DebugConsoleOverlay.Log("Voice Thought", $"\"{normalizedText}\" ({conf * 100:F0}% confidence)");
         }
 

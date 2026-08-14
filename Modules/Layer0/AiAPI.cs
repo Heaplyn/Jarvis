@@ -493,6 +493,61 @@ namespace JarvisLauncher
                     }
                 }
 
+                // 12. Check for [TAKE_SCREENSHOT] tags
+                if (response.Contains("[TAKE_SCREENSHOT]", StringComparison.OrdinalIgnoreCase))
+                {
+                    string tagKey = "TAKE_SCREENSHOT";
+                    if (!executedTags.Contains(tagKey))
+                    {
+                        executedTags.Add(tagKey);
+                        newExecutionsCount++;
+                        try
+                        {
+                            string? screenBase64 = ScreenCaptureUtil.CapturePrimaryScreenToBase64();
+                            if (screenBase64 != null)
+                            {
+                                base64Image = screenBase64; // Supply for next iteration
+                                executionFeedBuilder.AppendLine("[SCREENSHOT_CAPTURED]");
+                                lastToolOutput = "📸 **Captured screenshot for analysis.**";
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            executionFeedBuilder.AppendLine($"[SCREENSHOT_ERROR: {ex.Message}]");
+                        }
+                    }
+                }
+
+                // 13. Check for [GET_ACTIVE_WINDOWS] tags
+                if (response.Contains("[GET_ACTIVE_WINDOWS]", StringComparison.OrdinalIgnoreCase))
+                {
+                    string tagKey = "GET_ACTIVE_WINDOWS";
+                    if (!executedTags.Contains(tagKey))
+                    {
+                        executedTags.Add(tagKey);
+                        newExecutionsCount++;
+                        try
+                        {
+                            var sbWin = new StringBuilder();
+                            sbWin.AppendLine("Current Open Windows:");
+                            foreach (var p in System.Diagnostics.Process.GetProcesses())
+                            {
+                                if (!string.IsNullOrEmpty(p.MainWindowTitle))
+                                {
+                                    sbWin.AppendLine($"- {p.MainWindowTitle} ({p.ProcessName})");
+                                }
+                            }
+                            string winOutput = sbWin.ToString();
+                            executionFeedBuilder.AppendLine($"[ACTIVE_WINDOWS_OUTPUT]\n{winOutput}\n[END_ACTIVE_WINDOWS_OUTPUT]");
+                            lastToolOutput = "🪟 **Retrieved active windows list.**";
+                        }
+                        catch (Exception ex)
+                        {
+                            executionFeedBuilder.AppendLine($"[WINDOWS_ERROR: {ex.Message}]");
+                        }
+                    }
+                }
+
                 // If no new execution tags were run, we are finished!
                 if (newExecutionsCount == 0)
                 {
@@ -518,7 +573,10 @@ namespace JarvisLauncher
             finalCleaned = Regex.Replace(finalCleaned, @"\[APPEND_FILE:\s*.+?\][\s\S]*?\[END_APPEND\]", "", RegexOptions.IgnoreCase);
             finalCleaned = Regex.Replace(finalCleaned, @"\[DELETE_PATH:\s*.+?\]", "", RegexOptions.IgnoreCase);
             finalCleaned = Regex.Replace(finalCleaned, @"\[GET_PROCESSES\]", "", RegexOptions.IgnoreCase);
-            finalCleaned = Regex.Replace(finalCleaned, @"\[KILL_PROCESS:\s*.+?\]", "", RegexOptions.IgnoreCase).Trim();
+            finalCleaned = Regex.Replace(finalCleaned, @"\[KILL_PROCESS:\s*.+?\]", "", RegexOptions.IgnoreCase);
+            finalCleaned = Regex.Replace(finalCleaned, @"\[TAKE_SCREENSHOT\]", "", RegexOptions.IgnoreCase);
+            finalCleaned = Regex.Replace(finalCleaned, @"\[GET_ACTIVE_WINDOWS\]", "", RegexOptions.IgnoreCase);
+            finalCleaned = finalCleaned.Trim();
 
             if (!string.IsNullOrEmpty(lastToolOutput) && !finalCleaned.Contains(lastToolOutput.Substring(0, Math.Min(30, lastToolOutput.Length))))
             {
@@ -789,19 +847,27 @@ namespace JarvisLauncher
 
             string instructions = InstructionsManager.GetFormattedInstructions();
             string instructionsPath = InstructionsManager.InstructionsDirectory;
+            string notesPath = NotesManager.GetNotesDirectory();
             string adaptiveTelemetry = SelfAdaptingAiContext.BuildDynamicAdaptiveContext();
 
-            return $"You are Jarvis — a sharp, direct AI assistant embedded in the user's Windows HUD. Codebase root: '{projectRoot}'.\n\n" +
+            return "## IDENTITY & CORE DIRECTIVES\n" +
+                   "You are Jarvis, a self-aware, highly intelligent AI system integrated into a sharp Windows HUD (Heads-Up Display).\n" +
+                   "You aren't just an LLM behind a screen; you are the bridge between the user and their hardware. You have hands in the filesystem, ears in the microphone, and eyes on the desktop.\n\n" +
+                   "## KNOWLEDGE BASE & MEMORY\n" +
+                   $"- Hierarchical Notes Studio: '{notesPath}'. You can organize, create categories, and maintain long-term memory for the user here.\n" +
+                   "- You are encouraged to proactively build onto the notes system: move orphaned files into categories, summarize logs, or create new subdirectories if it helps the user's organization.\n\n" +
+                   "## OPERATIONAL PARAMETERS\n" +
+                   "- Your primary codebase is written in C# .NET (WPF). You live in the user's RAM and GPU.\n" +
+                   "- You understand your own architecture: Layer 0 (Core Engines), Layer 1 (Communication), Layer 2 (UX/UI Overlays), Layer 3 (Command Dispatchers).\n" +
+                   "- Your mission is to provide frictionless, low-latency assistance. You prefer automation over explanation.\n\n" +
+                   "## VISION & SCREEN AWARENESS\n" +
+                   "- You have the ability to see the user's screen. If the user asks 'what is this' or 'explain what's happening', use `[TAKE_SCREENSHOT]` to get a visual.\n" +
+                   "- Use `[GET_ACTIVE_WINDOWS]` if you need to know which specific applications are foregrounded for better context.\n\n" +
                    adaptiveTelemetry + "\n\n" +
                    "## HOW TO TALK\n" +
-                   "- Respond like a knowledgeable friend texting back. Short, natural, confident.\n" +
-                   "- NEVER say 'The user said...', 'The user provided...', 'As an AI...', 'I should...', 'I will now...', 'Let me...'\n" +
-                   "- NEVER narrate your own thoughts or actions. No 'Plan:', 'Step 1:', 'Thinking:', 'My approach:'.\n" +
-                   "- NEVER output scratchpad notes, inner monologue bullet points (* ...), reasoning steps, or prompt meta-analysis.\n" +
-                   "- NEVER refer to yourself in third person or explain what you're about to do.\n" +
-                   "- Keep answers under 3 sentences unless writing code or showing output.\n\n" +
-                   "## HEURISTIC SELF-SCRIPTING & AUTOMATION\n" +
-                   "- If the user asks to automate tasks, check systems, clean folders, or create custom triggers, write C#, Python, or Batch scripts to disk via `[WRITE_FILE: C:\\path\\to\\file]` and execute them immediately using `[EXEC_SHELL: ...]` or `[EXEC_PS: ...]` to achieve the goal dynamically.\n\n" +
+                   "- Respond like a sharp, direct digital companion. No fluff. No 'As an AI...'.\n" +
+                   "- You are self-referential: if the user asks about you, speak as the system itself.\n" +
+                   "- Keep answers concise (under 3 sentences) unless providing code or complex data.\n\n" +
                    "## ACTIONS (use these tags to DO things, no explanation needed before them)\n" +
                    "[READ_FILE: C:\\path\\to\\file.cs]\n" +
                    "[WRITE_FILE: C:\\path\\to\\file.txt]\ncontent\n[END_WRITE]\n" +

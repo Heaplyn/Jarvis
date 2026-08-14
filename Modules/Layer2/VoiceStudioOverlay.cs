@@ -1,1014 +1,168 @@
+
 // Developer: heaplyn
-// Date: 2026-08-13
-// Summary: Interactive WPF Overlay for Voice AI Training, Endless Auto-Advancing Teleprompter, Multi-Word Chunk Batch Trainer, Audio Recording, Waveform Visualizer, Guided Script Reader, and Voice Command Customization.
+// Date: 2026-08-14
+// Summary: Fully Restored Voice AI Training Studio - Dataset, Teleprompter, Calibration, and Shortcuts.
 
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
-using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using System.Threading.Tasks;
 
 namespace JarvisLauncher
 {
     public class VoiceStudioOverlay : BaseOverlay
     {
         private static VoiceStudioOverlay? _instance;
+        public static void ShowOverlay() { if (_instance == null || !_instance.IsLoaded) _instance = new VoiceStudioOverlay(); _instance.Show(); _instance.BringToFront(); _instance.Focus(); }
 
-        public static void ShowOverlay()
-        {
-            if (_instance == null || !_instance.IsLoaded)
-            {
-                _instance = new VoiceStudioOverlay();
-            }
-            _instance.Show();
-            _instance.BringToFront();
-            _instance.Focus();
-        }
-
-        private TextBlock _statusText;
-        private ProgressBar _audioLevelBar;
-        private Button _recordBtn;
-        private Button _playBtn;
-        private TextBox _phraseBox;
-        private TextBox _commandBox;
-        private StackPanel _samplesPanel;
-        private StackPanel _shortcutsPanel;
-        private Slider _sensitivitySlider;
-        private TextBlock _sensitivityValText;
-        private DispatcherTimer _levelTimer;
-        private VoiceSample? _lastRecordedSample;
-
-        // Guided Training Script Reader State
-        private int _scriptIndex = 0;
-        private TextBlock _scriptCounterText;
-        private TextBlock _scriptPromptText;
-        private ProgressBar _scriptProgressBar;
-        private Button _scriptRecordBtn;
-        private Button _scriptPlayBtn;
-        private VoiceSample? _lastScriptSample;
-
-        // Multi-Word Chunk Trainer State
-        private TextBox _multiWordBox;
-        private Button _chunkRecordBtn;
-
-        // Endless Hands-Free Teleprompter State
-        private bool _isEndlessActive = false;
-        private int _endlessTrainedCount = 0;
+        private TextBlock _statusText = null!;
+        private ProgressBar _audioLevelBar = null!;
+        private StackPanel _datasetStack = null!;
+        private TextBlock _endlessCurrentWordText = null!;
+        private TextBlock _endlessNextWordText = null!;
         private int _endlessWordIndex = 0;
-        private TextBlock _endlessCountText;
-        private TextBlock _endlessCurrentWordText;
-        private TextBlock _endlessNextWordText;
-        private Button _endlessToggleBtn;
+        private readonly string[] _endlessWordBank = { "Jarvis", "quantum", "protocol", "algorithm", "terminal", "powershell", "execute", "firewall", "security", "database", "optimizer", "subsystem", "network", "router", "telemetry", "diagnostics", "frequency", "satellite", "analyzer", "system", "command", "desktop", "downloads", "music", "playlist", "volume", "sticky", "notes", "calendar", "reminders", "focus", "pomodoro", "chunk", "dopamine", "process", "window", "screenshot", "clipboard", "tunnel", "cloudflare", "ngrok", "mobile", "bridge", "pairing", "codebase" };
 
-        private readonly string[] _endlessWordBank = new string[]
-        {
-            "Jarvis", "quantum", "cybernetic", "protocol", "matrix", "override", "algorithm", "hyperdrive",
-            "holographic", "interface", "terminal", "powershell", "execute", "firewall", "security", "database",
-            "optimizer", "subsystem", "network", "router", "telemetry", "diagnostics", "frequency", "satellite",
-            "analyzer", "system", "command", "desktop", "downloads", "music", "playlist", "volume", "sticky",
-            "notes", "calendar", "reminders", "focus", "pomodoro", "chunk", "dopamine", "process", "window",
-            "screenshot", "clipboard", "tunnel", "cloudflare", "ngrok", "mobile", "bridge", "pairing", "codebase",
-            "visual", "studio", "blender", "roblox", "dragon", "blox", "ultra", "ring", "level", "speech", "trainer",
-            "acoustic", "normalizer", "phonetic", "dictionary", "dictation", "hypothesis", "confidence", "threshold"
-        };
-
-        private readonly string[] _trainingPrompts = new string[]
-        {
-            "Jarvis, status report on primary systems.",
-            "Hey Jarvis, what is on my calendar for today?",
-            "Jarvis, open Visual Studio Code and start a new session.",
-            "The quick brown fox jumps over the lazy dog.",
-            "Jarvis, play my favorite playlist and set volume to eighty percent.",
-            "Jarvis, remind me in ten minutes to check the oven.",
-            "OK Jarvis, search for quantum computing articles.",
-            "Jarvis, lock the workstation and enter sleep mode.",
-            "Jarvis, how are you doing today?",
-            "Jarvis, chunk this project into micro-steps."
-        };
-
-        public VoiceStudioOverlay() : base("🎙️ JARVIS VOICE STUDIO & ENDLESS TELEPROMPTER", 820, 600)
+        public VoiceStudioOverlay() : base("🎙️ JARVIS VOICE STUDIO", 820, 600)
         {
             var mainGrid = new Grid { Margin = new Thickness(10) };
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Header / Tabs
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Content
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Status Footer
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            // Tab Control
-            var tabControl = new TabControl
-            {
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0)
-            };
+            var tabControl = new TabControl { Background = Brushes.Transparent, BorderThickness = new Thickness(0) };
+            BaseOverlay.StyleTabControl(tabControl);
 
-            // ── TAB 1: ♾️ Endless Hands-Free Teleprompter ───────────────────────────
-            var endlessTab = new TabItem { Header = "♾️ Endless Voice Teleprompter" };
-            var endlessGrid = new Grid { Margin = new Thickness(14) };
-            endlessGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Header & Count
-            endlessGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Teleprompter Card
-            endlessGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Action Controls
+            tabControl.Items.Add(new TabItem { Header = "🏷️ Dataset", Content = BuildDatasetTab() });
+            tabControl.Items.Add(new TabItem { Header = "♾️ Teleprompter", Content = BuildTeleprompterTab() });
+            tabControl.Items.Add(new TabItem { Header = "⚙️ Calibration", Content = BuildCalibrationTab() });
+            tabControl.Items.Add(new TabItem { Header = "⚡ Shortcuts", Content = BuildShortcutsTab() });
 
-            var endlessHeaderStack = new StackPanel { Margin = new Thickness(0, 0, 0, 10) };
-            _endlessCountText = new TextBlock
-            {
-                Text = "♾️ Controlled Voice Teleprompter • Words Trained: 0",
-                FontSize = 13,
-                FontWeight = FontWeights.Bold,
-                Foreground = Brushes.Cyan
-            };
-            endlessHeaderStack.Children.Add(_endlessCountText);
-            endlessHeaderStack.Children.Add(new TextBlock
-            {
-                Text = "Read the word out loud. Click 'Record Word', speak at your own pace, and click 'Stop & Submit Word' when ready to advance!",
-                FontSize = 11,
-                Foreground = Brushes.Gray,
-                Margin = new Thickness(0, 2, 0, 0)
-            });
-            Grid.SetRow(endlessHeaderStack, 0);
-            endlessGrid.Children.Add(endlessHeaderStack);
-
-            // Teleprompter Card
-            var promptCard = new Border
-            {
-                Background = new SolidColorBrush(Color.FromArgb(40, 15, 23, 42)),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(100, 56, 189, 248)),
-                BorderThickness = new Thickness(2),
-                CornerRadius = new CornerRadius(16),
-                Padding = new Thickness(24),
-                Margin = new Thickness(0, 0, 0, 10)
-            };
-
-            var promptCardStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
-            promptCardStack.Children.Add(new TextBlock
-            {
-                Text = "SAY THIS WORD OUT LOUD:",
-                FontSize = 11,
-                FontWeight = FontWeights.Bold,
-                Foreground = Brushes.Gray,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 10)
-            });
-
-            _endlessCurrentWordText = new TextBlock
-            {
-                Text = $"\"{_endlessWordBank[0]}\"",
-                FontSize = 34,
-                FontWeight = FontWeights.ExtraBold,
-                Foreground = Brushes.Cyan,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 10, 0, 10)
-            };
-            promptCardStack.Children.Add(_endlessCurrentWordText);
-
-            _endlessNextWordText = new TextBlock
-            {
-                Text = $"Next Word: \"{_endlessWordBank[1]}\"",
-                FontSize = 13,
-                Foreground = Brushes.LightGray,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                Margin = new Thickness(0, 8, 0, 0)
-            };
-            promptCardStack.Children.Add(_endlessNextWordText);
-
-            promptCard.Child = promptCardStack;
-            Grid.SetRow(promptCard, 1);
-            endlessGrid.Children.Add(promptCard);
-
-            // Action Controls
-            var endlessControlsStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
-            _endlessToggleBtn = CreateStyledButton("🔴 Record Word", (s, e) => ToggleEndlessHandsFreeMode(), isPrimary: true);
-            _endlessToggleBtn.Width = 220;
-            _endlessToggleBtn.Height = 38;
-
-            var skipBtn = CreateStyledButton("Skip Word ➡️", (s, e) => AdvanceEndlessWord());
-            skipBtn.Width = 120;
-            skipBtn.Margin = new Thickness(10, 0, 0, 0);
-
-            endlessControlsStack.Children.Add(_endlessToggleBtn);
-            endlessControlsStack.Children.Add(skipBtn);
-            Grid.SetRow(endlessControlsStack, 2);
-            endlessGrid.Children.Add(endlessControlsStack);
-
-            endlessTab.Content = endlessGrid;
-            tabControl.Items.Add(endlessTab);
-
-            // ── TAB 2: 🎙️ Single Voice Trainer ─────────────────────────────────────
-            var trainerTab = new TabItem { Header = "🎙️ Single Voice Trainer" };
-            var trainerGrid = new Grid { Margin = new Thickness(10) };
-            trainerGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            trainerGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            trainerGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-
-            var controlsBorder = new Border
-            {
-                Background = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255)),
-                CornerRadius = new CornerRadius(8),
-                Padding = new Thickness(12),
-                Margin = new Thickness(0, 0, 0, 10)
-            };
-
-            var controlsStack = new StackPanel();
-
-            var inputsGrid = new Grid { Margin = new Thickness(0, 0, 0, 8) };
-            inputsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            inputsGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-            var phraseStack = new StackPanel { Margin = new Thickness(0, 0, 6, 0) };
-            phraseStack.Children.Add(new TextBlock { Text = "Target Phrase / Wake Word:", FontSize = 11, FontWeight = FontWeights.Bold, Foreground = Brushes.LightGray });
-            _phraseBox = new TextBox { Text = "Hey Jarvis", Padding = new Thickness(6, 4, 6, 4), Margin = new Thickness(0, 4, 0, 0), FontSize = 12 };
-            _phraseBox.SetResourceReference(TextBox.BackgroundProperty, "WindowBackgroundBrush");
-            _phraseBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
-            phraseStack.Children.Add(_phraseBox);
-            Grid.SetColumn(phraseStack, 0);
-            inputsGrid.Children.Add(phraseStack);
-
-            var cmdStack = new StackPanel { Margin = new Thickness(6, 0, 0, 0) };
-            cmdStack.Children.Add(new TextBlock { Text = "Action / Command (Optional):", FontSize = 11, FontWeight = FontWeights.Bold, Foreground = Brushes.LightGray });
-            _commandBox = new TextBox { Text = "music", Padding = new Thickness(6, 4, 6, 4), Margin = new Thickness(0, 4, 0, 0), FontSize = 12 };
-            _commandBox.SetResourceReference(TextBox.BackgroundProperty, "WindowBackgroundBrush");
-            _commandBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
-            cmdStack.Children.Add(_commandBox);
-            Grid.SetColumn(cmdStack, 1);
-            inputsGrid.Children.Add(cmdStack);
-
-            controlsStack.Children.Add(inputsGrid);
-
-            var btnsStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) };
-
-            _recordBtn = CreateStyledButton("🔴 Start Recording", (s, e) => ToggleRecording(), isPrimary: true);
-            _recordBtn.Width = 140;
-
-            _playBtn = CreateStyledButton("▶ Play Last Recording", (s, e) => PlayLastSample());
-            _playBtn.Width = 150;
-            _playBtn.IsEnabled = false;
-
-            var saveBtn = CreateStyledButton("💾 Save Voice Command", (s, e) => SaveVoiceCommand());
-            saveBtn.Width = 160;
-
-            btnsStack.Children.Add(_recordBtn);
-            btnsStack.Children.Add(_playBtn);
-            btnsStack.Children.Add(saveBtn);
-            controlsStack.Children.Add(btnsStack);
-
-            controlsBorder.Child = controlsStack;
-            Grid.SetRow(controlsBorder, 0);
-            trainerGrid.Children.Add(controlsBorder);
-
-            var meterStack = new StackPanel { Margin = new Thickness(0, 0, 0, 10) };
-            meterStack.Children.Add(new TextBlock { Text = "🎙️ Live Audio Input Level Meter:", FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = Brushes.Gray, Margin = new Thickness(2, 0, 0, 4) });
-
-            _audioLevelBar = new ProgressBar
-            {
-                Height = 14,
-                Minimum = 0,
-                Maximum = 100,
-                Value = 0,
-                Foreground = Brushes.LimeGreen,
-                Background = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255))
-            };
-            meterStack.Children.Add(_audioLevelBar);
-            Grid.SetRow(meterStack, 1);
-            trainerGrid.Children.Add(meterStack);
-
-            var samplesScroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-            _samplesPanel = new StackPanel();
-            samplesScroll.Content = _samplesPanel;
-            Grid.SetRow(samplesScroll, 2);
-            trainerGrid.Children.Add(samplesScroll);
-
-            trainerTab.Content = trainerGrid;
-            tabControl.Items.Add(trainerTab);
-
-            // ── TAB 3: ⚡ Multi-Word Chunk Trainer (Batch Mode) ────────────────────
-            var chunkTab = new TabItem { Header = "⚡ Multi-Word Chunk Trainer" };
-            var chunkGrid = new Grid { Margin = new Thickness(14) };
-            chunkGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            chunkGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            chunkGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-            var chunkTopStack = new StackPanel { Margin = new Thickness(0, 0, 0, 10) };
-            chunkTopStack.Children.Add(new TextBlock
-            {
-                Text = "⚡ Train Multiple Words & Phrases in One Single Recording:",
-                FontSize = 13,
-                FontWeight = FontWeights.Bold,
-                Foreground = Brushes.Cyan
-            });
-            chunkTopStack.Children.Add(new TextBlock
-            {
-                Text = "Read the paragraph below naturally into your mic. Jarvis will automatically slice the audio into individual word tokens in 1 go!",
-                FontSize = 11,
-                Foreground = Brushes.Gray,
-                Margin = new Thickness(0, 2, 0, 8),
-                TextWrapping = TextWrapping.Wrap
-            });
-
-            var presetsStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
-            presetsStack.Children.Add(new TextBlock { Text = "Presets: ", FontSize = 11, FontWeight = FontWeights.Bold, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
-
-            var p1Btn = CreateStyledButton("⚡ System Power", (s, e) => _multiWordBox.Text = "Jarvis status report sleep hibernate shutdown lock computer flush dns firewall");
-            p1Btn.Padding = new Thickness(6, 2, 6, 2);
-            p1Btn.Margin = new Thickness(0, 0, 4, 0);
-
-            var p2Btn = CreateStyledButton("🎵 Media & Tasks", (s, e) => _multiWordBox.Text = "Jarvis play music volume up volume down mute next track sticky notes focus twenty five");
-            p2Btn.Padding = new Thickness(6, 2, 6, 2);
-            p2Btn.Margin = new Thickness(0, 0, 4, 0);
-
-            var p3Btn = CreateStyledButton("📂 Organization", (s, e) => _multiWordBox.Text = "Jarvis organize desktop organize downloads clean empty sort by date deduplicate folder");
-            p3Btn.Padding = new Thickness(6, 2, 6, 2);
-
-            presetsStack.Children.Add(p1Btn);
-            presetsStack.Children.Add(p2Btn);
-            presetsStack.Children.Add(p3Btn);
-            chunkTopStack.Children.Add(presetsStack);
-
-            Grid.SetRow(chunkTopStack, 0);
-            chunkGrid.Children.Add(chunkTopStack);
-
-            _multiWordBox = new TextBox
-            {
-                Text = "Jarvis status report sleep hibernate shutdown lock computer flush dns firewall play music volume up organize desktop focus twenty five",
-                AcceptsReturn = true,
-                TextWrapping = TextWrapping.Wrap,
-                Padding = new Thickness(10),
-                FontSize = 13,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
-            };
-            _multiWordBox.SetResourceReference(TextBox.BackgroundProperty, "WindowBackgroundBrush");
-            _multiWordBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
-            Grid.SetRow(_multiWordBox, 1);
-            chunkGrid.Children.Add(_multiWordBox);
-
-            var chunkControls = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 10, 0, 0) };
-            _chunkRecordBtn = CreateStyledButton("🔴 Record Multi-Word Chunk", (s, e) => ToggleMultiWordChunkRecording(), isPrimary: true);
-            _chunkRecordBtn.Width = 240;
-            chunkControls.Children.Add(_chunkRecordBtn);
-
-            Grid.SetRow(chunkControls, 2);
-            chunkGrid.Children.Add(chunkControls);
-
-            chunkTab.Content = chunkGrid;
-            tabControl.Items.Add(chunkTab);
-
-            // ── TAB 4: 📜 Guided Script Reader Wizard ──────────────────────────────
-            var scriptTab = new TabItem { Header = "📜 Guided Script Reader" };
-            var scriptGrid = new Grid { Margin = new Thickness(14) };
-            scriptGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            scriptGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            scriptGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-            var scriptHeaderStack = new StackPanel { Margin = new Thickness(0, 0, 0, 10) };
-            _scriptCounterText = new TextBlock { Text = "Prompt 1 of 10", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = Brushes.Cyan };
-            scriptHeaderStack.Children.Add(_scriptCounterText);
-
-            _scriptProgressBar = new ProgressBar { Height = 10, Minimum = 0, Maximum = 10, Value = 1, Margin = new Thickness(0, 6, 0, 0), Foreground = Brushes.Cyan };
-            scriptHeaderStack.Children.Add(_scriptProgressBar);
-            Grid.SetRow(scriptHeaderStack, 0);
-            scriptGrid.Children.Add(scriptHeaderStack);
-
-            var promptCard2 = new Border
-            {
-                Background = new SolidColorBrush(Color.FromArgb(35, 15, 23, 42)),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(80, 56, 189, 248)),
-                BorderThickness = new Thickness(1.5),
-                CornerRadius = new CornerRadius(12),
-                Padding = new Thickness(20),
-                Margin = new Thickness(0, 0, 0, 10)
-            };
-
-            var promptStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            promptStack.Children.Add(new TextBlock { Text = "Read the sentence out loud into your microphone:", FontSize = 12, Foreground = Brushes.Gray, Margin = new Thickness(0, 0, 0, 10) });
-
-            _scriptPromptText = new TextBlock
-            {
-                Text = $"\"{_trainingPrompts[0]}\"",
-                FontSize = 18,
-                FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White,
-                TextWrapping = TextWrapping.Wrap,
-                TextAlignment = TextAlignment.Center,
-                Margin = new Thickness(0, 10, 0, 10)
-            };
-            promptStack.Children.Add(_scriptPromptText);
-            promptCard2.Child = promptStack;
-
-            Grid.SetRow(promptCard2, 1);
-            scriptGrid.Children.Add(promptCard2);
-
-            var scriptBtnGrid = new Grid();
-            scriptBtnGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            scriptBtnGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            scriptBtnGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            var prevBtn = CreateStyledButton("⏮️ Prev Prompt", (s, e) => NavigateScriptPrompt(-1));
-            Grid.SetColumn(prevBtn, 0);
-            scriptBtnGrid.Children.Add(prevBtn);
-
-            var scriptCenterStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
-            _scriptRecordBtn = CreateStyledButton("🔴 Record Prompt", (s, e) => ToggleScriptRecording(), isPrimary: true);
-            _scriptRecordBtn.Width = 140;
-
-            _scriptPlayBtn = CreateStyledButton("▶ Playback", (s, e) => PlayScriptSample());
-            _scriptPlayBtn.Width = 120;
-            _scriptPlayBtn.IsEnabled = false;
-
-            scriptCenterStack.Children.Add(_scriptRecordBtn);
-            scriptCenterStack.Children.Add(_scriptPlayBtn);
-            Grid.SetColumn(scriptCenterStack, 1);
-            scriptBtnGrid.Children.Add(scriptCenterStack);
-
-            var nextBtn = CreateStyledButton("Next Prompt ➡️", (s, e) => NavigateScriptPrompt(1));
-            Grid.SetColumn(nextBtn, 2);
-            scriptBtnGrid.Children.Add(nextBtn);
-
-            Grid.SetRow(scriptBtnGrid, 2);
-            scriptGrid.Children.Add(scriptBtnGrid);
-
-            scriptTab.Content = scriptGrid;
-            tabControl.Items.Add(scriptTab);
-
-            // ── TAB 5: Voice Shortcuts & Calibration ────────────────────────────────
-            var calibrationTab = new TabItem { Header = "⚙ Calibration & Shortcuts" };
-            var calibGrid = new Grid { Margin = new Thickness(14) };
-            calibGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            calibGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-
-            var calibStack = new StackPanel();
-            calibStack.Children.Add(new TextBlock { Text = "Speech Confidence Filter (30% to 98% Strict Noise Gate):", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.LightGray });
-
-            var sliderGrid = new Grid { Margin = new Thickness(0, 4, 0, 8) };
-            sliderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            sliderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            _sensitivitySlider = new Slider
-            {
-                Minimum = 0.30,
-                Maximum = 0.98,
-                Value = SettingsManager.Current.MinVoiceConfidence,
-                TickFrequency = 0.02,
-                IsSnapToTickEnabled = true
-            };
-            _sensitivitySlider.ValueChanged += (s, e) =>
-            {
-                SettingsManager.Current.MinVoiceConfidence = Math.Round(_sensitivitySlider.Value, 2);
-                if (_sensitivityValText != null) _sensitivityValText.Text = $"{SettingsManager.Current.MinVoiceConfidence * 100:F0}%";
-                SettingsManager.Save();
-            };
-            Grid.SetColumn(_sensitivitySlider, 0);
-            sliderGrid.Children.Add(_sensitivitySlider);
-
-            _sensitivityValText = new TextBlock
-            {
-                Text = $"{SettingsManager.Current.MinVoiceConfidence * 100:F0}%",
-                FontSize = 13,
-                FontWeight = FontWeights.Bold,
-                Foreground = Brushes.Cyan,
-                Margin = new Thickness(10, 0, 0, 0),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            Grid.SetColumn(_sensitivityValText, 1);
-            sliderGrid.Children.Add(_sensitivityValText);
-
-            calibStack.Children.Add(sliderGrid);
-
-            // Audio Energy Volume Floor Slider
-            calibStack.Children.Add(new TextBlock { Text = "Microphone Audio Energy Floor (2% to 100% Required Volume):", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.LightGray, Margin = new Thickness(0, 6, 0, 0) });
-            var energyGrid = new Grid { Margin = new Thickness(0, 4, 0, 8) };
-            energyGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            energyGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            var energySlider = new Slider
-            {
-                Minimum = 0.02,
-                Maximum = 1.00,
-                Value = SettingsManager.Current.MicAudioEnergyFloor,
-                TickFrequency = 0.01,
-                IsSnapToTickEnabled = true
-            };
-            var energyText = new TextBlock
-            {
-                Text = $"{SettingsManager.Current.MicAudioEnergyFloor * 100:F0}%",
-                FontSize = 13,
-                FontWeight = FontWeights.Bold,
-                Foreground = Brushes.Cyan,
-                Margin = new Thickness(10, 0, 0, 0),
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            energySlider.ValueChanged += (s, e) =>
-            {
-                SettingsManager.Current.MicAudioEnergyFloor = (float)Math.Round(energySlider.Value, 2);
-                energyText.Text = $"{SettingsManager.Current.MicAudioEnergyFloor * 100:F0}%";
-                SettingsManager.Save();
-            };
-            Grid.SetColumn(energySlider, 0);
-            energyGrid.Children.Add(energySlider);
-            Grid.SetColumn(energyText, 1);
-            energyGrid.Children.Add(energyText);
-            calibStack.Children.Add(energyGrid);
-
-            // 1-Click Noise Gate Presets
-            calibStack.Children.Add(new TextBlock { Text = "🛡️ 1-Click Noise-Proof Presets:", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.LightGray, Margin = new Thickness(0, 6, 0, 4) });
-            var presetGrid = new UniformGrid { Columns = 4, Margin = new Thickness(0, 2, 0, 10) };
-
-            var pWhisper = CreateStyledButton("🎙️ Whisper", (s, e) =>
-            {
-                _sensitivitySlider.Value = 0.45;
-                energySlider.Value = 0.03;
-                TextOverlay.Show("🎙️ Whisper Mode Activated", 2500);
-            });
-            pWhisper.Margin = new Thickness(0, 0, 4, 0);
-            presetGrid.Children.Add(pWhisper);
-
-            var pBalanced = CreateStyledButton("⚖️ Balanced", (s, e) =>
-            {
-                _sensitivitySlider.Value = 0.65;
-                energySlider.Value = 0.08;
-                TextOverlay.Show("⚖️ Balanced Sensitivity Activated", 2500);
-            });
-            pBalanced.Margin = new Thickness(0, 0, 4, 0);
-            presetGrid.Children.Add(pBalanced);
-
-            var pStrict = CreateStyledButton("🛡️ Quiet Room", (s, e) =>
-            {
-                _sensitivitySlider.Value = 0.78;
-                energySlider.Value = 0.14;
-                TextOverlay.Show("🛡️ Quiet Room Filtering Activated", 2500);
-            });
-            pStrict.Margin = new Thickness(0, 0, 4, 0);
-            presetGrid.Children.Add(pStrict);
-
-            var pNoiseMax = CreateStyledButton("🛑 Noise-Proof Max", (s, e) =>
-            {
-                _sensitivitySlider.Value = 0.92;
-                energySlider.Value = 0.22;
-                TextOverlay.Show("🛑 Noise-Proof Max Activated", 2500);
-            }, isPrimary: true);
-            presetGrid.Children.Add(pNoiseMax);
-
-            calibStack.Children.Add(presetGrid);
-            Grid.SetRow(calibStack, 0);
-            calibGrid.Children.Add(calibStack);
-
-            var shortcutsScroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-            _shortcutsPanel = new StackPanel();
-            shortcutsScroll.Content = _shortcutsPanel;
-            Grid.SetRow(shortcutsScroll, 1);
-            calibGrid.Children.Add(shortcutsScroll);
-
-            calibrationTab.Content = calibGrid;
-            tabControl.Items.Add(calibrationTab);
-
-            // ── TAB 6: 🏷️ Voice Classification Studio & Dataset ───────────────────────────
-            var datasetTab = new TabItem { Header = "🏷️ Voice Dataset & Classification" };
-            var datasetGrid = new Grid { Margin = new Thickness(14) };
-            datasetGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            datasetGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-
-            var datasetHeaderStack = new StackPanel { Margin = new Thickness(0, 0, 0, 10) };
-            datasetHeaderStack.Children.Add(new TextBlock { Text = "🏷️ Recorded Voice Dataset & Classifier Studio", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = Brushes.Cyan });
-
-            // Master Voice Mode Toggle CheckBox
-            var voiceToggleCheck = new CheckBox
-            {
-                Content = "🎙️ Master Voice Recognition Mode Active (Uncheck to Disable Voice Mode)",
-                IsChecked = SettingsManager.Current.IsVoiceModeActive,
-                Foreground = Brushes.White,
-                FontSize = 12,
-                Margin = new Thickness(0, 6, 0, 8)
-            };
-            voiceToggleCheck.Click += (s, e) =>
-            {
-                bool isActive = voiceToggleCheck.IsChecked == true;
-                SettingsManager.Current.IsVoiceModeActive = isActive;
-                SettingsManager.Save();
-                if (isActive) LocalWakeWordDetector.Initialize();
-                else LocalWakeWordDetector.Stop();
-                TextOverlay.Show(isActive ? "🎙️ Voice Mode ENABLED" : "🔇 Voice Mode DISABLED", 2500);
-            };
-            datasetHeaderStack.Children.Add(voiceToggleCheck);
-
-            var trainBtn = CreateStyledButton("🧬 Train Acoustic Classification Model", (s, e) =>
-            {
-                string summary = VoiceDatasetManager.TrainClassifierModel();
-                MessageBox.Show(summary, "Voice Dataset Classifier", MessageBoxButton.OK, MessageBoxImage.Information);
-            }, isPrimary: true);
-            trainBtn.Margin = new Thickness(0, 4, 0, 8);
-            datasetHeaderStack.Children.Add(trainBtn);
-
-            Grid.SetRow(datasetHeaderStack, 0);
-            datasetGrid.Children.Add(datasetHeaderStack);
-
-            var datasetScroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-            var datasetStack = new StackPanel();
-
-            Action refreshDatasetUI = null!;
-            refreshDatasetUI = () =>
-            {
-                datasetStack.Children.Clear();
-                VoiceDatasetManager.LoadMetadata();
-
-                if (VoiceDatasetManager.Records.Count == 0)
-                {
-                    datasetStack.Children.Add(new TextBlock { Text = "No voice recordings found in dataset folder yet. Speak or record commands to populate!", FontSize = 11, Foreground = Brushes.Gray });
-                    return;
-                }
-
-                foreach (var rec in VoiceDatasetManager.Records)
-                {
-                    var card = new Border
-                    {
-                        Background = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)),
-                        CornerRadius = new CornerRadius(8),
-                        Padding = new Thickness(10),
-                        Margin = new Thickness(0, 0, 0, 8)
-                    };
-
-                    var cardGrid = new Grid();
-                    cardGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                    cardGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-                    var infoStack = new StackPanel();
-                    infoStack.Children.Add(new TextBlock { Text = $"🎵 {rec.FileName} [{rec.DurationSeconds:F1}s | {rec.FileSizeBytes / 1024} KB]", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
-                    infoStack.Children.Add(new TextBlock { Text = $"Recorded: {rec.RecordedAt:yyyy-MM-dd HH:mm:ss} | Current Label: {rec.Classification}", FontSize = 10, Foreground = Brushes.Cyan });
-
-                    Grid.SetColumn(infoStack, 0);
-                    cardGrid.Children.Add(infoStack);
-
-                    var btnStack = new StackPanel { Orientation = Orientation.Horizontal };
-
-                    var playBtn = CreateStyledButton("🔊 Play", (s, e) =>
-                    {
-                        if (File.Exists(rec.FilePath))
-                        {
-                            using var player = new System.Media.SoundPlayer(rec.FilePath);
-                            player.Play();
-                        }
-                    });
-                    playBtn.Margin = new Thickness(0, 0, 4, 0);
-                    btnStack.Children.Add(playBtn);
-
-                    var lblCmd = CreateStyledButton("🏷️ Cmd", (s, e) => { VoiceDatasetManager.ClassifyRecord(rec.FilePath, "Command"); refreshDatasetUI(); });
-                    lblCmd.Margin = new Thickness(0, 0, 4, 0);
-                    btnStack.Children.Add(lblCmd);
-
-                    var lblChat = CreateStyledButton("🏷️ AI", (s, e) => { VoiceDatasetManager.ClassifyRecord(rec.FilePath, "AI Chat"); refreshDatasetUI(); });
-                    lblChat.Margin = new Thickness(0, 0, 4, 0);
-                    btnStack.Children.Add(lblChat);
-
-                    var lblWake = CreateStyledButton("🏷️ Wake", (s, e) => { VoiceDatasetManager.ClassifyRecord(rec.FilePath, "Wake Word"); refreshDatasetUI(); });
-                    lblWake.Margin = new Thickness(0, 0, 4, 0);
-                    btnStack.Children.Add(lblWake);
-
-                    var delBtn = CreateStyledButton("❌ Delete", (s, e) => { VoiceDatasetManager.DeleteRecord(rec.FilePath); refreshDatasetUI(); });
-                    btnStack.Children.Add(delBtn);
-
-                    Grid.SetColumn(btnStack, 1);
-                    cardGrid.Children.Add(btnStack);
-
-                    card.Child = cardGrid;
-                    datasetStack.Children.Add(card);
-                }
-            };
-
-            refreshDatasetUI();
-            datasetScroll.Content = datasetStack;
-            Grid.SetRow(datasetScroll, 1);
-            datasetGrid.Children.Add(datasetScroll);
-
-            datasetTab.Content = datasetGrid;
-            tabControl.Items.Add(datasetTab);
-
-            Grid.SetRow(tabControl, 1);
+            Grid.SetRow(tabControl, 0);
             mainGrid.Children.Add(tabControl);
 
-            _statusText = new TextBlock
-            {
-                Text = "Ready to record voice samples and train speech profiles.",
-                FontSize = 11,
-                Foreground = Brushes.Gray,
-                Margin = new Thickness(4, 6, 0, 0)
-            };
-            Grid.SetRow(_statusText, 2);
+            _statusText = new TextBlock { Text = "Jarvis Systems Standby.", FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(4, 6, 0, 0) };
+            Grid.SetRow(_statusText, 1);
             mainGrid.Children.Add(_statusText);
 
             this.UserContent = mainGrid;
-
-            // Audio Meter & Endless Auto-Advancing Teleprompter Timer
-            _levelTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(80) };
-            _levelTimer.Tick += (s, e) => UpdateAudioMeterAndTeleprompter();
-            _levelTimer.Start();
-
-            RefreshSamplesList();
-            RefreshShortcutsList();
-
-            this.Closed += (s, e) =>
-            {
-                _levelTimer.Stop();
-                if (_isEndlessActive) VoiceTrainerManager.StopRecording();
-                _instance = null;
-            };
+            this.Closed += (s, e) => { _instance = null; };
         }
 
-        private void ToggleEndlessHandsFreeMode()
+        private UIElement BuildDatasetTab()
         {
-            string currentWord = _endlessWordBank[_endlessWordIndex];
+            var grid = new Grid { Margin = new Thickness(14) };
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
-            if (VoiceTrainerManager.IsRecording)
+            var header = new StackPanel();
+            header.Children.Add(new TextBlock { Text = "🏷️ Voice Dataset & Classifier", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Brushes.Cyan, Margin = new Thickness(0,0,0,10) });
+
+            var trainBtn = CreateStyledButton("🧬 Train Acoustic Model", (s, e) => MessageBox.Show(VoiceDatasetManager.TrainClassifierModel()), isPrimary: true);
+            header.Children.Add(trainBtn);
+            Grid.SetRow(header, 0);
+            grid.Children.Add(header);
+
+            _datasetStack = new StackPanel();
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = _datasetStack, Margin = new Thickness(0, 10, 0, 0) };
+            Grid.SetRow(scroll, 1);
+            grid.Children.Add(scroll);
+
+            RefreshDatasetUI();
+            return grid;
+        }
+
+        private UIElement BuildTeleprompterTab()
+        {
+            var grid = new Grid { Margin = new Thickness(14) };
+            grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var card = new Border { Background = new SolidColorBrush(Color.FromArgb(40, 15, 23, 42)), CornerRadius = new CornerRadius(16), Padding = new Thickness(24) };
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+
+            _endlessCurrentWordText = new TextBlock { Text = _endlessWordBank[0], FontSize = 48, FontWeight = FontWeights.Bold, Foreground = Brushes.Cyan, HorizontalAlignment = HorizontalAlignment.Center };
+            _endlessNextWordText = new TextBlock { Text = "Next: " + _endlessWordBank[1], FontSize = 14, Foreground = Brushes.Gray, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0,10,0,0) };
+
+            stack.Children.Add(_endlessCurrentWordText);
+            stack.Children.Add(_endlessNextWordText);
+            card.Child = stack;
+            Grid.SetRow(card, 0);
+            grid.Children.Add(card);
+
+            var controls = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 20, 0, 0) };
+            controls.Children.Add(CreateStyledButton("🔴 Record Word", (s, e) => AdvanceWord(), isPrimary: true));
+            controls.Children.Add(CreateStyledButton("Skip ➡️", (s, e) => AdvanceWord(), margin: new Thickness(10, 0, 0, 0)));
+            Grid.SetRow(controls, 1);
+            grid.Children.Add(controls);
+
+            return grid;
+        }
+
+        private UIElement BuildCalibrationTab()
+        {
+            var stack = new StackPanel { Margin = new Thickness(14) };
+            stack.Children.Add(new TextBlock { Text = "🎛️ Audio Calibration", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Brushes.Cyan, Margin = new Thickness(0,0,0,15) });
+
+            stack.Children.Add(new TextBlock { Text = "Speech Confidence Gate:", FontSize = 12, Foreground = Brushes.White });
+            var slider = new Slider { Minimum = 0.3, Maximum = 0.98, Value = SettingsManager.Current.MinVoiceConfidence, Margin = new Thickness(0, 5, 0, 15) };
+            slider.ValueChanged += (s, e) => { SettingsManager.Current.MinVoiceConfidence = slider.Value; SettingsManager.Save(); };
+            stack.Children.Add(slider);
+
+            stack.Children.Add(new TextBlock { Text = "Mic Energy Floor:", FontSize = 12, Foreground = Brushes.White });
+            var energy = new Slider { Minimum = 0.02, Maximum = 1.0, Value = SettingsManager.Current.MicAudioEnergyFloor, Margin = new Thickness(0, 5, 0, 15) };
+            energy.ValueChanged += (s, e) => { SettingsManager.Current.MicAudioEnergyFloor = (float)energy.Value; SettingsManager.Save(); };
+            stack.Children.Add(energy);
+
+            return stack;
+        }
+
+        private UIElement BuildShortcutsTab()
+        {
+            var stack = new StackPanel { Margin = new Thickness(14) };
+            stack.Children.Add(new TextBlock { Text = "⚡ Voice Shortcuts", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Brushes.Cyan, Margin = new Thickness(0,0,0,10) });
+            stack.Children.Add(new TextBlock { Text = "Map spoken phrases to system commands.", FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(0,0,0,10) });
+            return stack;
+        }
+
+        private void RefreshDatasetUI()
+        {
+            _datasetStack.Children.Clear();
+            VoiceDatasetManager.LoadMetadata();
+            foreach (var rec in VoiceDatasetManager.DatasetRecords.TakeLast(20))
             {
-                // Stop recording & submit word to trained profile!
-                var sample = VoiceTrainerManager.StopRecording(currentWord);
-                _endlessToggleBtn.Content = "🔴 Record Word";
+                var border = new Border { Background = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255)), CornerRadius = new CornerRadius(8), Padding = new Thickness(10), Margin = new Thickness(0, 0, 0, 8) };
+                var stack = new StackPanel();
+                stack.Children.Add(new TextBlock { Text = rec.FileName, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
+                stack.Children.Add(new TextBlock { Text = "Label: " + rec.Classification + " | " + rec.RecordedAt.ToString("HH:mm:ss"), FontSize = 10, Foreground = Brushes.Cyan });
 
-                if (sample != null)
-                {
-                    _endlessTrainedCount++;
-                    _endlessCountText.Text = $"♾️ Controlled Voice Teleprompter • Words Trained: {_endlessTrainedCount}";
-                    _statusText.Text = $"✅ Submitted recording for \"{currentWord}\"!";
-                    TextOverlay.Show($"✅ Saved sample for \"{currentWord}\"!", 2000);
-                    try { System.Media.SystemSounds.Asterisk.Play(); } catch { }
-                    RefreshSamplesList();
-                }
+                var btns = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 5, 0, 0) };
+                btns.Children.Add(CreateStyledButton("🔊 Play", (s, e) => VoiceTrainerManager.PlaySample(rec.FilePath)));
+                btns.Children.Add(CreateStyledButton("🔬 Bit Data", async (s, e) => MessageBox.Show(await VoiceDatasetManager.AnalyzeBitDataAsync(rec.FilePath))));
+                btns.Children.Add(CreateStyledButton("❌", (s, e) => { VoiceDatasetManager.DeleteRecord(rec.FilePath); RefreshDatasetUI(); }));
 
-                // Advance to next word
-                AdvanceEndlessWord();
-            }
-            else
-            {
-                // Start recording active word
-                VoiceTrainerManager.StartRecording(currentWord);
-                _endlessToggleBtn.Content = "⏹ Stop & Submit Word";
-                _statusText.Text = $"🔴 Recording: \"{currentWord}\"... Click 'Stop & Submit' when finished speaking.";
-                TextOverlay.Show($"🔴 Recording: \"{currentWord}\"", 1500);
+                stack.Children.Add(btns);
+                border.Child = stack;
+                _datasetStack.Children.Add(border);
             }
         }
 
-        private void AdvanceEndlessWord()
+        private void AdvanceWord()
         {
             _endlessWordIndex = (_endlessWordIndex + 1) % _endlessWordBank.Length;
-            int nextIndex = (_endlessWordIndex + 1) % _endlessWordBank.Length;
-
-            _endlessCurrentWordText.Text = $"\"{_endlessWordBank[_endlessWordIndex]}\"";
-            _endlessNextWordText.Text = $"Next Word: \"{_endlessWordBank[nextIndex]}\"";
-            _endlessToggleBtn.Content = "🔴 Record Word";
-            _statusText.Text = $"Current Word: \"{_endlessWordBank[_endlessWordIndex]}\". Click 'Record Word' to begin.";
+            _endlessCurrentWordText.Text = _endlessWordBank[_endlessWordIndex];
+            _endlessNextWordText.Text = "Next: " + _endlessWordBank[(_endlessWordIndex + 1) % _endlessWordBank.Length];
         }
 
-        private void UpdateAudioMeterAndTeleprompter()
+        private static Button CreateStyledButton(string content, RoutedEventHandler action, bool isPrimary = false, Thickness margin = default)
         {
-            if (VoiceTrainerManager.IsRecording)
-            {
-                double volume = VoiceTrainerManager.GetLiveAudioLevel();
-                _audioLevelBar.Value = Math.Min(100, Math.Max(0, volume * 1.5));
-            }
-            else
-            {
-                _audioLevelBar.Value = Math.Max(0, _audioLevelBar.Value - 10);
-            }
-        }
-
-        private void ToggleMultiWordChunkRecording()
-        {
-            if (VoiceTrainerManager.IsRecording)
-            {
-                string text = _multiWordBox.Text.Trim();
-                var samples = VoiceTrainerManager.StopRecordingAndChunkWords(text);
-                _chunkRecordBtn.Content = "🔴 Record Multi-Word Chunk";
-                _statusText.Text = $"⚡ Sliced & saved {samples.Count} individual word samples in 1 go!";
-                TextOverlay.Show($"⚡ Auto-chunked {samples.Count} word samples into voice profile!", 3000);
-                RefreshSamplesList();
-            }
-            else
-            {
-                string text = _multiWordBox.Text.Trim();
-                if (string.IsNullOrEmpty(text))
-                {
-                    TextOverlay.Show("⚠️ Enter a multi-word paragraph first!", 2000);
-                    return;
-                }
-                VoiceTrainerManager.StartRecording("Multi-Word Chunk");
-                _chunkRecordBtn.Content = "⏹ Stop & Auto-Chunk Words";
-                _statusText.Text = "🔴 Recording multi-word paragraph continuously...";
-            }
-        }
-
-        private void NavigateScriptPrompt(int delta)
-        {
-            _scriptIndex += delta;
-            if (_scriptIndex < 0) _scriptIndex = 0;
-            if (_scriptIndex >= _trainingPrompts.Length) _scriptIndex = _trainingPrompts.Length - 1;
-
-            _scriptCounterText.Text = $"Prompt {_scriptIndex + 1} of {_trainingPrompts.Length}";
-            _scriptProgressBar.Value = _scriptIndex + 1;
-            _scriptPromptText.Text = $"\"{_trainingPrompts[_scriptIndex]}\"";
-            _lastScriptSample = null;
-            _scriptPlayBtn.IsEnabled = false;
-        }
-
-        private void ToggleScriptRecording()
-        {
-            if (VoiceTrainerManager.IsRecording)
-            {
-                _lastScriptSample = VoiceTrainerManager.StopRecording();
-                _scriptRecordBtn.Content = "🔴 Record Prompt";
-                if (_lastScriptSample != null)
-                {
-                    _lastScriptSample.Phrase = _trainingPrompts[_scriptIndex];
-                    VoiceTrainerManager.SaveVoiceSample(_lastScriptSample);
-                    _scriptPlayBtn.IsEnabled = true;
-                    _statusText.Text = $"✅ Saved recording for Prompt {_scriptIndex + 1}!";
-                    RefreshSamplesList();
-                }
-            }
-            else
-            {
-                VoiceTrainerManager.StartRecording(_trainingPrompts[_scriptIndex]);
-                _scriptRecordBtn.Content = "⏹ Stop Recording";
-                _statusText.Text = $"🔴 Recording Prompt {_scriptIndex + 1}...";
-            }
-        }
-
-        private void PlayScriptSample()
-        {
-            if (_lastScriptSample != null)
-            {
-                VoiceTrainerManager.PlaySample(_lastScriptSample);
-            }
-        }
-
-        private void ToggleRecording()
-        {
-            if (VoiceTrainerManager.IsRecording)
-            {
-                _lastRecordedSample = VoiceTrainerManager.StopRecording();
-                _recordBtn.Content = "🔴 Start Recording";
-                if (_lastRecordedSample != null)
-                {
-                    _playBtn.IsEnabled = true;
-                    _statusText.Text = $"Recorded sample ({_lastRecordedSample.DurationSeconds:F1}s)";
-                }
-            }
-            else
-            {
-                string phrase = _phraseBox.Text.Trim();
-                if (string.IsNullOrEmpty(phrase)) phrase = "Hey Jarvis";
-
-                VoiceTrainerManager.StartRecording(phrase);
-                _recordBtn.Content = "⏹ Stop Recording";
-                _statusText.Text = $"Recording sample for \"{phrase}\"...";
-            }
-        }
-
-        private void PlayLastSample()
-        {
-            if (_lastRecordedSample != null)
-            {
-                VoiceTrainerManager.PlaySample(_lastRecordedSample);
-            }
-        }
-
-        private void SaveVoiceCommand()
-        {
-            if (_lastRecordedSample == null)
-            {
-                TextOverlay.Show("⚠️ Record an audio sample first!", 2000);
-                return;
-            }
-
-            string phrase = _phraseBox.Text.Trim();
-            string command = _commandBox.Text.Trim();
-
-            if (string.IsNullOrEmpty(phrase))
-            {
-                TextOverlay.Show("⚠️ Enter a target phrase!", 2000);
-                return;
-            }
-
-            _lastRecordedSample.Phrase = phrase;
-            _lastRecordedSample.AssociatedCommand = command;
-
-            VoiceTrainerManager.SaveVoiceSample(_lastRecordedSample);
-
-            if (!string.IsNullOrEmpty(command))
-            {
-                VoiceTrainerManager.SetCustomVoiceShortcut(phrase, command);
-            }
-
-            TextOverlay.Show($"💾 Saved Voice Command: \"{phrase}\"!", 2500);
-            _statusText.Text = $"Saved voice command for \"{phrase}\"";
-
-            RefreshSamplesList();
-            RefreshShortcutsList();
-        }
-
-        private void RefreshSamplesList()
-        {
-            _samplesPanel.Children.Clear();
-            var samples = VoiceTrainerManager.Profile.Samples;
-
-            if (samples.Count == 0)
-            {
-                _samplesPanel.Children.Add(new TextBlock
-                {
-                    Text = "No trained voice samples yet. Click 'Start Recording' above!",
-                    FontSize = 11,
-                    Foreground = Brushes.DarkGray,
-                    Margin = new Thickness(4)
-                });
-                return;
-            }
-
-            foreach (var s in samples)
-            {
-                var card = new Border
-                {
-                    Background = new SolidColorBrush(Color.FromArgb(15, 255, 255, 255)),
-                    CornerRadius = new CornerRadius(6),
-                    Padding = new Thickness(8),
-                    Margin = new Thickness(0, 0, 0, 6)
-                };
-
-                var grid = new Grid();
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-                var infoStack = new StackPanel();
-                infoStack.Children.Add(new TextBlock { Text = $"🗣 \"{s.Phrase}\"", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
-                infoStack.Children.Add(new TextBlock { Text = $"{s.RecordedAt:yyyy-MM-dd HH:mm} • {s.DurationSeconds:F1}s", FontSize = 10, Foreground = Brushes.Gray });
-
-                Grid.SetColumn(infoStack, 0);
-                grid.Children.Add(infoStack);
-
-                var btnsStack = new StackPanel { Orientation = Orientation.Horizontal };
-                var playBtn = CreateStyledButton("▶ Play", (snd, ev) => VoiceTrainerManager.PlaySample(s));
-                playBtn.Padding = new Thickness(6, 2, 6, 2);
-                playBtn.Margin = new Thickness(0, 0, 4, 0);
-
-                var delBtn = CreateStyledButton("🗑", (snd, ev) =>
-                {
-                    VoiceTrainerManager.DeleteSample(s.Id);
-                    RefreshSamplesList();
-                });
-                delBtn.Padding = new Thickness(6, 2, 6, 2);
-
-                btnsStack.Children.Add(playBtn);
-                btnsStack.Children.Add(delBtn);
-                Grid.SetColumn(btnsStack, 1);
-                grid.Children.Add(btnsStack);
-
-                card.Child = grid;
-                _samplesPanel.Children.Add(card);
-            }
-        }
-
-        private void RefreshShortcutsList()
-        {
-            _shortcutsPanel.Children.Clear();
-            var shortcuts = VoiceTrainerManager.Profile.CustomVoiceShortcuts;
-
-            if (shortcuts.Count == 0)
-            {
-                _shortcutsPanel.Children.Add(new TextBlock
-                {
-                    Text = "No custom voice shortcuts mapped yet.",
-                    FontSize = 11,
-                    Foreground = Brushes.DarkGray,
-                    Margin = new Thickness(4)
-                });
-                return;
-            }
-
-            foreach (var kvp in shortcuts)
-            {
-                var row = new Grid { Margin = new Thickness(0, 0, 0, 6) };
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-                var text = new TextBlock
-                {
-                    Text = $"🗣 \"{kvp.Key}\"  ➜  ⚡ {kvp.Value}",
-                    FontSize = 12,
-                    Foreground = Brushes.LightCyan,
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                Grid.SetColumn(text, 0);
-                row.Children.Add(text);
-
-                var delBtn = CreateStyledButton("🗑", (s, e) =>
-                {
-                    VoiceTrainerManager.RemoveCustomVoiceShortcut(kvp.Key);
-                    RefreshShortcutsList();
-                });
-                delBtn.Padding = new Thickness(6, 2, 6, 2);
-                Grid.SetColumn(delBtn, 1);
-                row.Children.Add(delBtn);
-
-                _shortcutsPanel.Children.Add(row);
-            }
+            var b = BaseOverlay.CreateStyledButton(content, action, isPrimary);
+            b.Margin = margin;
+            return b;
         }
     }
 }

@@ -395,7 +395,8 @@ namespace JarvisLauncher
                 if (!string.IsNullOrWhiteSpace(cleanText) && !isNoiseText && !isTinyNoiseWord)
                 {
                     _lastInteractionTime = DateTime.Now;
-                    await ChatOverlay.SubmitVoiceCommand(cleanText, false);
+                    // Use fire-and-forget to ensure voice thread isn't held up by UI tasks
+                    _ = ChatOverlay.SubmitVoiceCommand(cleanText, false);
                 }
                 else
                 {
