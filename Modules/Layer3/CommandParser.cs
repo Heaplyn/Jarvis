@@ -245,15 +245,15 @@ namespace JarvisLauncher
             if (expandedQuery.Length <= 4)
             {
                 var topResults = QueryLearner.GetTopResults(expandedQuery, topN: 3);
-                foreach (var (title, count) in topResults)
+                foreach (var (title, origQuery, count) in topResults)
                 {
-                    string targetTitle = title;
+                    string targetQuery = origQuery;
                     suggestions.Add(new CommandResult
                     {
                         Title       = title.StartsWith("⭐ ") ? title : $"⭐ {title}",
                         Description = $"Recently used ({count}×) — click or press Enter to run",
                         Similarity  = 7.0 + Math.Min(3.0, Math.Sqrt(count) * 0.5), // Always at top
-                        Execute     = () => ExecuteFirstSuggestion(targetTitle)
+                        Execute     = () => ExecuteFirstSuggestion(targetQuery)
                     });
                 }
             }
@@ -354,10 +354,21 @@ namespace JarvisLauncher
                 .GroupBy(s => s.Title, StringComparer.OrdinalIgnoreCase)
                 .Select(g => g.OrderByDescending(s => s.Similarity).First())
                 .OrderByDescending(s => s.Similarity)
-                .Take(12)
                 .ToList();
 
-            return deduped;
+            // 7. Last Resort: If no high-confidence command or app exists, suggest AI Chat
+            if (!string.IsNullOrWhiteSpace(expandedQuery) && !deduped.Any(s => s.Similarity >= 8.0))
+            {
+                deduped.Add(new CommandResult
+                {
+                    Title = $"🧠 Ask Assistant: \"{expandedQuery}\"",
+                    Description = "No exact command match found. Route this query to Jarvis AI Chat.",
+                    Similarity = 1.0, // Low but present
+                    Execute = () => ChatOverlay.SubmitTextMessage(expandedQuery)
+                });
+            }
+
+            return deduped.Take(12).ToList();
         }
 
         public static void ExecuteFirstSuggestion(string query)
@@ -407,16 +418,74 @@ namespace JarvisLauncher
                 }
             }
 
-            // Fallback: paste the query into the search box if no exact handler matches
-            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            // Fallback: If no local command or app is found, route to Gemini AI to parse intent!
+            System.Threading.Tasks.Task.Run(async () =>
             {
-                if (System.Windows.Application.Current.MainWindow is MainWindow mw)
+                try
                 {
-                    mw.SearchInput.Text = cleanQuery;
-                    mw.SearchInput.CaretIndex = cleanQuery.Length;
-                    mw.SearchInput.Focus();
+                    await ChatOverlay.SubmitVoiceCommand(cleanQuery, showUi: true);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"AI Fallback error: {ex.Message}");
                 }
             });
+        }
+
+        public static void ExecuteSuggestionByTitle(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title)) return;
+            string targetTitleClean = CleanTitlePrefixes(title).ToLower().Trim();
+
+            // CRITICAL POWER SAFETY SHIELD: NEVER auto-execute power-state operations from fuzzy or star queries!
+            if (targetTitleClean.Contains("shutdown") || targetTitleClean.Contains("sleep") || 
+                targetTitleClean.Contains("reboot") || targetTitleClean.Contains("restart pc") ||
+                targetTitleClean.Contains("power off") || targetTitleClean.Contains("turn off"))
+            {
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    if (System.Windows.Application.Current.MainWindow is MainWindow mw)
+                    {
+                        mw.SearchInput.Text = title;
+                        mw.SearchInput.CaretIndex = title.Length;
+                        mw.SearchInput.Focus();
+                    }
+                });
+                TextOverlay.Show("⚠️ Power action requires manual execution.", 3000);
+                return;
+            }
+
+            // Look up exact suggestion by iterating through all registered handlers
+            foreach (var (type, handler) in Handlers)
+            {
+                try
+                {
+                    var descs = handler.Item2.GetCommandDescriptions();
+                    foreach (var desc in descs)
+                    {
+                        var results = handler.Item2.GetSuggestions(desc.CommandName);
+                        if (results != null)
+                        {
+                            foreach (var s in results)
+                            {
+                                string cleanS = CleanTitlePrefixes(s.Title).ToLower().Trim();
+                                if (cleanS == targetTitleClean || targetTitleClean.Contains(cleanS) || cleanS.Contains(targetTitleClean))
+                                {
+                                    if (s.Execute != null)
+                                    {
+                                        s.Execute.Invoke();
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            // Fallback: search for it using ExecuteFirstSuggestion
+            ExecuteFirstSuggestion(title);
         }
 
         public static string CleanTitlePrefixes(string title)

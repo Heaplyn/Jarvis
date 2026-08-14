@@ -61,6 +61,12 @@ namespace JarvisLauncher
             var geminiKey = CreateTextBox(SettingsManager.Current.GoogleAIKey);
             geminiKey.TextChanged += (s, e) => SettingsManager.Current.GoogleAIKey = geminiKey.Text.Trim();
             _geminiPanel.Children.Add(geminiKey);
+
+            _geminiPanel.Children.Add(CreateLabel("Gemini Model (e.g. gemini-2.0-flash, gemini-1.5-pro):"));
+            var geminiModel = CreateTextBox(SettingsManager.Current.GeminiModel);
+            geminiModel.TextChanged += (s, e) => SettingsManager.Current.GeminiModel = geminiModel.Text.Trim();
+            _geminiPanel.Children.Add(geminiModel);
+
             root.Children.Add(_geminiPanel);
 
             // ── OpenAI Panel ──────────────────────────────────────────────────────────

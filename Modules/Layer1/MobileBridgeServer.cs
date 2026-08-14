@@ -182,7 +182,7 @@ namespace JarvisLauncher
                         {
                             using var doc = JsonDocument.Parse(body);
                             string prompt = doc.RootElement.TryGetProperty("prompt", out var pProp) ? pProp.GetString() ?? "" : "";
-                            reply = await AiAPI.AskGemini(prompt);
+                            reply = await LlmRouter.AskAsync(prompt);
                         }
                         catch (Exception ex) { reply = $"Error: {ex.Message}"; }
                         string json = JsonSerializer.Serialize(new { response = reply });

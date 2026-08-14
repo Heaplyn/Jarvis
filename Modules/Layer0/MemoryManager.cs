@@ -47,6 +47,11 @@ namespace JarvisLauncher
             _cts = null;
         }
 
+        public static string GetCurrentWindowTitle()
+        {
+            return _lastWindowTitle;
+        }
+
         public static void LogInternalAction(string action)
         {
             try

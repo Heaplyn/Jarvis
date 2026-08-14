@@ -477,7 +477,7 @@ namespace JarvisLauncher
             calibStack.Children.Add(sliderGrid);
 
             // Audio Energy Volume Floor Slider
-            calibStack.Children.Add(new TextBlock { Text = "Microphone Audio Energy Floor (2% to 30% Required Volume):", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.LightGray, Margin = new Thickness(0, 6, 0, 0) });
+            calibStack.Children.Add(new TextBlock { Text = "Microphone Audio Energy Floor (2% to 100% Required Volume):", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.LightGray, Margin = new Thickness(0, 6, 0, 0) });
             var energyGrid = new Grid { Margin = new Thickness(0, 4, 0, 8) };
             energyGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             energyGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -485,7 +485,7 @@ namespace JarvisLauncher
             var energySlider = new Slider
             {
                 Minimum = 0.02,
-                Maximum = 0.30,
+                Maximum = 1.00,
                 Value = SettingsManager.Current.MicAudioEnergyFloor,
                 TickFrequency = 0.01,
                 IsSnapToTickEnabled = true
