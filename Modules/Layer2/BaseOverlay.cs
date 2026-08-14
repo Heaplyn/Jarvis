@@ -96,6 +96,23 @@ namespace JarvisLauncher
             if (onClick != null) btn.Click += onClick;
             return btn;
         }
+
+        protected TextBox CreateTextBox()
+        {
+            var box = new TextBox
+            {
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(6, 4, 6, 4),
+                FontSize = 12,
+                FontFamily = new FontFamily("Segoe UI"),
+                Margin = new Thickness(0, 0, 0, 8)
+            };
+            box.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
+            box.SetResourceReference(TextBox.CaretBrushProperty, "AccentCaretBrush");
+            box.SetResourceReference(TextBox.BorderBrushProperty, "WindowBorderBrush");
+            return box;
+        }
         // ─────────────────────────────────────────────────────────────────────────
 
         private Grid _mainGrid;
@@ -330,10 +347,22 @@ namespace JarvisLauncher
             // Bring to front on focus (e.g. Alt+Tab or programmatic Activate())
             this.Activated += (s, e) => BringToFront();
 
-            // Hook Fade-in + initial z-order elevation
+            // Window Bounds & Minimized State Memory Persistence Hooks
+            this.LocationChanged += (s, e) => WindowMemoryManager.SaveWindowBounds(_originalTitle, this, _isMiniMode);
+            this.SizeChanged += (s, e) => WindowMemoryManager.SaveWindowBounds(_originalTitle, this, _isMiniMode);
+            this.StateChanged += (s, e) => WindowMemoryManager.SaveWindowBounds(_originalTitle, this, _isMiniMode);
+
+            // Hook Fade-in + initial z-order elevation + restore window memory
             this.Loaded += (s, e) =>
             {
                 BringToFront();
+                AttachPasteContextMenuToAllTextBoxes(this);
+
+                if (WindowMemoryManager.RestoreWindowBounds(_originalTitle, this, out bool storedMiniMode))
+                {
+                    if (storedMiniMode && !_isMiniMode) ToggleMiniMode();
+                }
+
                 if (SettingsManager.Current.EnableAnimations)
                 {
                     var fadeIn = new DoubleAnimation(0, 1.0, TimeSpan.FromMilliseconds(200));
@@ -348,8 +377,48 @@ namespace JarvisLauncher
             // Bring to front when made visible again (re-shown from hidden)
             this.IsVisibleChanged += (s, e) =>
             {
-                if (this.IsVisible) BringToFront();
+                if (this.IsVisible)
+                {
+                    BringToFront();
+                    AttachPasteContextMenuToAllTextBoxes(this);
+                }
             };
+        }
+
+        private static void AttachPasteContextMenuToAllTextBoxes(DependencyObject parent)
+        {
+            if (parent == null) return;
+            int count = VisualTreeHelper.GetChildrenCount(parent);
+            for (int i = 0; i < count; i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is TextBox box)
+                {
+                    if (box.ContextMenu == null)
+                    {
+                        var menu = new ContextMenu();
+
+                        var pasteItem = new MenuItem { Header = "📋 Paste (Ctrl+V)" };
+                        pasteItem.Click += (s, e) => { if (Clipboard.ContainsText()) box.Paste(); };
+                        menu.Items.Add(pasteItem);
+
+                        var copyItem = new MenuItem { Header = "📄 Copy (Ctrl+C)" };
+                        copyItem.Click += (s, e) => box.Copy();
+                        menu.Items.Add(copyItem);
+
+                        var cutItem = new MenuItem { Header = "✂️ Cut (Ctrl+X)" };
+                        cutItem.Click += (s, e) => box.Cut();
+                        menu.Items.Add(cutItem);
+
+                        var selectAllItem = new MenuItem { Header = "🔍 Select All (Ctrl+A)" };
+                        selectAllItem.Click += (s, e) => box.SelectAll();
+                        menu.Items.Add(selectAllItem);
+
+                        box.ContextMenu = menu;
+                    }
+                }
+                AttachPasteContextMenuToAllTextBoxes(child);
+            }
         }
 
         private void ToggleMiniMode()
@@ -397,6 +466,8 @@ namespace JarvisLauncher
 
                 _isMiniMode = false;
             }
+
+            WindowMemoryManager.SaveWindowBounds(_originalTitle, this, _isMiniMode);
         }
 
         protected object UserContent
@@ -466,6 +537,65 @@ namespace JarvisLauncher
             {
                 this.Close();
             }
+        }
+
+        public static void StyleTabControl(TabControl tabControl)
+        {
+            tabControl.Background = Brushes.Transparent;
+            tabControl.BorderThickness = new Thickness(0);
+
+            // Create TabItem Style
+            var tabItemStyle = new Style(typeof(TabItem));
+            
+            // Set Default Properties
+            tabItemStyle.Setters.Add(new Setter(TabItem.ForegroundProperty, new SolidColorBrush(Color.FromArgb(180, 255, 255, 255))));
+            tabItemStyle.Setters.Add(new Setter(TabItem.BackgroundProperty, Brushes.Transparent));
+            tabItemStyle.Setters.Add(new Setter(TabItem.BorderThicknessProperty, new Thickness(0)));
+            tabItemStyle.Setters.Add(new Setter(TabItem.PaddingProperty, new Thickness(14, 8, 14, 8)));
+            tabItemStyle.Setters.Add(new Setter(TabItem.MarginProperty, new Thickness(0, 0, 6, 0)));
+            tabItemStyle.Setters.Add(new Setter(TabItem.CursorProperty, Cursors.Hand));
+            tabItemStyle.Setters.Add(new Setter(TabItem.FontWeightProperty, FontWeights.SemiBold));
+            tabItemStyle.Setters.Add(new Setter(TabItem.FontSizeProperty, 12.0));
+
+            // Create ControlTemplate
+            var template = new ControlTemplate(typeof(TabItem));
+            
+            var borderFactory = new FrameworkElementFactory(typeof(Border));
+            borderFactory.Name = "TabBorder";
+            borderFactory.SetValue(Border.CornerRadiusProperty, new CornerRadius(6, 6, 0, 0));
+            borderFactory.SetValue(Border.BackgroundProperty, new TemplateBindingExtension(TabItem.BackgroundProperty));
+            borderFactory.SetValue(Border.BorderBrushProperty, new TemplateBindingExtension(TabItem.BorderBrushProperty));
+            borderFactory.SetValue(Border.BorderThicknessProperty, new TemplateBindingExtension(TabItem.BorderThicknessProperty));
+            borderFactory.SetValue(Border.PaddingProperty, new TemplateBindingExtension(TabItem.PaddingProperty));
+
+            var contentFactory = new FrameworkElementFactory(typeof(ContentPresenter));
+            contentFactory.Name = "ContentSite";
+            contentFactory.SetValue(ContentPresenter.ContentSourceProperty, "Header");
+            contentFactory.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            contentFactory.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
+            contentFactory.SetValue(ContentPresenter.RecognizesAccessKeyProperty, true);
+
+            borderFactory.AppendChild(contentFactory);
+            template.VisualTree = borderFactory;
+
+            // Trigger: MouseOver
+            var hoverTrigger = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
+            hoverTrigger.Setters.Add(new Setter(TabItem.BackgroundProperty, new SolidColorBrush(Color.FromArgb(15, 255, 255, 255))));
+            hoverTrigger.Setters.Add(new Setter(TabItem.ForegroundProperty, Brushes.White));
+            template.Triggers.Add(hoverTrigger);
+
+            // Trigger: Selected
+            var selectedTrigger = new Trigger { Property = TabItem.IsSelectedProperty, Value = true };
+            selectedTrigger.Setters.Add(new Setter(TabItem.BackgroundProperty, new SolidColorBrush(Color.FromArgb(20, 0, 255, 255))));
+            selectedTrigger.Setters.Add(new Setter(TabItem.BorderBrushProperty, new SolidColorBrush(Color.FromArgb(255, 0, 255, 255))));
+            selectedTrigger.Setters.Add(new Setter(TabItem.BorderThicknessProperty, new Thickness(0, 0, 0, 3)));
+            selectedTrigger.Setters.Add(new Setter(TabItem.ForegroundProperty, new SolidColorBrush(Color.FromArgb(255, 0, 255, 255))));
+            template.Triggers.Add(selectedTrigger);
+
+            tabItemStyle.Setters.Add(new Setter(TabItem.TemplateProperty, template));
+
+            // Apply style to all items dynamically
+            tabControl.ItemContainerStyle = tabItemStyle;
         }
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)

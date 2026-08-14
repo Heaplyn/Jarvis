@@ -1,0 +1,95 @@
+// Developer: heaplyn
+// Date: 2026-08-13
+// Summary: Command Handler for Model Context Protocol (MCP) Registry Studio and MCP tools enumeration.
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace JarvisLauncher
+{
+    public class McpCommandHandler : ICommandHandler
+    {
+        public bool CanHandle(string query)
+        {
+            query = query.Trim().ToLower();
+            return query == "mcp" || query == "mcpstudio" || query == "mcpgui" || query == "mcpservers" ||
+                   query == "mcp tools" || query == "mcp list" || query.StartsWith("mcp ") || query.StartsWith("mcp2");
+        }
+
+        public List<CommandResult> GetSuggestions(string query)
+        {
+            var suggestions = new List<CommandResult>();
+            string lower = query.Trim().ToLower();
+
+            suggestions.Add(new CommandResult
+            {
+                Title = "⚡ Open MCP Registry & Server Manager Studio",
+                Description = "Manage Model Context Protocol servers (Roblox, Filesystem, Brave Search, Memory, GitHub)",
+                Similarity = 6.0,
+                Execute = () => McpStudioOverlay.ShowOverlay()
+            });
+
+            if (lower.Contains("roblox") || lower == "mcp add roblox")
+            {
+                suggestions.Add(new CommandResult
+                {
+                    Title = "🎮 Register Roblox Studio MCP Server",
+                    Description = "claude mcp add --transport stdio Roblox_Studio -- cmd.exe /c cd /d %LOCALAPPDATA%\\Roblox && .\\mcp.bat",
+                    Similarity = 5.5,
+                    Execute = () =>
+                    {
+                        McpManager.AddServer(new McpServerConfig
+                        {
+                            Name = "Roblox_Studio",
+                            Transport = "STDIO",
+                            Command = "cmd.exe",
+                            Args = new List<string> { "/c", "cd /d %LOCALAPPDATA%\\Roblox && .\\mcp.bat" }
+                        });
+                        TextOverlay.Show("🎮 Registered Roblox Studio MCP Server!", 3000);
+                    }
+                });
+            }
+
+            if (lower.Contains("filesystem") || lower.Contains("files"))
+            {
+                suggestions.Add(new CommandResult
+                {
+                    Title = "📁 Register Filesystem MCP Server",
+                    Description = "npx -y @modelcontextprotocol/server-filesystem %USERPROFILE%",
+                    Similarity = 5.5,
+                    Execute = () =>
+                    {
+                        McpManager.AddServer(new McpServerConfig
+                        {
+                            Name = "Filesystem",
+                            Transport = "STDIO",
+                            Command = "npx",
+                            Args = new List<string> { "-y", "@modelcontextprotocol/server-filesystem", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) }
+                        });
+                        TextOverlay.Show("📁 Registered Filesystem MCP Server!", 3000);
+                    }
+                });
+            }
+
+            // List connected MCP servers
+            McpManager.LoadConfig();
+            foreach (var s in McpManager.Servers)
+            {
+                suggestions.Add(new CommandResult
+                {
+                    Title = $"⚡ Test Connection: MCP Server [{s.Name}]",
+                    Description = $"{s.Command} {string.Join(" ", s.Args)}",
+                    Similarity = 4.0,
+                    Execute = async () =>
+                    {
+                        bool ok = await McpManager.TestServerConnectionAsync(s);
+                        TextOverlay.Show(ok ? $"🟢 MCP Server '{s.Name}' Active!" : $"🔴 MCP Server '{s.Name}' Error!", 3000);
+                    }
+                });
+            }
+
+            return suggestions;
+        }
+    }
+}

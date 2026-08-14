@@ -28,7 +28,7 @@ namespace JarvisLauncher
 
         public static void ShowOverlay(string initialInputFile = "", string defaultTargetFormat = "")
         {
-            if (_instance == null || !_instance.IsLoaded)
+            if (_instance == null || !_instance.IsLoaded || !_instance.IsVisible)
             {
                 _instance = new MediaConverterOverlay(initialInputFile, defaultTargetFormat);
                 _instance.Show();
@@ -38,12 +38,16 @@ namespace JarvisLauncher
                 if (!string.IsNullOrEmpty(initialInputFile)) _instance._inputFileBox.Text = initialInputFile;
                 if (!string.IsNullOrEmpty(defaultTargetFormat)) _instance.SetTargetFormat(defaultTargetFormat);
                 _instance.Activate();
+                _instance.BringToFront();
+                _instance.Focus();
             }
         }
 
         public MediaConverterOverlay(string initialInputFile = "", string defaultTargetFormat = "")
             : base("⚡ UNIVERSAL MEDIA CONVERTER STUDIO", width: 620, height: 560)
         {
+            this.Closed += (s, e) => { _instance = null; };
+
             var workArea = SystemParameters.WorkArea;
             this.Left = (workArea.Width - this.Width) / 2;
             this.Top = (workArea.Height - this.Height) / 2;

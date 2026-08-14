@@ -1,0 +1,262 @@
+// Developer: heaplyn
+// Date: 2026-08-14
+// Summary: Glassmorphic WPF Overlay for compiling C# projects to iOS IPA files.
+// Provides project browser, certificate configuration, compilation logs, and mobile transfer options.
+
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+
+namespace JarvisLauncher
+{
+    public class IpaCompilerOverlay : BaseOverlay
+    {
+        private static IpaCompilerOverlay? _instance;
+
+        private TextBox _projectPathBox = null!;
+        private TextBox _certBox = null!;
+        private TextBox _provisionBox = null!;
+        private TextBox _logConsole = null!;
+        private Button _compileBtn = null!;
+        private TextBlock _statusLabel = null!;
+        private TextBlock _downloadUrlText = null!;
+
+        public static void ShowOverlay()
+        {
+            if (_instance == null || !_instance.IsLoaded || !_instance.IsVisible)
+            {
+                _instance = new IpaCompilerOverlay();
+                _instance.Show();
+            }
+            else
+            {
+                _instance.Activate();
+                _instance.BringToFront();
+                _instance.Focus();
+            }
+        }
+
+        public IpaCompilerOverlay() : base("🍎 C# TO IOS IPA COMPILER STUDIO", 640, 520)
+        {
+            this.Closed += (s, e) => { _instance = null; };
+
+            var mainGrid = new Grid { Margin = new Thickness(14) };
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Form fields
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Console log
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Transfer & Compile buttons
+
+            var formPanel = new StackPanel();
+
+            // Project selection row
+            formPanel.Children.Add(new TextBlock { Text = "C# iOS / MAUI Project File (.csproj):", Foreground = Brushes.LightGray, FontSize = 11, Margin = new Thickness(0, 0, 0, 4) });
+            var projGrid = new Grid { Margin = new Thickness(0, 0, 0, 10) };
+            projGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            projGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            _projectPathBox = CreateTextBox();
+            string defaultUserDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            _projectPathBox.Text = Path.Combine(defaultUserDir, "Downloads", "Projects");
+            _projectPathBox.ToolTip = "Select the MAUI or iOS C# project file (.csproj)";
+            Grid.SetColumn(_projectPathBox, 0);
+            projGrid.Children.Add(_projectPathBox);
+
+            var browseBtn = new Button { Content = "📂 Browse", Padding = new Thickness(10, 4, 10, 4), Margin = new Thickness(6, 0, 0, 0), Cursor = Cursors.Hand };
+            browseBtn.Click += (s, e) =>
+            {
+                var d = new Microsoft.Win32.OpenFileDialog { Title = "Select C# Project File", Filter = "C# Project|*.csproj", InitialDirectory = Path.Combine(defaultUserDir, "Downloads") };
+                if (d.ShowDialog() == true) _projectPathBox.Text = d.FileName;
+            };
+            Grid.SetColumn(browseBtn, 1);
+            projGrid.Children.Add(browseBtn);
+            formPanel.Children.Add(projGrid);
+
+            // Certificates row
+            var certGrid = new Grid { Margin = new Thickness(0, 0, 0, 10) };
+            certGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            certGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var leftCert = new StackPanel { Margin = new Thickness(0, 0, 6, 0) };
+            leftCert.Children.Add(new TextBlock { Text = "Codesign Key / Certificate Name (Optional):", Foreground = Brushes.LightGray, FontSize = 10.5, Margin = new Thickness(0, 0, 0, 3) });
+            _certBox = CreateTextBox();
+            _certBox.Text = "Apple Development";
+            leftCert.Children.Add(_certBox);
+            Grid.SetColumn(leftCert, 0);
+            certGrid.Children.Add(leftCert);
+
+            var rightCert = new StackPanel { Margin = new Thickness(6, 0, 0, 0) };
+            rightCert.Children.Add(new TextBlock { Text = "Provisioning Profile Name (Optional):", Foreground = Brushes.LightGray, FontSize = 10.5, Margin = new Thickness(0, 0, 0, 3) });
+            _provisionBox = CreateTextBox();
+            _provisionBox.ToolTip = "e.g., Wildcard Development Profile";
+            rightCert.Children.Add(_provisionBox);
+            Grid.SetColumn(rightCert, 1);
+            certGrid.Children.Add(rightCert);
+
+            formPanel.Children.Add(certGrid);
+            Grid.SetRow(formPanel, 0);
+            mainGrid.Children.Add(formPanel);
+
+            // Console output text area
+            _logConsole = new TextBox
+            {
+                IsReadOnly = true,
+                TextWrapping = TextWrapping.Wrap,
+                AcceptsReturn = true,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                FontFamily = new FontFamily("Consolas"),
+                FontSize = 11,
+                Padding = new Thickness(8),
+                Text = "Console initialized. Ready to compile.\n"
+            };
+            _logConsole.SetResourceReference(TextBox.BackgroundProperty, "WindowBackgroundBrush");
+            _logConsole.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
+            Grid.SetRow(_logConsole, 1);
+            mainGrid.Children.Add(_logConsole);
+
+            // Buttons panel
+            var bottomGrid = new Grid { Margin = new Thickness(0, 10, 0, 0) };
+            bottomGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            bottomGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var transferStack = new StackPanel();
+            _statusLabel = new TextBlock { Text = "Status: Idle", FontSize = 11.5, FontWeight = FontWeights.SemiBold, Foreground = Brushes.Cyan };
+            transferStack.Children.Add(_statusLabel);
+
+            _downloadUrlText = new TextBlock
+            {
+                Text = $"📲 Mobile Download Link: {MobileBridgeServer.ServerUrl}api/ipa/download",
+                FontSize = 10.5,
+                Foreground = Brushes.LightGray,
+                Margin = new Thickness(0, 3, 0, 0),
+                TextWrapping = TextWrapping.Wrap
+            };
+            transferStack.Children.Add(_downloadUrlText);
+            Grid.SetColumn(transferStack, 0);
+            bottomGrid.Children.Add(transferStack);
+
+            var btnStack = new StackPanel { Orientation = Orientation.Horizontal };
+
+            _compileBtn = new Button
+            {
+                Content = "🛠️ Compile to iOS IPA",
+                Padding = new Thickness(14, 8, 14, 8),
+                FontWeight = FontWeights.Bold,
+                Cursor = Cursors.Hand,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            _compileBtn.Click += async (s, e) => await StartCompilationAsync();
+            btnStack.Children.Add(_compileBtn);
+
+            var installWorkloadBtn = new Button
+            {
+                Content = "📥 Install iOS Workloads",
+                Padding = new Thickness(14, 8, 14, 8),
+                FontWeight = FontWeights.Normal,
+                Cursor = Cursors.Hand,
+                Margin = new Thickness(0, 0, 8, 0)
+            };
+            installWorkloadBtn.Click += (s, e) =>
+            {
+                installWorkloadBtn.IsEnabled = false;
+                _logConsole.AppendText("📥 Initializing .NET iOS & MAUI Workload installation (Requires Admin elevation)...\n");
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        var psi = new ProcessStartInfo
+                        {
+                            FileName = "dotnet",
+                            Arguments = "workload install ios maui --source https://api.nuget.org/v3/index.json",
+                            Verb = "runas",
+                            UseShellExecute = true
+                        };
+                        Process.Start(psi);
+                    }
+                    catch (Exception ex)
+                    {
+                        Application.Current.Dispatcher.Invoke(() =>
+                            _logConsole.AppendText($"⚠️ Workload install launch failed: {ex.Message}\n"));
+                    }
+                    Application.Current.Dispatcher.Invoke(() => installWorkloadBtn.IsEnabled = true);
+                });
+            };
+            btnStack.Children.Add(installWorkloadBtn);
+
+            var sideloadBtn = new Button
+            {
+                Content = SideloadlyIntegrator.IsInstalled ? "📲 Sideloadly Sideload" : "📥 Install Sideloadly",
+                Padding = new Thickness(14, 8, 14, 8),
+                FontWeight = FontWeights.Normal,
+                Cursor = Cursors.Hand
+            };
+            sideloadBtn.Click += (s, e) =>
+            {
+                if (SideloadlyIntegrator.IsInstalled)
+                {
+                    if (string.IsNullOrEmpty(IpaCompilerService.LastCompiledIpaPath) || !File.Exists(IpaCompilerService.LastCompiledIpaPath))
+                    {
+                        TextOverlay.Show("⚠️ Please compile a C# project into an IPA first.", 3500);
+                    }
+                    else
+                    {
+                        SideloadlyIntegrator.RunSideload(IpaCompilerService.LastCompiledIpaPath);
+                    }
+                }
+                else
+                {
+                    SideloadlyIntegrator.TriggerDownload();
+                }
+            };
+            btnStack.Children.Add(sideloadBtn);
+
+            Grid.SetColumn(btnStack, 1);
+            bottomGrid.Children.Add(btnStack);
+
+            Grid.SetRow(bottomGrid, 2);
+            mainGrid.Children.Add(bottomGrid);
+
+            this.UserContent = mainGrid;
+
+            // Register Compile Service logs callback
+            IpaCompilerService.OnCompileLogUpdated += log =>
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    _logConsole.AppendText(log);
+                    _logConsole.ScrollToEnd();
+                });
+            };
+        }
+
+        private async Task StartCompilationAsync()
+        {
+            _compileBtn.IsEnabled = false;
+            _statusLabel.Text = "Status: Compiling...";
+            _statusLabel.Foreground = Brushes.Orange;
+            _logConsole.Text = "--- COMPILATION STARTED ---\n";
+
+            string csproj = _projectPathBox.Text;
+            string key = _certBox.Text;
+            string prov = _provisionBox.Text;
+
+            bool result = await IpaCompilerService.CompileProjectAsync(csproj, key, prov);
+
+            _compileBtn.IsEnabled = true;
+            if (result)
+            {
+                _statusLabel.Text = "Status: Success (Ready for Mobile download)";
+                _statusLabel.Foreground = Brushes.LimeGreen;
+                _downloadUrlText.Text = $"📲 Mobile Download Link: {MobileBridgeServer.ServerUrl}api/ipa/download";
+            }
+            else
+            {
+                _statusLabel.Text = $"Status: {IpaCompilerService.CompileStatus}";
+                _statusLabel.Foreground = Brushes.Red;
+            }
+        }
+    }
+}

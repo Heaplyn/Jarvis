@@ -40,6 +40,16 @@ namespace JarvisLauncher
         }
 
         /// <summary>
+        /// Checks whether Gemini AI can be queried (Internet available + API key configured).
+        /// </summary>
+        public static bool CanUseGemini()
+        {
+            string key = SettingsManager.Current.GoogleAIKey;
+            if (string.IsNullOrWhiteSpace(key)) return false;
+            return IsInternetAvailable();
+        }
+
+        /// <summary>
         /// Pre-caches all online resources (Vosk speech model, GitHub TTS voice samples) for 100% offline usage.
         /// </summary>
         public static async Task PreCacheAllForOfflineAsync(Action<string>? statusCallback = null)

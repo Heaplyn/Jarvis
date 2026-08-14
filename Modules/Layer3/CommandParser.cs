@@ -72,7 +72,12 @@ namespace JarvisLauncher
         ANIMATION_OPTIONS,
         EXPANDED_COMMANDS,
         ORGANIZATION_TOOLS,
-        ADHD_FOCUS_SUITE
+        ADHD_FOCUS_SUITE,
+        MCP,
+        OAUTH2,
+        CODE_ASSIST,
+        IPA_COMPILER,
+        INSTALL
     };
 
     public static class CommandParser
@@ -133,6 +138,11 @@ namespace JarvisLauncher
             RegisterHandler(CommandType.STICKY_NOTE, "Visual Desktop Sticky Notes widget", () => new StickyNotesCommandHandler());
             RegisterHandler(CommandType.GAME_DEV_TOOLBOX, "Roblox Studio and Blender developer utilities dashboard", () => new GameDevToolboxCommandHandler());
             RegisterHandler(CommandType.FFMPEG, "FFmpeg video, audio, GIF, and media processing tools", () => new FFMpegCommandHandler());
+            RegisterHandler(CommandType.MCP, "Model Context Protocol (MCP) server registry studio and tools", () => new McpCommandHandler());
+            RegisterHandler(CommandType.OAUTH2, "Manage OAuth2 authentication credentials", () => new OAuth2CommandHandler());
+            RegisterHandler(CommandType.CODE_ASSIST, "Real-time AI screen and workspace file coding assistance sidebar", () => new CodeAssistCommandHandler());
+            RegisterHandler(CommandType.IPA_COMPILER, "Compile C# projects targeting iOS into IPA packages and transfer to mobile", () => new IpaCompilerCommandHandler());
+            RegisterHandler(CommandType.INSTALL, "Install packages and tools via winget, npm, dotnet workloads, or web scraper", () => new InstallCommandHandler());
             RegisterHandler(CommandType.LLM, "LLM Gui", () => new LLMCommandHandler());
             RegisterHandler(CommandType.PHONE, "Manage mobile companion connectivity", () => new PhoneControlCommandHandler());
             RegisterHandler(CommandType.DIAGNOSTICS, "System and network connectivity diagnostics hub", () => new DiagnosticsCommandHandler());
@@ -354,30 +364,41 @@ namespace JarvisLauncher
         {
             if (string.IsNullOrWhiteSpace(query)) return;
 
+            string cleanQuery = CleanTitlePrefixes(query);
+            string lowerClean = cleanQuery.ToLower().Trim();
+
+            // CRITICAL POWER SAFETY SHIELD: NEVER auto-execute power-state operations from fuzzy or star queries!
+            if (lowerClean.Contains("shutdown") || lowerClean.Contains("sleep") || 
+                lowerClean.Contains("reboot") || lowerClean.Contains("restart") || 
+                lowerClean.Contains("power off") || lowerClean.Contains("turn off"))
+            {
+                // Instead of executing, paste it into the HUD search box so the user can explicitly trigger it
+                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                {
+                    if (System.Windows.Application.Current.MainWindow is MainWindow mw)
+                    {
+                        mw.SearchInput.Text = cleanQuery;
+                        mw.SearchInput.CaretIndex = cleanQuery.Length;
+                        mw.SearchInput.Focus();
+                    }
+                });
+                TextOverlay.Show("⚠️ Power action requires manual execution.", 3000);
+                return;
+            }
+
             // Trigger parallel Dual-LLM Co-Pilot analysis if enabled (default disabled)
             DualLlmCopilot.ProcessQueryParallel(query);
-
-            string cleanQuery = CleanTitlePrefixes(query);
 
             // Get all suggestions sorted by Similarity score descending
             var suggestions = GetSuggestions(cleanQuery);
             foreach (var s in suggestions)
             {
                 if (s.Title.StartsWith("⭐ ")) continue; // Skip circular star items
-                if (s.Execute != null)
-                {
-                    s.Execute.Invoke();
-                    return;
-                }
-            }
 
-            // Fallback: try raw query if cleanQuery yielded nothing
-            if (cleanQuery != query)
-            {
-                var rawSuggestions = GetSuggestions(query);
-                foreach (var s in rawSuggestions)
+                // Only invoke if it is a highly similar or exact match to prevent executing random commands
+                string cleanSuggestionTitle = CleanTitlePrefixes(s.Title).ToLower();
+                if (cleanSuggestionTitle.Contains(lowerClean) || lowerClean.Contains(cleanSuggestionTitle) || s.Similarity >= 7.5)
                 {
-                    if (s.Title.StartsWith("⭐ ")) continue;
                     if (s.Execute != null)
                     {
                         s.Execute.Invoke();
@@ -385,6 +406,17 @@ namespace JarvisLauncher
                     }
                 }
             }
+
+            // Fallback: paste the query into the search box if no exact handler matches
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (System.Windows.Application.Current.MainWindow is MainWindow mw)
+                {
+                    mw.SearchInput.Text = cleanQuery;
+                    mw.SearchInput.CaretIndex = cleanQuery.Length;
+                    mw.SearchInput.Focus();
+                }
+            });
         }
 
         public static string CleanTitlePrefixes(string title)

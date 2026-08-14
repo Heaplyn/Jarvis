@@ -38,13 +38,28 @@ namespace JarvisLauncher
             if (parts.Length > 1)
             {
                 string prompt = query.Substring(cmd.Length).Trim();
-                suggestions.Add(new CommandResult
+                bool canUseGemini = OfflineCacheManager.CanUseGemini();
+
+                if (canUseGemini)
                 {
-                    Title = $"Ask Jarvis AI: \"{prompt}\"",
-                    Description = "Sends query to Gemini API and displays output in console panel",
-                    Execute = () => RunAiQuery(prompt),
-                    Similarity = similarity
-                });
+                    suggestions.Add(new CommandResult
+                    {
+                        Title = $"🧠 Ask Gemini AI (Online): \"{prompt}\"",
+                        Description = "Sends query to Gemini API and displays output in console panel",
+                        Execute = () => RunAiQuery(prompt),
+                        Similarity = similarity + 1.0
+                    });
+                }
+                else
+                {
+                    suggestions.Add(new CommandResult
+                    {
+                        Title = $"🦙 Ask Local LLM / Search (Offline Mode): \"{prompt}\"",
+                        Description = "Offline Mode Active: Routes query to local Ollama model or search engine",
+                        Execute = () => RunAiQuery(prompt),
+                        Similarity = similarity + 0.5
+                    });
+                }
             }
             else
             {

@@ -12,34 +12,33 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            return SearchUtil.IsClose(query.Trim(), "restart");
+            query = query.Trim().ToLower();
+            return query == "restart" || query == "re" || query == "reload" || query == "restart jarvis";
         }
 
         public List<CommandResult> GetSuggestions(string query)
         {
-            double similarity = SearchUtil.GetSimilarity(query.Trim(), "restart");
-            return new List<CommandResult>
-            {
-                new CommandResult
-                {
-                    Title = "Restart Jarvis",
-                    Description = "Restarts the Jarvis application",
-                    Execute = () => {
-                        // Display visual overlay directly
-                        TextOverlay.Show("Restarting Jarvis...", 1000);
+            var suggestions = new List<CommandResult>();
 
-                        // Wait 1 second before performing the actual process restart
-                        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-                        timer.Tick += (s, ev) =>
-                        {
-                            timer.Stop();
-                            NativeMethods.Restart();
-                        };
-                        timer.Start();
-                    },
-                    Similarity = similarity
-                }
-            };
+            suggestions.Add(new CommandResult
+            {
+                Title = "🔄 Restart Jarvis HUD",
+                Description = "Fully restarts and reloads the Jarvis application instance",
+                Execute = () =>
+                {
+                    TextOverlay.Show("Restarting Jarvis...", 1000);
+                    var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+                    timer.Tick += (s, ev) =>
+                    {
+                        timer.Stop();
+                        NativeMethods.Restart();
+                    };
+                    timer.Start();
+                },
+                Similarity = 8.0
+            });
+
+            return suggestions;
         }
     }
 }

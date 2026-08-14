@@ -35,8 +35,10 @@ namespace JarvisLauncher
 
         // Voice & Assistant Fine-Tuning Controls
         public bool EnableVoiceCommandChunking { get; set; } = true;
-        public int VoiceChunkingSilenceMs { get; set; } = 700;
-        public double MinVoiceConfidence { get; set; } = 0.55; // 55% strict confidence threshold
+        public int VoiceChunkingSilenceMs { get; set; } = 6000; // 6 seconds silence pause before processing voice
+        public double MinVoiceConfidence { get; set; } = 0.75; // 75% strict confidence threshold (range: 0.30 - 0.98)
+        public float MicAudioEnergyFloor { get; set; } = 0.12f; // 12% audio volume energy floor required
+        public double MicNoiseGateDb { get; set; } = -35.0; // -35 dB noise gate floor threshold
         public int TtsSpeechRate { get; set; } = 0;
         public int TtsSpeechVolume { get; set; } = 100;
         public string SelectedTtsVoice { get; set; } = string.Empty;
@@ -62,6 +64,17 @@ namespace JarvisLauncher
         public bool EnableDualLlmCopilot { get; set; } = false;
         public string DualLlmBackend { get; set; } = "Ollama";
         public string DualLlmModel { get; set; } = "deepseek-r1:7b";
+
+        // OAuth2 Credentials & Account Tokens
+        public string GoogleOAuthClientId { get; set; } = string.Empty;
+        public string GoogleOAuthClientSecret { get; set; } = string.Empty;
+        public string GoogleOAuthAccessToken { get; set; } = string.Empty;
+        public string GoogleOAuthRefreshToken { get; set; } = string.Empty;
+        public string GoogleOAuthUserEmail { get; set; } = string.Empty;
+
+        public string GithubOAuthClientId { get; set; } = string.Empty;
+        public string GithubOAuthClientSecret { get; set; } = string.Empty;
+        public string GithubOAuthUserLogin { get; set; } = string.Empty;
 
         // P2P Compute Node Settings
         public bool P2PServerEnabled { get; set; } = false;

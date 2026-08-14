@@ -20,8 +20,8 @@ namespace JarvisLauncher
         private static readonly object _lock = new();
         private static DateTime _lastSpeechTime = DateTime.MinValue;
 
-        // 700ms of complete audio silence required before processing user's full sentence
-        private static int SilencePauseMs => Math.Max(400, SettingsManager.Current.VoiceChunkingSilenceMs);
+        // 6 seconds (6000ms) of complete audio silence required before processing user's full sentence
+        private static int SilencePauseMs => Math.Max(1000, SettingsManager.Current.VoiceChunkingSilenceMs);
 
         static FullSentenceAccumulator()
         {
@@ -55,8 +55,21 @@ namespace JarvisLauncher
                 string fullTextSoFar = _sentenceBuffer.ToString().Trim();
                 DebugConsoleOverlay.Log("Sentence Accumulator", $"Listening... \"{fullTextSoFar}\"");
 
+                // Dynamic Silence Gate: If sentence contains a recognized action command keyword,
+                // trigger query processing after 1.5 seconds of silence instead of waiting full 6 seconds.
+                int activeSilenceMs = SilencePauseMs;
+                string lowerText = fullTextSoFar.ToLower();
+                if (lowerText.Contains("open") || lowerText.Contains("weather") || lowerText.Contains("shutdown") ||
+                    lowerText.Contains("lock") || lowerText.Contains("mcp") || lowerText.Contains("google") ||
+                    lowerText.Contains("search") || lowerText.Contains("convert") || lowerText.Contains("code assist") ||
+                    lowerText.Contains("turn on") || lowerText.Contains("turn off") || lowerText.Contains("exit") ||
+                    lowerText.Contains("voicemode"))
+                {
+                    activeSilenceMs = 1500;
+                }
+
                 // Reset silence countdown timer (waits until user finishes speaking completely)
-                _silenceTimer?.Change(SilencePauseMs, Timeout.Infinite);
+                _silenceTimer?.Change(activeSilenceMs, Timeout.Infinite);
             }
         }
 

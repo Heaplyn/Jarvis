@@ -208,6 +208,7 @@ namespace JarvisLauncher
 
             lock (_lock)
             {
+                if (_model == null) return string.Empty;
                 try
                 {
                     using var rec = new VoskRecognizer(_model, 16000.0f);
