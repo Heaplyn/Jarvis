@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>JARVIS Voice Command</title>
+    <!-- Web App Capability for standalone overlay mode -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#030712">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Outfit', sans-serif; }
+        body { background: #030712; color: #f8fafc; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; padding: 20px; }
+        
+        .overlay-card {
+            width: 100%;
+            max-width: 440px;
+            background: rgba(17, 24, 39, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .overlay-card.success { border-color: #10b981; box-shadow: 0 0 20px rgba(16, 185, 129, 0.3); }
+        .overlay-card.error { border-color: #ef4444; box-shadow: 0 0 20px rgba(239, 68, 68, 0.3); }
+
+        .logo-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+        .logo { font-size: 1.05rem; font-weight: 700; background: linear-gradient(135deg, #60a5fa, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .close-btn { color: #94a3b8; font-size: 0.8rem; cursor: pointer; background: rgba(255,255,255,0.06); border: none; padding: 4px 10px; border-radius: 12px; }
+
+        .input-wrapper { display: flex; align-items: center; background: rgba(31, 41, 55, 0.7); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 4px 12px; gap: 8px; }
+        .input-wrapper:focus-within { border-color: #60a5fa; box-shadow: 0 0 10px rgba(96, 165, 250, 0.2); }
+        
+        input { flex: 1; background: none; border: none; padding: 12px 4px; color: #fff; font-size: 1.05rem; outline: none; }
+        input::placeholder { color: #6b7280; }
+
+        .icon-btn { background: none; border: none; color: #94a3b8; font-size: 1.3rem; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 50%; transition: all 0.2s; }
+        .icon-btn:active { background: rgba(255, 255, 255, 0.08); }
+        .mic-btn.active { color: #ef4444; background: rgba(239, 68, 68, 0.15); animation: pulse 1.5s infinite; }
+
+        /* Suggestions Popover */
+        .popover { background: rgba(17, 24, 39, 0.95); border: 1px solid rgba(96, 165, 250, 0.3); border-radius: 16px; padding: 6px; display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; display: none; }
+        .pop-item { padding: 10px 14px; border-radius: 10px; font-size: 0.85rem; cursor: pointer; color: #f1f5f9; background: rgba(31, 41, 55, 0.5); }
+        .pop-item:active { background: rgba(96, 165, 250, 0.2); color: #60a5fa; }
+        .pop-title { font-weight: 600; color: #60a5fa; }
+        .pop-desc { font-size: 0.72rem; color: #94a3b8; margin-top: 2px; }
+
+        .hint { font-size: 0.75rem; color: #6b7280; text-align: center; }
+
+        /* Checkmark alert wrapper */
+        .status-toast { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(17, 24, 39, 0.95); border-radius: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+        .status-toast.visible { opacity: 1; pointer-events: auto; }
+        .status-icon { font-size: 3rem; }
+        .status-msg { font-size: 1rem; font-weight: 600; }
+
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="overlay-card" id="card">
+        <div class="logo-row">
+            <span class="logo">⚡ JARVIS OVERLAY COMMAND</span>
+            <button class="close-btn" onclick="resetForm()">Clear</button>
+        </div>
+
+        <div class="input-wrapper">
+            <input type="text" id="cmd-input" placeholder="Type or speak a command..." autocomplete="off" autofocus onkeydown="if(event.key==='Enter') executeCommand()">
+            <button class="icon-btn mic-btn" id="mic-btn" onclick="toggleDictation()">🎤</button>
+            <button class="icon-btn" onclick="executeCommand()">➔</button>
+        </div>
+
+        <div class="popover" id="popover"></div>
+
+        <div class="hint">Dictate or type and press Enter. Try "lock", "vol 40", "theme solarized", or "remind me in 10s to look up".</div>
+
+        <!-- Success/Error Toast Screen Overlay -->
+        <div class="status-toast" id="toast">
+            <div class="status-icon" id="toast-icon">✅</div>
+            <div class="status-msg" id="toast-msg">Command Executed</div>
+        </div>
+    </div>
+
+    <script>
+        const input = document.getElementById('cmd-input');
+        const popover = document.getElementById('popover');
+        const micBtn = document.getElementById('mic-btn');
+        const card = document.getElementById('card');
+        const toast = document.getElementById('toast');
+        const toastIcon = document.getElementById('toast-icon');
+        const toastMsg = document.getElementById('toast-msg');
+
+        let debounceTimer;
+
+        // Auto-focus input on startup
+        window.addEventListener('load', () => {
+            input.focus();
+        });
+
+        // Autocomplete search binding
+        input.addEventListener('input', (e) => {
+            clearTimeout(debounceTimer);
+            const val = e.target.value;
+            debounceTimer = setTimeout(() => fetchSuggestions(val), 100);
+        });
+
+        async function fetchSuggestions(query) {
+            if (!query || query.trim().length < 1) {
+                popover.style.display = 'none';
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/suggestions?q=' + encodeURIComponent(query));
+                const items = await res.json();
+
+                if (!items || items.length === 0) {
+                    popover.style.display = 'none';
+                    return;
+                }
+
+                popover.innerHTML = '';
+                items.forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'pop-item';
+                    div.innerHTML = `<div class="pop-title">${item.title}</div><div class="pop-desc">${item.desc}</div>`;
+                    div.onclick = () => {
+                        let cmd = item.title.replace('⚡ Command: ', '').replace('📱 ', '').replace('🌐 ', '');
+                        input.value = cmd;
+                        popover.style.display = 'none';
+                        executeCommand();
+                    };
+                    popover.appendChild(div);
+                });
+                popover.style.display = 'flex';
+            } catch (e) {
+                popover.style.display = 'none';
+            }
+        }
+
+        async function executeCommand() {
+            popover.style.display = 'none';
+            const cmd = input.value.trim();
+            if (!cmd) return;
+
+            try {
+                const res = await fetch('/api/command', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ command: cmd })
+                });
+
+                if (res.ok) {
+                    showToast('✅', 'Executed successfully!');
+                    card.className = 'overlay-card success';
+                    setTimeout(() => {
+                        resetForm();
+                    }, 1200);
+                } else {
+                    showToast('❌', 'Command execution failed.');
+                    card.className = 'overlay-card error';
+                }
+            } catch (err) {
+                showToast('⚠️', 'Connection error.');
+                card.className = 'overlay-card error';
+            }
+        }
+
+        function showToast(icon, message) {
+            toastIcon.innerText = icon;
+            toastMsg.innerText = message;
+            toast.classList.add('visible');
+        }
+
+        function resetForm() {
+            input.value = '';
+            popover.style.display = 'none';
+            card.className = 'overlay-card';
+            toast.classList.remove('visible');
+            input.focus();
+        }
+
+        // --- Web Speech API (Voice dictation support) ---
+        let recognition = null;
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRec();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => {
+                micBtn.classList.add('active');
+            };
+
+            recognition.onresult = (event) => {
+                const resultText = event.results[0][0].transcript;
+                input.value = resultText;
+                micBtn.classList.remove('active');
+                
+                // Fetch suggestions based on voice transcript, then trigger execute
+                fetchSuggestions(resultText);
+            };
+
+            recognition.onerror = () => {
+                micBtn.classList.remove('active');
+            };
+
+            recognition.onend = () => {
+                micBtn.classList.remove('active');
+            };
+        } else {
+            micBtn.style.display = 'none';
+        }
+
+        function toggleDictation() {
+            if (!recognition) return;
+            if (micBtn.classList.contains('active')) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        }
+    </script>
+</body>
+</html>

@@ -21,7 +21,6 @@ namespace JarvisLauncher
             {
                 var prompt = new InputPromptOverlay(promptMessage, onSubmit, defaultText);
                 prompt.Show();
-                prompt.Activate();
             });
         }
 

@@ -175,7 +175,7 @@ namespace JarvisLauncher
                         {
                             try
                             {
-                                string url = await CloudflareTunnelManager.StartTunnelAsync(8085);
+                                string url = await CloudflareTunnelManager.StartTunnelAsync(MobileBridgeServer.Port);
                                 MobileOverlay.ShowQrPairingWindow(url);
                                 OpenWebBrowser(url);
                             }
@@ -217,7 +217,7 @@ namespace JarvisLauncher
                         {
                             try
                             {
-                                string url = await NgrokTunnelManager.StartTunnelAsync(8085);
+                                string url = await NgrokTunnelManager.StartTunnelAsync(MobileBridgeServer.Port);
                                 MobileOverlay.ShowQrPairingWindow(url);
                                 OpenWebBrowser(url);
                             }
@@ -247,6 +247,45 @@ namespace JarvisLauncher
             {
                 string dnsUrl = MobileBridgeServer.JarvisDomain;
                 string ipUrl = MobileBridgeServer.ServerUrl;
+                string arg = parts.Length > 1 ? parts[1].Trim().ToLower() : "";
+
+                if (arg == "lockdown" || arg == "lock")
+                {
+                    suggestions.Add(new CommandResult
+                    {
+                        Title = "🔒 Mobile Privacy Lockdown",
+                        Description = "Instantly disable remote terminal, files, screen mirror & clipboard sync",
+                        Similarity = 5.0,
+                        Execute = () =>
+                        {
+                            SettingsManager.Current.MobileAllowTerminal = false;
+                            SettingsManager.Current.MobileAllowFiles = false;
+                            SettingsManager.Current.MobileAllowScreenMirror = false;
+                            SettingsManager.Current.MobileAllowClipboard = false;
+                            SettingsManager.Save();
+                            TextOverlay.Show("🔒 All remote phone capabilities disabled.", 2500);
+                        }
+                    });
+                    return suggestions;
+                }
+
+                if (arg == "cloudflare" || arg == "ngrok" || arg == "none")
+                {
+                    string provider = char.ToUpper(arg[0]) + arg.Substring(1);
+                    suggestions.Add(new CommandResult
+                    {
+                        Title = $"🌍 Set Preferred Tunnel: {provider}",
+                        Description = "Auto-start this provider next time the Mobile Hub opens (if auto-start is enabled)",
+                        Similarity = 5.0,
+                        Execute = () =>
+                        {
+                            SettingsManager.Current.MobilePreferredTunnel = provider;
+                            SettingsManager.Save();
+                            TextOverlay.Show($"🌍 Preferred tunnel set to {provider}", 2000);
+                        }
+                    });
+                    return suggestions;
+                }
 
                 suggestions.Add(new CommandResult
                 {
@@ -258,8 +297,8 @@ namespace JarvisLauncher
 
                 suggestions.Add(new CommandResult
                 {
-                    Title = "📱 Open Mobile Companion Hub Overlay",
-                    Description = "Configure connection links, Cloudflare public tunnel, and phone capabilities",
+                    Title = "📱 Open Mobile & Tunnel Hub Overlay",
+                    Description = "Manage connection links, Cloudflare/ngrok tunnels, and phone capability customization",
                     Similarity = 4.0,
                     Execute = () => MobileOverlay.ShowOverlay()
                 });
@@ -903,7 +942,9 @@ namespace JarvisLauncher
                 new CommandDesc("speak / tts <text>", "Synthesize and read text out loud via TTS", "speak Jarvis online"),
                 new CommandDesc("copy <text>", "Copy text directly to system clipboard", "copy hello world"),
                 new CommandDesc("tunnel / cloudflare", "Host Jarvis Mobile Web App to public HTTPS web via Cloudflare Tunnel", "tunnel"),
-                new CommandDesc("mobile / phone", "Connect mobile phone app to Jarvis AI & PC control deck", "mobile"),
+                new CommandDesc("mobile / phone", "Open the unified Mobile & Tunnel Hub for phone pairing & tunnel control", "mobile"),
+                new CommandDesc("mobile lockdown", "Instantly disable all remote phone capabilities (privacy panic button)", "mobile lockdown"),
+                new CommandDesc("mobile cloudflare/ngrok/none", "Set the preferred auto-start tunnel provider", "mobile ngrok"),
                 new CommandDesc("open [file]", "Open file or folder in default Windows application", "open C:\\doc.pdf"),
                 new CommandDesc("edit <file>", "Open file in default text editor", "edit main.cs"),
                 new CommandDesc("google <query>", "Search Google in default browser", "google WPF layouts"),

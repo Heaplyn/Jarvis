@@ -3,6 +3,8 @@
 // Summary: Base class for draggable, glassmorphic, resizable overlays. Minimize shrinks windows to tiny draggable widget pills.
 
 using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -16,6 +18,86 @@ namespace JarvisLauncher
 {
     public abstract class BaseOverlay : Window
     {
+        // ── Z-Order tracking ─────────────────────────────────────────────────────
+        private static readonly List<BaseOverlay> _openOverlays = new();
+
+        [DllImport("user32.dll")]
+        private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+        private static readonly IntPtr HWND_TOP    = IntPtr.Zero;
+        private static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
+        private static readonly IntPtr HWND_NOTOPMOST = new IntPtr(-2);
+        private const uint SWP_NOMOVE  = 0x0002;
+        private const uint SWP_NOSIZE  = 0x0001;
+        private const uint SWP_NOACTIVATE = 0x0010;
+        private const uint SWP_FLAGS   = SWP_NOMOVE | SWP_NOSIZE;
+
+        /// <summary>Brings this overlay to the top of the z-stack above all other overlays.</summary>
+        public void BringToFront()
+        {
+            try
+            {
+                var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+                if (hwnd != IntPtr.Zero)
+                {
+                    SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_FLAGS);
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Creates a glassmorphic styled button that automatically reacts to active theme colors and hover states.
+        /// </summary>
+        public static Button CreateStyledButton(string content, RoutedEventHandler? onClick = null, bool isPrimary = false, double fontSize = 12)
+        {
+            var btn = new Button
+            {
+                Content = content,
+                Margin = new Thickness(4, 2, 4, 2),
+                Padding = new Thickness(12, 6, 12, 6),
+                Cursor = Cursors.Hand,
+                FontSize = fontSize,
+                FontFamily = new FontFamily("Segoe UI"),
+                Focusable = false
+            };
+
+            var template = new ControlTemplate(typeof(Button));
+            var factory = new FrameworkElementFactory(typeof(Border));
+            factory.Name = "Border";
+            factory.SetValue(Border.CornerRadiusProperty, new CornerRadius(6));
+            factory.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+            factory.SetValue(Border.PaddingProperty, new TemplateBindingExtension(Button.PaddingProperty));
+
+            if (isPrimary)
+            {
+                factory.SetResourceReference(Border.BackgroundProperty, "SelectedBackgroundBrush");
+                factory.SetResourceReference(Border.BorderBrushProperty, "SelectedBorderBrush");
+            }
+            else
+            {
+                factory.SetResourceReference(Border.BackgroundProperty, "HoverBackgroundBrush");
+                factory.SetResourceReference(Border.BorderBrushProperty, "WindowBorderBrush");
+            }
+
+            var presenter = new FrameworkElementFactory(typeof(ContentPresenter));
+            presenter.SetValue(ContentPresenter.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            presenter.SetValue(ContentPresenter.VerticalAlignmentProperty, VerticalAlignment.Center);
+            factory.AppendChild(presenter);
+            template.VisualTree = factory;
+
+            var hoverTrigger = new Trigger { Property = UIElement.IsMouseOverProperty, Value = true };
+            hoverTrigger.Setters.Add(new Setter(Border.BackgroundProperty, new DynamicResourceExtension("SelectedBackgroundBrush"), "Border"));
+            hoverTrigger.Setters.Add(new Setter(Border.BorderBrushProperty, new DynamicResourceExtension("AccentCaretBrush"), "Border"));
+            template.Triggers.Add(hoverTrigger);
+
+            btn.Template = template;
+            btn.SetResourceReference(Button.ForegroundProperty, "TextPrimaryBrush");
+
+            if (onClick != null) btn.Click += onClick;
+            return btn;
+        }
+        // ─────────────────────────────────────────────────────────────────────────
+
         private Grid _mainGrid;
         private Border _mainBorder;
         private ContentPresenter _contentPresenter;
@@ -27,6 +109,17 @@ namespace JarvisLauncher
         private double _restoreWidth;
         private double _restoreHeight;
         private bool _isMiniMode = false;
+        private bool _forceClose = false;
+
+        /// <summary>
+        /// Call this when the overlay truly needs to be destroyed (e.g. on app shutdown).
+        /// Normally pressing [X] just hides the window to background.
+        /// </summary>
+        public void ForceClose()
+        {
+            _forceClose = true;
+            this.Close();
+        }
 
         protected BaseOverlay(
             string title, 
@@ -48,7 +141,19 @@ namespace JarvisLauncher
             this.ShowInTaskbar = true;
             this.Topmost = SettingsManager.Current.AlwaysOnTop;
             this.WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            this.Opacity = 0; // Hidden initially for fade-in
+
+            // Register this overlay for z-order tracking & screen position persistence
+            _openOverlays.Add(this);
+            this.Closed += (s, e) => _openOverlays.Remove(this);
+            try { WindowPositionManager.RegisterWindow(this, this.GetType().Name); } catch { }
+            if (SettingsManager.Current.EnableAnimations)
+            {
+                this.Opacity = 0; // Hidden initially for fade-in
+            }
+            else
+            {
+                this.Opacity = SettingsManager.Current.WindowOpacity;
+            }
 
             var brushConverter = new BrushConverter();
             var bgBrush = (Brush)(brushConverter.ConvertFromString(bgColor) ?? Brushes.Black);
@@ -61,7 +166,7 @@ namespace JarvisLauncher
                 ResizeBorderThickness = new Thickness(6), // 6px resize zone on all edges
                 CaptionHeight = 0,
                 GlassFrameThickness = new Thickness(0),
-                CornerRadius = new CornerRadius(12)
+                CornerRadius = SettingsManager.Current.UseRoundedCorners ? new CornerRadius(12) : new CornerRadius(0)
             };
             WindowChrome.SetWindowChrome(this, windowChrome);
 
@@ -69,8 +174,8 @@ namespace JarvisLauncher
             _mainBorder = new Border
             {
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(12),
                 Padding = new Thickness(12),
+                IsHitTestVisible = true, // Explicitly enable hit testing
                 Effect = new DropShadowEffect
                 {
                     BlurRadius = 15,
@@ -81,11 +186,36 @@ namespace JarvisLauncher
             };
             _mainBorder.SetResourceReference(Border.BackgroundProperty, "WindowBackgroundBrush");
             _mainBorder.SetResourceReference(Border.BorderBrushProperty, "WindowBorderBrush");
+            _mainBorder.SetResourceReference(Border.CornerRadiusProperty, "WindowCornerRadius");
 
             // 2. Main Grid Layout
             _mainGrid = new Grid();
             _mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             _mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+            // 2b. GIF Background (if enabled)
+            var bgMedia = new Image
+            {
+                Stretch = Stretch.UniformToFill,
+                Opacity = 0.5,
+                IsHitTestVisible = false // Ensure clicks pass through to controls
+            };
+            bgMedia.SetResourceReference(Image.VisibilityProperty, "WindowMediaVisibility");
+            // We'll set the source in the Loaded event to ensure resources are ready
+            this.Loaded += (s, e) =>
+            {
+                if (Application.Current.Resources["WindowBackgroundMediaSource"] is ImageSource imgSource)
+                {
+                    try
+                    {
+                        WpfAnimatedGif.ImageBehavior.SetAnimatedSource(bgMedia, imgSource);
+                        WpfAnimatedGif.ImageBehavior.SetRepeatBehavior(bgMedia, RepeatBehavior.Forever);
+                    }
+                    catch { }
+                }
+            };
+            Grid.SetRowSpan(bgMedia, 2);
+            _mainGrid.Children.Add(bgMedia);
 
             // 3. Header Panel (Title + Minimize/Close control stack)
             var headerGrid = new Grid { Margin = new Thickness(0, 0, 0, 8) };
@@ -98,9 +228,9 @@ namespace JarvisLauncher
                 Text = title,
                 FontSize = 12,
                 FontWeight = FontWeights.Bold,
-                FontFamily = new FontFamily("Segoe UI Semibold, Arial"),
                 VerticalAlignment = VerticalAlignment.Center
             };
+            _titleTextBlock.SetResourceReference(TextBlock.FontFamilyProperty, "ActiveFontFamily");
             _titleTextBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
             Grid.SetColumn(_titleTextBlock, 0);
             headerGrid.Children.Add(_titleTextBlock);
@@ -163,7 +293,7 @@ namespace JarvisLauncher
                 Style = style
             };
             _closeButton.SetResourceReference(Button.ForegroundProperty, "TextPrimaryBrush");
-            _closeButton.Click += (s, e) => FadeOutAndClose();
+            _closeButton.Click += (s, e) => FadeOutAndHide();
             controlStack.Children.Add(_closeButton);
 
             headerGrid.Children.Add(controlStack);
@@ -179,25 +309,46 @@ namespace JarvisLauncher
             _mainBorder.Child = _mainGrid;
             this.Content = _mainBorder;
 
-            // Trigger dragging on mouse down, ignoring resize border click regions (6px)
+            // Bring to front whenever user clicks anywhere on this overlay
+            // We use MouseLeftButtonDown instead of Preview to avoid blocking child interactions (Buttons, TextBoxes)
             this.MouseLeftButtonDown += (s, e) =>
             {
-                if (e.LeftButton == MouseButtonState.Pressed)
+                BringToFront();
+            };
+
+            // Allow dragging from the header area ONLY.
+            headerGrid.MouseLeftButtonDown += (s, e) =>
+            {
+                // Only initiate drag if the user clicked the header background or title,
+                // not a child element like the Close or Minimize buttons.
+                if (e.LeftButton == MouseButtonState.Pressed && (e.OriginalSource == headerGrid || e.OriginalSource is TextBlock || e.OriginalSource is Border))
                 {
-                    Point clickPos = e.GetPosition(this);
-                    if (clickPos.X > 6 && clickPos.X < this.ActualWidth - 6 &&
-                        clickPos.Y > 6 && clickPos.Y < this.ActualHeight - 6)
-                    {
-                        try { this.DragMove(); } catch { }
-                    }
+                    try { this.DragMove(); } catch { }
                 }
             };
 
-            // Hook Fade-in
+            // Bring to front on focus (e.g. Alt+Tab or programmatic Activate())
+            this.Activated += (s, e) => BringToFront();
+
+            // Hook Fade-in + initial z-order elevation
             this.Loaded += (s, e) =>
             {
-                var fadeIn = new DoubleAnimation(0, 1.0, TimeSpan.FromMilliseconds(200));
-                this.BeginAnimation(Window.OpacityProperty, fadeIn);
+                BringToFront();
+                if (SettingsManager.Current.EnableAnimations)
+                {
+                    var fadeIn = new DoubleAnimation(0, 1.0, TimeSpan.FromMilliseconds(200));
+                    this.BeginAnimation(Window.OpacityProperty, fadeIn);
+                }
+                else
+                {
+                    this.Opacity = SettingsManager.Current.WindowOpacity;
+                }
+            };
+
+            // Bring to front when made visible again (re-shown from hidden)
+            this.IsVisibleChanged += (s, e) =>
+            {
+                if (this.IsVisible) BringToFront();
             };
         }
 
@@ -254,11 +405,79 @@ namespace JarvisLauncher
             set => _contentPresenter.Content = value;
         }
 
+        /// <summary>Hides the window to background (default [X] button behaviour).</summary>
+        public void FadeOutAndHide()
+        {
+            if (SettingsManager.Current.EnableAnimations)
+            {
+                var fadeOut = new DoubleAnimation(this.Opacity, 0, TimeSpan.FromMilliseconds(200));
+                fadeOut.Completed += (s, e) =>
+                {
+                    this.Hide();
+                    // Clear the animation so it doesn't "lock" the opacity at 0
+                    this.BeginAnimation(Window.OpacityProperty, null);
+                    this.Opacity = 0;
+                };
+                this.BeginAnimation(Window.OpacityProperty, fadeOut);
+            }
+            else
+            {
+                this.Hide();
+            }
+        }
+
+        /// <summary>Standard way to show any overlay, ensuring it fades in if animations are on.</summary>
+        public new void Show()
+        {
+            // Stop any running animations
+            this.BeginAnimation(Window.OpacityProperty, null);
+
+            if (this.WindowState == WindowState.Minimized)
+                this.WindowState = WindowState.Normal;
+
+            base.Show();
+            this.Activate();
+
+            if (SettingsManager.Current.EnableAnimations)
+            {
+                this.Opacity = 0;
+                var fadeIn = new DoubleAnimation(0, 1.0, TimeSpan.FromMilliseconds(250));
+                this.BeginAnimation(Window.OpacityProperty, fadeIn);
+            }
+            else
+            {
+                this.Opacity = SettingsManager.Current.WindowOpacity;
+            }
+
+            BringToFront();
+        }
+
+        /// <summary>Fades out and truly closes (destroys) the window.</summary>
         public void FadeOutAndClose()
         {
-            var fadeOut = new DoubleAnimation(this.Opacity, 0, TimeSpan.FromMilliseconds(200));
-            fadeOut.Completed += (s, e) => this.Close();
-            this.BeginAnimation(Window.OpacityProperty, fadeOut);
+            _forceClose = true;
+            if (SettingsManager.Current.EnableAnimations)
+            {
+                var fadeOut = new DoubleAnimation(this.Opacity, 0, TimeSpan.FromMilliseconds(200));
+                fadeOut.Completed += (s, e) => this.Close();
+                this.BeginAnimation(Window.OpacityProperty, fadeOut);
+            }
+            else
+            {
+                this.Close();
+            }
+        }
+
+        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        {
+            if (!_forceClose)
+            {
+                // Intercept close and hide to background instead
+                e.Cancel = true;
+                FadeOutAndHide();
+                return;
+            }
+            base.OnClosing(e);
         }
     }
 }

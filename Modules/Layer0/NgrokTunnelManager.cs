@@ -20,8 +20,9 @@ namespace JarvisLauncher
         public static string? PublicUrl => _publicUrl;
         public static bool IsRunning => _tunnelProcess != null && !_tunnelProcess.HasExited;
 
-        public static async Task<string> StartTunnelAsync(int targetPort = 8085)
+        public static async Task<string> StartTunnelAsync(int targetPort = -1)
         {
+            if (targetPort <= 0) targetPort = MobileBridgeServer.Port;
             StopTunnel();
 
             // Ensure MobileBridgeServer is active before launching tunnel
@@ -282,7 +283,7 @@ namespace JarvisLauncher
 
         private static async Task DownloadLatestNgrokBinaryAsync(string exePath)
         {
-            string zipUrl = "https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-windows-amd64.zip";
+            string zipUrl = "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip";
             using var client = new HttpClient();
             client.DefaultRequestHeaders.Add("User-Agent", "JarvisLauncher/1.0");
             var data = await client.GetByteArrayAsync(zipUrl);

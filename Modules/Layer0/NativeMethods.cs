@@ -149,6 +149,24 @@ namespace JarvisLauncher
             out System.Runtime.InteropServices.ComTypes.FILETIME lpKernelTime,
             out System.Runtime.InteropServices.ComTypes.FILETIME lpUserTime);
 
+        [StructLayout(LayoutKind.Sequential)]
+        public struct LASTINPUTINFO
+        {
+            public uint cbSize;
+            public uint dwTime;
+        }
+
+        [DllImport("user32.dll")]
+        public static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);
+
+        public static uint GetIdleTime()
+        {
+            LASTINPUTINFO lastInputInfo = new LASTINPUTINFO();
+            lastInputInfo.cbSize = (uint)Marshal.SizeOf(lastInputInfo);
+            if (!GetLastInputInfo(ref lastInputInfo)) return 0;
+            return (uint)Environment.TickCount - lastInputInfo.dwTime;
+        }
+
         public static void Restart()
         {
             string projectRoot = @"C:\Users\Kyle\Downloads\Projects\Jarvis";
@@ -219,5 +237,30 @@ namespace JarvisLauncher
         public static extern bool IsWindow(IntPtr hWnd);
 
         public const uint WM_CLOSE = 0x0010;
+
+        // Monitor & DPI API definitions
+        [StructLayout(LayoutKind.Sequential)]
+        public struct POINT
+        {
+            public int X;
+            public int Y;
+            public POINT(int x, int y) { X = x; Y = y; }
+        }
+
+        public const uint MONITOR_DEFAULTTONEAREST = 2;
+
+        public enum MonitorDpiType
+        {
+            MDT_EFFECTIVE_DPI = 0,
+            MDT_ANGULAR_DPI = 1,
+            MDT_RAW_DPI = 2,
+            MDT_DEFAULT = MDT_EFFECTIVE_DPI
+        }
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr MonitorFromPoint(POINT pt, uint dwFlags);
+
+        [DllImport("shcore.dll")]
+        public static extern int GetDpiForMonitor(IntPtr hmonitor, MonitorDpiType dpiType, out uint dpiX, out uint dpiY);
     }
 }

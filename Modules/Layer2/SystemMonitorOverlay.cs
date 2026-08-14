@@ -42,12 +42,15 @@ namespace JarvisLauncher
                 if (_instance == null)
                 {
                     _instance = new SystemMonitorOverlay();
-                    _instance.Show();
+                }
+
+                if (_instance.Visibility == Visibility.Visible)
+                {
+                    _instance.FadeOutAndHide();
                 }
                 else
                 {
-                    _instance.FadeOutAndClose();
-                    _instance = null;
+                    _instance.Show();
                 }
             });
         }
@@ -298,6 +301,19 @@ namespace JarvisLauncher
             else
             {
                 return $"{(bytesPerSecond / 1024.0):F1} KB/s";
+            }
+        }
+
+        public static void ShowOverlay()
+        {
+            if (_instance == null || !_instance.IsLoaded)
+            {
+                _instance = new SystemMonitorOverlay();
+                _instance.Show();
+            }
+            else
+            {
+                _instance.Activate();
             }
         }
     }

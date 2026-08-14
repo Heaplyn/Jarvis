@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace JarvisLauncher
 {
@@ -26,6 +27,21 @@ namespace JarvisLauncher
 
         public static async Task<string> AskGemini(string prompt, List<ChatTurn>? history = null)
         {
+            return await AskGeminiInternal(prompt, null, null, history);
+        }
+
+        public static async Task<string> AnalyzeImageAsync(string prompt, string base64Image)
+        {
+            return await AskGeminiInternal(prompt, base64Image, null, null);
+        }
+
+        public static async Task<string> AnalyzeAudioAsync(string prompt, string base64Audio)
+        {
+            return await AskGeminiInternal(prompt, null, base64Audio, null);
+        }
+
+        private static async Task<string> AskGeminiInternal(string prompt, string? base64Image = null, string? base64Audio = null, List<ChatTurn>? history = null)
+        {
             string apiKey = SettingsManager.Current.GoogleAIKey;
             if (string.IsNullOrWhiteSpace(apiKey))
             {
@@ -35,12 +51,12 @@ namespace JarvisLauncher
             string currentPrompt = prompt;
             string lastResponse = "";
             string lastToolOutput = "";
-            int loopLimit = 5; // Reduced from 100 to prevent runaway AI loops
+            int loopLimit = 5;
             var executedTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             for (int i = 0; i < loopLimit; i++)
             {
-                string response = await QueryGeminiRaw(currentPrompt, apiKey, history);
+                string response = await QueryGeminiRaw(currentPrompt, apiKey, base64Image, base64Audio, history);
                 string cleanedResp = CleanScratchpadText(response);
                 if (!string.IsNullOrWhiteSpace(cleanedResp))
                 {
@@ -257,6 +273,218 @@ namespace JarvisLauncher
                     }
                 }
 
+                // 6. Check for [WRITE_FILE: path]content[END_WRITE] tags
+                var writeRegex = new Regex(@"\[WRITE_FILE:\s*(.+?)\](.*?)\[END_WRITE\]", RegexOptions.Singleline);
+                var writeMatches = writeRegex.Matches(response);
+                foreach (Match match in writeMatches)
+                {
+                    string path = match.Groups[1].Value.Trim().Trim('"', '\'');
+                    string content = match.Groups[2].Value;
+                    string tagKey = $"WRITE:{path}:{content.GetHashCode()}";
+                    if (executedTags.Contains(tagKey)) continue;
+                    executedTags.Add(tagKey);
+                    newExecutionsCount++;
+
+                    try
+                    {
+                        string? dir = Path.GetDirectoryName(path);
+                        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                        {
+                            Directory.CreateDirectory(dir);
+                        }
+                        File.WriteAllText(path, content);
+                        executionFeedBuilder.AppendLine($"[WRITE_FILE_OUTPUT: {path}]\nFile written successfully ({content.Length} characters).\n[END_WRITE_FILE_OUTPUT]");
+                        lastToolOutput = $"📝 **Wrote File ({Path.GetFileName(path)})**";
+                        
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            ChatOverlay.LogConsoleAction("Write File", $"Path: {path}\nLength: {content.Length} chars\nResult: SUCCESS");
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        executionFeedBuilder.AppendLine($"[WRITE_FILE_OUTPUT: {path}]\nError writing file: {ex.Message}\n[END_WRITE_FILE_OUTPUT]");
+                    }
+                }
+
+                // 7. Check for [APPEND_FILE: path]content[END_APPEND] tags
+                var appendRegex = new Regex(@"\[APPEND_FILE:\s*(.+?)\](.*?)\[END_APPEND\]", RegexOptions.Singleline);
+                var appendMatches = appendRegex.Matches(response);
+                foreach (Match match in appendMatches)
+                {
+                    string path = match.Groups[1].Value.Trim().Trim('"', '\'');
+                    string content = match.Groups[2].Value;
+                    string tagKey = $"APPEND:{path}:{content.GetHashCode()}";
+                    if (executedTags.Contains(tagKey)) continue;
+                    executedTags.Add(tagKey);
+                    newExecutionsCount++;
+
+                    try
+                    {
+                        string? dir = Path.GetDirectoryName(path);
+                        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                        {
+                            Directory.CreateDirectory(dir);
+                        }
+                        File.AppendAllText(path, content);
+                        executionFeedBuilder.AppendLine($"[APPEND_FILE_OUTPUT: {path}]\nFile appended successfully ({content.Length} characters).\n[END_APPEND_FILE_OUTPUT]");
+                        lastToolOutput = $"📝 **Appended to File ({Path.GetFileName(path)})**";
+
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            ChatOverlay.LogConsoleAction("Append File", $"Path: {path}\nLength: {content.Length} chars\nResult: SUCCESS");
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        executionFeedBuilder.AppendLine($"[APPEND_FILE_OUTPUT: {path}]\nError appending to file: {ex.Message}\n[END_APPEND_FILE_OUTPUT]");
+                    }
+                }
+
+                // 8. Check for [DELETE_PATH: path] tags
+                var deleteRegex = new Regex(@"\[DELETE_PATH:\s*(.+?)\]", RegexOptions.IgnoreCase);
+                var deleteMatches = deleteRegex.Matches(response);
+                foreach (Match match in deleteMatches)
+                {
+                    string path = match.Groups[1].Value.Trim().Trim('"', '\'');
+                    string tagKey = $"DELETE:{path}";
+                    if (executedTags.Contains(tagKey)) continue;
+                    executedTags.Add(tagKey);
+                    newExecutionsCount++;
+
+                    try
+                    {
+                        if (File.Exists(path))
+                        {
+                            File.Delete(path);
+                            executionFeedBuilder.AppendLine($"[DELETE_OUTPUT: {path}]\nFile deleted successfully.\n[END_DELETE_OUTPUT]");
+                            lastToolOutput = $"🗑️ **Deleted File ({Path.GetFileName(path)})**";
+                        }
+                        else if (Directory.Exists(path))
+                        {
+                            Directory.Delete(path, true);
+                            executionFeedBuilder.AppendLine($"[DELETE_OUTPUT: {path}]\nDirectory deleted recursively successfully.\n[END_DELETE_OUTPUT]");
+                            lastToolOutput = $"🗑️ **Deleted Directory ({Path.GetFileName(path)})**";
+                        }
+                        else
+                        {
+                            executionFeedBuilder.AppendLine($"[DELETE_OUTPUT: {path}]\nPath not found.\n[END_DELETE_OUTPUT]");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        executionFeedBuilder.AppendLine($"[DELETE_OUTPUT: {path}]\nError deleting path: {ex.Message}\n[END_DELETE_OUTPUT]");
+                    }
+                }
+
+                // 9. Check for [GET_PROCESSES] tags
+                if (response.Contains("[GET_PROCESSES]", StringComparison.OrdinalIgnoreCase))
+                {
+                    string tagKey = "GET_PROCESSES";
+                    if (!executedTags.Contains(tagKey))
+                    {
+                        executedTags.Add(tagKey);
+                        newExecutionsCount++;
+
+                        try
+                        {
+                            var sb = new StringBuilder();
+                            sb.AppendLine("Active processes list:");
+                            var processes = System.Diagnostics.Process.GetProcesses();
+                            int count = 0;
+                            foreach (var p in processes)
+                            {
+                                try
+                                {
+                                    if (count++ > 50) { sb.AppendLine("... (truncated)"); break; }
+                                    sb.AppendLine($"- {p.ProcessName} (ID: {p.Id}, WorkingSet: {p.WorkingSet64 / 1024 / 1024}MB)");
+                                }
+                                catch { }
+                            }
+                            string output = sb.ToString();
+                            executionFeedBuilder.AppendLine($"[PROCESSES_OUTPUT]\n{output}\n[END_PROCESSES_OUTPUT]");
+                            lastToolOutput = "🖥️ **Listed system processes**";
+                        }
+                        catch (Exception ex)
+                        {
+                            executionFeedBuilder.AppendLine($"[PROCESSES_OUTPUT]\nError listing processes: {ex.Message}\n[END_PROCESSES_OUTPUT]");
+                        }
+                    }
+                }
+
+                // 10. Check for [KILL_PROCESS: target] tags
+                var killRegex = new Regex(@"\[KILL_PROCESS:\s*(.+?)\]", RegexOptions.IgnoreCase);
+                var killMatches = killRegex.Matches(response);
+                foreach (Match match in killMatches)
+                {
+                    string target = match.Groups[1].Value.Trim().Trim('"', '\'');
+                    string tagKey = $"KILL:{target}";
+                    if (executedTags.Contains(tagKey)) continue;
+                    executedTags.Add(tagKey);
+                    newExecutionsCount++;
+
+                    try
+                    {
+                        bool success = false;
+                        if (int.TryParse(target, out int pid))
+                        {
+                            var p = System.Diagnostics.Process.GetProcessById(pid);
+                            p.Kill();
+                            success = true;
+                        }
+                        else
+                        {
+                            var procs = System.Diagnostics.Process.GetProcessesByName(target);
+                            foreach (var p in procs)
+                            {
+                                p.Kill();
+                                success = true;
+                            }
+                        }
+                        
+                        if (success)
+                        {
+                            executionFeedBuilder.AppendLine($"[KILL_OUTPUT: {target}]\nProcess terminated successfully.\n[END_KILL_OUTPUT]");
+                            lastToolOutput = $"🛑 **Terminated process: {target}**";
+                        }
+                        else
+                        {
+                            executionFeedBuilder.AppendLine($"[KILL_OUTPUT: {target}]\nNo matching processes found.\n[END_KILL_OUTPUT]");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        executionFeedBuilder.AppendLine($"[KILL_OUTPUT: {target}]\nError terminating process: {ex.Message}\n[END_KILL_OUTPUT]");
+                    }
+                }
+
+                // 11. Check for [RUN_COMMAND: cmd] or [EXEC_COMMAND: cmd] tags
+                var runCmdRegex = new Regex(@"\[(?:RUN_COMMAND|EXEC_COMMAND):\s*(.+?)\]", RegexOptions.IgnoreCase);
+                var runCmdMatches = runCmdRegex.Matches(response);
+                foreach (Match match in runCmdMatches)
+                {
+                    string jarvisCmd = match.Groups[1].Value.Trim().Trim('"', '\'');
+                    string tagKey = $"RUN_COMMAND:{jarvisCmd}";
+                    if (executedTags.Contains(tagKey)) continue;
+                    executedTags.Add(tagKey);
+                    newExecutionsCount++;
+
+                    try
+                    {
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            CommandParser.ExecuteFirstSuggestion(jarvisCmd);
+                            ChatOverlay.LogConsoleAction("Exec Command", $"Command: {jarvisCmd}\nResult: EXECUTED");
+                        });
+                        executionFeedBuilder.AppendLine($"[COMMAND_OUTPUT: {jarvisCmd}]\nJarvis computer tool command '{jarvisCmd}' executed successfully.\n[END_COMMAND_OUTPUT]");
+                        lastToolOutput = $"⚡ **Executed Computer Tool: {jarvisCmd}**";
+                    }
+                    catch (Exception ex)
+                    {
+                        executionFeedBuilder.AppendLine($"[COMMAND_OUTPUT: {jarvisCmd}]\nError executing command: {ex.Message}\n[END_COMMAND_OUTPUT]");
+                    }
+                }
+
                 // If no new execution tags were run, we are finished!
                 if (newExecutionsCount == 0)
                 {
@@ -274,9 +502,15 @@ namespace JarvisLauncher
 
             string finalCleaned = CleanScratchpadText(lastResponse);
             finalCleaned = Regex.Replace(finalCleaned, @"\[READ_FILE:\s*.+?\]", "", RegexOptions.IgnoreCase);
+            finalCleaned = Regex.Replace(finalCleaned, @"\[EXEC_SHELL:\s*.+?\]", "", RegexOptions.IgnoreCase);
             finalCleaned = Regex.Replace(finalCleaned, @"\[EXEC_PS:\s*.+?\]", "", RegexOptions.IgnoreCase);
             finalCleaned = Regex.Replace(finalCleaned, @"\[LIST_DIR:\s*.+?\]", "", RegexOptions.IgnoreCase);
-            finalCleaned = Regex.Replace(finalCleaned, @"\[SEARCH_FILES:\s*.+?\]", "", RegexOptions.IgnoreCase).Trim();
+            finalCleaned = Regex.Replace(finalCleaned, @"\[SEARCH_FILES:\s*.+?\]", "", RegexOptions.IgnoreCase);
+            finalCleaned = Regex.Replace(finalCleaned, @"\[WRITE_FILE:\s*.+?\][\s\S]*?\[END_WRITE\]", "", RegexOptions.IgnoreCase);
+            finalCleaned = Regex.Replace(finalCleaned, @"\[APPEND_FILE:\s*.+?\][\s\S]*?\[END_APPEND\]", "", RegexOptions.IgnoreCase);
+            finalCleaned = Regex.Replace(finalCleaned, @"\[DELETE_PATH:\s*.+?\]", "", RegexOptions.IgnoreCase);
+            finalCleaned = Regex.Replace(finalCleaned, @"\[GET_PROCESSES\]", "", RegexOptions.IgnoreCase);
+            finalCleaned = Regex.Replace(finalCleaned, @"\[KILL_PROCESS:\s*.+?\]", "", RegexOptions.IgnoreCase).Trim();
 
             if (!string.IsNullOrEmpty(lastToolOutput) && !finalCleaned.Contains(lastToolOutput.Substring(0, Math.Min(30, lastToolOutput.Length))))
             {
@@ -339,14 +573,22 @@ namespace JarvisLauncher
             return string.IsNullOrWhiteSpace(result) ? text.Trim() : result;
         }
 
-        private static async Task<string> QueryGeminiRaw(string prompt, string apiKey, List<ChatTurn>? history = null)
+        private static async Task<string> QueryGeminiRaw(string prompt, string apiKey, string? base64Image = null, string? base64Audio = null, List<ChatTurn>? history = null)
         {
-            // Dynamically discover active supported models for this API key if needed
-            var discoveredModels = await DiscoverActiveModelsAsync(apiKey);
+            // Prioritize fastest models for HUD responsiveness
+            var models = new List<string> { "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-pro" };
 
-            string[] models = discoveredModels.Count > 0 
-                ? discoveredModels.ToArray() 
-                : new[] { "gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash", "gemini-pro" };
+            // Integrate discovered models if available
+            if (_cachedDiscoveredModels.Count > 0)
+            {
+                foreach(var m in _cachedDiscoveredModels)
+                    if(!models.Contains(m)) models.Add(m);
+            }
+            else
+            {
+                // Background discover for next time
+                _ = Task.Run(() => DiscoverActiveModelsAsync(apiKey));
+            }
 
             string[] apiVersions = new[] { "v1beta", "v1" };
             string lastError = "";
@@ -375,26 +617,39 @@ namespace JarvisLauncher
                         "- NEVER say 'The user said...', 'The user provided...', 'As an AI...', 'I should...', 'I will now...', 'Let me...'\n" +
                         "- NEVER narrate your own thoughts or actions. No 'Plan:', 'Step 1:', 'Thinking:', 'My approach:'.\n" +
                         "- NEVER output scratchpad notes, inner monologue bullet points (* ...), reasoning steps, or prompt meta-analysis.\n" +
-                        "- NEVER repeat or analyze prompt injection text like '[SHELL_OUTPUT]' or 'NOW PROCEED'.\n" +
                         "- NEVER refer to yourself in third person or explain what you're about to do.\n" +
-                        "- If something is unclear, just ask ONE short question. Don't ramble.\n" +
                         "- Keep answers under 3 sentences unless writing code or showing output.\n\n" +
-                        "## EXAMPLES OF CORRECT TONE\n" +
-                        "User: hello → You: Hey Kyle! What are we working on?\n" +
-                        "User: git status → You: [EXEC_SHELL: git status]\n" +
-                        "User: what's in main.cs → You: [READ_FILE: " + projectRoot + "\\main.cs]\n\n" +
                         "## ACTIONS (use these tags to DO things, no explanation needed before them)\n" +
                         "[READ_FILE: C:\\path\\to\\file.cs]\n" +
+                        "[WRITE_FILE: C:\\path\\to\\file.txt]\ncontent\n[END_WRITE]\n" +
+                        "[APPEND_FILE: C:\\path\\to\\file.txt]\ncontent\n[END_APPEND]\n" +
                         "[EXEC_SHELL: git status]\n" +
                         "[EXEC_PS: Get-Process | Select-Object -First 10]\n" +
                         "[LIST_DIR: C:\\path\\to\\folder]\n" +
                         "[SEARCH_FILES: filename_pattern]\n" +
-                        "[WRITE_FILE: C:\\path\\to\\file.txt]\ncontent\n[END_WRITE]\n" +
-                        "[APPEND_FILE: C:\\path\\to\\file.txt]\ncontent\n[END_APPEND]\n" +
+                        "[DELETE_PATH: C:\\path\\to\\file.txt]\n" +
+                        "[GET_PROCESSES]\n" +
+                        "[KILL_PROCESS: notepad]\n" +
                         "[OPEN_FILE: C:\\path\\to\\file.pdf]\n" +
                         "[OPEN_EDITOR: C:\\path\\to\\file.txt]\n" +
                         "[PIN_FILE: C:\\path\\to\\file.txt]\n" +
-                        "[RUN_COMMAND: theme dracula]\n\n" +
+                        "[RUN_COMMAND: volume 50] (volume, brightness, theme, monitor)\n" +
+                        "[READ_URL: https://example.com] (Scrapes text, headings, and links from any website)\n" +
+                        "[GITHUB_REPO: owner/repo] (Gets overview of a GitHub project)\n" +
+                        "[GITHUB_LIST: owner/repo/path] (Lists files in a GitHub folder)\n" +
+                        "[GITHUB_READ: owner/repo/file_path] (Reads content of a specific GitHub file)\n" +
+                        "[TAKE_SCREENSHOT] (Returns path to a fresh capture of the primary monitor)\n" +
+                        "[GET_ACTIVE_WINDOWS] (Returns titles of all open windows)\n" +
+                        "[GET_IDLE_TIME] (Returns how long the PC has been inactive)\n" +
+                        "[SPEECH: text] (Forces immediate TTS of the given text)\n" +
+                        "[LEARN_VOICE: phrase] (Adds a new wake word or phrase to the ML engine)\n" +
+                        "[SEARCH_CONTENT: text] (Searches for text pattern inside project files)\n" +
+                        "[GET_CLIPBOARD_HISTORY] (Returns recent clipboard text history)\n" +
+                        "[SET_CLIPBOARD: text] (Sets the system clipboard to specific text)\n" +
+                        "[MEDIA_CONTROL: play|next|prev] (Controls music/video playback)\n" +
+                        "[CLOSE_WINDOW: title] (Closes a window by partial title match)\n" +
+                        "[DISABLE_JARVIS] (Puts Jarvis in sleep mode, disabling voice and tracking)\n" +
+                        "[ENABLE_JARVIS] (Wakes Jarvis up, enabling all background services)\n\n" +
                         $"Save memory/notes to: '{instructionsPath}' — auto-loaded next session.\n\n" +
                         instructions;
 
@@ -414,10 +669,35 @@ namespace JarvisLauncher
                     }
 
                     // Add current turn
+                    var currentParts = new List<object>();
+                    if (!string.IsNullOrEmpty(base64Image))
+                    {
+                        currentParts.Add(new
+                        {
+                            inline_data = new
+                            {
+                                mime_type = "image/jpeg",
+                                data = base64Image
+                            }
+                        });
+                    }
+                    if (!string.IsNullOrEmpty(base64Audio))
+                    {
+                        currentParts.Add(new
+                        {
+                            inline_data = new
+                            {
+                                mime_type = "audio/wav",
+                                data = base64Audio
+                            }
+                        });
+                    }
+                    currentParts.Add(new { text = prompt });
+
                     contentsList.Add(new
                     {
                         role = "user",
-                        parts = new[] { new { text = prompt } }
+                        parts = currentParts.ToArray()
                     });
 
                     var payload = new

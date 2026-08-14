@@ -40,11 +40,7 @@ namespace JarvisLauncher
                 // If editor is already open for this exact file, focus it
                 if (_instance != null && _instance._filePath.Equals(absolutePath, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (_instance.WindowState == WindowState.Minimized)
-                        _instance.WindowState = WindowState.Normal;
-
-                    _instance.Activate();
-                    _instance.Focus();
+                    _instance.Show();
                     return;
                 }
 
@@ -56,8 +52,6 @@ namespace JarvisLauncher
 
                 _instance = new TextEditorOverlay(absolutePath);
                 _instance.Show();
-                _instance.Activate();
-                _instance.Focus();
             });
         }
 
@@ -202,7 +196,7 @@ namespace JarvisLauncher
             {
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
-                ItemContainerStyle = new Style(typeof(ListBoxItem))
+                ItemContainerStyle = new Style(typeof(ListBoxItem), (Style)Application.Current.FindResource("ResultItemStyle"))
             };
             _outlineListBox.ItemContainerStyle.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(4, 2, 4, 2)));
             _outlineListBox.SelectionChanged += OutlineListBox_SelectionChanged;

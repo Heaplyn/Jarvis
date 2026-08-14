@@ -16,7 +16,7 @@ namespace JarvisLauncher
         public bool CanHandle(string query)
         {
             query = query.Trim().ToLower();
-            return query == "screenshot" || query == "screen capture" || query == "capture";
+            return query == "screenshot" || query == "screen capture" || query == "capture" || query.Contains("screenshots");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -34,7 +34,29 @@ namespace JarvisLauncher
                 Execute     = () => TakeScreenshot()
             });
 
+            if (query.Contains("folder") || query.Contains("open") || query.Contains("view") || query.Contains("recent"))
+            {
+                suggestions.Add(new CommandResult
+                {
+                    Title = "Open Screenshots Folder",
+                    Description = "Open the folder containing automatic memory captures",
+                    Similarity = 4.8,
+                    Execute = () => OpenScreenshotsFolder()
+                });
+            }
+
             return suggestions;
+        }
+
+        private static void OpenScreenshotsFolder()
+        {
+            try
+            {
+                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Screenshots");
+                if (!Directory.Exists(path)) Directory.CreateDirectory(path);
+                System.Diagnostics.Process.Start("explorer.exe", path);
+            }
+            catch { }
         }
 
         private static void TakeScreenshot()

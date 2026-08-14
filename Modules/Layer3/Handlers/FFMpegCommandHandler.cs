@@ -16,10 +16,12 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            if (string.IsNullOrEmpty(query)) return false;
-            string firstWord = query.Split(' ')[0];
-            return "ffmpeg".StartsWith(firstWord) || "convert".StartsWith(firstWord) || firstWord.StartsWith("ffmpeg") || firstWord.StartsWith("convert");
+            string q = query.Trim().ToLower();
+            if (string.IsNullOrEmpty(q)) return false;
+
+            return q.StartsWith("ffmpeg") || q.StartsWith("convert") || q.Contains("to")
+                || q == "webp2png" || q == "gif2mp4" || q == "png2webp" || q == "mp42gif" || q == "mp32wav"
+                || q == "mediaconvert" || q == "convertmedia";
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -30,7 +32,79 @@ namespace JarvisLauncher
             var parts = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             string firstWord = parts.Length > 0 ? parts[0].ToLower() : "";
 
-            double similarity = SearchUtil.GetSimilarity(firstWord, "ffmpeg");
+            double similarity = 3.5;
+
+            // Universal Media Converter Studio Trigger
+            if (lower == "mediaconvert" || lower == "convertmedia" || lower == "convert" || lower.Contains("media conversion"))
+            {
+                suggestions.Add(new CommandResult
+                {
+                    Title = "⚡ Open Universal Media Converter Studio",
+                    Description = "Convert WEBP to PNG, GIF to MP4, MP4 to GIF, PNG to WEBP, MP3 to WAV",
+                    Similarity = 5.0,
+                    Execute = () => MediaConverterOverlay.ShowOverlay()
+                });
+            }
+
+            // WEBP to PNG
+            if (lower.Contains("webp to png") || lower.Contains("webp2png") || lower.Contains("convert webp"))
+            {
+                suggestions.Add(new CommandResult
+                {
+                    Title = "🖼️ Convert WEBP Image ➔ PNG",
+                    Description = "Open Media Converter for WEBP ➔ PNG lossless format",
+                    Similarity = 4.5,
+                    Execute = () => MediaConverterOverlay.ShowOverlay(defaultTargetFormat: "png")
+                });
+            }
+
+            // GIF to MP4
+            if (lower.Contains("gif to mp4") || lower.Contains("gif2mp4") || lower.Contains("convert gif"))
+            {
+                suggestions.Add(new CommandResult
+                {
+                    Title = "🎞️ Convert Animated GIF ➔ MP4 Video",
+                    Description = "Convert GIF animations to compressed H.264 MP4 videos",
+                    Similarity = 4.5,
+                    Execute = () => MediaConverterOverlay.ShowOverlay(defaultTargetFormat: "mp4")
+                });
+            }
+
+            // MP4 to GIF
+            if (lower.Contains("mp4 to gif") || lower.Contains("mp42gif"))
+            {
+                suggestions.Add(new CommandResult
+                {
+                    Title = "🎬 Convert MP4 Video ➔ Animated GIF",
+                    Description = "Create animated GIF clips from MP4 video files",
+                    Similarity = 4.5,
+                    Execute = () => MediaConverterOverlay.ShowOverlay(defaultTargetFormat: "gif")
+                });
+            }
+
+            // PNG to WEBP
+            if (lower.Contains("png to webp") || lower.Contains("png2webp"))
+            {
+                suggestions.Add(new CommandResult
+                {
+                    Title = "🌐 Convert PNG Image ➔ WEBP",
+                    Description = "Optimize PNG images into compact WEBP web format",
+                    Similarity = 4.5,
+                    Execute = () => MediaConverterOverlay.ShowOverlay(defaultTargetFormat: "webp")
+                });
+            }
+
+            // MP3 to WAV
+            if (lower.Contains("mp3 to wav") || lower.Contains("mp32wav"))
+            {
+                suggestions.Add(new CommandResult
+                {
+                    Title = "🎵 Convert MP3 Audio ➔ Uncompressed WAV",
+                    Description = "Convert MP3 files into 16-bit 44.1kHz PCM WAV audio",
+                    Similarity = 4.5,
+                    Execute = () => MediaConverterOverlay.ShowOverlay(defaultTargetFormat: "wav")
+                });
+            }
 
             if ("ffmpeg".StartsWith(firstWord) || "convert".StartsWith(firstWord) || lower == "ffmpeg" || lower == "convert")
             {

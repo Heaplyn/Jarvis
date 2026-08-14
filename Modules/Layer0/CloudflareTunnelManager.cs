@@ -19,8 +19,9 @@ namespace JarvisLauncher
         public static string? PublicUrl => _publicUrl;
         public static bool IsRunning => _tunnelProcess != null && !_tunnelProcess.HasExited;
 
-        public static async Task<string> StartTunnelAsync(int targetPort = 9000)
+        public static async Task<string> StartTunnelAsync(int targetPort = -1)
 {
+    if (targetPort <= 0) targetPort = MobileBridgeServer.Port;
     StopTunnel();
 
     // Ensure MobileBridgeServer is active before launching tunnel

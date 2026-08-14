@@ -31,15 +31,6 @@ namespace JarvisLauncher
 
                 _instance.AppendOutput(commandTitle, outputContent);
                 _instance.Show();
-
-                // If minimized, restore it
-                if (_instance.WindowState == WindowState.Minimized)
-                {
-                    _instance.WindowState = WindowState.Normal;
-                }
-
-                _instance.Activate();
-                _instance.Focus();
             });
         }
 

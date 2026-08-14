@@ -15,6 +15,9 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Scripting" Version="5.6.0" />
     <PackageReference Include="NAudio" Version="2.2.1" />
     <PackageReference Include="System.Management" Version="10.0.11" />
+    <PackageReference Include="System.Speech" Version="10.0.11" />
+    <PackageReference Include="Vosk" Version="0.3.38" />
+    <PackageReference Include="WpfAnimatedGif" Version="2.0.2" />
   </ItemGroup>
 
 </Project>

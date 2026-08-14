@@ -9,6 +9,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using System.Collections.Generic;
 
@@ -72,6 +73,8 @@ namespace JarvisLauncher
             public Border? BorderElement { get; set; }
             public TextBlock? StatusTextBlock { get; set; }
             public TextBlock? TitleTextBlock { get; set; }
+            public Button? CancelButton { get; set; }
+            public System.Threading.CancellationTokenSource Cts { get; set; } = new();
         }
 
         private readonly List<DownloadQueueItem> _downloadQueue = new List<DownloadQueueItem>();
@@ -86,14 +89,6 @@ namespace JarvisLauncher
                 }
 
                 _instance.Show();
-
-                if (_instance.WindowState == WindowState.Minimized)
-                {
-                    _instance.WindowState = WindowState.Normal;
-                }
-
-                _instance.Activate();
-                _instance.Focus();
             });
         }
 
@@ -114,7 +109,12 @@ namespace JarvisLauncher
                 }
                 else
                 {
-                    _instance?.ExecuteDownloadProcess(url);
+                    // Only start download if the URL is not empty after trimming
+                    string trimmed = url.Trim();
+                    if (!string.IsNullOrWhiteSpace(trimmed))
+                    {
+                        _instance?.ExecuteDownloadProcess(trimmed);
+                    }
                 }
             });
         }
@@ -144,19 +144,29 @@ namespace JarvisLauncher
 
             this.Closed += (s, e) =>
             {
+                // This fires only on a true/force close, not on Hide()
                 _playTimer.Stop();
                 _mediaPlayer.Close();
                 try
                 {
                     ChromeStreamTracker.KillIfRunning();
                     ChromeRemoteControl.Shutdown();
-                    if (_streamProcess != null )//&& !_streamProcess.HasExited)
+                    if (_streamProcess != null)
                     {
                         _streamProcess.Kill(entireProcessTree: true);
                     }
                 }
                 catch { }
                 _instance = null;
+            };
+
+            this.IsVisibleChanged += (s, e) =>
+            {
+                // Pause/resume timer based on visibility
+                if (this.IsVisible)
+                    _playTimer.Start();
+                else
+                    _playTimer.Stop();
             };
 
             // Setup Playhead Position Timer
@@ -497,11 +507,13 @@ namespace JarvisLauncher
             _loopBtn = CreateButton("🔁 Folder", (s, e) => ToggleLoopMode());
             _shuffleBtn = CreateButton("🔀 Shuffle: Off", (s, e) => ToggleShuffle());
 
-            controlsPanel.Children.Add(prevBtn);
-            controlsPanel.Children.Add(_playPauseBtn);
-            controlsPanel.Children.Add(nextBtn);
-            controlsPanel.Children.Add(_loopBtn);
-            controlsPanel.Children.Add(_shuffleBtn);
+            if (controlsPanel != null) {
+                controlsPanel.Children.Add(prevBtn);
+                controlsPanel.Children.Add(_playPauseBtn);
+                controlsPanel.Children.Add(nextBtn);
+                controlsPanel.Children.Add(_loopBtn);
+                controlsPanel.Children.Add(_shuffleBtn);
+            }
 
             var volStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(15, 0, 0, 0) };
             volStack.Children.Add(new TextBlock { Text = "🔊", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,4,0), Foreground = Brushes.White });
@@ -731,9 +743,11 @@ namespace JarvisLauncher
                 var deleteMenuItem = new MenuItem { Header = "❌ Delete Track" };
                 deleteMenuItem.Click += (s, e) =>
                 {
-                    _activeFolder.Tracks.Remove(track);
-                    MusicPlaylistManager.SaveLibrary(_library);
-                    RenderTracksList();
+                    if (_activeFolder != null) {
+                        _activeFolder.Tracks.Remove(track);
+                        MusicPlaylistManager.SaveLibrary(_library);
+                        RenderTracksList();
+                    }
                 };
                 contextMenu.Items.Add(deleteMenuItem);
 
@@ -1429,6 +1443,7 @@ private void CopyTrackToFolder(MusicTrack track, MusicFolder destinationFolder)
             rowBorder.SetResourceReference(Border.BorderBrushProperty, "WindowBorderBrush");
 
             var stack = new StackPanel();
+
             var titleBlock = new TextBlock
             {
                 Text = item.Title,
@@ -1448,8 +1463,28 @@ private void CopyTrackToFolder(MusicTrack track, MusicFolder destinationFolder)
             statusBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
             item.StatusTextBlock = statusBlock;
 
+            var cancelBtn = new Button
+            {
+                Content = "✕ Cancel",
+                FontSize = 10,
+                Padding = new Thickness(4, 2, 4, 2),
+                Margin = new Thickness(0, 4, 0, 0),
+                Cursor = Cursors.Hand
+            };
+            cancelBtn.SetResourceReference(Button.BackgroundProperty, "HoverBackgroundBrush");
+            cancelBtn.SetResourceReference(Button.ForegroundProperty, "TextPrimaryBrush");
+            cancelBtn.Click += (s, e) =>
+            {
+                try { item.Cts.Cancel(); } catch { }
+                UpdateQueueItemStatus(item, "Cancelled", item.Title);
+                cancelBtn.IsEnabled = false;
+                cancelBtn.Content = "Cancelled";
+            };
+            item.CancelButton = cancelBtn;
+
             stack.Children.Add(titleBlock);
             stack.Children.Add(statusBlock);
+            stack.Children.Add(cancelBtn);
             rowBorder.Child = stack;
 
             item.BorderElement = rowBorder;
@@ -1466,8 +1501,8 @@ private void CopyTrackToFolder(MusicTrack track, MusicFolder destinationFolder)
                     item.StatusTextBlock.Text = $"Status: {status}";
                     if (status == "Finished")
                         item.StatusTextBlock.Foreground = Brushes.LightGreen;
-                    else if (status == "Failed")
-                        item.StatusTextBlock.Foreground = Brushes.Red;
+                    else if (status == "Failed" || status == "Cancelled")
+                        item.StatusTextBlock.Foreground = Brushes.OrangeRed;
                     else
                         item.StatusTextBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
                 }
@@ -1481,6 +1516,13 @@ private void CopyTrackToFolder(MusicTrack track, MusicFolder destinationFolder)
                     }
                 }
 
+                // Hide cancel button once the download is terminal
+                if ((status == "Finished" || status == "Failed" || status == "Cancelled") && item.CancelButton != null)
+                {
+                    item.CancelButton.IsEnabled = false;
+                    item.CancelButton.Visibility = Visibility.Collapsed;
+                }
+
                 UpdateDownloadsToggleBtnText();
             });
         }
@@ -1490,9 +1532,31 @@ private void CopyTrackToFolder(MusicTrack track, MusicFolder destinationFolder)
             if (_activeFolder == null) return;
 
             string url = rawUrl.Trim();
+
+            // Guard: do not attempt download if URL is empty or clearly invalid
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                TextOverlay.Show("⚠️ No URL provided for download.", 3000);
+                return;
+            }
+
             if (!url.StartsWith("http://") && !url.StartsWith("https://"))
             {
                 url = "https://" + url;
+            }
+
+            // Sanity check: must look like an actual host, not just "https://"
+            if (url == "https://" || url == "http://")
+            {
+                TextOverlay.Show("⚠️ Invalid URL — please enter a full link.", 3000);
+                return;
+            }
+
+            // Guard: skip if this URL is already saved as a stream track in the active folder
+            // — this prevents re-queuing downloads for web stream entries that already exist
+            if (_activeFolder.Tracks.Any(t => t.IsStreamUrl && t.PathOrUrl == url))
+            {
+                return;
             }
 
             var queueItem = new DownloadQueueItem
@@ -1516,6 +1580,9 @@ private void CopyTrackToFolder(MusicTrack track, MusicFolder destinationFolder)
 
             System.Threading.Tasks.Task.Run(async () =>
             {
+                var ct = queueItem.Cts.Token;
+
+                if (ct.IsCancellationRequested) return;
                 UpdateQueueItemStatus(queueItem, "Downloading...", "Downloading media...");
                 string musicDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Music", _activeFolder.FolderName);
                 if (!Directory.Exists(musicDir)) Directory.CreateDirectory(musicDir);
@@ -1526,25 +1593,28 @@ private void CopyTrackToFolder(MusicTrack track, MusicFolder destinationFolder)
 
                 string tsOutput = string.Empty;
                 // 1. Primary Engine: DownloadMediaRunner (TypeScript CLI Playwright + Lucida fetcher)
-                try
+                if (!ct.IsCancellationRequested)
                 {
-                    tsOutput = await DownloadMediaRunner.DownloadAsync(url, musicDir);
-                    if (tsOutput.StartsWith("Success:"))
+                    try
                     {
-                        string path = tsOutput.Substring("Success:".Length).Replace("\r", "").Trim();
-                        if (File.Exists(path))
+                        tsOutput = await DownloadMediaRunner.DownloadAsync(url, musicDir);
+                        if (tsOutput.StartsWith("Success:"))
                         {
-                            localPath = path;
+                            string path = tsOutput.Substring("Success:".Length).Replace("\r", "").Trim();
+                            if (File.Exists(path))
+                            {
+                                localPath = path;
+                            }
                         }
                     }
-                }
-                catch (Exception ex)
-                {
-                    tsOutput = $"Exception: {ex.Message}";
+                    catch (Exception ex)
+                    {
+                        tsOutput = $"Exception: {ex.Message}";
+                    }
                 }
 
                 // 2. Fallback Engine: yt-dlp / cmd.exe MP3 conversion
-                if (string.IsNullOrEmpty(localPath) || !File.Exists(localPath))
+                if (!ct.IsCancellationRequested && (string.IsNullOrEmpty(localPath) || !File.Exists(localPath)))
                 {
                     try
                     {
@@ -1561,18 +1631,28 @@ private void CopyTrackToFolder(MusicTrack track, MusicFolder destinationFolder)
                         using var proc = System.Diagnostics.Process.Start(psi);
                         if (proc != null)
                         {
-                            await proc.WaitForExitAsync();
-                            var files = Directory.GetFiles(musicDir, "*.mp3");
-                            string? newest = files.Where(f => File.GetLastWriteTime(f) >= startTime)
-                                                  .OrderByDescending(File.GetLastWriteTime)
-                                                  .FirstOrDefault();
-                            if (!string.IsNullOrEmpty(newest) && File.Exists(newest) && new FileInfo(newest).Length > 10000)
+                            await proc.WaitForExitAsync(ct);
+                            if (!ct.IsCancellationRequested)
                             {
-                                localPath = newest;
+                                var files = Directory.GetFiles(musicDir, "*.mp3");
+                                string? newest = files.Where(f => File.GetLastWriteTime(f) >= startTime)
+                                                      .OrderByDescending(File.GetLastWriteTime)
+                                                      .FirstOrDefault();
+                                if (!string.IsNullOrEmpty(newest) && File.Exists(newest) && new FileInfo(newest).Length > 10000)
+                                {
+                                    localPath = newest;
+                                }
                             }
                         }
                     }
+                    catch (OperationCanceledException) { }
                     catch { }
+                }
+
+                if (ct.IsCancellationRequested)
+                {
+                    UpdateQueueItemStatus(queueItem, "Cancelled");
+                    return;
                 }
 
                 // If valid MP3 binary was saved to disk:
@@ -1683,6 +1763,19 @@ private void CopyTrackToFolder(MusicTrack track, MusicFolder destinationFolder)
                 _loopMode = LoopMode.Off;
                 _loopBtn.Content = "🔁 Off";
                 TextOverlay.Show("🔁 Repeat Mode: Off", 2000);
+            }
+        }
+
+        public static void ShowOverlay()
+        {
+            if (_instance == null || !_instance.IsLoaded)
+            {
+                _instance = new MusicPlaylistOverlay();
+                _instance.Show();
+            }
+            else
+            {
+                _instance.Activate();
             }
         }
     }

@@ -1,0 +1,44 @@
+<Window x:Class="JarvisLauncher.LoadingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Jarvis Initializing" Height="300" Width="500"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        WindowStartupLocation="CenterScreen" Topmost="True" ShowInTaskbar="False">
+    <Border Background="#1A1A1E" CornerRadius="15" BorderBrush="#33FFFFFF" BorderThickness="1">
+        <Grid Margin="30">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Text="JARVIS SYSTEM BOOT" Foreground="White" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" Grid.Row="0"/>
+
+            <Viewbox Grid.Row="1" Margin="20">
+                <Grid Width="100" Height="100">
+                    <Ellipse Stroke="#20FFFFFF" StrokeThickness="4"/>
+                    <Ellipse x:Name="Spinner" Stroke="#8050E6" StrokeThickness="4" StrokeDashArray="3 1">
+                        <Ellipse.RenderTransform>
+                            <RotateTransform x:Name="Rotate" CenterX="50" CenterY="50"/>
+                        </Ellipse.RenderTransform>
+                        <Ellipse.Triggers>
+                            <EventTrigger RoutedEvent="Loaded">
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Rotate" Storyboard.TargetProperty="Angle" From="0" To="360" Duration="0:0:2" RepeatBehavior="Forever"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </Ellipse.Triggers>
+                    </Ellipse>
+                    <TextBlock Text="V2.5" Foreground="#80FFFFFF" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Grid>
+            </Viewbox>
+
+            <TextBlock x:Name="StatusLabel" Text="Initializing core modules..." Foreground="#CCFFFFFF" FontSize="14" HorizontalAlignment="Center" Grid.Row="2" Margin="0,0,0,10"/>
+
+            <ProgressBar x:Name="LoadingProgress" Height="4" Foreground="#8050E6" Background="#22FFFFFF" BorderThickness="0" Grid.Row="3"/>
+        </Grid>
+    </Border>
+</Window>
