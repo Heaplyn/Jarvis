@@ -233,9 +233,9 @@ namespace JarvisLauncher
             // Remove code blocks
             string cleaned = Regex.Replace(text, @"```[\s\S]*?```", "");
 
-            // Remove AI action tags like [WRITE_FILE: ...]
-            cleaned = Regex.Replace(cleaned, @"\[[A-Z_]+:.*?\]", "");
-            cleaned = Regex.Replace(cleaned, @"\[.*?\]", "");
+            // Remove AI action tags like [WRITE_FILE: ...] (including multi-line scripts)
+            cleaned = Regex.Replace(cleaned, @"\[[a-zA-Z0-9_]+:[\s\S]*?\]", "");
+            cleaned = Regex.Replace(cleaned, @"\[[\s\S]*?\]", "");
 
             // Remove markdown links & formatting symbols
             cleaned = Regex.Replace(cleaned, @"\[(.*?)\]\(.*?\)", "$1");

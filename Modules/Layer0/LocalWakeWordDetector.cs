@@ -95,6 +95,14 @@ namespace JarvisLauncher
         private static void Engine_SpeechHypothesized(object? sender, SpeechHypothesizedEventArgs e)
         {
             if (e.Result == null || string.IsNullOrWhiteSpace(e.Result.Text)) return;
+
+            // INTERRUPTION LOGIC: If Jarvis is speaking and we detect a strong speech hypothesis, stop him.
+            if (TtsManager.IsSpeakingOrEchoing && e.Result.Confidence > 0.6)
+            {
+                CheckForUserInterruption(e.Result.Text);
+                return;
+            }
+
             if (TtsManager.IsSpeakingOrEchoing) return;
     
             string rawText = e.Result.Text.Trim();
@@ -124,6 +132,14 @@ DebugConsoleOverlay.Log("Voice Raw", $"Raw: \"{rawText}\" ({conf * 100:F0}% conf
         private static void Engine_SpeechRecognized(object? sender, SpeechRecognizedEventArgs e)
         {
             if (e.Result == null || string.IsNullOrWhiteSpace(e.Result.Text)) return;
+
+            // INTERRUPTION LOGIC: Recognized speech while Jarvis is talking instantly stops him.
+            if (TtsManager.IsSpeakingOrEchoing && e.Result.Confidence > 0.5)
+            {
+                CheckForUserInterruption(e.Result.Text);
+                return;
+            }
+
             if (TtsManager.IsSpeakingOrEchoing) return;
 
             // Strict confidence gate (default 75%, up to 98%) to make voice recognition less sensitive to background room noise
@@ -143,6 +159,28 @@ DebugConsoleOverlay.Log("Voice Raw", $"Raw: \"{rawText}\" ({conf * 100:F0}% conf
 
             // Buffer token into FullSentenceAccumulator (never execute mid-sentence)
             FullSentenceAccumulator.AppendSpeechToken(recognizedText);
+        }
+
+        private static void CheckForUserInterruption(string text)
+        {
+            string lower = text.ToLowerInvariant();
+
+            // If the user says a wake word or common stop words, stop the AI immediately
+            bool isInterruptionPhrase = lower.Contains("jarvis") ||
+                                        lower.Contains("stop") ||
+                                        lower.Contains("wait") ||
+                                        lower.Contains("listen") ||
+                                        lower.Contains("hey");
+
+            // Or if it's just a long enough sentence, assume the user is talking to us
+            if (isInterruptionPhrase || lower.Split(' ').Length > 1)
+            {
+                DebugConsoleOverlay.Log("Interruption", $"User interrupted Jarvis with: \"{text}\"");
+                TtsManager.Stop();
+
+                // Also reset the accumulator so we start fresh with the new speech
+                FullSentenceAccumulator.Reset();
+            }
         }
 
         private static void ProcessSpokenQuery(string query)

@@ -96,6 +96,8 @@ namespace JarvisLauncher
                 MemoryManager.Start();
                 VoiceActivationManager.Start();
                 AutonomousAgentEngine.Start();
+                BackgroundContextManager.Start();
+                VoiceAutoImprover.Start();
 
                 MobileBridgeServer.Start(SettingsManager.Current.MobilePort);
                 await Task.Delay(500);
@@ -154,6 +156,8 @@ namespace JarvisLauncher
             MemoryManager.Stop();
             VoiceActivationManager.Stop();
             AutonomousAgentEngine.Stop();
+            BackgroundContextManager.Stop();
+            VoiceAutoImprover.Stop();
             _notifyIcon?.Dispose();
             _notifyIcon = null;
             Application.Current.Shutdown();
@@ -202,6 +206,8 @@ namespace JarvisLauncher
             MemoryManager.Stop();
             VoiceActivationManager.Stop();
             AutonomousAgentEngine.Stop();
+            BackgroundContextManager.Stop();
+            VoiceAutoImprover.Stop();
             _notifyIcon?.Dispose();
             base.OnExit(e);
         }

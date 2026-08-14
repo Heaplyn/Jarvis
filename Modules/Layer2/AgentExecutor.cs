@@ -4,6 +4,7 @@
 
 using System;
 using System.IO;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Threading.Tasks;
@@ -200,73 +201,25 @@ namespace JarvisLauncher
             }
 
             // 7. Process EXEC_SHELL tags: [EXEC_SHELL: dir]
-            var shellRegex = new Regex(@"\[EXEC_SHELL:\s*(.+?)\]", RegexOptions.IgnoreCase);
+            var shellRegex = new Regex(@"\[EXEC_SHELL:\s*(?<cmd>[\s\S]+?)\]", RegexOptions.IgnoreCase | RegexOptions.Singleline);
             var shellMatches = shellRegex.Matches(aiResponse);
             foreach (Match m in shellMatches)
             {
-                string cmd = m.Groups[1].Value.Trim();
-                try
-                {
-                    var psi = new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = "cmd.exe",
-                        Arguments = $"/c {cmd}",
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-                    using var proc = System.Diagnostics.Process.Start(psi);
-                    if (proc != null)
-                    {
-                        string outText = proc.StandardOutput.ReadToEnd();
-                        string errText = proc.StandardError.ReadToEnd();
-                        proc.WaitForExit(5000);
-                        string output = (outText + "\n" + errText).Trim();
-                        ChatOverlay.LogConsoleAction("Execute Shell", $"Cmd: {cmd}\nOutput:\n{output}");
-                        logs += $"\n[SUCCESS] Executed shell '{cmd}':\n{output}";
-                    }
-                }
-                catch (Exception ex)
-                {
-                    ChatOverlay.LogConsoleAction("Execute Shell Failed", $"Cmd: {cmd}\nError: {ex.Message}");
-                    logs += $"\n[ERROR] Executing shell '{cmd}' failed: {ex.Message}";
-                }
+                string cmd = m.Groups["cmd"].Value.Trim();
+                string output = ExecuteShellDirect(cmd);
+                ChatOverlay.LogConsoleAction("Execute Shell", $"Cmd: {cmd}\nOutput:\n{output}");
+                logs += $"\n[SUCCESS] Executed shell '{cmd}':\n{output}";
             }
 
             // 8. Process EXEC_PS tags: [EXEC_PS: Get-Process]
-            var psRegex = new Regex(@"\[EXEC_PS:\s*(.+?)\]", RegexOptions.IgnoreCase);
+            var psRegex = new Regex(@"\[EXEC_PS:\s*(?<cmd>[\s\S]+?)\]", RegexOptions.IgnoreCase | RegexOptions.Singleline);
             var psMatches = psRegex.Matches(aiResponse);
             foreach (Match m in psMatches)
             {
-                string cmd = m.Groups[1].Value.Trim();
-                try
-                {
-                    var psi = new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = "powershell.exe",
-                        Arguments = $"-NoProfile -ExecutionPolicy Bypass -Command \"{cmd.Replace("\"", "\\\"")}\"",
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    };
-                    using var proc = System.Diagnostics.Process.Start(psi);
-                    if (proc != null)
-                    {
-                        string outText = proc.StandardOutput.ReadToEnd();
-                        string errText = proc.StandardError.ReadToEnd();
-                        proc.WaitForExit(7000);
-                        string output = (outText + "\n" + errText).Trim();
-                        ChatOverlay.LogConsoleAction("Execute PowerShell", $"Cmd: {cmd}\nOutput:\n{output}");
-                        logs += $"\n[SUCCESS] Executed PowerShell '{cmd}':\n{output}";
-                    }
-                }
-                catch (Exception ex)
-                {
-                    ChatOverlay.LogConsoleAction("Execute PowerShell Failed", $"Cmd: {cmd}\nError: {ex.Message}");
-                    logs += $"\n[ERROR] Executing PowerShell '{cmd}' failed: {ex.Message}";
-                }
+                string cmd = m.Groups["cmd"].Value.Trim();
+                string output = ExecutePowerShellDirect(cmd);
+                ChatOverlay.LogConsoleAction("Execute PowerShell", $"Cmd: {cmd}\nOutput:\n{output}");
+                logs += $"\n[SUCCESS] Executed PowerShell '{cmd}':\n{output}";
             }
 
             // 8a. Process READ_URL tags: [READ_URL: https://example.com]
@@ -585,8 +538,8 @@ namespace JarvisLauncher
             cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[OPEN_FILE:\s*.+?\]", "", RegexOptions.IgnoreCase);
             cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[OPEN_EDITOR:\s*.+?\]", "", RegexOptions.IgnoreCase);
             cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[PIN_FILE:\s*.+?\]", "", RegexOptions.IgnoreCase);
-            cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[EXEC_SHELL:\s*.+?\]", "", RegexOptions.IgnoreCase);
-            cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[EXEC_PS:\s*.+?\]", "", RegexOptions.IgnoreCase);
+            cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[EXEC_SHELL:\s*.+?\]", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[EXEC_PS:\s*.+?\]", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
             cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[LIST_DIR:\s*.+?\]", "", RegexOptions.IgnoreCase);
             cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[SEARCH_FILES:\s*.+?\]", "", RegexOptions.IgnoreCase);
             cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[READ_URL:\s*.+?\]", "", RegexOptions.IgnoreCase);
@@ -619,6 +572,72 @@ namespace JarvisLauncher
             }
 
             return string.IsNullOrWhiteSpace(cleanedDisplay) ? aiResponse.Trim() : cleanedDisplay;
+        }
+
+        public static string ExecutePowerShellDirect(string cmd)
+        {
+            try
+            {
+                string tempFile = Path.Combine(Path.GetTempPath(), $"jarvis_exec_{Guid.NewGuid():N}.ps1");
+                File.WriteAllText(tempFile, cmd, new UTF8Encoding(false)); // Write UTF8 without BOM
+
+                var psi = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = $"-NoProfile -ExecutionPolicy Bypass -File \"{tempFile}\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var proc = System.Diagnostics.Process.Start(psi);
+                if (proc != null)
+                {
+                    string outText = proc.StandardOutput.ReadToEnd();
+                    string errText = proc.StandardError.ReadToEnd();
+                    proc.WaitForExit(7000);
+                    try { File.Delete(tempFile); } catch {}
+                    return (outText + "\n" + errText).Trim();
+                }
+                return "[ERROR] Failed to start PowerShell process.";
+            }
+            catch (Exception ex)
+            {
+                return $"[ERROR] {ex.Message}";
+            }
+        }
+
+        public static string ExecuteShellDirect(string cmd)
+        {
+            try
+            {
+                string tempFile = Path.Combine(Path.GetTempPath(), $"jarvis_exec_{Guid.NewGuid():N}.bat");
+                File.WriteAllText(tempFile, cmd, Encoding.Default);
+
+                var psi = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = $"/c \"{tempFile}\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var proc = System.Diagnostics.Process.Start(psi);
+                if (proc != null)
+                {
+                    string outText = proc.StandardOutput.ReadToEnd();
+                    string errText = proc.StandardError.ReadToEnd();
+                    proc.WaitForExit(7000);
+                    try { File.Delete(tempFile); } catch {}
+                    return (outText + "\n" + errText).Trim();
+                }
+                return "[ERROR] Failed to start command shell process.";
+            }
+            catch (Exception ex)
+            {
+                return $"[ERROR] {ex.Message}";
+            }
         }
     }
 }

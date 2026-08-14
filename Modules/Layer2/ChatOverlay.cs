@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace JarvisLauncher
 {
@@ -290,18 +291,12 @@ namespace JarvisLauncher
             string trimmed = (message ?? "").Trim();
             if (string.IsNullOrEmpty(trimmed)) return;
 
-            bool isChatActive = IsVisible;
-            if (!isChatActive && !showUi)
-            {
-                string[] triggers = new[] { "open", "run", "launch", "start", "compile", "show", "restart", "reboot", "shutdown", "install", "search", "find", "get", "git", "play", "what", "how", "why", "where", "who", "when", "can", "is", "are", "please", "tell", "explain", "help" };
-                if (!triggers.Any(t => trimmed.ToLower().Contains(t))) return;
-            }
-
             if (!SettingsManager.Current.IsJarvisEnabled) return;
 
             await Application.Current.Dispatcher.InvokeAsync(() =>
             {
-                if (showUi) ShowChat();
+                // Always display the companion overlay when actively executing a voice query
+                ShowChat();
 
                 if (_instance == null)
                 {
@@ -354,6 +349,17 @@ namespace JarvisLauncher
                     rawResponse = await Task.Run(async () => await LlmRouter.AskOllamaStreamAsync(apiMessage, snapshot, onToken: t => { Application.Current.Dispatcher.BeginInvoke(new Action(() => { if (streamingDone) return; if (firstToken) { firstToken = false; streamSb.Clear(); } streamSb.Append(t); aiTextBlock.Text = streamSb.ToString(); _scrollViewer.ScrollToBottom(); })); }, ct: cts.Token));
                     streamingDone = true;
                     finalResult = await Task.Run(() => AgentExecutor.ProcessAIResponse(rawResponse));
+
+                    // Intercept and run agentic commands (including EXEC_PS and EXEC_SHELL)
+                    if (finalResult.Contains("[EXEC_PS:") || finalResult.Contains("[EXEC_SHELL:") || (finalResult.Contains("[RUN_COMMAND:") && (finalResult.Contains("download") || finalResult.Contains("scrape") || finalResult.Contains("search") || finalResult.Contains("google") || finalResult.Contains("websearch"))))
+                    {
+                        finalResult = await InterceptAndExecuteCommandsAsync(finalResult, aiTextBlock, (StackPanel)aiBorder.Child);
+                    }
+                    else if (rawResponse.Contains("[EXEC_PS:") || rawResponse.Contains("[EXEC_SHELL:") || (rawResponse.Contains("[RUN_COMMAND:") && (rawResponse.Contains("download") || rawResponse.Contains("scrape") || rawResponse.Contains("search") || rawResponse.Contains("google") || rawResponse.Contains("websearch"))))
+                    {
+                        finalResult = await InterceptAndExecuteCommandsAsync(rawResponse, aiTextBlock, (StackPanel)aiBorder.Child);
+                    }
+
                     aiTextBlock.FontStyle = FontStyles.Normal;
                     RenderBubbleContent((StackPanel)aiBorder.Child, aiTextBlock, !string.IsNullOrWhiteSpace(finalResult) ? finalResult : rawResponse);
                 }
@@ -361,6 +367,17 @@ namespace JarvisLauncher
                 {
                     rawResponse = await Task.Run(async () => await LlmRouter.AskAsync(apiMessage, snapshot));
                     finalResult = AgentExecutor.ProcessAIResponse(rawResponse);
+
+                    // Intercept and run agentic commands (including EXEC_PS and EXEC_SHELL)
+                    if (finalResult.Contains("[EXEC_PS:") || finalResult.Contains("[EXEC_SHELL:") || (finalResult.Contains("[RUN_COMMAND:") && (finalResult.Contains("download") || finalResult.Contains("scrape") || finalResult.Contains("search") || finalResult.Contains("google") || finalResult.Contains("websearch"))))
+                    {
+                        finalResult = await InterceptAndExecuteCommandsAsync(finalResult, aiTextBlock, (StackPanel)aiBorder.Child);
+                    }
+                    else if (rawResponse.Contains("[EXEC_PS:") || rawResponse.Contains("[EXEC_SHELL:") || (rawResponse.Contains("[RUN_COMMAND:") && (rawResponse.Contains("download") || rawResponse.Contains("scrape") || rawResponse.Contains("search") || rawResponse.Contains("google") || rawResponse.Contains("websearch"))))
+                    {
+                        finalResult = await InterceptAndExecuteCommandsAsync(rawResponse, aiTextBlock, (StackPanel)aiBorder.Child);
+                    }
+
                     aiTextBlock.FontStyle = FontStyles.Normal;
                     RenderBubbleContent((StackPanel)aiBorder.Child, aiTextBlock, finalResult);
                 }
@@ -376,6 +393,82 @@ namespace JarvisLauncher
                 LogConversationTurn(message, finalResult);
                 SaveActiveChatHistory();
             }
+        }
+
+        private async Task<string> InterceptAndExecuteCommandsAsync(string rawResponse, TextBox aiTextBlock, StackPanel bubblePanel)
+        {
+            if (string.IsNullOrEmpty(rawResponse)) return rawResponse;
+
+            var psMatch = Regex.Match(rawResponse, @"\[EXEC_PS:\s*(?<cmd>[\s\S]+?)\]", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            var shellMatch = Regex.Match(rawResponse, @"\[EXEC_SHELL:\s*(?<cmd>[\s\S]+?)\]", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            var webMatch = Regex.Match(rawResponse, @"\[RUN_COMMAND:\s*(?<cmd>download|download-list|scrape|search|google|websearch)\s+(?<param>[^\]]+)\]", RegexOptions.IgnoreCase);
+
+            string execResult = "";
+            string cmdType = "";
+            string parameter = "";
+
+            if (psMatch.Success)
+            {
+                cmdType = "powershell";
+                parameter = psMatch.Groups["cmd"].Value.Trim();
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    aiTextBlock.Text = "⚡ Executing PowerShell script in background...";
+                });
+                execResult = await Task.Run(() => AgentExecutor.ExecutePowerShellDirect(parameter));
+            }
+            else if (shellMatch.Success)
+            {
+                cmdType = "shell";
+                parameter = shellMatch.Groups["cmd"].Value.Trim();
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    aiTextBlock.Text = "💻 Executing Command shell script in background...";
+                });
+                execResult = await Task.Run(() => AgentExecutor.ExecuteShellDirect(parameter));
+            }
+            else if (webMatch.Success)
+            {
+                cmdType = webMatch.Groups["cmd"].Value.ToLower().Trim();
+                parameter = webMatch.Groups["param"].Value.Trim();
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    aiTextBlock.Text = $"🌐 Intercepted task: {cmdType} {parameter}...\nExecuting...";
+                });
+
+                if (cmdType == "download-list")
+                {
+                    execResult = await WebOperationManager.DownloadListAsync(parameter);
+                }
+                else if (cmdType == "download")
+                {
+                    execResult = await WebOperationManager.DownloadFileAsync(parameter);
+                }
+                else if (cmdType == "scrape")
+                {
+                    execResult = await WebOperationManager.ScrapeWebpageAsync(parameter);
+                }
+                else if (cmdType == "search" || cmdType == "google" || cmdType == "websearch")
+                {
+                    execResult = await WebOperationManager.SearchWebAsync(parameter);
+                }
+            }
+            else
+            {
+                return rawResponse;
+            }
+
+            string prompt = $"The user asked a query that required executing a background action. Here is the output/result from that execution:\n\n" +
+                            $"{execResult}\n\n" +
+                            $"Based on this output, provide your final response to the user's original query. Do NOT include any command execution block tags like [EXEC_PS:] or [EXEC_SHELL:] in your final response. Keep it clean, direct, and conversational.";
+
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                aiTextBlock.Text = "🧠 Synthesizing final results...";
+            });
+
+            string finalAns = await LlmRouter.AskAsync(prompt, _conversationHistory);
+            return finalAns;
         }
 
         private static void LogConversationTurn(string u, string j) { try { string dir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Conversations"); if (!Directory.Exists(dir)) Directory.CreateDirectory(dir); File.AppendAllText(Path.Combine(dir, $"ChatLog_{DateTime.Now:yyyy-MM-dd}.txt"), $"\nUSER: {u}\nJARVIS: {j}\n" + new string('=', 60) + "\n"); } catch { } }
@@ -444,12 +537,23 @@ namespace JarvisLauncher
             catch { }
         }
 
-        private (Border Border, TextBlock TextContent) AddMessageBubbleWithControl(string text, bool isAi, bool isItalic = false)
+        private (Border Border, TextBox TextContent) AddMessageBubbleWithControl(string text, bool isAi, bool isItalic = false)
         {
             var bubbleBorder = new Border { Background = isAi ? new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(64, 128, 80, 230)), CornerRadius = isAi ? new CornerRadius(12, 12, 12, 0) : new CornerRadius(12, 12, 0, 12), Margin = isAi ? new Thickness(0, 4, 48, 4) : new Thickness(48, 4, 0, 4), HorizontalAlignment = isAi ? HorizontalAlignment.Left : HorizontalAlignment.Right, Padding = new Thickness(12, 10, 12, 10), MaxWidth = 300 };
             var stack = new StackPanel(); bubbleBorder.Child = stack;
-            var tb = new TextBlock { FontSize = 13, FontFamily = new FontFamily("Segoe UI"), TextWrapping = TextWrapping.Wrap, FontStyle = isItalic ? FontStyles.Italic : FontStyles.Normal };
-            tb.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+            var tb = new TextBox 
+            { 
+                FontSize = 13, 
+                FontFamily = new FontFamily("Segoe UI"), 
+                TextWrapping = TextWrapping.Wrap, 
+                FontStyle = isItalic ? FontStyles.Italic : FontStyles.Normal,
+                IsReadOnly = true,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                FocusVisualStyle = null,
+                IsReadOnlyCaretVisible = false
+            };
+            tb.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
             stack.Children.Add(tb);
             RenderBubbleContent(stack, tb, text);
             _chatHistoryPanel.Children.Add(bubbleBorder);
@@ -457,7 +561,7 @@ namespace JarvisLauncher
             return (bubbleBorder, tb);
         }
 
-        private void RenderBubbleContent(StackPanel container, TextBlock mainText, string text)
+        private void RenderBubbleContent(StackPanel container, TextBox mainText, string text)
         {
             mainText.Text = text;
             if (text.Contains("```"))
@@ -470,15 +574,38 @@ namespace JarvisLauncher
                     if (part.IsCode)
                     {
                         var codeBdr = new Border { Background = new SolidColorBrush(Color.FromArgb(30, 0, 0, 0)), Padding = new Thickness(6), Margin = new Thickness(0, 4, 0, 4), CornerRadius = new CornerRadius(4) };
-                        var codeTb = new TextBlock { Text = part.Content.Trim(), FontSize = 12, FontFamily = new FontFamily("Consolas"), TextWrapping = TextWrapping.Wrap };
-                        codeTb.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+                        var codeTb = new TextBox 
+                        { 
+                            Text = part.Content.Trim(), 
+                            FontSize = 12, 
+                            FontFamily = new FontFamily("Consolas"), 
+                            TextWrapping = TextWrapping.Wrap,
+                            IsReadOnly = true,
+                            Background = Brushes.Transparent,
+                            BorderThickness = new Thickness(0),
+                            FocusVisualStyle = null,
+                            IsReadOnlyCaretVisible = false
+                        };
+                        codeTb.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
                         codeBdr.Child = codeTb;
                         container.Children.Add(codeBdr);
                     }
                     else if (!string.IsNullOrWhiteSpace(part.Content))
                     {
-                        var tb = new TextBlock { Text = part.Content.Trim(), FontSize = 13, FontFamily = new FontFamily("Segoe UI"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 2) };
-                        tb.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+                        var tb = new TextBox 
+                        { 
+                            Text = part.Content.Trim(), 
+                            FontSize = 13, 
+                            FontFamily = new FontFamily("Segoe UI"), 
+                            TextWrapping = TextWrapping.Wrap, 
+                            Margin = new Thickness(0, 2, 0, 2),
+                            IsReadOnly = true,
+                            Background = Brushes.Transparent,
+                            BorderThickness = new Thickness(0),
+                            FocusVisualStyle = null,
+                            IsReadOnlyCaretVisible = false
+                        };
+                        tb.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
                         container.Children.Add(tb);
                     }
                 }
