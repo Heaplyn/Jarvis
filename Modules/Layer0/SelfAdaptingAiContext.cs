@@ -17,6 +17,12 @@ namespace JarvisLauncher
             var sb = new StringBuilder();
             sb.AppendLine("## DYNAMIC HUD TELEMETRY & USER ENVIRONMENT");
 
+            // 0. SELF-REFERENTIAL UNDERSTANDING
+            sb.AppendLine("- My Identity: I am the Jarvis HUD Assistant, a custom-built C# .NET desktop overlay.");
+            sb.AppendLine($"- Local Time: {DateTime.Now:F}");
+            sb.AppendLine("- Active Capabilities: Real-time screen analysis, file manipulation, script execution, mobile pairing, and system control.");
+            sb.AppendLine("- System State: Fully integrated with Windows shell and specialized developer tools.");
+
             // 1. Detect active coding ecosystem
             string activeWorkspace = CodeAssistManager.ActiveCodebasePath;
             sb.AppendLine($"- Active Codebase Workspace: '{activeWorkspace}'");

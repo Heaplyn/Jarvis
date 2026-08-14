@@ -12,7 +12,7 @@ namespace JarvisLauncher
         public bool CanHandle(string query)
         {
             query = query.Trim().ToLower();
-            return query == "notes" || query == "sticky" || query == "stickynote" || query == "stickynotes";
+            return query == "notes" || query == "sticky" || query == "stickynote" || query == "stickynotes" || query == "curate notes";
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -20,16 +20,28 @@ namespace JarvisLauncher
             var suggestions = new List<CommandResult>();
             query = query.Trim().ToLower();
 
+            if (query == "curate notes")
+            {
+                suggestions.Add(new CommandResult
+                {
+                    Title = "🤖 Trigger AI Notes Curation",
+                    Description = "Have Jarvis review and organize your hierarchical notes and categories now",
+                    Similarity = 5.0,
+                    Execute = () => _ = NotesCuratorManager.PerformAutonomousCurationAsync()
+                });
+                return suggestions;
+            }
+
             double similarity = 0;
             if (query == "notes" || query == "stickynotes") similarity = 3.0;
             else if (query == "sticky" || query == "stickynote") similarity = 2.8;
 
             suggestions.Add(new CommandResult
             {
-                Title       = "📌 Open Sticky Notes Widget",
-                Description = "Launch floating desktop sticky note synced with Jarvis AI instructions",
+                Title       = "📓 Open Notes Studio",
+                Description = "Launch advanced hierarchical note manager with categories and subcategories",
                 Similarity  = similarity,
-                Execute     = () => StickyNotesOverlay.Open()
+                Execute     = () => NoteManagerOverlay.ShowOverlay()
             });
 
             return suggestions;
@@ -39,7 +51,7 @@ namespace JarvisLauncher
         {
             return new List<CommandDesc>
             {
-                new CommandDesc("notes / sticky", "Open desktop Sticky Notes widget", "notes")
+                new CommandDesc("notes", "Open hierarchical Notes Studio manager", "notes")
             };
         }
     }

@@ -8,12 +8,15 @@ using System.Linq;
 using System.Speech.Synthesis;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Windows.Media;
+using System.IO;
 
 namespace JarvisLauncher
 {
     public static class TtsManager
     {
         private static readonly SpeechSynthesizer _synthesizer = new SpeechSynthesizer();
+        private static MediaPlayer? _customAudioPlayer;
         private static bool _isEnabled = true;
         public static bool IsSpeaking { get; private set; } = false;
         public static DateTime EchoCooldownUntil { get; private set; } = DateTime.MinValue;
@@ -136,10 +139,24 @@ namespace JarvisLauncher
         {
             if (!_isEnabled || string.IsNullOrWhiteSpace(text)) return;
 
+            // Log the text being spoken for debugging
+            DebugConsoleOverlay.Log("TTS", $"Speaking: {text.Substring(0, Math.Min(text.Length, 60))}...");
+
+            // Check if we should play a custom sound instead/before synthesis
+            if (SettingsManager.Current.UseCustomTtsSoundFile && !string.IsNullOrEmpty(SettingsManager.Current.CustomTtsSamplePath))
+            {
+                if (File.Exists(SettingsManager.Current.CustomTtsSamplePath))
+                {
+                    PlayCustomAudio(SettingsManager.Current.CustomTtsSamplePath);
+                    if (SettingsManager.Current.CustomSoundOnly) return;
+                }
+            }
+
             Task.Run(() =>
             {
                 try
                 {
+                    // If synthesis is still busy, cancel it
                     _synthesizer.SpeakAsyncCancelAll();
 
                     string cleanText = PrepareSpeechText(text, isShortSpeech);
@@ -148,6 +165,50 @@ namespace JarvisLauncher
                         ApplySettings();
                         _synthesizer.SpeakAsync(cleanText);
                     }
+                }
+                catch (Exception ex)
+                {
+                    DebugConsoleOverlay.Log("TTS Error", ex.Message);
+                }
+            });
+        }
+
+        public static void SpeakFile(string filePath)
+        {
+            if (!File.Exists(filePath))
+            {
+                TextOverlay.Show("⚠️ TTS File not found.", 2000);
+                return;
+            }
+
+            try
+            {
+                string text = File.ReadAllText(filePath);
+                Speak(text, isShortSpeech: false);
+                TextOverlay.Show($"🔊 Reading file: {Path.GetFileName(filePath)}", 3000);
+            }
+            catch (Exception ex)
+            {
+                TextOverlay.Show($"❌ Failed to read file for TTS: {ex.Message}", 3000);
+            }
+        }
+
+        public static void PlayCustomAudio(string filePath)
+        {
+            if (!File.Exists(filePath)) return;
+
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    _customAudioPlayer?.Stop();
+                    _customAudioPlayer = new MediaPlayer();
+                    _customAudioPlayer.Open(new Uri(filePath, UriKind.Absolute));
+                    _customAudioPlayer.Volume = _synthesizer.Volume / 100.0;
+                    _customAudioPlayer.Play();
+
+                    IsSpeaking = true;
+                    _customAudioPlayer.MediaEnded += (s, e) => { IsSpeaking = false; };
                 }
                 catch { }
             });

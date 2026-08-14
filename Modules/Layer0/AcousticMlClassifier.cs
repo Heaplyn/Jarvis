@@ -26,22 +26,41 @@ namespace JarvisLauncher
         public static void RebuildAcousticIndex()
         {
             _cachedProfileMfccs.Clear();
-            var samples = VoiceTrainerManager.Profile.Samples;
 
-            foreach (var sample in samples)
+            // 1. Load official samples from VoiceTrainerManager (Golden Set)
+            var profileSamples = VoiceTrainerManager.Profile.Samples;
+            foreach (var sample in profileSamples)
             {
                 if (File.Exists(sample.AudioFilePath))
                 {
                     var features = AudioFeatureExtractor.ExtractFromFile(sample.AudioFilePath);
                     if (features != null && features.MfccCoefficients != null)
                     {
-                        string key = $"{sample.Id}:{sample.Phrase}";
+                        string key = $"TRAINER:{sample.Id}:{sample.Phrase}";
                         _cachedProfileMfccs[key] = features.MfccCoefficients;
                     }
                 }
             }
 
-            System.Diagnostics.Debug.WriteLine($"🧠 Rebuilt Acoustic ML Index with {_cachedProfileMfccs.Count} sample feature vectors.");
+            // 2. Load historical logs from VoiceDatasetManager (Self-Learning Set)
+            var datasetRecords = VoiceDatasetManager.DatasetRecords;
+            foreach (var rec in datasetRecords)
+            {
+                if (File.Exists(rec.FilePath) && !string.IsNullOrWhiteSpace(rec.Transcript) && rec.Transcript != "...")
+                {
+                    // Only index successfully captured audio
+                    var features = AudioFeatureExtractor.ExtractFromFile(rec.FilePath);
+                    if (features != null && features.MfccCoefficients != null)
+                    {
+                        // Use filename hash as a pseudo-id for uniqueness in the index
+                        string pseudoId = rec.FileName.GetHashCode().ToString("X");
+                        string key = $"DATASET:{pseudoId}:{rec.Transcript}";
+                        _cachedProfileMfccs[key] = features.MfccCoefficients;
+                    }
+                }
+            }
+
+            System.Diagnostics.Debug.WriteLine($"🧠 Rebuilt Acoustic ML Index with {_cachedProfileMfccs.Count} feature vectors (Golden + Historical).");
         }
 
         /// <summary>
@@ -73,9 +92,14 @@ namespace JarvisLauncher
                 {
                     maxSimilarity = similarity;
                     string[] parts = kvp.Key.Split(':');
-                    string sampleId = parts[0];
-                    bestPhrase = parts.Length > 1 ? parts[1] : string.Empty;
-                    bestSample = VoiceTrainerManager.Profile.Samples.Find(s => s.Id == sampleId);
+                    // Key format: SOURCE:ID:PHRASE
+                    bestPhrase = parts.Length > 2 ? parts[2] : (parts.Length > 1 ? parts[1] : string.Empty);
+
+                    if (parts[0] == "TRAINER")
+                    {
+                        string sampleId = parts[1];
+                        bestSample = VoiceTrainerManager.Profile.Samples.Find(s => s.Id == sampleId);
+                    }
                 }
             }
 

@@ -53,8 +53,16 @@ namespace JarvisLauncher
             var loader = new LoadingWindow();
             loader.Show();
 
+            bool isFreshBoot = Environment.CommandLine.Contains("--fresh");
+
             try
             {
+                if (isFreshBoot)
+                {
+                    loader.UpdateStatus("Executing Cold-Start Fresh Boot...", 5);
+                    await Task.Delay(500);
+                }
+
                 loader.UpdateStatus("Self-Healing check...", 10);
                 SelfHealingManager.Initialize();
                 await Task.Delay(200);
@@ -69,6 +77,10 @@ namespace JarvisLauncher
 
                 loader.UpdateStatus("Initializing Reminders...", 70);
                 ReminderManager.Initialize();
+                await Task.Delay(200);
+
+                loader.UpdateStatus("Initializing AI Curator...", 75);
+                NotesCuratorManager.Initialize();
                 await Task.Delay(200);
 
                 loader.UpdateStatus("Configuring System Tray...", 85);
@@ -150,8 +162,9 @@ namespace JarvisLauncher
             try
             {
                 int currentId = System.Diagnostics.Process.GetCurrentProcess().Id;
-                string currentProcessName = System.Diagnostics.Process.GetCurrentProcess().ProcessName;
+                string currentProcessName = "JarvisLauncher";
 
+                // 1. Kill any other processes named JarvisLauncher
                 var processes = System.Diagnostics.Process.GetProcessesByName(currentProcessName);
                 foreach (var proc in processes)
                 {
@@ -161,10 +174,21 @@ namespace JarvisLauncher
                         {
                             proc.Kill();
                             proc.WaitForExit(1000);
-                            System.Diagnostics.Debug.WriteLine($"🔪 Terminated previous Jarvis process (PID: {proc.Id})");
                         }
                         catch { }
                     }
+                }
+
+                // 2. Kill any stray dotnet processes that might be holding file locks on this project
+                var dotnetProcs = System.Diagnostics.Process.GetProcessesByName("dotnet");
+                foreach (var p in dotnetProcs)
+                {
+                    try
+                    {
+                        // Only kill if it's likely related to this project (optional heuristic)
+                        // p.Kill();
+                    }
+                    catch { }
                 }
             }
             catch { }

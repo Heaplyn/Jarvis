@@ -2379,36 +2379,6 @@ namespace JarvisLauncher
             return tb;
         }
 
-        private TextBlock CreateLabel(string text)
-        {
-            var tb = new TextBlock
-            {
-                Text = text,
-                FontSize = 11,
-                FontWeight = FontWeights.SemiBold,
-                Margin = new Thickness(0, 4, 0, 4)
-            };
-            tb.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
-            return tb;
-        }
-
-        private TextBox CreateTextBox()
-        {
-            var box = new TextBox
-            {
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(1),
-                Padding = new Thickness(6, 4, 6, 4),
-                FontSize = 12,
-                FontFamily = new FontFamily("Segoe UI"),
-                Margin = new Thickness(0, 0, 0, 8)
-            };
-            box.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
-            box.SetResourceReference(TextBox.CaretBrushProperty, "AccentCaretBrush");
-            box.SetResourceReference(TextBox.BorderBrushProperty, "WindowBorderBrush");
-            return box;
-        }
-
         private Button CreateButton(string content, RoutedEventHandler onClick)
         {
             var btn = new Button

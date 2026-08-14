@@ -1,12 +1,10 @@
 // Developer: heaplyn
-// Date: 2026-08-13
-// Summary: Downloads & manages custom TTS voice samples from GitHub repository (yaph/tts-samples/mp3).
+// Date: 2026-08-14
+// Summary: Manages local custom TTS audio files. Removed GitHub cloud fetching for privacy and speed.
 
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Net.Http;
-using System.Text.Json;
 using System.Threading.Tasks;
 using System.Windows.Media;
 
@@ -16,14 +14,11 @@ namespace JarvisLauncher
     {
         public string name { get; set; } = string.Empty;
         public string path { get; set; } = string.Empty;
-        public string download_url { get; set; } = string.Empty;
-        public int size { get; set; } = 0;
     }
 
     public static class TtsSampleDownloader
     {
-        private static readonly HttpClient _http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
-        public static readonly string VoiceDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "TtsVoices");
+        public static readonly string VoiceDirectory = Path.Combine(PathHandler.GetDataDirectory(), "TtsVoices");
         private static MediaPlayer? _previewPlayer;
 
         static TtsSampleDownloader()
@@ -35,95 +30,73 @@ namespace JarvisLauncher
         }
 
         /// <summary>
-        /// Fetches the list of all TTS voice MP3 samples from yaph/tts-samples repo via GitHub API.
+        /// Scans the local Data/TtsVoices directory for imported audio files.
         /// </summary>
-        public static async Task<List<TtsVoiceItem>> FetchVoiceSamplesAsync()
+        public static List<TtsVoiceItem> GetLocalVoiceFiles()
         {
             var voices = new List<TtsVoiceItem>();
             try
             {
-                string url = "https://api.github.com/repos/yaph/tts-samples/contents/mp3";
-                _http.DefaultRequestHeaders.UserAgent.Clear();
-                _http.DefaultRequestHeaders.UserAgent.ParseAdd("JarvisLauncher/1.0");
-
-                string json = await _http.GetStringAsync(url);
-                var items = JsonSerializer.Deserialize<List<TtsVoiceItem>>(json);
-                if (items != null)
+                if (Directory.Exists(VoiceDirectory))
                 {
-                    foreach (var item in items)
+                    var files = Directory.GetFiles(VoiceDirectory, "*.*");
+                    foreach (var file in files)
                     {
-                        if (item.name.EndsWith(".mp3", StringComparison.OrdinalIgnoreCase))
+                        string ext = Path.GetExtension(file).ToLower();
+                        if (ext == ".mp3" || ext == ".wav" || ext == ".m4a" || ext == ".ogg")
                         {
-                            voices.Add(item);
+                            voices.Add(new TtsVoiceItem { name = Path.GetFileName(file), path = file });
                         }
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error fetching TTS voice samples: {ex.Message}");
-            }
+            catch { }
             return voices;
         }
 
-        /// <summary>
-        /// Downloads a specific MP3 voice sample to local Data/TtsVoices directory.
-        /// </summary>
-        public static async Task<string> DownloadVoiceSampleAsync(TtsVoiceItem voice)
+        public static void PreviewLocalFile(string filePath)
         {
-            string localPath = Path.Combine(VoiceDirectory, voice.name);
-            if (File.Exists(localPath)) return localPath;
-
-            try
+            if (!File.Exists(filePath)) return;
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
             {
-                byte[] data = await _http.GetByteArrayAsync(voice.download_url);
-                await File.WriteAllBytesAsync(localPath, data);
-                return localPath;
-            }
-            catch (Exception ex)
-            {
-                TextOverlay.Show($"⚠️ Download failed: {ex.Message}", 3000);
-                return string.Empty;
-            }
+                _previewPlayer?.Stop();
+                _previewPlayer = new MediaPlayer();
+                _previewPlayer.Open(new Uri(filePath, UriKind.Absolute));
+                _previewPlayer.Play();
+            });
         }
 
-        /// <summary>
-        /// Previews / plays the MP3 voice sample directly in WPF.
-        /// </summary>
-        public static async Task PreviewVoiceSampleAsync(TtsVoiceItem voice)
+        public static void ImportUserCustomVoiceFile(string absolutePath)
         {
+            if (!File.Exists(absolutePath))
+            {
+                TextOverlay.Show("⚠️ Selected file does not exist.", 2500);
+                return;
+            }
+
             try
             {
-                string localPath = await DownloadVoiceSampleAsync(voice);
-                if (string.IsNullOrEmpty(localPath) || !File.Exists(localPath)) return;
-
-                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                string ext = Path.GetExtension(absolutePath).ToLower();
+                if (ext != ".mp3" && ext != ".wav" && ext != ".m4a" && ext != ".ogg")
                 {
-                    _previewPlayer?.Stop();
-                    _previewPlayer = new MediaPlayer();
-                    _previewPlayer.Open(new Uri(localPath, UriKind.Absolute));
-                    _previewPlayer.Play();
-                });
-                TextOverlay.Show($"🔊 Playing Voice Sample: {voice.name}", 2500);
+                    TextOverlay.Show("⚠️ Unsupported format. Use MP3, WAV, M4A, or OGG.", 3500);
+                    return;
+                }
+
+                string fileName = Path.GetFileName(absolutePath);
+                string destPath = Path.Combine(VoiceDirectory, "User_" + fileName);
+
+                File.Copy(absolutePath, destPath, true);
+
+                SettingsManager.Current.CustomTtsSamplePath = destPath;
+                SettingsManager.Current.CustomTtsVoiceName = "Custom: " + fileName;
+                SettingsManager.Save();
+
+                TextOverlay.Show($"✅ Custom user file imported:\n{fileName}", 3000);
             }
             catch (Exception ex)
             {
-                TextOverlay.Show($"⚠️ Playback error: {ex.Message}", 3000);
-            }
-        }
-
-        /// <summary>
-        /// Sets the downloaded sample as the active custom voice sample for Jarvis TTS notifications.
-        /// </summary>
-        public static async Task SetCustomVoiceSampleAsync(TtsVoiceItem voice)
-        {
-            string localPath = await DownloadVoiceSampleAsync(voice);
-            if (File.Exists(localPath))
-            {
-                SettingsManager.Current.CustomTtsSamplePath = localPath;
-                SettingsManager.Current.CustomTtsVoiceName = voice.name;
-                SettingsManager.Save();
-                TextOverlay.Show($"✅ Custom Voice set to: {voice.name}", 3000);
+                TextOverlay.Show($"❌ Import failed: {ex.Message}", 3000);
             }
         }
     }

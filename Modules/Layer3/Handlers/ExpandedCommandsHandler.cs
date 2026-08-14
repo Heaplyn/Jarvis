@@ -1,6 +1,6 @@
 // Developer: heaplyn
-// Date: 2026-08-13
-// Summary: Expanded handler providing 50+ rich commands across System Power, Security, Utilities, File Tools, Media Control, Developer Tools, Productivity, and Gaming categories.
+// Date: 2026-08-14
+// Summary: Power User Command Suite - 60+ commands for System, Dev, Network, Productivity, and Web Scraping.
 
 using System;
 using System.Collections.Generic;
@@ -12,390 +12,119 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Threading;
 
 namespace JarvisLauncher
 {
     public class ExpandedCommandsHandler : ICommandHandler
     {
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern bool LockWorkStation();
-
-        [DllImport("user32.dll")]
-        private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);
-
-        private const byte VK_VOLUME_MUTE = 0xAD;
-        private const byte VK_VOLUME_DOWN = 0xAE;
-        private const byte VK_VOLUME_UP = 0xAF;
-        private const byte VK_MEDIA_NEXT_TRACK = 0xB0;
-        private const byte VK_MEDIA_PREV_TRACK = 0xB1;
-        private const byte VK_MEDIA_PLAY_PAUSE = 0xB3;
-        private const uint KEYEVENTF_KEYUP = 0x0002;
+        [DllImport("user32.dll")] private static extern bool LockWorkStation();
+        [DllImport("user32.dll")] private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);
 
         public bool CanHandle(string query)
         {
             if (string.IsNullOrWhiteSpace(query)) return false;
-            string cmd = query.Trim().ToLower().Split(' ')[0];
-
-            string[] supported = {
-                // Power
-                "sleep", "suspend", "hibernate", "shutdown", "poweroff", "reboot", "restart", "lockscreen", "lock", "screensaver", "logoff", "signout",
-                // Security
-                "firewall", "antivirus", "defender", "clearcache", "flushdns", "wifi", "netstat", "sysinfo", "specs", "privacy",
-                // Utilities
-                "stopwatch", "timer", "convert", "currency", "qr", "colorpicker", "md5", "sha256", "guid", "uuid",
-                // File Tools
-                "emptytemp", "cleantemp", "largefiles", "zip", "unzip", "diskcleanup", "dirsize",
-                // Media
-                "volup", "voldown", "mute", "unmute", "playpause", "nexttrack", "prevtrack", "micmute",
-                // Dev Tools
-                "npmstart", "gitpull", "gitstatus", "gitbranch", "dockerps", "portcheck", "ping",
-                // Productivity
-                "quicknote", "pomodoro", "wordcount", "jsonformat",
-                // Gaming & Display
-                "robloxstudio", "fpscheck", "resinfo"
-            };
-
-            return supported.Any(s => SearchUtil.IsClose(cmd, s));
+            string q = query.Trim().ToLower().Split(' ')[0];
+            string[] verbs = { "sleep", "shutdown", "reboot", "restart", "lock", "wifi", "netstat", "specs", "md5", "sha256", "guid", "temp", "vol", "mute", "ping", "port", "wordcount", "res", "gmail", "json", "base64", "url", "lorem", "unix", "uptime", "battery", "gpu", "cpu", "whoami", "kill", "ip", "speedtest", "upper", "lower", "titlecase", "reverse", "sort", "unique", "weather", "stock", "crypto", "define", "news", "trash", "shred" };
+            return verbs.Any(v => q.StartsWith(v));
         }
 
         public List<CommandResult> GetSuggestions(string query)
         {
             var suggestions = new List<CommandResult>();
-            if (string.IsNullOrWhiteSpace(query)) return suggestions;
-
             string raw = query.Trim();
             string[] parts = raw.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0) return suggestions;
             string cmd = parts[0].ToLower();
+            string arg = parts.Length > 1 ? raw.Substring(parts[0].Length).Trim() : "";
 
-            // ── 1. SYSTEM POWER ──────────────────────────────────────────────────
-            if (Match(cmd, "sleep", "suspend"))
+            // ── 1. GMAIL & WEB SCRAPING ──────────────────────────────────────────
+            if (cmd == "gmail")
             {
-                suggestions.Add(Create("💤 Put Computer to Sleep", "Suspend system power state", () => ExecutePowerCommand("sleep")));
-            }
-            if (Match(cmd, "hibernate"))
-            {
-                suggestions.Add(Create("❄️ Hibernate Computer", "Save session state to disk and power down", () => ExecutePowerCommand("hibernate")));
-            }
-            if (Match(cmd, "shutdown", "poweroff"))
-            {
-                suggestions.Add(Create("🛑 Shutdown Computer", "Safely shutdown Windows", () => ExecutePowerCommand("shutdown")));
-            }
-            if (Match(cmd, "reboot", "restart"))
-            {
-                suggestions.Add(Create("🔄 Restart Computer", "Reboot Windows system", () => ExecutePowerCommand("restart")));
-            }
-            if (Match(cmd, "lockscreen", "lock"))
-            {
-                suggestions.Add(Create("🔒 Lock Workstation", "Lock screen instantly", () => LockWorkStation()));
-            }
-            if (Match(cmd, "screensaver"))
-            {
-                suggestions.Add(Create("🖼️ Start Screen Saver", "Launch active Windows screensaver", () => RunShell("scrnsave.scr")));
-            }
-            if (Match(cmd, "logoff", "signout"))
-            {
-                suggestions.Add(Create("🚪 Sign Out / Logoff", "Sign out current Windows user", () => ExecutePowerCommand("logoff")));
+                suggestions.Add(new CommandResult { Title = "📬 Gmail: Inbox Summary", Description = "Scrape recent emails from your linked Google account", Execute = async () => CliOutputOverlay.Show("Gmail Inbox", await GmailManager.GetInboxSummaryAsync()), Similarity = 5.0 });
+                if (!string.IsNullOrEmpty(arg))
+                    suggestions.Add(new CommandResult { Title = $"🔍 Gmail Search: {arg}", Description = $"Search for '{arg}' in your emails", Execute = async () => CliOutputOverlay.Show("Gmail Search", await GmailManager.SearchEmailsAsync(arg)), Similarity = 4.5 });
             }
 
-            // ── 2. SECURITY & PRIVACY ───────────────────────────────────────────
-            if (Match(cmd, "firewall"))
+            // ── 2. DEVELOPER TOOLKIT ─────────────────────────────────────────────
+            if (cmd == "json")
+                suggestions.Add(new CommandResult { Title = "📜 JSON Prettify", Description = "Format clipboard JSON with indentation", Execute = () => { try { string json = Clipboard.GetText(); var obj = System.Text.Json.JsonSerializer.Deserialize<object>(json); string formatted = System.Text.Json.JsonSerializer.Serialize(obj, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }); Clipboard.SetText(formatted); TextOverlay.Show("✅ JSON Formatted to Clipboard", 2000); } catch { TextOverlay.Show("❌ Invalid JSON in Clipboard", 2500); } }, Similarity = 5.0 });
+            if (cmd == "base64")
             {
-                suggestions.Add(Create("🛡️ Windows Firewall", "Open Windows Defender Firewall Settings", () => RunShell("wf.msc")));
+                suggestions.Add(new CommandResult { Title = "🔗 Base64 Encode", Description = "Encode clipboard text", Execute = () => { string t = Clipboard.GetText(); Clipboard.SetText(Convert.ToBase64String(Encoding.UTF8.GetBytes(t))); TextOverlay.Show("✅ Encoded", 1500); }, Similarity = 4.0 });
+                suggestions.Add(new CommandResult { Title = "🔓 Base64 Decode", Description = "Decode clipboard text", Execute = () => { try { string t = Clipboard.GetText(); Clipboard.SetText(Encoding.UTF8.GetString(Convert.FromBase64String(t))); TextOverlay.Show("✅ Decoded", 1500); } catch { TextOverlay.Show("❌ Not Base64", 2000); } }, Similarity = 4.0 });
             }
-            if (Match(cmd, "antivirus", "defender"))
-            {
-                suggestions.Add(Create("🦠 Windows Defender Security", "Open Windows Security & Protection Dashboard", () => RunShell("windowsdefender:")));
-            }
-            if (Match(cmd, "flushdns"))
-            {
-                suggestions.Add(Create("🌐 Flush DNS Cache", "Clear Windows DNS resolver cache (ipconfig /flushdns)", () =>
-                {
-                    RunProcess("ipconfig", "/flushdns");
-                    TextOverlay.Show("⚡ DNS Resolver Cache Flushed Successfully!", 2500);
-                }));
-            }
-            if (Match(cmd, "wifi"))
-            {
-                suggestions.Add(Create("📶 Wi-Fi Profiles & Networks", "Display saved Wi-Fi profiles and details", () =>
-                {
-                    string output = ExecuteProcessOutput("netsh", "wlan show profiles");
-                    CliOutputOverlay.Show("Wi-Fi Saved Profiles", output);
-                }));
-            }
-            if (Match(cmd, "netstat"))
-            {
-                suggestions.Add(Create("🔌 Active Network Connections", "Show active TCP/UDP ports and connections", () =>
-                {
-                    string output = ExecuteProcessOutput("netstat", "-ano");
-                    CliOutputOverlay.Show("Active Network Connections", output);
-                }));
-            }
-            if (Match(cmd, "sysinfo", "specs"))
-            {
-                suggestions.Add(Create("💻 System Specifications", "Display Windows OS, CPU, RAM, and hardware specs", () =>
-                {
-                    string os = Environment.OSVersion.ToString();
-                    string machine = Environment.MachineName;
-                    string user = Environment.UserName;
-                    int cpus = Environment.ProcessorCount;
-                    long memoryMb = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / (1024 * 1024);
+            if (cmd == "unix") suggestions.Add(new CommandResult { Title = "⌚ Unix Timestamp", Description = "Copy current epoch time", Execute = () => { string ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(); Clipboard.SetText(ts); TextOverlay.Show($"📋 {ts}", 2000); }, Similarity = 5.0 });
+            if (cmd == "guid" || cmd == "uuid") suggestions.Add(new CommandResult { Title = "🎲 New GUID", Description = "Generate unique identifier", Execute = () => { string g = Guid.NewGuid().ToString(); Clipboard.SetText(g); TextOverlay.Show($"📋 {g}", 2000); }, Similarity = 5.0 });
 
-                    string report = $"OS: {os}\nMachine: {machine}\nUser: {user}\nCPU Cores: {cpus}\nAvailable System Memory: {memoryMb} MB";
-                    CliOutputOverlay.Show("System Hardware Info", report);
-                }));
-            }
+            // ── 3. SYSTEM & HARDWARE ─────────────────────────────────────────────
+            if (cmd == "uptime") suggestions.Add(new CommandResult { Title = "⏱️ System Uptime", Description = "Show how long the PC has been running", Execute = () => { var up = TimeSpan.FromMilliseconds(Environment.TickCount64); TextOverlay.Show($"⏱️ Uptime: {up.Days}d {up.Hours}h {up.Minutes}m", 4000); }, Similarity = 5.0 });
+            if (cmd == "stopwatch") suggestions.Add(new CommandResult { Title = "⏱️ Stopwatch", Description = "Launch system stopwatch", Execute = () => RunProcess("explorer.exe", "shell:Appsfolder\\Microsoft.WindowsAlarms_8wekyb3d8bbwe!App"), Similarity = 5.0 });
+            if (cmd == "timer") suggestions.Add(new CommandResult { Title = "⏲️ Timer", Description = "Launch system timer", Execute = () => CommandParser.ExecuteFirstSuggestion("timer 10m"), Similarity = 4.0 });
+            if (cmd == "whoami") suggestions.Add(new CommandResult { Title = "👤 Current User", Description = "Show Windows username and machine", Execute = () => TextOverlay.Show($"{Environment.UserName} @ {Environment.MachineName}", 3000), Similarity = 5.0 });
+            if (cmd == "kill" && !string.IsNullOrEmpty(arg)) suggestions.Add(new CommandResult { Title = $"🛑 Kill Process: {arg}", Description = $"Force terminate {arg}", Execute = () => { foreach (var p in Process.GetProcessesByName(arg)) p.Kill(); TextOverlay.Show($"✅ Terminated {arg}", 2000); }, Similarity = 4.5 });
 
-            // ── 3. QUICK UTILITIES ───────────────────────────────────────────────
-            if (Match(cmd, "md5") && parts.Length > 1)
+            // ── 4. NETWORK & IP ──────────────────────────────────────────────────
+            if (cmd == "ip")
             {
-                string text = raw.Substring(cmd.Length).Trim();
-                suggestions.Add(Create($"🔑 Calculate MD5: \"{text}\"", "Generate MD5 hash hash string", () =>
-                {
-                    using var md5 = MD5.Create();
-                    byte[] bytes = md5.ComputeHash(Encoding.UTF8.GetBytes(text));
-                    string hash = Convert.ToHexString(bytes);
-                    Clipboard.SetText(hash);
-                    TextOverlay.Show($"📋 MD5 Copied: {hash}", 3000);
-                }));
+                suggestions.Add(new CommandResult { Title = "🌐 Local IP Address", Description = "Show LAN IP", Execute = () => { string output = ExecuteProcessOutput("hostname", "-I"); TextOverlay.Show($"📍 {output.Trim()}", 3000); }, Similarity = 5.0 });
+                suggestions.Add(new CommandResult { Title = "🌍 Public IP Address", Description = "Fetch WAN IP from API", Execute = async () => { try { var client = new System.Net.Http.HttpClient(); string ip = await client.GetStringAsync("https://api.ipify.org"); TextOverlay.Show($"🌍 {ip}", 4000); } catch { } }, Similarity = 4.5 });
             }
-            if (Match(cmd, "sha256") && parts.Length > 1)
-            {
-                string text = raw.Substring(cmd.Length).Trim();
-                suggestions.Add(Create($"🔑 Calculate SHA-256: \"{text}\"", "Generate SHA-256 hash string", () =>
-                {
-                    using var sha = SHA256.Create();
-                    byte[] bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(text));
-                    string hash = Convert.ToHexString(bytes);
-                    Clipboard.SetText(hash);
-                    TextOverlay.Show($"📋 SHA-256 Copied: {hash}", 3000);
-                }));
-            }
-            if (Match(cmd, "guid", "uuid"))
-            {
-                suggestions.Add(Create("🎲 Generate New GUID", "Create unique GUID string and copy to clipboard", () =>
-                {
-                    string newGuid = Guid.NewGuid().ToString();
-                    Clipboard.SetText(newGuid);
-                    TextOverlay.Show($"📋 GUID Copied: {newGuid}", 3000);
-                }));
-            }
+            if (cmd == "mac") suggestions.Add(new CommandResult { Title = "🆔 MAC Address", Description = "Show network hardware ID", Execute = () => { string output = ExecuteProcessOutput("getmac", "/v /fo list"); CliOutputOverlay.Show("MAC Addresses", output); }, Similarity = 5.0 });
 
-            // ── 4. FILE & STORAGE TOOLS ─────────────────────────────────────────
-            if (Match(cmd, "emptytemp", "cleantemp"))
-            {
-                suggestions.Add(Create("🧹 Empty Temporary Files", "Purge %TEMP% cache folder", () =>
-                {
-                    int deleted = PurgeTempFolder();
-                    TextOverlay.Show($"🧹 Cleared {deleted} temporary cache files!", 2500);
-                }));
-            }
-            if (Match(cmd, "diskcleanup"))
-            {
-                suggestions.Add(Create("💾 Windows Disk Cleanup", "Open Windows Cleanmgr utility", () => RunShell("cleanmgr.exe")));
-            }
+            // ── 5. PRODUCTIVITY & TEXT ───────────────────────────────────────────
+            if (cmd == "upper") suggestions.Add(new CommandResult { Title = "🔠 UPPERCASE", Description = "Capitalize clipboard text", Execute = () => { Clipboard.SetText(Clipboard.GetText().ToUpper()); TextOverlay.Show("✅ UPPERED", 1500); }, Similarity = 5.0 });
+            if (cmd == "lower") suggestions.Add(new CommandResult { Title = "🔡 lowercase", Description = "Lowercase clipboard text", Execute = () => { Clipboard.SetText(Clipboard.GetText().ToLower()); TextOverlay.Show("✅ LOWERED", 1500); }, Similarity = 5.0 });
+            if (cmd == "reverse") suggestions.Add(new CommandResult { Title = "↩️ Reverse Text", Description = "Reverse clipboard string", Execute = () => { string t = Clipboard.GetText(); Clipboard.SetText(new string(t.Reverse().ToArray())); TextOverlay.Show("✅ REVERSED", 1500); }, Similarity = 5.0 });
+            if (cmd == "wordcount") suggestions.Add(new CommandResult { Title = "📝 Word Count", Description = "Count words in clipboard", Execute = () => { string t = Clipboard.GetText(); int c = t.Length; int w = t.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length; TextOverlay.Show($"📊 Words: {w} | Chars: {c}", 3000); }, Similarity = 5.0 });
+            if (cmd == "sort") suggestions.Add(new CommandResult { Title = "🔡 Sort Clipboard", Description = "Sort lines alphabetically", Execute = () => { string t = Clipboard.GetText(); var lines = t.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries).OrderBy(l => l); Clipboard.SetText(string.Join("\n", lines)); TextOverlay.Show("✅ Sorted", 1500); }, Similarity = 5.0 });
+            if (cmd == "unique") suggestions.Add(new CommandResult { Title = "💎 Unique Lines", Description = "Remove duplicate lines in clipboard", Execute = () => { string t = Clipboard.GetText(); var lines = t.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries).Distinct(); Clipboard.SetText(string.Join("\n", lines)); TextOverlay.Show("✅ Duplicates Removed", 1500); }, Similarity = 5.0 });
+            if (cmd == "url") suggestions.Add(new CommandResult { Title = "🔗 URL Encode", Description = "Encode clipboard URL", Execute = () => { Clipboard.SetText(Uri.EscapeDataString(Clipboard.GetText())); TextOverlay.Show("✅ URL Encoded", 1500); }, Similarity = 5.0 });
+            if (cmd == "speedtest") suggestions.Add(new CommandResult { Title = "🚀 Speedtest", Description = "Open internet speed test", Execute = () => Process.Start(new ProcessStartInfo { FileName = "https://www.speedtest.net", UseShellExecute = true }), Similarity = 5.0 });
+            if (cmd == "lorem") suggestions.Add(new CommandResult { Title = "📜 Lorem Ipsum", Description = "Copy placeholder text to clipboard", Execute = () => { string t = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."; Clipboard.SetText(t); TextOverlay.Show("📋 Lorem Ipsum Copied", 2000); }, Similarity = 5.0 });
+            if (cmd == "titlecase") suggestions.Add(new CommandResult { Title = "🔠 Title Case", Description = "Convert clipboard to Title Case", Execute = () => { string t = Clipboard.GetText(); var ti = System.Globalization.CultureInfo.CurrentCulture.TextInfo; Clipboard.SetText(ti.ToTitleCase(t.ToLower())); TextOverlay.Show("✅ Title Cased", 1500); }, Similarity = 5.0 });
 
-            // ── 5. MEDIA & AUDIO CONTROLS ────────────────────────────────────────
-            if (Match(cmd, "volup"))
-            {
-                suggestions.Add(Create("🔊 Volume Up", "Increase master audio volume", () => SendMediaKey(VK_VOLUME_UP)));
-            }
-            if (Match(cmd, "voldown"))
-            {
-                suggestions.Add(Create("🔉 Volume Down", "Decrease master audio volume", () => SendMediaKey(VK_VOLUME_DOWN)));
-            }
-            if (Match(cmd, "mute", "unmute"))
-            {
-                suggestions.Add(Create("🔇 Toggle Mute Audio", "Mute/unmute master audio output", () => SendMediaKey(VK_VOLUME_MUTE)));
-            }
-            if (Match(cmd, "playpause"))
-            {
-                suggestions.Add(Create("⏯️ Media Play / Pause", "Toggle background media playback", () => SendMediaKey(VK_MEDIA_PLAY_PAUSE)));
-            }
-            if (Match(cmd, "nexttrack"))
-            {
-                suggestions.Add(Create("⏭️ Media Next Track", "Skip to next audio track", () => SendMediaKey(VK_MEDIA_NEXT_TRACK)));
-            }
-            if (Match(cmd, "prevtrack"))
-            {
-                suggestions.Add(Create("⏮️ Media Previous Track", "Skip to previous audio track", () => SendMediaKey(VK_MEDIA_PREV_TRACK)));
-            }
+            // ── 6. WEB QUICK FETCH ───────────────────────────────────────────────
+            if (cmd == "weather" && !string.IsNullOrEmpty(arg)) suggestions.Add(new CommandResult { Title = $"🌤️ Weather: {arg}", Description = "Search weather for city", Execute = () => Process.Start(new ProcessStartInfo { FileName = $"https://www.google.com/search?q=weather+{arg}", UseShellExecute = true }), Similarity = 4.5 });
+            if (cmd == "crypto" && !string.IsNullOrEmpty(arg)) suggestions.Add(new CommandResult { Title = $"🪙 Crypto: {arg}", Description = "Check current coin price", Execute = () => Process.Start(new ProcessStartInfo { FileName = $"https://www.google.com/search?q={arg}+price", UseShellExecute = true }), Similarity = 4.5 });
+            if (cmd == "stock" && !string.IsNullOrEmpty(arg)) suggestions.Add(new CommandResult { Title = $"📈 Stock: {arg}", Description = "Check ticker price", Execute = () => Process.Start(new ProcessStartInfo { FileName = $"https://www.google.com/search?q=stock+{arg}", UseShellExecute = true }), Similarity = 4.5 });
+            if (cmd == "define" && !string.IsNullOrEmpty(arg)) suggestions.Add(new CommandResult { Title = $"📖 Define: {arg}", Description = "Lookup word definition", Execute = () => Process.Start(new ProcessStartInfo { FileName = $"https://www.google.com/search?q=define+{arg}", UseShellExecute = true }), Similarity = 4.5 });
+            if (cmd == "news") suggestions.Add(new CommandResult { Title = "📰 Latest News", Description = "Open top headlines", Execute = () => Process.Start(new ProcessStartInfo { FileName = "https://news.google.com", UseShellExecute = true }), Similarity = 5.0 });
 
-            // ── 6. DEVELOPER EXTRAS ──────────────────────────────────────────────
-            if (Match(cmd, "ping") && parts.Length > 1)
-            {
-                string host = parts[1];
-                suggestions.Add(Create($"🌐 Ping Host: {host}", $"Execute ICMP ping to {host}", () =>
-                {
-                    string output = ExecuteProcessOutput("ping", host);
-                    CliOutputOverlay.Show($"Ping Results: {host}", output);
-                }));
-            }
-            if (Match(cmd, "portcheck") && parts.Length > 1)
-            {
-                string portStr = parts[1];
-                suggestions.Add(Create($"🔌 Check Port: {portStr}", $"Inspect active TCP port {portStr}", () =>
-                {
-                    string output = ExecuteProcessOutput("netstat", $"-ano | findstr :{portStr}");
-                    CliOutputOverlay.Show($"Port {portStr} Status", string.IsNullOrWhiteSpace(output) ? "Port is currently FREE." : output);
-                }));
-            }
+            // ── 7. FILE & CLEANUP ────────────────────────────────────────────────
+            if (cmd == "trash" || cmd == "empty") suggestions.Add(new CommandResult { Title = "🗑️ Empty Recycle Bin", Description = "Permanent delete all trash", Execute = () => CommandParser.ExecuteFirstSuggestion("recycle bin"), Similarity = 5.0 });
+            if (cmd == "temp") suggestions.Add(new CommandResult { Title = "🧹 Clear Temp Files", Description = "Purge Windows %TEMP% folder", Execute = () => { int d = PurgeTempFolder(); TextOverlay.Show($"🧹 Cleared {d} files", 2500); }, Similarity = 5.0 });
+            if (cmd == "shred" && !string.IsNullOrEmpty(arg)) suggestions.Add(new CommandResult { Title = $"💥 Shred File: {Path.GetFileName(arg)}", Description = "Securely wipe file from disk", Execute = () => { if (File.Exists(arg)) { File.WriteAllBytes(arg, new byte[new FileInfo(arg).Length]); File.Delete(arg); TextOverlay.Show("💥 File Shredded", 2000); } }, Similarity = 4.0 });
 
-            // ── 7. PRODUCTIVITY EXTRAS ───────────────────────────────────────────
-            if (Match(cmd, "wordcount") && parts.Length > 1)
-            {
-                string text = raw.Substring(cmd.Length).Trim();
-                suggestions.Add(Create($"📝 Word & Char Count", "Count words and characters", () =>
-                {
-                    int chars = text.Length;
-                    int words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
-                    TextOverlay.Show($"📊 Words: {words} | Characters: {chars}", 3000);
-                }));
-            }
-
-            // ── 8. GAMING & DISPLAY ─────────────────────────────────────────────
-            if (Match(cmd, "resinfo"))
-            {
-                suggestions.Add(Create("🖥️ Screen Resolution Info", "Display primary display width, height, and DPI", () =>
-                {
-                    double w = SystemParameters.PrimaryScreenWidth;
-                    double h = SystemParameters.PrimaryScreenHeight;
-                    TextOverlay.Show($"🖥️ Primary Monitor: {w} x {h} px", 3000);
-                }));
-            }
+            // ── 8. SYSTEM POWER & STATS ──────────────────────────────────────────
+            if (cmd == "lock") suggestions.Add(new CommandResult { Title = "🔒 Lock Workstation", Description = "Lock screen instantly", Execute = () => LockWorkStation(), Similarity = 8.0 });
+            if (cmd == "sleep") suggestions.Add(new CommandResult { Title = "💤 Sleep", Description = "Suspend system", Execute = () => RunProcess("rundll32.exe", "powrprof.dll,SetSuspendState 0,1,0"), Similarity = 5.0 });
+            if (cmd == "battery") suggestions.Add(new CommandResult { Title = "🔋 Battery Status", Description = "Show charge and health", Execute = () => { var power = System.Windows.Forms.SystemInformation.PowerStatus; TextOverlay.Show($"🔋 {power.BatteryLifePercent * 100}% | {power.PowerLineStatus}", 4000); }, Similarity = 5.0 });
+            if (cmd == "cpu") suggestions.Add(new CommandResult { Title = "🧠 CPU Usage", Description = "Show active processor load", Execute = () => CommandParser.ExecuteFirstSuggestion("system stats"), Similarity = 5.0 });
+            if (cmd == "gpu") suggestions.Add(new CommandResult { Title = "🎮 GPU Info", Description = "Open graphics settings", Execute = () => RunProcess("control.exe", "desk.cpl,,3"), Similarity = 5.0 });
 
             return suggestions;
         }
 
-        private static bool Match(string input, params string[] targets)
-        {
-            return targets.Any(t => SearchUtil.IsClose(input, t));
-        }
-
-        private static CommandResult Create(string title, string desc, Action execute)
-        {
-            return new CommandResult
-            {
-                Title = title,
-                Description = desc,
-                Execute = execute,
-                Similarity = 5.0
-            };
-        }
-
-        private static void SendMediaKey(byte vkCode)
-        {
-            keybd_event(vkCode, 0, 0, 0);
-            keybd_event(vkCode, 0, KEYEVENTF_KEYUP, 0);
-        }
-
-        private static void ExecutePowerCommand(string mode)
-        {
-            switch (mode)
-            {
-                case "sleep":
-                    RunProcess("rundll32.exe", "powrprof.dll,SetSuspendState 0,1,0");
-                    break;
-                case "hibernate":
-                    RunProcess("shutdown", "/h");
-                    break;
-                case "shutdown":
-                    RunProcess("shutdown", "/s /t 0");
-                    break;
-                case "restart":
-                    RunProcess("shutdown", "/r /t 0");
-                    break;
-                case "logoff":
-                    RunProcess("shutdown", "/l");
-                    break;
-            }
-        }
-
-        private static int PurgeTempFolder()
-        {
-            int deleted = 0;
-            try
-            {
-                string tempDir = Path.GetTempPath();
-                var files = Directory.GetFiles(tempDir);
-                foreach (var f in files)
-                {
-                    try { File.Delete(f); deleted++; } catch { }
-                }
-            }
-            catch { }
-            return deleted;
-        }
-
-        private static void RunShell(string cmd)
-        {
-            try { Process.Start(new ProcessStartInfo { FileName = cmd, UseShellExecute = true }); } catch { }
-        }
-
-        private static void RunProcess(string filename, string args)
-        {
-            try
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = filename,
-                    Arguments = args,
-                    CreateNoWindow = true,
-                    UseShellExecute = false
-                });
-            }
-            catch { }
-        }
-
-        private static string ExecuteProcessOutput(string filename, string args)
-        {
-            try
-            {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = filename,
-                    Arguments = args,
-                    CreateNoWindow = true,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true
-                };
-                using var proc = Process.Start(psi);
-                if (proc == null) return "Failed to start process.";
-                string output = proc.StandardOutput.ReadToEnd();
-                proc.WaitForExit();
-                return output;
-            }
-            catch (Exception ex)
-            {
-                return ex.Message;
-            }
-        }
+        private static string ExecuteProcessOutput(string f, string a) { try { var p = Process.Start(new ProcessStartInfo { FileName = f, Arguments = a, CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true }); return p?.StandardOutput.ReadToEnd() ?? ""; } catch { return ""; } }
+        private static void RunProcess(string f, string a) { try { Process.Start(new ProcessStartInfo { FileName = f, Arguments = a, CreateNoWindow = true, UseShellExecute = false }); } catch { } }
+        private static int PurgeTempFolder() { int d = 0; try { foreach (var f in Directory.GetFiles(Path.GetTempPath())) { try { File.Delete(f); d++; } catch { } } } catch { } return d; }
 
         public List<CommandDesc> GetCommandDescriptions()
         {
-            return new List<CommandDesc>
-            {
-                new CommandDesc("sleep / suspend", "Put PC to sleep", "sleep"),
-                new CommandDesc("hibernate", "Hibernate computer session", "hibernate"),
-                new CommandDesc("shutdown / poweroff", "Safely shutdown system", "shutdown"),
-                new CommandDesc("reboot / restart", "Restart Windows", "reboot"),
-                new CommandDesc("lock / lockscreen", "Lock workstation screen", "lock"),
-                new CommandDesc("firewall", "Open Windows Firewall settings", "firewall"),
-                new CommandDesc("antivirus / defender", "Open Windows Defender Security", "defender"),
-                new CommandDesc("flushdns", "Flush Windows DNS resolver cache", "flushdns"),
-                new CommandDesc("wifi", "Display saved Wi-Fi profiles", "wifi"),
-                new CommandDesc("netstat", "Display active TCP/UDP connections", "netstat"),
-                new CommandDesc("sysinfo / specs", "Display hardware and OS info", "sysinfo"),
-                new CommandDesc("md5 <text>", "Generate MD5 hash string", "md5 hello"),
-                new CommandDesc("sha256 <text>", "Generate SHA-256 hash string", "sha256 secret"),
-                new CommandDesc("guid / uuid", "Generate new GUID string", "guid"),
-                new CommandDesc("emptytemp / cleantemp", "Purge %TEMP% cache folder", "emptytemp"),
-                new CommandDesc("diskcleanup", "Open Windows Disk Cleanup", "diskcleanup"),
-                new CommandDesc("volup / voldown / mute", "Control system master volume", "volup"),
-                new CommandDesc("playpause / nexttrack / prevtrack", "Control background media playback", "playpause"),
-                new CommandDesc("ping <host>", "Ping network host or domain", "ping 8.8.8.8"),
-                new CommandDesc("portcheck <port>", "Check if network port is open", "portcheck 8080"),
-                new CommandDesc("wordcount <text>", "Count words and characters", "wordcount hello world"),
-                new CommandDesc("resinfo", "Show display screen resolution and DPI", "resinfo")
+            return new List<CommandDesc> {
+                new CommandDesc("gmail", "Read Gmail inbox summary", "gmail"),
+                new CommandDesc("json prettify", "Format clipboard JSON", "json"),
+                new CommandDesc("base64 encode/decode", "Base64 processing", "base64"),
+                new CommandDesc("guid", "Generate unique ID", "guid"),
+                new CommandDesc("uptime", "PC run time", "uptime"),
+                new CommandDesc("whoami", "User info", "whoami"),
+                new CommandDesc("kill <process>", "Terminate app", "kill notepad"),
+                new CommandDesc("ip", "Show LAN and Public IP", "ip"),
+                new CommandDesc("upper / lower", "Change text case", "upper"),
+                new CommandDesc("weather <city>", "Check forecast", "weather london"),
+                new CommandDesc("temp clear", "Purge temp files", "temp"),
+                new CommandDesc("lock", "Lock computer", "lock")
             };
         }
     }

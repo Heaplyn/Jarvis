@@ -53,6 +53,9 @@ namespace JarvisLauncher
         private ComboBox _ttsVoiceCombo = null!;
         private Slider _ttsSpeedSlider = null!;
         private Slider _ttsVolumeSlider = null!;
+        private CheckBox _useCustomTtsCheckBox = null!;
+        private CheckBox _customTtsOnlyCheckBox = null!;
+        private TextBlock _customTtsFileNameLabel = null!;
 
         // Voice AI Controls
         private CheckBox _isJarvisEnabledCheckBox = null!;
@@ -430,10 +433,57 @@ namespace JarvisLauncher
             };
             root.Children.Add(testBtn);
 
-            root.Children.Add(CreateHeader("🌐 GitHub Custom MP3 Voice Samples (yaph/tts-samples)"));
-            var openLibraryBtn = CreateButton("🎵 Open GitHub Custom Voice Library Studio");
-            openLibraryBtn.Click += (s, e) => TtsVoiceLibraryOverlay.ShowOverlay();
-            root.Children.Add(openLibraryBtn);
+            root.Children.Add(CreateHeader("📂 Personal Audio Files & Custom Triggers"));
+
+            var customGrid = new Grid { Margin = new Thickness(0, 4, 0, 8) };
+            customGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            customGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            customGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            _useCustomTtsCheckBox = CreateCheckBox("🔉 Play custom audio file before AI synthesis", SettingsManager.Current.UseCustomTtsSoundFile);
+            _useCustomTtsCheckBox.Checked += (s, e) => SettingsManager.Current.UseCustomTtsSoundFile = true;
+            _useCustomTtsCheckBox.Unchecked += (s, e) => SettingsManager.Current.UseCustomTtsSoundFile = false;
+            Grid.SetRow(_useCustomTtsCheckBox, 0);
+            customGrid.Children.Add(_useCustomTtsCheckBox);
+
+            _customTtsOnlyCheckBox = CreateCheckBox("🔇 Skip synthesis (Play custom sound ONLY)", SettingsManager.Current.CustomSoundOnly);
+            _customTtsOnlyCheckBox.Checked += (s, e) => SettingsManager.Current.CustomSoundOnly = true;
+            _customTtsOnlyCheckBox.Unchecked += (s, e) => SettingsManager.Current.CustomSoundOnly = false;
+            Grid.SetRow(_customTtsOnlyCheckBox, 1);
+            customGrid.Children.Add(_customTtsOnlyCheckBox);
+
+            var importStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
+            var importBtn = CreateButton("📥 Import My Own Audio File...");
+            importBtn.Click += (s, e) =>
+            {
+                var dlg = new Microsoft.Win32.OpenFileDialog
+                {
+                    Title = "Select Custom Audio File (MP3/WAV)",
+                    Filter = "Audio Files|*.mp3;*.wav;*.m4a;*.ogg|All Files|*.*"
+                };
+                if (dlg.ShowDialog() == true)
+                {
+                    TtsSampleDownloader.ImportUserCustomVoiceFile(dlg.FileName);
+                    _customTtsFileNameLabel.Text = "Active: " + Path.GetFileName(dlg.FileName);
+                }
+            };
+            importStack.Children.Add(importBtn);
+
+            _customTtsFileNameLabel = new TextBlock
+            {
+                Text = string.IsNullOrEmpty(SettingsManager.Current.CustomTtsVoiceName) ? "No file selected." : "Active: " + SettingsManager.Current.CustomTtsVoiceName,
+                FontSize = 10,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(10, 0, 0, 0),
+                FontStyle = FontStyles.Italic
+            };
+            _customTtsFileNameLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
+            importStack.Children.Add(_customTtsFileNameLabel);
+
+            Grid.SetRow(importStack, 2);
+            customGrid.Children.Add(importStack);
+
+            root.Children.Add(customGrid);
 
             return scroll;
         }
@@ -727,6 +777,9 @@ namespace JarvisLauncher
 
             if (_llmBackendCombo.SelectedItem is string llm) settings.LlmBackend = llm;
             if (_ttsVoiceCombo.SelectedItem is string voice) TtsManager.SetVoice(voice);
+
+            settings.UseCustomTtsSoundFile = _useCustomTtsCheckBox.IsChecked == true;
+            settings.CustomSoundOnly = _customTtsOnlyCheckBox.IsChecked == true;
 
             settings.EnableDualLlmCopilot = _enableDualLlmCheckBox.IsChecked == true;
             if (_dualLlmBackendCombo.SelectedItem is string db) settings.DualLlmBackend = db;

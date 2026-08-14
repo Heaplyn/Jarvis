@@ -51,12 +51,13 @@ namespace JarvisLauncher
         {
             try
             {
-                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string dataDir = PathHandler.GetDataDirectory();
                 string[] requiredDirs = new string[]
                 {
-                    Path.Combine(baseDir, "Data"),
-                    Path.Combine(baseDir, "Data", "Instructions"),
-                    Path.Combine(baseDir, "Macros")
+                    dataDir,
+                    Path.Combine(dataDir, "Instructions"),
+                    Path.Combine(dataDir, "Notes"),
+                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Macros")
                 };
 
                 foreach (var dir in requiredDirs)
@@ -74,7 +75,7 @@ namespace JarvisLauncher
         {
             try
             {
-                string dataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
+                string dataDir = PathHandler.GetDataDirectory();
                 string settingsFile = Path.Combine(dataDir, "SystemSettings.json");
 
                 if (!File.Exists(settingsFile))
@@ -105,7 +106,7 @@ namespace JarvisLauncher
         {
             try
             {
-                string dataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
+                string dataDir = PathHandler.GetDataDirectory();
 
                 // PinnedFiles.json
                 AuditJsonFile(Path.Combine(dataDir, "PinnedFiles.json"), "[]");

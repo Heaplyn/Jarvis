@@ -44,6 +44,8 @@ namespace JarvisLauncher
         public string SelectedTtsVoice { get; set; } = string.Empty;
         public string CustomTtsSamplePath { get; set; } = string.Empty;
         public string CustomTtsVoiceName { get; set; } = string.Empty;
+        public bool UseCustomTtsSoundFile { get; set; } = false;
+        public bool CustomSoundOnly { get; set; } = false;
         public string GeminiVoiceDetailLevel { get; set; } = "Concise"; // Concise | Detailed | Bullet Points
         public bool PhoneticFuzzyMatching { get; set; } = true;
 
@@ -96,27 +98,12 @@ namespace JarvisLauncher
 
     public static class SettingsManager
     {
-        private static string DataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
-        private static string SettingsPath = Path.Combine(DataDir, "SystemSettings.json");
+        private static string DataDir => PathHandler.GetDataDirectory();
+        private static string SettingsPath => Path.Combine(DataDir, "SystemSettings.json");
         private static SystemSettings _currentSettings = new SystemSettings();
 
         static SettingsManager()
         {
-            // Dynamically locate the source project folder 'Data' directory if developing
-            string checkDir = AppDomain.CurrentDomain.BaseDirectory;
-            for (int i = 0; i < 5; i++)
-            {
-                string dataFolder = Path.Combine(checkDir, "Data");
-                if (Directory.Exists(dataFolder) && File.Exists(Path.Combine(dataFolder, "SystemSettings.json")))
-                {
-                    DataDir = dataFolder;
-                    SettingsPath = Path.Combine(dataFolder, "SystemSettings.json");
-                    break;
-                }
-                var parent = Directory.GetParent(checkDir);
-                if (parent == null) break;
-                checkDir = parent.FullName;
-            }
             Load();
         }
 

@@ -97,6 +97,19 @@ namespace JarvisLauncher
             return btn;
         }
 
+        protected TextBlock CreateLabel(string text, double fontSize = 11, bool isBold = true)
+        {
+            var tb = new TextBlock
+            {
+                Text = text,
+                FontSize = fontSize,
+                FontWeight = isBold ? FontWeights.SemiBold : FontWeights.Normal,
+                Margin = new Thickness(0, 4, 0, 4)
+            };
+            tb.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+            return tb;
+        }
+
         protected TextBox CreateTextBox()
         {
             var box = new TextBox
@@ -608,6 +621,15 @@ namespace JarvisLauncher
                 return;
             }
             base.OnClosing(e);
+        }
+    }
+
+    public static class ObjectExtensions
+    {
+        public static T Also<T>(this T self, Action<T> action)
+        {
+            action?.Invoke(self);
+            return self;
         }
     }
 }

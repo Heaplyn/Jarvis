@@ -77,7 +77,8 @@ namespace JarvisLauncher
         OAUTH2,
         CODE_ASSIST,
         IPA_COMPILER,
-        INSTALL
+        INSTALL,
+        TTS
     };
 
     public static class CommandParser
@@ -158,6 +159,7 @@ namespace JarvisLauncher
             RegisterHandler(CommandType.EXPANDED_COMMANDS, "Access 50+ system power, security, file, media, developer, and productivity commands", () => new ExpandedCommandsHandler());
             RegisterHandler(CommandType.ORGANIZATION_TOOLS, "Organize desktop, downloads, deduplicate files, sort by date/extension, and backup folders", () => new OrganizationCommandsHandler());
             RegisterHandler(CommandType.ADHD_FOCUS_SUITE, "ADHD focus Pomodoro sprints, task micro-chunking, dopamine check-ins, and TTS voice alerts", () => new AdhdFocusSuiteHandler());
+            RegisterHandler(CommandType.TTS, "Voice text-to-speech output and file reading", () => new TtsCommandHandler());
         }
 
         private static void RegisterHandler(CommandType type, string description, Func<ICommandHandler> factory)
@@ -644,7 +646,8 @@ namespace JarvisLauncher
             { CommandType.BACKGROUND, "Customization" },
             { CommandType.VOICE_STUDIO, "Audio & Media" },
             { CommandType.HELP_CENTER, "Utilities" },
-            { CommandType.ANIMATION_OPTIONS, "Customization" }
+            { CommandType.ANIMATION_OPTIONS, "Customization" },
+            { CommandType.TTS, "Audio & Media" }
         };
 
         // Preferred display order for categories in the browser overlay.

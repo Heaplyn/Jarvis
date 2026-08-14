@@ -43,7 +43,7 @@ namespace JarvisLauncher
         public static VoiceProfile Profile => _currentProfile;
         public static bool IsRecording => _isRecording;
 
-        private static readonly string VoiceDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Voice");
+        private static readonly string VoiceDir = Path.Combine(PathHandler.GetDataDirectory(), "Voice");
         private static readonly string ProfilePath = Path.Combine(VoiceDir, "voice_profile.json");
 
         static VoiceTrainerManager()

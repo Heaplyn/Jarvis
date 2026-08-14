@@ -167,7 +167,7 @@ namespace JarvisLauncher
             return (uint)Environment.TickCount - lastInputInfo.dwTime;
         }
 
-        public static void Restart()
+        public static void Restart(bool freshBoot = true)
         {
             string projectRoot = AppDomain.CurrentDomain.BaseDirectory;
             string checkDir = AppDomain.CurrentDomain.BaseDirectory;
@@ -185,15 +185,20 @@ namespace JarvisLauncher
 
             try
             {
-                // Detached PowerShell Reloader: Kills all active locks and initiates dotnet run in the project root
+                // We use a more aggressive PowerShell script that waits for the process to exit
+                // and kills any parent dotnet processes that might be holding locks.
+                string command = freshBoot
+                    ? $"$p = Get-Process -Name JarvisLauncher -ErrorAction SilentlyContinue; if ($p) {{ $p | Stop-Process -Force }}; sleep 1; Remove-Item '{projectRoot}\\bin', '{projectRoot}\\obj' -Recurse -Force -ErrorAction SilentlyContinue; Set-Location -Path '{projectRoot}'; dotnet run -- --fresh"
+                    : $"$p = Get-Process -Name JarvisLauncher -ErrorAction SilentlyContinue; if ($p) {{ $p | Stop-Process -Force }}; sleep 1; Set-Location -Path '{projectRoot}'; dotnet run";
+
                 var psi = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = "powershell.exe",
-                    Arguments = $"-NoProfile -Command \"Set-Location -Path '{projectRoot}'; Stop-Process -Name JarvisLauncher -Force -ErrorAction SilentlyContinue; dotnet run\"",
+                    Arguments = $"-NoProfile -WindowStyle Hidden -Command \"{command}\"",
                     CreateNoWindow = true,
                     UseShellExecute = false
                 };
-                System.Diagnostics.Process.Start(psi);
+                Process.Start(psi);
                 Environment.Exit(0);
             }
             catch

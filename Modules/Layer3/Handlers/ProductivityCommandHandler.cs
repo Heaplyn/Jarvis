@@ -50,10 +50,10 @@ namespace JarvisLauncher
 
                     suggestions.Add(new CommandResult
                     {
-                        Title       = "View / Edit notes.txt",
-                        Description = "Open notes.txt in Jarvis text editor",
+                        Title       = "📓 Open Notes Studio",
+                        Description = "Manage all hierarchical notes and categories",
                         Similarity  = 1.0,
-                        Execute     = () => TextEditorOverlay.OpenFile("notes.txt")
+                        Execute     = () => NoteManagerOverlay.ShowOverlay()
                     });
                 }
             }
@@ -89,11 +89,11 @@ namespace JarvisLauncher
         {
             try
             {
-                string projectRoot = GetProjectRoot();
-                string notesPath = Path.Combine(projectRoot, "notes.txt");
+                string relativePath = "Quick Notes.txt";
+                string content = NotesManager.LoadNote(relativePath);
                 string entry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {noteText}{Environment.NewLine}";
-                File.AppendAllText(notesPath, entry);
-                TextOverlay.Show("📝 Note saved to notes.txt!", 2500);
+                NotesManager.SaveNote(relativePath, content + entry);
+                TextOverlay.Show("📝 Note saved to Quick Notes!", 2500);
             }
             catch (Exception ex)
             {

@@ -17,22 +17,35 @@ namespace JarvisLauncher
     {
         private static MobileOverlay? _instance;
 
-        private TextBlock _statusText;
-        private TextBlock _localIpText;
-        private TextBlock _dnsText;
-        private TextBlock _cfUrlText;
-        private TextBlock _ngrokUrlText;
-        private Button _cfBtn;
-        private Button _ngrokBtn;
-        private Button _ngrokUpdateBtn;
-        private ComboBox _providerCombo;
-        private CheckBox _autoStartCheck;
-        private TextBox _portBox;
-        private TextBox _logView;
+        private TextBlock? _statusText;
+        private TextBlock? _localIpText;
+        private TextBlock? _dnsText;
+        private TextBlock? _cfUrlText;
+        private TextBlock? _ngrokUrlText;
+        private Button? _cfBtn;
+        private Button? _ngrokBtn;
+        private Button? _ngrokUpdateBtn;
+        private ComboBox? _providerCombo;
+        private CheckBox? _autoStartCheck;
+        private TextBox? _portBox;
+        private TextBox? _logView;
 
         public MobileOverlay()
             : base("MOBILE & TUNNEL HUB", width: 460, height: 640)
         {
+            // Suppress uninitialized warnings as these are built in BuildCards
+            _statusText = null;
+            _localIpText = null;
+            _dnsText = null;
+            _cfUrlText = null;
+            _ngrokUrlText = null;
+            _cfBtn = null;
+            _ngrokBtn = null;
+            _ngrokUpdateBtn = null;
+            _providerCombo = null;
+            _autoStartCheck = null;
+            _portBox = null;
+            _logView = null;
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             var root = new StackPanel { Margin = new Thickness(2) };
 
