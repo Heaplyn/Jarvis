@@ -81,7 +81,9 @@ namespace JarvisLauncher
         TTS,
         BIOMETRICS,
         TEMPLATE,
-        TEACHER
+        TEACHER,
+        UNINSTALL,
+        WEB_OP
     };
 
     public static class CommandParser
@@ -166,6 +168,8 @@ namespace JarvisLauncher
             RegisterHandler(CommandType.BIOMETRICS, "Manage speaker voice biometrics", () => new EnrollVoiceCommandHandler());
             RegisterHandler(CommandType.TEMPLATE, "Manage custom code templates", () => new TemplateCommandHandler());
             RegisterHandler(CommandType.TEACHER, "Interactive programming assistance teacher", () => new TeacherCommandHandler());
+            RegisterHandler(CommandType.UNINSTALL, "Uninstall packages or remove Jarvis", () => new UninstallCommandHandler());
+            RegisterHandler(CommandType.WEB_OP, "Download, scrape, or search the web", () => new WebOperationCommandHandler());
         }
 
         private static void RegisterHandler(CommandType type, string description, Func<ICommandHandler> factory)

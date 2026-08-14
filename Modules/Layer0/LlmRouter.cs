@@ -39,10 +39,10 @@ namespace JarvisLauncher
         /// </summary>
         public static async Task<string> AskAsync(string prompt, List<ChatTurn>? history = null)
         {
-            string memoryContext = WorkspaceMemoryManager.GetWorkspaceContextPrompt();
-            if (!string.IsNullOrEmpty(memoryContext))
+            string contextSummary = BackgroundContextManager.GetActiveContextSummary();
+            if (!string.IsNullOrEmpty(contextSummary))
             {
-                prompt += memoryContext;
+                prompt = $"[Active Workspace Context: {contextSummary}]\n\n" + prompt;
             }
 
             string backend = SettingsManager.Current.LlmBackend;
@@ -147,10 +147,10 @@ namespace JarvisLauncher
             CancellationToken ct = default,
             Action<string>? onThinkingToken = null)
         {
-            string memoryContext = WorkspaceMemoryManager.GetWorkspaceContextPrompt();
-            if (!string.IsNullOrEmpty(memoryContext))
+            string contextSummary = BackgroundContextManager.GetActiveContextSummary();
+            if (!string.IsNullOrEmpty(contextSummary))
             {
-                prompt += memoryContext;
+                prompt = $"[Active Workspace Context: {contextSummary}]\n\n" + prompt;
             }
 
             var s = SettingsManager.Current;

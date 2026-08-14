@@ -27,13 +27,15 @@ namespace JarvisLauncher
         private static readonly List<double> _ambientHistory = new List<double>();
         private const int BufferSeconds = 3;
         private static float SpeechThreshold => Math.Max(0.02f, SettingsManager.Current.MicAudioEnergyFloor);
-        private static int SilenceTimeoutMs = 800; // Reduced from 1500 for snappier response
+        private static int SilenceTimeoutMs = 2500; // Increased to 2.5s for more stable "end of sentence" detection
 
         private static DateTime _lastInteractionTime = DateTime.MinValue;
         private static bool _isInConversation = false;
         private static DateTime _lastSpeechTime = DateTime.MinValue;
         private static DateTime _cooldownUntil = DateTime.MinValue;
         private static DateTime _lastFallbackTime = DateTime.MinValue;
+        private static DateTime _lastWakeVerificationTime = DateTime.MinValue;
+        private static bool _lastWakeVerificationResult = false;
 
         // Syllable/Algorithm tracking
         private static List<double> _rmsHistory = new List<double>();
@@ -85,8 +87,20 @@ namespace JarvisLauncher
                         _wakeWordEngine.LoadGrammar(new Grammar(gb));
 
                         _wakeWordEngine.SpeechRecognized += (s, e) => {
-                            if (e.Result.Confidence >= SettingsManager.Current.MinVoiceConfidence) {
-                                DebugConsoleOverlay.Log("Voice-ML (SAPI)", $"High Confidence Match: '{e.Result.Text}' ({e.Result.Confidence:P0})");
+                            double confidence = e.Result.Confidence;
+                            double score = 1.0;
+                            if (SettingsManager.Current.IsSpeakerVerificationEnabled && SpeakerBiometricsManager.IsEnrolled)
+                            {
+                                score = GetWakeWordSpeakerScore();
+                                double threshold = SettingsManager.Current.SpeakerVerificationThreshold;
+                                double ratio = threshold > 0 ? score / threshold : 1.0;
+                                double factor = Math.Clamp(ratio, 0.3, 1.25);
+                                confidence = Math.Clamp(confidence * factor, 0.0, 1.0);
+                                DebugConsoleOverlay.Log("Biometrics Fusion", $"SAPI Conf: {e.Result.Confidence:F2} -> Adjusted: {confidence:F2} (Cluster Similarity: {score:F3})");
+                            }
+
+                            if (confidence >= SettingsManager.Current.MinVoiceConfidence) {
+                                DebugConsoleOverlay.Log("Voice-ML (SAPI)", $"High Confidence Match: '{e.Result.Text}' ({confidence:P0})");
                                 TriggerJarvis("SAPI-ML");
                             }
                         };
@@ -130,10 +144,18 @@ namespace JarvisLauncher
         {
             if (!SettingsManager.Current.IsJarvisEnabled) return;
 
-            // Acoustic Echo Suppression: Ignore mic input while TTS speaker output is playing or decaying
-            if (TtsManager.IsSpeakingOrEchoing) return;
-
             double rms = CalculateRMS(e.Buffer, e.BytesRecorded);
+
+            // INTERRUPTION LOGIC: If Jarvis is talking and we hear a loud enough voice, stop him.
+            if (TtsManager.IsSpeakingOrEchoing && rms > (SpeechThreshold * 2.5))
+            {
+                // We use a slightly higher threshold to avoid Jarvis interrupting himself with his own echo
+                DebugConsoleOverlay.Log("Interruption", "User detected while Jarvis was speaking. Silencing...");
+                TtsManager.Stop();
+            }
+
+            // Acoustic Echo Suppression: Still skip processing if Jarvis is talking and it's quiet (likely echo)
+            if (TtsManager.IsSpeakingOrEchoing) return;
 
             // Dynamic Voice Filter Autocalibration
             if (!_isRecordingCommand && !_isInConversation && !_isProcessingWakeWord)
@@ -320,6 +342,13 @@ namespace JarvisLauncher
                 return true; // Verification not active or no voiceprint enrolled
             }
 
+            // Check Cache
+            if ((DateTime.Now - _lastWakeVerificationTime).TotalMilliseconds < 1000)
+            {
+                DebugConsoleOverlay.Log("Biometrics Security", $"Using cached wake verification result: {_lastWakeVerificationResult}");
+                return _lastWakeVerificationResult;
+            }
+
             // Extract the last 2.5 seconds from circular buffer
             byte[] clipData;
             lock (_circularBuffer)
@@ -358,6 +387,44 @@ namespace JarvisLauncher
             {
                 DebugConsoleOverlay.Log("Biometrics Error", $"Wake verification failed: {ex.Message}");
                 return true; // Fail-open on unexpected file/io errors to not brick the wake pipeline
+            }
+        }
+
+        private static double GetWakeWordSpeakerScore()
+        {
+            if (!SpeakerBiometricsManager.IsEnrolled) return 1.0;
+
+            byte[] clipData;
+            lock (_circularBuffer)
+            {
+                int bytesToTake = Math.Min(_circularBuffer.Count, 80000);
+                if (bytesToTake < 16000) return 0.0;
+                
+                clipData = _circularBuffer.Skip(_circularBuffer.Count - bytesToTake).Take(bytesToTake).ToArray();
+            }
+
+            string tempWav = Path.Combine(Path.GetTempPath(), "jarvis_wake_score_temp.wav");
+            try
+            {
+                using (var fs = File.Create(tempWav))
+                using (var writer = new WaveFileWriter(fs, new WaveFormat(16000, 1)))
+                {
+                    writer.Write(clipData, 0, clipData.Length);
+                }
+
+                var (isVerified, score) = SpeakerBiometricsManager.VerifySpeakerFromWav(tempWav);
+                try { File.Delete(tempWav); } catch { }
+
+                // Cache the verification result
+                _lastWakeVerificationTime = DateTime.Now;
+                _lastWakeVerificationResult = isVerified;
+
+                return score;
+            }
+            catch (Exception ex)
+            {
+                DebugConsoleOverlay.Log("Biometrics Error", $"Wake score match failed: {ex.Message}");
+                return 0.5; // Fail-neutral
             }
         }
 
@@ -412,18 +479,11 @@ namespace JarvisLauncher
                     DebugConsoleOverlay.Log("Biometrics Error", $"Failed to save temp WAV: {ex.Message}");
                 }
 
-                // Owner Biometric Verification Gate
+                // Owner Biometric Verification Gate (Log similarity, but do not block since wake word was already authenticated)
                 if (SettingsManager.Current.IsSpeakerVerificationEnabled && SpeakerBiometricsManager.IsEnrolled)
                 {
                     var (isVerified, score) = SpeakerBiometricsManager.VerifySpeakerFromWav(tempWav);
-                    if (!isVerified)
-                    {
-                        DebugConsoleOverlay.Log("Biometrics Security", $"BLOCKED: Speaker match failed (score: {score:F3} < threshold: {SettingsManager.Current.SpeakerVerificationThreshold:F2}).");
-                        TextOverlay.Show("⚠️ Biometrics Denied: Speaker identity verification failed.", 4000);
-                        _isInConversation = false;
-                        try { File.Delete(tempWav); } catch { }
-                        return;
-                    }
+                    DebugConsoleOverlay.Log("Biometrics Security", $"Command speaker similarity: {score:F3} (Bypassed block, wake word verified).");
                 }
 
                 // Clean up temp file

@@ -1,20 +1,22 @@
 // Developer: heaplyn
 // Date: 2026-08-14
 // Summary: Speaker Biometrics Engine for voiceprint identification and owner verification.
-//          Extracts vocal feature embeddings (d-vector/x-vector proxy) using averaged Mel-Frequency Cepstral Coefficients (MFCCs).
-//          Verifies speaker identity using Cosine Similarity scoring against enrolled profiles.
+//          Extracts vocal feature embeddings (d-vector/x-vector proxy) using Mel-Frequency Cepstral Coefficients (MFCCs).
+//          Verifies speaker identity using Cosine Similarity matching against a clustered space of enrolled templates.
 
 using System;
 using System.IO;
 using System.Text.Json;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace JarvisLauncher
 {
     public class SpeakerProfile
     {
         public string EnrolledName { get; set; } = "Kyle";
-        public double[] VoiceEmbedding { get; set; } = Array.Empty<double>();
+        public double[] VoiceEmbedding { get; set; } = Array.Empty<double>(); // Average profile vector
+        public List<double[]> VoiceEmbeddings { get; set; } = new List<double[]>(); // Clustered space vectors
         public double VerificationThreshold { get; set; } = 0.70;
         public DateTime EnrollmentDate { get; set; } = DateTime.Now;
     }
@@ -29,9 +31,10 @@ namespace JarvisLauncher
             LoadProfile();
         }
 
-        public static bool IsEnrolled => _currentProfile != null && _currentProfile.VoiceEmbedding != null && _currentProfile.VoiceEmbedding.Length > 0;
+        public static bool IsEnrolled => _currentProfile != null && _currentProfile.VoiceEmbeddings != null && _currentProfile.VoiceEmbeddings.Count > 0;
         public static string EnrolledName => _currentProfile?.EnrolledName ?? "None";
         public static double[]? ActiveEmbedding => _currentProfile?.VoiceEmbedding;
+        public static List<double[]>? ClusterEmbeddings => _currentProfile?.VoiceEmbeddings;
 
         /// <summary>
         /// Loads the enrolled speaker profile from disk.
@@ -47,9 +50,16 @@ namespace JarvisLauncher
                 {
                     string json = File.ReadAllText(path);
                     _currentProfile = JsonSerializer.Deserialize<SpeakerProfile>(json);
+                    
+                    // Migration fallback for legacy profiles with only a single vector
+                    if (_currentProfile != null && _currentProfile.VoiceEmbeddings.Count == 0 && _currentProfile.VoiceEmbedding.Length > 0)
+                    {
+                        _currentProfile.VoiceEmbeddings.Add(_currentProfile.VoiceEmbedding);
+                    }
+
                     if (_currentProfile != null)
                     {
-                        DebugConsoleOverlay.Log("Biometrics", $"Loaded speaker profile for '{_currentProfile.EnrolledName}' (embedded features: {_currentProfile.VoiceEmbedding.Length} dimensions).");
+                        DebugConsoleOverlay.Log("Biometrics", $"Loaded speaker profile for '{_currentProfile.EnrolledName}' (embedded templates: {_currentProfile.VoiceEmbeddings.Count} in cluster).");
                     }
                 }
             }
@@ -73,7 +83,7 @@ namespace JarvisLauncher
                 File.WriteAllText(path, json);
                 _currentProfile = profile;
 
-                DebugConsoleOverlay.Log("Biometrics", $"Successfully enrolled and saved voiceprint profile for '{profile.EnrolledName}'.");
+                DebugConsoleOverlay.Log("Biometrics", $"Successfully enrolled and saved voiceprint profile for '{profile.EnrolledName}' with {profile.VoiceEmbeddings.Count} cluster points.");
             }
             catch (Exception ex)
             {
@@ -82,33 +92,64 @@ namespace JarvisLauncher
         }
 
         /// <summary>
-        /// Enrolls a speaker by extracting their voiceprint embedding from a WAV file recording of their voice.
+        /// Enrolls a speaker by extracting and appending their voiceprint embedding to the template cluster.
         /// </summary>
         public static bool EnrollFromWav(string speakerName, string wavPath)
         {
             double[] embedding = ExtractVoiceEmbeddingFromWav(wavPath);
             if (embedding == null || embedding.Length == 0) return false;
 
-            var profile = new SpeakerProfile
+            LoadProfile(); // Reload to ensure we append to the latest profile
+
+            var profile = _currentProfile;
+            if (profile == null || !profile.EnrolledName.Equals(speakerName, StringComparison.OrdinalIgnoreCase))
             {
-                EnrolledName = speakerName,
-                VoiceEmbedding = embedding,
-                VerificationThreshold = SettingsManager.Current.SpeakerVerificationThreshold,
-                EnrollmentDate = DateTime.Now
-            };
+                profile = new SpeakerProfile
+                {
+                    EnrolledName = speakerName,
+                    VoiceEmbeddings = new List<double[]>(),
+                    VerificationThreshold = SettingsManager.Current.SpeakerVerificationThreshold,
+                    EnrollmentDate = DateTime.Now
+                };
+            }
+
+            profile.VoiceEmbeddings.Add(embedding);
+            profile.VoiceEmbedding = AverageEmbeddings(profile.VoiceEmbeddings); // Update average centroid vector
 
             SaveProfile(profile);
             return true;
         }
 
         /// <summary>
-        /// Verifies whether the speaker of a WAV audio clip matches the enrolled voice profile.
+        /// Matches an input embedding against all templates in the cluster and returns the maximum similarity.
+        /// </summary>
+        public static double MatchAgainstCluster(double[] inputEmbedding)
+        {
+            if (!IsEnrolled || _currentProfile == null || _currentProfile.VoiceEmbeddings.Count == 0)
+            {
+                return 0.0;
+            }
+
+            double maxSimilarity = 0.0;
+            foreach (var template in _currentProfile.VoiceEmbeddings)
+            {
+                double sim = AudioFeatureExtractor.CosineSimilarity(template, inputEmbedding);
+                if (sim > maxSimilarity)
+                {
+                    maxSimilarity = sim;
+                }
+            }
+
+            return maxSimilarity;
+        }
+
+        /// <summary>
+        /// Verifies whether the speaker of a WAV audio clip matches the enrolled voice profile cluster.
         /// </summary>
         public static (bool IsVerified, double Score) VerifySpeakerFromWav(string wavPath)
         {
             if (!IsEnrolled || _currentProfile == null)
             {
-                // If no voice is enrolled, default verify to true so user is not locked out, but log warning.
                 DebugConsoleOverlay.Log("Biometrics Warning", "Verification skipped: No voice profile is enrolled yet.");
                 return (true, 1.0);
             }
@@ -120,11 +161,30 @@ namespace JarvisLauncher
                 return (false, 0.0);
             }
 
-            double similarity = AudioFeatureExtractor.CosineSimilarity(_currentProfile.VoiceEmbedding, inputEmbedding);
+            double similarity = MatchAgainstCluster(inputEmbedding);
             bool isVerified = similarity >= SettingsManager.Current.SpeakerVerificationThreshold;
 
-            DebugConsoleOverlay.Log("Biometrics", $"Speaker verification result: {isVerified} (Score: {similarity:F3} vs Threshold: {SettingsManager.Current.SpeakerVerificationThreshold:F2})");
+            DebugConsoleOverlay.Log("Biometrics", $"Cluster match verification: {isVerified} (Score: {similarity:F3} vs Threshold: {SettingsManager.Current.SpeakerVerificationThreshold:F2})");
             return (isVerified, similarity);
+        }
+
+        private static double[] AverageEmbeddings(List<double[]> embeddings)
+        {
+            if (embeddings == null || embeddings.Count == 0) return Array.Empty<double>();
+            int dim = embeddings[0].Length;
+            double[] avg = new double[dim];
+
+            for (int d = 0; d < dim; d++)
+            {
+                double sum = 0.0;
+                for (int i = 0; i < embeddings.Count; i++)
+                {
+                    sum += embeddings[i][d];
+                }
+                avg[d] = sum / embeddings.Count;
+            }
+
+            return avg;
         }
 
         /// <summary>
