@@ -546,6 +546,37 @@ namespace JarvisLauncher
                 catch { }
             }
 
+            // 21. Process OPEN_IN_VSCODE tags: [OPEN_IN_VSCODE: path]
+            var vscodeRegex = new Regex(@"\[OPEN_IN_VSCODE:\s*(.+?)\]", RegexOptions.IgnoreCase);
+            foreach (Match m in vscodeRegex.Matches(aiResponse))
+            {
+                string path = m.Groups[1].Value.Trim().Trim('"', '\'');
+                try
+                {
+                    CodeEditorManager.OpenInVSCode(path);
+                    logs += $"\n[SUCCESS] Opened {path} in VS Code.";
+                }
+                catch { }
+            }
+
+            // 22. Process OPEN_IN_IDE tags: [OPEN_IN_IDE: path]
+            var ideRegex = new Regex(@"\[OPEN_IN_IDE:\s*(.+?)\]", RegexOptions.IgnoreCase);
+            foreach (Match m in ideRegex.Matches(aiResponse))
+            {
+                string path = m.Groups[1].Value.Trim().Trim('"', '\'');
+                try
+                {
+                    // Default to Cursor or first detected IDE
+                    var editors = CodeEditorManager.GetInstalledEditors();
+                    if (editors.Contains("Cursor")) CodeEditorManager.OpenInCursor(path);
+                    else if (editors.Contains("VS Code")) CodeEditorManager.OpenInVSCode(path);
+                    else CodeEditorManager.OpenInVisualStudio(path);
+
+                    logs += $"\n[SUCCESS] Opened {path} in preferred IDE.";
+                }
+                catch { }
+            }
+
             string cleanedDisplay = aiResponse;
             cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[READ_FILE:\s*.+?\]", "", RegexOptions.IgnoreCase);
             cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[WRITE_FILE:\s*.+?\][\s\S]*?\[END_WRITE\]", "", RegexOptions.IgnoreCase);
@@ -574,6 +605,8 @@ namespace JarvisLauncher
             cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[CLOSE_WINDOW:.*?\]", "", RegexOptions.IgnoreCase);
             cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[DISABLE_JARVIS\]", "", RegexOptions.IgnoreCase);
             cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[ENABLE_JARVIS\]", "", RegexOptions.IgnoreCase);
+            cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[OPEN_IN_VSCODE:.*?\]", "", RegexOptions.IgnoreCase);
+            cleanedDisplay = Regex.Replace(cleanedDisplay, @"\[OPEN_IN_IDE:.*?\]", "", RegexOptions.IgnoreCase);
             cleanedDisplay = cleanedDisplay.Trim();
 
             if (!string.IsNullOrEmpty(logs))

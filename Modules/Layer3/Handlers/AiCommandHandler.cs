@@ -77,24 +77,17 @@ namespace JarvisLauncher
 
         private static void RunAiQuery(string prompt)
         {
-            // Instantly notify querying state
-            TextOverlay.Show("🧠 Querying Jarvis AI, please wait...", 2000);
-
+            // Route everything through the modern AI Chat Companion overlay
             Task.Run(async () =>
             {
                 try
                 {
-                    string response = await AiAPI.AskGemini(prompt);
-                    
-                    // Parse response for files modifications and run actions!
-                    string finalOutput = AgentExecutor.ProcessAIResponse(response);
-
-                    // Display response in our scrollable retro terminal overlay!
-                    CliOutputOverlay.Show($"AI RESPONSE: {prompt}", finalOutput);
+                    // Use SubmitVoiceCommand as the entry point for chat interaction
+                    await ChatOverlay.SubmitVoiceCommand(prompt, showUi: true);
                 }
                 catch (Exception ex)
                 {
-                    CliOutputOverlay.Show("AI Error", $"An error occurred during query: {ex.Message}");
+                    DebugConsoleOverlay.Log("AI Error", $"Query failed: {ex.Message}");
                 }
             });
         }

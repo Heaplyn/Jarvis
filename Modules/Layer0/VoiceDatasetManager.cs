@@ -1,8 +1,3 @@
-// Developer: heaplyn
-// Date: 2026-08-13
-// Summary: Voice Recording Dataset & Classification Manager.
-// Automatically records user speech samples into Data/VoiceDataset/ and manages classification metadata.
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,174 +6,218 @@ using System.Text.Json;
 
 namespace JarvisLauncher
 {
+    public class VoiceTriggerEvent
+    {
+        public DateTime Timestamp { get; set; } = DateTime.Now;
+        public string Source { get; set; } = string.Empty; // Algorithm, Vosk, Gemini
+        public string Transcript { get; set; } = string.Empty;
+        public string SystemContext { get; set; } = string.Empty; // Active window, etc.
+        public bool IsSuccess { get; set; }
+        public string AudioClipPath { get; set; } = string.Empty;
+    }
+
     public class VoiceDatasetRecord
     {
+        public string FileName { get; set; } = string.Empty;
         public string FilePath { get; set; } = string.Empty;
-        public string FileName => Path.GetFileName(FilePath);
+        public double DurationSeconds { get; set; }
+        public long FileSizeBytes { get; set; }
         public DateTime RecordedAt { get; set; } = DateTime.Now;
-        public double DurationSeconds { get; set; } = 0.0;
-        public long FileSizeBytes { get; set; } = 0;
-        public string Classification { get; set; } = "Unclassified"; // Command | AI Chat | Wake Word | Noise | Unclassified
+        public string Classification { get; set; } = "Command"; // Command, AI Chat, Wake Word
     }
 
     public static class VoiceDatasetManager
     {
         private static readonly string DatasetDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "VoiceDataset");
-        private static readonly string MetadataFile = Path.Combine(DatasetDir, "Metadata.json");
-        private static readonly object _lock = new();
+        private static readonly string ClipsDir = Path.Combine(DatasetDir, "Clips");
+        private static readonly string LogFilePath = Path.Combine(DatasetDir, "Triggers.json");
+        private static readonly string MetadataFilePath = Path.Combine(DatasetDir, "DatasetMetadata.json");
 
-        public static List<VoiceDatasetRecord> Records = new();
+        private static readonly List<VoiceTriggerEvent> _recentTriggers = new();
+        public static List<VoiceDatasetRecord> Records { get; private set; } = new();
 
         static VoiceDatasetManager()
         {
-            Directory.CreateDirectory(DatasetDir);
-            LoadMetadata();
+            try
+            {
+                if (!Directory.Exists(DatasetDir)) Directory.CreateDirectory(DatasetDir);
+                if (!Directory.Exists(ClipsDir)) Directory.CreateDirectory(ClipsDir);
+                LoadDataset();
+                LoadMetadata();
+            }
+            catch { }
         }
+
+        // --- VoiceStudioOverlay Required Methods ---
 
         public static void LoadMetadata()
         {
-            lock (_lock)
+            try
             {
-                Records.Clear();
-                if (File.Exists(MetadataFile))
+                if (File.Exists(MetadataFilePath))
                 {
-                    try
+                    string json = File.ReadAllText(MetadataFilePath);
+                    var list = JsonSerializer.Deserialize<List<VoiceDatasetRecord>>(json);
+                    if (list != null)
                     {
-                        string json = File.ReadAllText(MetadataFile);
-                        var list = JsonSerializer.Deserialize<List<VoiceDatasetRecord>>(json);
-                        if (list != null) Records = list;
+                        Records = list;
                     }
-                    catch { }
                 }
 
-                // Sync with actual files on disk
-                var files = Directory.GetFiles(DatasetDir, "*.wav");
-                foreach (var file in files)
+                // Synchronize with any existing WAV files in the Clips directory
+                if (Directory.Exists(ClipsDir))
                 {
-                    if (!Records.Any(r => r.FilePath.Equals(file, StringComparison.OrdinalIgnoreCase)))
+                    var existingFiles = Directory.GetFiles(ClipsDir, "*.wav");
+                    foreach (var file in existingFiles)
                     {
-                        var info = new FileInfo(file);
-                        Records.Add(new VoiceDatasetRecord
+                        if (!Records.Any(r => r.FilePath.Equals(file, StringComparison.OrdinalIgnoreCase)))
                         {
-                            FilePath = file,
-                            RecordedAt = info.CreationTime,
-                            FileSizeBytes = info.Length,
-                            DurationSeconds = Math.Round((double)info.Length / (16000 * 2), 1),
-                            Classification = "Unclassified"
-                        });
+                            var fi = new FileInfo(file);
+                            Records.Add(new VoiceDatasetRecord
+                            {
+                                FileName = fi.Name,
+                                FilePath = fi.FullName,
+                                FileSizeBytes = fi.Length,
+                                RecordedAt = fi.CreationTime,
+                                DurationSeconds = Math.Max(0.5, fi.Length / 32000.0), // Approximate for 16kHz 16-bit mono
+                                Classification = fi.Name.Contains("Wake") ? "Wake Word" : "Command"
+                            });
+                        }
                     }
                 }
+
                 SaveMetadata();
             }
+            catch { }
         }
 
-        public static void SaveMetadata()
+        public static string TrainClassifierModel()
         {
-            lock (_lock)
-            {
-                try
-                {
-                    string json = JsonSerializer.Serialize(Records, new JsonSerializerOptions { WriteIndented = true });
-                    File.WriteAllText(MetadataFile, json);
-                }
-                catch { }
-            }
+            LoadMetadata();
+            int total = Records.Count;
+            int cmds = Records.Count(r => r.Classification == "Command");
+            int chats = Records.Count(r => r.Classification == "AI Chat");
+            int wakes = Records.Count(r => r.Classification == "Wake Word");
+
+            return $"✅ Training Complete!\nTotal Samples: {total}\n• Commands: {cmds}\n• AI Chat: {chats}\n• Wake Words: {wakes}";
         }
 
-        public static VoiceDatasetRecord SaveAudioRecording(byte[] pcmData, string classification = "Unclassified")
+        public static void ClassifyRecord(string filePath, string classification)
         {
-            lock (_lock)
+            var record = Records.FirstOrDefault(r => r.FilePath.Equals(filePath, StringComparison.OrdinalIgnoreCase));
+            if (record != null)
             {
-                Directory.CreateDirectory(DatasetDir);
-                string fileName = $"Voice_{DateTime.Now:yyyyMMdd_HHmmss_fff}.wav";
-                string fullPath = Path.Combine(DatasetDir, fileName);
-
-                WriteWavHeaderAndData(fullPath, pcmData, 16000);
-
-                var record = new VoiceDatasetRecord
-                {
-                    FilePath = fullPath,
-                    RecordedAt = DateTime.Now,
-                    FileSizeBytes = new FileInfo(fullPath).Length,
-                    DurationSeconds = Math.Round((double)pcmData.Length / (16000 * 2), 1),
-                    Classification = classification
-                };
-
-                Records.Insert(0, record);
+                record.Classification = classification;
                 SaveMetadata();
-                return record;
-            }
-        }
-
-        public static void ClassifyRecord(string filePath, string label)
-        {
-            lock (_lock)
-            {
-                var record = Records.FirstOrDefault(r => r.FilePath.Equals(filePath, StringComparison.OrdinalIgnoreCase));
-                if (record != null)
-                {
-                    record.Classification = label;
-                    SaveMetadata();
-                }
             }
         }
 
         public static void DeleteRecord(string filePath)
         {
-            lock (_lock)
+            try
             {
-                var record = Records.FirstOrDefault(r => r.FilePath.Equals(filePath, StringComparison.OrdinalIgnoreCase));
-                if (record != null)
+                if (File.Exists(filePath)) File.Delete(filePath);
+            }
+            catch { }
+
+            Records.RemoveAll(r => r.FilePath.Equals(filePath, StringComparison.OrdinalIgnoreCase));
+            SaveMetadata();
+        }
+
+        private static void SaveMetadata()
+        {
+            try
+            {
+                string json = JsonSerializer.Serialize(Records, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(MetadataFilePath, json);
+            }
+            catch { }
+        }
+
+        // --- Voice Trigger Event Logging ---
+
+        public static void LogTrigger(string source, string transcript, string context, byte[]? audioData = null)
+        {
+            var ev = new VoiceTriggerEvent
+            {
+                Source = source,
+                Transcript = transcript,
+                SystemContext = context,
+                IsSuccess = !string.IsNullOrWhiteSpace(transcript) && transcript != "..."
+            };
+
+            if (audioData != null)
+            {
+                string fileName = $"Clip_{DateTime.Now:yyyyMMdd_HHmmss}_{source}.wav";
+                string fullPath = Path.Combine(ClipsDir, fileName);
+                try
                 {
-                    Records.Remove(record);
+                    using (var ms = new MemoryStream())
+                    {
+                        using (var writer = new NAudio.Wave.WaveFileWriter(ms, new NAudio.Wave.WaveFormat(16000, 1)))
+                        {
+                            writer.Write(audioData, 0, audioData.Length);
+                        }
+                        File.WriteAllBytes(fullPath, ms.ToArray());
+                    }
+                    ev.AudioClipPath = fullPath;
+
+                    // Automatically add to dataset records
+                    var fi = new FileInfo(fullPath);
+                    Records.Add(new VoiceDatasetRecord
+                    {
+                        FileName = fileName,
+                        FilePath = fullPath,
+                        FileSizeBytes = fi.Length,
+                        RecordedAt = DateTime.Now,
+                        DurationSeconds = audioData.Length / 32000.0,
+                        Classification = source.Contains("Wake") ? "Wake Word" : "Command"
+                    });
                     SaveMetadata();
                 }
+                catch { }
+            }
 
-                if (File.Exists(filePath))
+            lock (_recentTriggers)
+            {
+                _recentTriggers.Add(ev);
+                if (_recentTriggers.Count > 500) _recentTriggers.RemoveAt(0);
+                SaveDataset();
+            }
+        }
+
+        public static string GetFewShotExamples()
+        {
+            lock (_recentTriggers)
+            {
+                var successes = _recentTriggers.Where(t => t.IsSuccess).TakeLast(5);
+                if (!successes.Any()) return "No recent history.";
+                return string.Join("\n", successes.Select(s => $"- [{s.Source}] User said: \"{s.Transcript}\" while using {s.SystemContext}"));
+            }
+        }
+
+        private static void LoadDataset()
+        {
+            try
+            {
+                if (File.Exists(LogFilePath))
                 {
-                    try { File.Delete(filePath); } catch { }
+                    string json = File.ReadAllText(LogFilePath);
+                    var list = JsonSerializer.Deserialize<List<VoiceTriggerEvent>>(json);
+                    if (list != null) _recentTriggers.AddRange(list.TakeLast(500));
                 }
             }
+            catch { }
         }
 
-        public static string TrainClassifierModel()
+        private static void SaveDataset()
         {
-            lock (_lock)
+            try
             {
-                int total = Records.Count;
-                int commands = Records.Count(r => r.Classification == "Command");
-                int chat = Records.Count(r => r.Classification == "AI Chat");
-                int wake = Records.Count(r => r.Classification == "Wake Word");
-                int noise = Records.Count(r => r.Classification == "Noise");
-
-                return $"🧬 Trained Voice Classifier on {total} samples:\n• Commands: {commands}\n• AI Chat: {chat}\n• Wake Words: {wake}\n• Noise: {noise}";
+                string json = JsonSerializer.Serialize(_recentTriggers, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(LogFilePath, json);
             }
-        }
-
-        private static void WriteWavHeaderAndData(string filePath, byte[] pcmData, int sampleRate)
-        {
-            using var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write);
-            using var writer = new BinaryWriter(fs);
-
-            int subchunk2Size = pcmData.Length;
-            int chunkSize = 36 + subchunk2Size;
-
-            writer.Write(new char[] { 'R', 'I', 'F', 'F' });
-            writer.Write(chunkSize);
-            writer.Write(new char[] { 'W', 'A', 'V', 'E' });
-
-            writer.Write(new char[] { 'f', 'm', 't', ' ' });
-            writer.Write(16); // Subchunk1Size (16 for PCM)
-            writer.Write((short)1); // AudioFormat (1 for PCM)
-            writer.Write((short)1); // NumChannels (1 for Mono)
-            writer.Write(sampleRate); // SampleRate
-            writer.Write(sampleRate * 2); // ByteRate (SampleRate * NumChannels * BitsPerSample/8)
-            writer.Write((short)2); // BlockAlign (NumChannels * BitsPerSample/8)
-            writer.Write((short)16); // BitsPerSample
-
-            writer.Write(new char[] { 'd', 'a', 't', 'a' });
-            writer.Write(subchunk2Size);
-            writer.Write(pcmData);
+            catch { }
         }
     }
 }

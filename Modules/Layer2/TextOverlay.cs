@@ -12,6 +12,9 @@ namespace JarvisLauncher
 {
     public class TextOverlay : BaseOverlay
     {
+        private static TextOverlay? _lastOverlay;
+        private static string _lastText = string.Empty;
+
         public static void Show(
             string text, 
             int durationMs = 1500, 
@@ -22,10 +25,26 @@ namespace JarvisLauncher
             string textColor = "#FFFFFF",
             string borderColor = "#808050E6")
         {
+            if (string.IsNullOrEmpty(text)) return;
+
             // Execute on UI Dispatcher Thread
             Application.Current.Dispatcher.Invoke(() =>
             {
+                // Simple Debounce: Don't show the exact same message if one is already visible
+                if (_lastOverlay != null && _lastOverlay.IsVisible && _lastText == text)
+                {
+                    return;
+                }
+
+                // Close previous toast to prevent stacking if it's the same type of notification
+                if (_lastOverlay != null && _lastOverlay.IsVisible)
+                {
+                    _lastOverlay.FadeOutAndClose();
+                }
+
                 var overlay = new TextOverlay(text, width, height, fontSize, backgroundColor, textColor, borderColor);
+                _lastOverlay = overlay;
+                _lastText = text;
                 overlay.Show();
 
                 if (durationMs > 0)
@@ -34,6 +53,7 @@ namespace JarvisLauncher
                     timer.Tick += (s, e) =>
                     {
                         timer.Stop();
+                        if (_lastOverlay == overlay) _lastOverlay = null;
                         overlay.FadeOutAndClose();
                     };
                     timer.Start();

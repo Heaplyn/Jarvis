@@ -51,6 +51,7 @@ namespace JarvisLauncher
 
         // LLM Backend Selection
         public string LlmBackend { get; set; } = "Gemini"; // Gemini | OpenAI | Ollama | Custom | P2P
+        public string GeminiModel { get; set; } = "gemini-2.0-flash";
         public string OpenAIKey { get; set; } = string.Empty;
         public string OpenAIBaseUrl { get; set; } = "https://api.openai.com/v1";
         public string OpenAIModel { get; set; } = "gpt-4o-mini";

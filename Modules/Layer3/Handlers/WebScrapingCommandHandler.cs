@@ -242,7 +242,7 @@ namespace JarvisLauncher
                     if (summarize)
                     {
                         string prompt = $"Summarize the key topics and highlights from this Discord channel conversation:\n\n{transcript}";
-                        string summary = await AiAPI.AskGemini(prompt);
+                        string summary = await LlmRouter.AskAsync(prompt);
                         Application.Current.Dispatcher.Invoke(() => CliOutputOverlay.Show($"Discord Summary: #{channelId}", summary + "\n\n--- Raw Transcript ---\n" + transcript));
                     }
                     else

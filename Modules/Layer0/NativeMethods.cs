@@ -185,36 +185,19 @@ namespace JarvisLauncher
 
             try
             {
-                // DETACHED AUTO-COMPILER & RE-LAUNCHER:
-                // 1. Wait 1 second (via timeout) to let this process exit and release all file locks on JarvisLauncher.exe.
-                // 2. Build the project to apply any new source code changes.
-                // 3. Start the newly compiled app binary.
-                string command = $"timeout /t 1 /nobreak && cd /d \"{projectRoot}\" && dotnet build & start bin\\Debug\\net8.0-windows\\JarvisLauncher.exe";
-
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                // Detached PowerShell Reloader: Kills all active locks and initiates dotnet run in the project root
+                var psi = new System.Diagnostics.ProcessStartInfo
                 {
-                    FileName = "cmd.exe",
-                    Arguments = $"/c \"{command}\"",
+                    FileName = "powershell.exe",
+                    Arguments = $"-NoProfile -Command \"Set-Location -Path '{projectRoot}'; Stop-Process -Name JarvisLauncher -Force -ErrorAction SilentlyContinue; dotnet run\"",
                     CreateNoWindow = true,
                     UseShellExecute = false
-                });
+                };
+                System.Diagnostics.Process.Start(psi);
                 Environment.Exit(0);
             }
             catch
             {
-                try
-                {
-                    var exePath = Environment.ProcessPath;
-                    if (!string.IsNullOrEmpty(exePath) && System.IO.File.Exists(exePath))
-                    {
-                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                        {
-                            FileName = exePath,
-                            UseShellExecute = true
-                        });
-                    }
-                }
-                catch { }
                 Environment.Exit(0);
             }
         }

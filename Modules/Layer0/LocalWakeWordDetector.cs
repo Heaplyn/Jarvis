@@ -227,7 +227,12 @@ namespace JarvisLauncher
             // If NOT explicitly told to run a command, route to Gemini AI to parse intent!
             if (!isExplicitCommand || !CommandParser.IsKnownLocalCommand(query))
             {
-                TextOverlay.Show($"🧠 Gemini Voice AI: \"{query}\"...", 2500);
+                // Only show toast if chat isn't already active to reduce UI noise
+                if (!ChatOverlay.IsVisible)
+                {
+                    TextOverlay.Show($"🧠 AI Assistant: \"{query}\"...", 2500);
+                }
+
                 DebugConsoleOverlay.Log("Voice AI Intent", $"Routing statement to Gemini AI parser: \"{query}\"");
 
                 Task.Run(async () =>

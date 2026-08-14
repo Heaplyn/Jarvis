@@ -20,8 +20,8 @@ namespace JarvisLauncher
         private static readonly object _lock = new();
         private static DateTime _lastSpeechTime = DateTime.MinValue;
 
-        // 6 seconds (6000ms) of complete audio silence required before processing user's full sentence
-        private static int SilencePauseMs => Math.Max(1000, SettingsManager.Current.VoiceChunkingSilenceMs);
+        // 2.5 seconds (2500ms) of audio silence required for regular speech
+        private static int SilencePauseMs => Math.Max(500, SettingsManager.Current.VoiceChunkingSilenceMs > 0 ? SettingsManager.Current.VoiceChunkingSilenceMs : 2500);
 
         static FullSentenceAccumulator()
         {

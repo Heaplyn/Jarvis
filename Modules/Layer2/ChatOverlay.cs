@@ -1,4 +1,3 @@
-
 // Developer: heaplyn
 // Date: 2026-08-09
 // Summary: Draggable, interactive AI chat companion panel with scrollable history and message input.
@@ -40,6 +39,8 @@ namespace JarvisLauncher
         private TextBox _consoleTextBox;
         private Button _consoleToggleBtn;
         private bool _isConsoleExpanded = false;
+
+        public new static bool IsVisible => _instance != null && _instance.Visibility == Visibility.Visible && _instance.Opacity > 0.1;
 
         public static void ShowOverlay() => ShowChat();
 
@@ -605,11 +606,71 @@ namespace JarvisLauncher
         private bool _isFolderContext = false;
         private readonly List<ChatTurn> _conversationHistory = new List<ChatTurn>();
 
+        public static async Task SubmitTextMessage(string message)
+        {
+            string trimmed = (message ?? "").Trim();
+            if (string.IsNullOrEmpty(trimmed)) return;
+
+            await Application.Current.Dispatcher.InvokeAsync(async () =>
+            {
+                ShowChat();
+
+                if (_instance == null)
+                {
+                    _instance = new ChatOverlay();
+                    _instance.Closed += (s, e) => _instance = null;
+                }
+
+                _instance.Visibility = Visibility.Visible;
+                _instance.Opacity = 1;
+
+                await _instance.SendUserMessage(trimmed);
+            });
+        }
+
         public static async Task SubmitVoiceCommand(string message, bool showUi = false)
         {
+            string trimmed = (message ?? "").Trim();
+            string lower = trimmed.ToLower();
+            if (string.IsNullOrEmpty(trimmed)) return;
+
+            // Classify if the Chat Overlay is actively open and visible
+            bool isChatActive = false;
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (_instance != null && _instance.Visibility == Visibility.Visible && _instance.Opacity > 0.1)
+                {
+                    isChatActive = true;
+                }
+            });
+
+            // Ambient filter: If chat isn't open, ignore simple conversational filler words
+            if (!isChatActive && !showUi)
+            {
+                string[] triggers = new[] {
+                    "open", "run", "launch", "start", "compile", "show", "restart", "reboot", "shutdown", "install", "search", "find", "get", "git", "play",
+                    "what", "how", "why", "where", "who", "when", "can", "could", "would", "is", "are", "please", "tell", "explain", "help"
+                };
+
+                bool hasTrigger = false;
+                foreach (var trigger in triggers)
+                {
+                    if (lower == trigger || lower.StartsWith(trigger + " ") || lower.Contains(" " + trigger + " ") || lower.EndsWith(" " + trigger))
+                    {
+                        hasTrigger = true;
+                        break;
+                    }
+                }
+
+                if (!hasTrigger)
+                {
+                    DebugConsoleOverlay.Log("Voice-Filter", $"Discarded ambient filler phrase: '{trimmed}'");
+                    return; // Ignore completely!
+                }
+            }
+
             if (!SettingsManager.Current.IsJarvisEnabled || !SettingsManager.Current.IsVoiceModeActive)
             {
-                string trimmed = message.Trim();
                 var suggestions = CommandParser.GetSuggestions(trimmed);
                 if (suggestions.Count > 0 && suggestions[0].Similarity >= 3.0)
                 {
@@ -635,7 +696,7 @@ namespace JarvisLauncher
                     _instance.Visibility = Visibility.Collapsed;
                 }
 
-                await _instance.SendUserMessage(message);
+                await _instance.SendUserMessage(trimmed);
             });
         }
 
@@ -748,41 +809,130 @@ namespace JarvisLauncher
             int turnNumber = (_conversationHistory.Count / 2) + 1;
             var (aiBorder, aiTextBox) = AddMessageBubbleWithControl("🧠 Thinking...", isAi: true, isItalic: true);
 
-            // 3. Thinking animation via DispatcherTimer — stays entirely on the UI thread, no cross-thread issues
+            // 3. Determine if streaming is possible (Ollama only)
+            bool useStreaming = SettingsManager.Current.LlmBackend == "Ollama";
+
             string[] thinkingPhases = turnNumber > 1
-                ? new[] {
-                    $"🧠 [Turn {turnNumber}] Analyzing context...",
-                    "🔍 Searching codebase & memory...",
-                    "📡 Querying AI model...",
-                    "📝 Synthesizing response...",
-                    "✨ Finalizing output..."
-                }
-                : new[] {
-                    "🧠 Analyzing your request...",
-                    "🔍 Searching codebase & memory...",
-                    "📡 Querying AI model...",
-                    "📝 Synthesizing response...",
-                    "✨ Finalizing output..."
-                };
+                ? new[] { $"🧠 [Turn {turnNumber}] Analyzing context...", "📡 Contacting model..." }
+                : new[] { "🧠 Thinking...", "📡 Contacting model..." };
             int phaseIndex = 0;
             var thinkingTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            thinkingTimer.Tick += (s, e) =>
-            {
-                aiTextBox.Text = thinkingPhases[phaseIndex % thinkingPhases.Length];
-                phaseIndex++;
-                _scrollViewer.ScrollToBottom();
-            };
-            thinkingTimer.Start();
 
-            // 4. Run AI on background thread
+            // Show thinking animation only for non-streaming (cloud) backends
+            if (!useStreaming)
+            {
+                thinkingTimer.Tick += (s, e) =>
+                {
+                    aiTextBox.Text = thinkingPhases[phaseIndex % thinkingPhases.Length];
+                    phaseIndex++;
+                    _scrollViewer.ScrollToBottom();
+                };
+                thinkingTimer.Start();
+            }
+
+            // 4. Run AI — streaming (Ollama) or blocking (cloud backends)
             string finalResult = "";
+            string rawResponse = "";
             try
             {
-                DebugConsoleOverlay.Log("AI", $"Sending prompt: {(message.Length > 50 ? message.Substring(0, 50) + "..." : message)}");
+                DebugConsoleOverlay.Log("AI", $"Sending prompt [{(useStreaming ? "STREAM" : "BLOCK")}]: {(message.Length > 50 ? message.Substring(0, 50) + "..." : message)}");
                 var snapshot = new List<ChatTurn>(_conversationHistory);
-                string aiResponse = await Task.Run(async () => await AiAPI.AskGemini(apiMessage, snapshot));
-                finalResult = AgentExecutor.ProcessAIResponse(aiResponse);
-                DebugConsoleOverlay.Log("AI", $"Received response ({finalResult.Length} chars)");
+
+                if (useStreaming)
+                {
+                    // ── Live streaming: show waiting indicator until first token, then stream live ──
+                    aiTextBox.FontStyle = FontStyles.Normal;
+                    aiTextBox.Text = "⏳ Loading model into GPU…";
+
+                    var streamSb = new System.Text.StringBuilder();
+                    var cts = new System.Threading.CancellationTokenSource();
+                    cts.CancelAfter(TimeSpan.FromSeconds(35)); // Hard 35s timeout for local models
+
+                    bool firstToken = true;
+                    bool streamingDone = false;
+
+                    // Pulse the waiting dots on UI thread while model cold-starts
+                    int dotCount = 0;
+                    var waitTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+                    waitTimer.Tick += (s, e) =>
+                    {
+                        if (firstToken && !streamingDone)
+                        {
+                            dotCount = (dotCount + 1) % 4;
+                            aiTextBox.Text = "⏳ Model is warming up" + new string('.', dotCount) + "\n(This takes longer the first time)";
+
+                            // If it's been more than 15 seconds without a token, show a hint
+                            if (dotCount == 0 && firstToken)
+                                DebugConsoleOverlay.Log("AI Status", "Ollama is taking a while to respond. Model might be loading into VRAM.");
+                        }
+                        else waitTimer.Stop();
+                    };
+                    waitTimer.Start();
+
+                    int thinkingTokens = 0;
+
+                    try
+                    {
+                        rawResponse = await Task.Run(async () =>
+                            await LlmRouter.AskOllamaStreamAsync(apiMessage, snapshot,
+                            onToken: token =>
+                            {
+                                Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                                {
+                                    if (streamingDone) return;
+                                    if (firstToken)
+                                    {
+                                        firstToken = false;
+                                        waitTimer.Stop();
+                                        streamSb.Clear();
+                                    }
+                                    streamSb.Append(token);
+                                    aiTextBox.Text = streamSb.ToString();
+                                    _scrollViewer.ScrollToBottom();
+                                }), System.Windows.Threading.DispatcherPriority.Normal);
+                            },
+                            ct: cts.Token,
+                            onThinkingToken: thought =>
+                            {
+                                Application.Current.Dispatcher.BeginInvoke(new Action(() =>
+                                {
+                                    if (streamingDone) return;
+                                    thinkingTokens++;
+                                    if (thinkingTokens % 5 == 1)
+                                        aiTextBox.Text = $"🤔 Thinking… ({thinkingTokens} tokens)";
+                                }), System.Windows.Threading.DispatcherPriority.Normal);
+                            }));
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        rawResponse = "⚠️ Local AI timed out while loading. Ensure Ollama is running and you have enough VRAM, or switch to Gemini in Settings.";
+                    }
+                    catch (Exception ex)
+                    {
+                        rawResponse = $"⚠️ Local AI error: {ex.Message}";
+                    }
+
+                    streamingDone = true;
+                    waitTimer.Stop();
+
+                    // Process agent actions from completed response
+                    finalResult = await Task.Run(() => AgentExecutor.ProcessAIResponse(rawResponse));
+
+                    // Update the bubble with the final formatted content (handles markdown/code)
+                    aiTextBox.FontStyle = FontStyles.Normal;
+                    RenderBubbleContent((StackPanel)aiBorder.Child, aiTextBox, !string.IsNullOrWhiteSpace(finalResult) ? finalResult : rawResponse);
+
+                    _scrollViewer.UpdateLayout();
+                    _scrollViewer.ScrollToBottom();
+                }
+                else
+                {
+                    // ── Blocking path for cloud backends ──
+                    rawResponse = await Task.Run(async () => await LlmRouter.AskAsync(apiMessage, snapshot));
+                    finalResult = AgentExecutor.ProcessAIResponse(rawResponse);
+                }
+
+                DebugConsoleOverlay.Log("AI", $"Response complete ({(finalResult ?? rawResponse).Length} chars)");
             }
             catch (Exception ex)
             {
@@ -794,29 +944,30 @@ namespace JarvisLauncher
                 thinkingTimer.Stop();
             }
 
-            // 5. Write final result
-            if (string.IsNullOrWhiteSpace(finalResult))
+            // 5. Finalise bubble (non-streaming path only — streaming already handled its own bubble)
+            if (!useStreaming)
             {
-                finalResult = "⚠️ No response text returned from AI.";
-            }
-            aiTextBox.Text = finalResult;
-            aiTextBox.FontStyle = FontStyles.Normal;
-            _scrollViewer.UpdateLayout();
-            _scrollViewer.ScrollToBottom();
+                if (string.IsNullOrWhiteSpace(finalResult))
+                    finalResult = string.IsNullOrWhiteSpace(rawResponse) ? "⚠️ No response from AI." : rawResponse;
 
-            // Speak response as a concise, fast spoken summary
-            TtsManager.Speak(finalResult, isShortSpeech: true);
+                // Update the bubble with the final formatted content (handles markdown/code)
+                aiTextBox.FontStyle = FontStyles.Normal;
+                RenderBubbleContent((StackPanel)aiBorder.Child, aiTextBox, finalResult);
+
+                _scrollViewer.UpdateLayout();
+                _scrollViewer.ScrollToBottom();
+            }
+
+            // Speak a concise summary on a background thread so it doesn't block the UI
+            _ = Task.Run(() => TtsManager.Speak(finalResult, isShortSpeech: true));
 
             if (!finalResult.StartsWith("⚠️"))
             {
-                // Chain conversation turns
                 _conversationHistory.Add(new ChatTurn { Role = "user", Text = message });
                 _conversationHistory.Add(new ChatTurn { Role = "model", Text = finalResult });
 
                 if (_conversationHistory.Count > 200)
-                {
                     _conversationHistory.RemoveRange(0, 2);
-                }
 
                 LogConversationTurn(message, finalResult);
             }
@@ -827,7 +978,6 @@ namespace JarvisLauncher
             var list = new List<string>();
             if (string.IsNullOrWhiteSpace(rawText)) return list;
 
-            // Split into up to 100 individual message bubbles based on double newlines, line breaks, or section headers
             string[] parts = rawText.Split(new[] { "\n\n", "\r\n\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
 
             var currentBlock = new System.Text.StringBuilder();
@@ -837,7 +987,6 @@ namespace JarvisLauncher
                 string trimmed = p.Trim();
                 if (string.IsNullOrWhiteSpace(trimmed)) continue;
 
-                // Create a new separate message bubble for every distinct thought/line/header (up to 100 bubbles limit)
                 if (list.Count < 100)
                 {
                     if (currentBlock.Length > 0 && (trimmed.StartsWith("- ") || trimmed.StartsWith("* ") || trimmed.StartsWith("#") || trimmed.StartsWith("```") || trimmed.StartsWith("[") || currentBlock.Length > 150))
@@ -870,7 +1019,6 @@ namespace JarvisLauncher
                 string dataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Conversations");
                 if (!Directory.Exists(dataDir)) Directory.CreateDirectory(dataDir);
 
-                // Create a daily conversation log file (e.g. ChatLog_2026-08-09.txt)
                 string fileName = $"ChatLog_{DateTime.Now:yyyy-MM-dd}.txt";
                 string filePath = Path.Combine(dataDir, fileName);
 
@@ -899,7 +1047,7 @@ namespace JarvisLauncher
             await Task.Delay(delayMs);
         }
 
-        private (Border Border, TextBox TextBox) AddMessageBubbleWithControl(string text, bool isAi, bool isItalic = false)
+        private (Border Border, TextBlock TextContent) AddMessageBubbleWithControl(string text, bool isAi, bool isItalic = false)
         {
             var bubbleBg = isAi 
                 ? new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) 
@@ -911,185 +1059,165 @@ namespace JarvisLauncher
                 CornerRadius = isAi ? new CornerRadius(12, 12, 12, 0) : new CornerRadius(12, 12, 0, 12),
                 Margin = isAi ? new Thickness(0, 4, 48, 4) : new Thickness(48, 4, 0, 4),
                 HorizontalAlignment = isAi ? HorizontalAlignment.Left : HorizontalAlignment.Right,
-                Padding = new Thickness(10, 8, 10, 8),
-                MaxWidth = 280
+                Padding = new Thickness(12, 10, 12, 10),
+                MaxWidth = 300
             };
 
             var containerStack = new StackPanel { Orientation = Orientation.Vertical };
             bubbleBorder.Child = containerStack;
 
-            var textBox = new TextBox
+            var textBlock = new TextBlock
             {
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
-                IsReadOnly = true,
                 FontSize = 13,
                 FontFamily = new FontFamily("Segoe UI"),
                 TextWrapping = TextWrapping.Wrap,
                 FontStyle = isItalic ? FontStyles.Italic : FontStyles.Normal,
-                Padding = new Thickness(0),
-                Cursor = Cursors.Arrow,
-                Margin = new Thickness(0),
-                FocusVisualStyle = null
+                Margin = new Thickness(0)
             };
-            textBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
-            containerStack.Children.Add(textBox);
+            textBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+            containerStack.Children.Add(textBlock);
 
-            textBox.TextChanged += (s, e) =>
-            {
-                string currentText = textBox.Text;
-                if (currentText.Contains("```"))
-                {
-                    textBox.Visibility = Visibility.Collapsed;
+            RenderBubbleContent(containerStack, textBlock, text);
 
-                    for (int i = containerStack.Children.Count - 1; i >= 0; i--)
-                    {
-                        if (containerStack.Children[i] != textBox)
-                        {
-                            containerStack.Children.RemoveAt(i);
-                        }
-                    }
-
-                    var parts = ParseMessageParts(currentText);
-                    foreach (var part in parts)
-                    {
-                        if (part.IsCode)
-                        {
-                            int lineCount = part.Content.Split('\n').Length;
-                            if (lineCount < 4 && part.Content.Length < 100)
-                            {
-                                var codeTextBox = new TextBox
-                                {
-                                    Text = part.Content.Trim(),
-                                    Background = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255)),
-                                    BorderThickness = new Thickness(0),
-                                    IsReadOnly = true,
-                                    FontSize = 12,
-                                    FontFamily = new FontFamily("Consolas"),
-                                    TextWrapping = TextWrapping.Wrap,
-                                    Padding = new Thickness(6),
-                                    Margin = new Thickness(0, 4, 0, 4),
-                                    Cursor = Cursors.Arrow,
-                                    FocusVisualStyle = null
-                                };
-                                codeTextBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
-                                containerStack.Children.Add(codeTextBox);
-                            }
-                            else
-                            {
-                                string langLabel = string.IsNullOrEmpty(part.Language) ? "Code Document" : $"{char.ToUpper(part.Language[0])}{part.Language.Substring(1)} Source";
-                                string filename = ExtractFilename(part.Content, part.Language);
-                                
-                                var cardBorder = new Border
-                                {
-                                    Background = new SolidColorBrush(Color.FromArgb(30, 59, 130, 246)),
-                                    BorderThickness = new Thickness(1),
-                                    BorderBrush = new SolidColorBrush(Color.FromArgb(80, 59, 130, 246)),
-                                    CornerRadius = new CornerRadius(6),
-                                    Padding = new Thickness(8),
-                                    Margin = new Thickness(0, 6, 0, 6),
-                                    Cursor = Cursors.Hand
-                                };
-
-                                var cardGrid = new Grid();
-                                cardGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                                cardGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-                                var iconBlock = new TextBlock
-                                {
-                                    Text = "📄",
-                                    FontSize = 24,
-                                    Margin = new Thickness(0, 0, 8, 0),
-                                    VerticalAlignment = VerticalAlignment.Center
-                                };
-                                Grid.SetColumn(iconBlock, 0);
-                                cardGrid.Children.Add(iconBlock);
-
-                                var textStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-                                var titleBlock = new TextBlock
-                                {
-                                    Text = filename,
-                                    FontSize = 12,
-                                    FontWeight = FontWeights.Bold,
-                                    TextTrimming = TextTrimming.CharacterEllipsis
-                                };
-                                titleBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
-                                textStack.Children.Add(titleBlock);
-
-                                var detailsBlock = new TextBlock
-                                {
-                                    Text = $"{langLabel} ({lineCount} lines) • Click to Edit",
-                                    FontSize = 10,
-                                    Opacity = 0.8
-                                };
-                                detailsBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
-                                textStack.Children.Add(detailsBlock);
-
-                                Grid.SetColumn(textStack, 1);
-                                cardGrid.Children.Add(textStack);
-
-                                cardBorder.Child = cardGrid;
-
-                                cardBorder.PreviewMouseLeftButtonDown += (sender, args) =>
-                                {
-                                    try
-                                    {
-                                        string tempDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Temp");
-                                        if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
-
-                                        string tempPath = Path.Combine(tempDir, filename);
-                                        File.WriteAllText(tempPath, part.Content);
-
-                                        TextEditorOverlay.OpenFile(tempPath);
-                                        TextOverlay.Show($"Opened in Editor: {filename}", 2000);
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        MessageBox.Show($"Failed to open code block: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                                    }
-                                };
-
-                                containerStack.Children.Add(cardBorder);
-                            }
-                        }
-                        else
-                        {
-                            if (!string.IsNullOrWhiteSpace(part.Content))
-                            {
-                                var normalBlock = new TextBlock
-                                {
-                                    Text = part.Content.Trim(),
-                                    FontSize = 13,
-                                    FontFamily = new FontFamily("Segoe UI"),
-                                    TextWrapping = TextWrapping.Wrap,
-                                    Margin = new Thickness(0, 2, 0, 2)
-                                };
-                                normalBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
-                                containerStack.Children.Add(normalBlock);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    textBox.Visibility = Visibility.Visible;
-                    for (int i = containerStack.Children.Count - 1; i >= 0; i--)
-                    {
-                        if (containerStack.Children[i] != textBox)
-                        {
-                            containerStack.Children.RemoveAt(i);
-                        }
-                    }
-                }
-            };
-
-            textBox.Text = text;
             _chatHistoryPanel.Children.Add(bubbleBorder);
-
             _scrollViewer.UpdateLayout();
             _scrollViewer.ScrollToBottom();
 
-            return (bubbleBorder, textBox);
+            return (bubbleBorder, textBlock);
+        }
+
+        private void RenderBubbleContent(StackPanel container, TextBlock mainText, string text)
+        {
+            mainText.Text = text;
+
+            if (text.Contains("```"))
+            {
+                mainText.Visibility = Visibility.Collapsed;
+
+                // Clear previous secondary elements
+                for (int i = container.Children.Count - 1; i >= 0; i--)
+                {
+                    if (container.Children[i] != mainText) container.Children.RemoveAt(i);
+                }
+
+                var parts = ParseMessageParts(text);
+                foreach (var part in parts)
+                {
+                    if (part.IsCode)
+                    {
+                        int lineCount = part.Content.Split('\n').Length;
+                        if (lineCount < 4 && part.Content.Length < 100)
+                        {
+                            var codeBlock = new Border
+                            {
+                                Background = new SolidColorBrush(Color.FromArgb(30, 0, 0, 0)),
+                                Padding = new Thickness(6),
+                                Margin = new Thickness(0, 4, 0, 4),
+                                CornerRadius = new CornerRadius(4)
+                            };
+
+                            var tb = new TextBlock
+                            {
+                                Text = part.Content.Trim(),
+                                FontSize = 12,
+                                FontFamily = new FontFamily("Consolas"),
+                                TextWrapping = TextWrapping.Wrap
+                            };
+                            tb.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+
+                            codeBlock.Child = tb;
+                            container.Children.Add(codeBlock);
+                        }
+                        else
+                        {
+                            container.Children.Add(CreateCodeFileCard(part));
+                        }
+                    }
+                    else if (!string.IsNullOrWhiteSpace(part.Content))
+                    {
+                        var tb = new TextBlock
+                        {
+                            Text = part.Content.Trim(),
+                            FontSize = 13,
+                            FontFamily = new FontFamily("Segoe UI"),
+                            TextWrapping = TextWrapping.Wrap,
+                            Margin = new Thickness(0, 2, 0, 2)
+                        };
+                        tb.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+
+                        container.Children.Add(tb);
+                    }
+                }
+            }
+            else
+            {
+                mainText.Visibility = Visibility.Visible;
+            }
+        }
+
+        private Border CreateCodeFileCard(MessagePart part)
+        {
+            string langLabel = string.IsNullOrEmpty(part.Language) ? "Code Document" : $"{char.ToUpper(part.Language[0])}{part.Language.Substring(1)} Source";
+            string filename = ExtractFilename(part.Content, part.Language);
+            int lineCount = part.Content.Split('\n').Length;
+
+            var cardBorder = new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(30, 59, 130, 246)),
+                BorderThickness = new Thickness(1),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(80, 59, 130, 246)),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(8),
+                Margin = new Thickness(0, 6, 0, 6),
+                Cursor = Cursors.Hand
+            };
+
+            var cardGrid = new Grid();
+            cardGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            cardGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            cardGrid.Children.Add(new TextBlock { Text = "📄", FontSize = 24, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center });
+
+            var textStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+
+            var titleTb = new TextBlock
+            {
+                Text = filename,
+                FontSize = 12,
+                FontWeight = FontWeights.Bold,
+                TextTrimming = TextTrimming.CharacterEllipsis
+            };
+            titleTb.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+            textStack.Children.Add(titleTb);
+
+            var subTitleTb = new TextBlock
+            {
+                Text = $"{langLabel} ({lineCount} lines) • Click to Edit",
+                FontSize = 10,
+                Opacity = 0.8
+            };
+            subTitleTb.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
+            textStack.Children.Add(subTitleTb);
+
+            Grid.SetColumn(textStack, 1);
+            cardGrid.Children.Add(textStack);
+            cardBorder.Child = cardGrid;
+
+            cardBorder.PreviewMouseLeftButtonDown += (s, e) =>
+            {
+                try
+                {
+                    string tempDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Temp");
+                    if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
+                    string tempPath = Path.Combine(tempDir, filename);
+                    File.WriteAllText(tempPath, part.Content);
+                    TextEditorOverlay.OpenFile(tempPath);
+                    TextOverlay.Show($"Opened in Editor: {filename}", 2000);
+                }
+                catch { }
+            };
+
+            return cardBorder;
         }
 
         private static List<MessagePart> ParseMessageParts(string text)

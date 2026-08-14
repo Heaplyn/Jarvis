@@ -729,7 +729,7 @@ namespace JarvisLauncher
                     if (textOnly.Length > 3000) textOnly = textOnly.Substring(0, 3000);
 
                     string prompt = $"Please provide a concise summary of the following webpage content extracted from {url}:\n\n{textOnly}";
-                    string summary = await AiAPI.AskGemini(prompt);
+                    string summary = await LlmRouter.AskAsync(prompt);
 
                     Application.Current.Dispatcher.Invoke(() =>
                     {

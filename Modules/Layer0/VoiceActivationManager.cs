@@ -104,6 +104,14 @@ namespace JarvisLauncher
 
                 DebugConsoleOverlay.Log("Voice", "Tiered Activation Pipeline Started (Algorithm -> ML -> Gemini)");
 
+                // Start Intelligence Learning Loop
+                Task.Run(async () => {
+                    while (true) {
+                        await Task.Delay(TimeSpan.FromHours(1));
+                        await VoiceIntelligenceManager.AnalyzeAndLearnAsync();
+                    }
+                });
+
                 Task.Run(async () => {
                     while (true) {
                         if (_isInConversation && (DateTime.Now - _lastInteractionTime).TotalSeconds > ConversationTimeoutSeconds) {
@@ -259,14 +267,23 @@ namespace JarvisLauncher
                 byte[] clip;
                 lock (_circularBuffer) clip = _circularBuffer.ToArray();
 
+                string activeWin = MemoryManager.GetCurrentWindowTitle();
                 string base64 = ConvertToBase64Wav(clip);
-                string prompt = "Is the name 'Jarvis' clearly spoken in this audio? Answer ONLY 'YES' or 'NO'.";
+                string prompt = $"Context: User is currently using \"{activeWin}\".\n" +
+                               $"Historical Successes:\n{VoiceDatasetManager.GetFewShotExamples()}\n\n" +
+                               "Is the name 'Jarvis' clearly spoken in this audio? Answer ONLY 'YES' or 'NO'.";
+
                 string response = await AiAPI.AnalyzeAudioAsync(prompt, base64);
 
                 if (response.Trim().ToUpper().Contains("YES"))
                 {
                     DebugConsoleOverlay.Log("Voice-Match", "Gemini Fallback Confirmed wake word!");
+                    VoiceDatasetManager.LogTrigger("Gemini-Fallback", "Jarvis (Wake Word)", activeWin, clip);
                     TriggerJarvis("Gemini-Fallback");
+                }
+                else
+                {
+                    VoiceDatasetManager.LogTrigger("Gemini-Rejection", "No Match", activeWin, clip);
                 }
             }
             catch { }
@@ -326,10 +343,33 @@ namespace JarvisLauncher
             byte[] data = _commandAudioStream.ToArray();
             if (data.Length > 8000)
             {
+                string activeWin = MemoryManager.GetCurrentWindowTitle();
                 string base64 = ConvertToBase64Wav(data);
-                string text = await AiAPI.AnalyzeAudioAsync("Transcribe the spoken human speech exactly as heard. Do not generate a response, only output the transcribed text. If there is no clear human speech (e.g., only breathing, keyboard typing clicks, background sigh/cough, or silence), return '...'.", base64);
+                string transcribePrompt = $"Context: User is focused on \"{activeWin}\".\n" +
+                                         $"Historical Successes:\n{VoiceDatasetManager.GetFewShotExamples()}\n\n" +
+                                         "Task: Transcribe the spoken human speech exactly as heard. If the speech is ambiguous, use the focus context and history to disambiguate.\n" +
+                                         "Do not generate a response, only output the transcribed text. If there is no clear human speech, return '...'.";
 
-                string cleanText = (text ?? "").Trim();
+                // ── Multi-pass transcription ──
+                const int PASSES = 3;
+                var results = new List<string>();
+                for (int pass = 0; pass < PASSES; pass++)
+                {
+                    try
+                    {
+                        string r = (await AiAPI.AnalyzeAudioAsync(transcribePrompt, base64) ?? "").Trim();
+                        if (!string.IsNullOrWhiteSpace(r)) results.Add(r);
+                    }
+                    catch { }
+                }
+
+                // consensus logic...
+                string text = results.Count == 0 ? "..." : results.GroupBy(r => r, StringComparer.OrdinalIgnoreCase).OrderByDescending(g => g.Count()).ThenByDescending(g => g.Key.Length).First().Key;
+
+                string cleanText = text.Trim();
+                cleanText = VoiceIntelligenceManager.ApplyIntelligence(cleanText);
+                VoiceDatasetManager.LogTrigger("Command-Capture", cleanText, activeWin, data);
+
                 string lowerText = cleanText.ToLower();
                 
                 // Smart Rejection Filter: Skip ambient noises, transcript markers, and single noise particles

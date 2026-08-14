@@ -78,11 +78,11 @@ namespace JarvisLauncher
         /// <summary>
         /// Returns the top-N most frequently chosen results for any query prefix.
         /// </summary>
-        public static List<(string ResultTitle, int Count)> GetTopResults(string queryPrefix, int topN = 5)
+        public static List<(string ResultTitle, string OriginalQuery, int Count)> GetTopResults(string queryPrefix, int topN = 5)
         {
             EnsureLoaded();
             string prefix = NormalizeQuery(queryPrefix);
-            var hits = new List<(string, int)>();
+            var hits = new List<(string, string, int)>();
 
             foreach (var kvp in _model)
             {
@@ -90,14 +90,15 @@ namespace JarvisLauncher
                 if (parts.Length == 2 && parts[0].StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && kvp.Value > 0)
                 {
                     string title = parts[1];
+                    string origQuery = parts[0];
                     if (!InvalidTitles.Contains(title))
                     {
-                        hits.Add((title, kvp.Value));
+                        hits.Add((title, origQuery, kvp.Value));
                     }
                 }
             }
 
-            hits.Sort((a, b) => b.Item2.CompareTo(a.Item2));
+            hits.Sort((a, b) => b.Item3.CompareTo(a.Item3));
             return hits.Count > topN ? hits.GetRange(0, topN) : hits;
         }
 

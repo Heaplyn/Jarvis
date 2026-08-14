@@ -187,7 +187,7 @@ namespace JarvisLauncher
                 try
                 {
                     string prompt = $"Break down this task for someone with ADHD into 4 extremely small, friction-free micro-steps that take 5 minutes each: \"{task}\"";
-                    string response = await AiAPI.AskGemini(prompt);
+                    string response = await LlmRouter.AskAsync(prompt);
                     CliOutputOverlay.Show($"🧩 Micro-Steps: {task}", response);
                     TtsManager.Speak($"Here are 4 micro steps for {task}. Step 1 is in your output overlay.");
                 }
