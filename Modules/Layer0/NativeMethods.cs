@@ -185,11 +185,23 @@ namespace JarvisLauncher
 
             try
             {
-                // We use a more aggressive PowerShell script that waits for the process to exit
-                // and kills any parent dotnet processes that might be holding locks.
-                string command = freshBoot
-                    ? $"$p = Get-Process -Name JarvisLauncher -ErrorAction SilentlyContinue; if ($p) {{ $p | Stop-Process -Force }}; sleep 1; Remove-Item '{projectRoot}\\bin', '{projectRoot}\\obj' -Recurse -Force -ErrorAction SilentlyContinue; Set-Location -Path '{projectRoot}'; dotnet run -- --fresh"
-                    : $"$p = Get-Process -Name JarvisLauncher -ErrorAction SilentlyContinue; if ($p) {{ $p | Stop-Process -Force }}; sleep 1; Set-Location -Path '{projectRoot}'; dotnet run";
+                string runExePath = System.IO.Path.Combine(projectRoot, "run.exe");
+                string command;
+
+                if (System.IO.File.Exists(runExePath))
+                {
+                    // Directly connect to and launch via run.exe (the compiled .NET runner)
+                    command = freshBoot
+                        ? $"$p = Get-Process -Name JarvisLauncher -ErrorAction SilentlyContinue; if ($p) {{ $p | Stop-Process -Force }}; sleep 1; Remove-Item '{projectRoot}\\bin', '{projectRoot}\\obj' -Recurse -Force -ErrorAction SilentlyContinue; Set-Location -Path '{projectRoot}'; dotnet build; Start-Process -FilePath '{runExePath}' -ArgumentList '--fresh'"
+                        : $"$p = Get-Process -Name JarvisLauncher -ErrorAction SilentlyContinue; if ($p) {{ $p | Stop-Process -Force }}; sleep 1; Set-Location -Path '{projectRoot}'; dotnet build; Start-Process -FilePath '{runExePath}'";
+                }
+                else
+                {
+                    // Fallback to dotnet run if run.exe is missing
+                    command = freshBoot
+                        ? $"$p = Get-Process -Name JarvisLauncher -ErrorAction SilentlyContinue; if ($p) {{ $p | Stop-Process -Force }}; sleep 1; Remove-Item '{projectRoot}\\bin', '{projectRoot}\\obj' -Recurse -Force -ErrorAction SilentlyContinue; Set-Location -Path '{projectRoot}'; dotnet run -- --fresh"
+                        : $"$p = Get-Process -Name JarvisLauncher -ErrorAction SilentlyContinue; if ($p) {{ $p | Stop-Process -Force }}; sleep 1; Set-Location -Path '{projectRoot}'; dotnet run";
+                }
 
                 var psi = new System.Diagnostics.ProcessStartInfo
                 {

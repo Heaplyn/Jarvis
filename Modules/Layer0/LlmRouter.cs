@@ -39,6 +39,12 @@ namespace JarvisLauncher
         /// </summary>
         public static async Task<string> AskAsync(string prompt, List<ChatTurn>? history = null)
         {
+            string memoryContext = WorkspaceMemoryManager.GetWorkspaceContextPrompt();
+            if (!string.IsNullOrEmpty(memoryContext))
+            {
+                prompt += memoryContext;
+            }
+
             string backend = SettingsManager.Current.LlmBackend;
             bool isLocalLlmAvailable = await IsOllamaAvailableAsync();
 
@@ -141,6 +147,12 @@ namespace JarvisLauncher
             CancellationToken ct = default,
             Action<string>? onThinkingToken = null)
         {
+            string memoryContext = WorkspaceMemoryManager.GetWorkspaceContextPrompt();
+            if (!string.IsNullOrEmpty(memoryContext))
+            {
+                prompt += memoryContext;
+            }
+
             var s = SettingsManager.Current;
             string endpoint = s.OllamaEndpoint.TrimEnd('/');
             string model = s.OllamaModel;

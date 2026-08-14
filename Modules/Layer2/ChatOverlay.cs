@@ -13,6 +13,7 @@ using System.Windows.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 
 namespace JarvisLauncher
 {
@@ -132,7 +133,7 @@ namespace JarvisLauncher
             Grid.SetRow(_scrollViewer, 2);
             contentGrid.Children.Add(_scrollViewer);
 
-            AddMessageBubble("Hello! I am your Jarvis AI Companion. How can I help you today?", isAi: true);
+            LoadOrWelcomeActiveChatHistory();
 
             var divider = new Border { Height = 1, Margin = new Thickness(0, 0, 0, 8) };
             divider.SetResourceReference(Border.BackgroundProperty, "WindowBorderBrush");
@@ -260,7 +261,7 @@ namespace JarvisLauncher
         private void AttachFolder(string path) { if (Directory.Exists(path)) { _attachedFilePath = path; _isFolderContext = true; _attachedFileText.Text = "📁 " + Path.GetFileName(path); _attachedFileBadge.Visibility = Visibility.Visible; } }
         private void RemoveAttachment() { _attachedFilePath = null; _attachedFileBadge.Visibility = Visibility.Collapsed; }
         private void ToggleConsole() { _isConsoleExpanded = !_isConsoleExpanded; _consoleTextBox.Height = _isConsoleExpanded ? 120 : 0; _consoleTextBox.Visibility = _isConsoleExpanded ? Visibility.Visible : Visibility.Collapsed; _consoleToggleBtn.Content = _isConsoleExpanded ? "Hide Console («)" : "Show Console (»)"; _scrollViewer.ScrollToBottom(); }
-        private void StartNewChatSession() { _chatHistoryPanel.Children.Clear(); _conversationHistory.Clear(); RemoveAttachment(); AddMessageBubble("✨ New Chat Session started!", isAi: true); }
+        private void StartNewChatSession() { _chatHistoryPanel.Children.Clear(); _conversationHistory.Clear(); RemoveAttachment(); DeleteActiveChatHistory(); AddMessageBubble("✨ New Chat Session started!", isAi: true); }
         private void ToggleHistoryDrawer() { if (_historyContainer.Visibility == Visibility.Collapsed) { PopulateHistoryList(); _historyContainer.Visibility = Visibility.Visible; } else _historyContainer.Visibility = Visibility.Collapsed; }
         private void PopulateHistoryList() { _historyListBox.Items.Clear(); string dir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Conversations"); if (Directory.Exists(dir)) { var files = Directory.GetFiles(dir, "ChatLog_*.txt"); Array.Sort(files, (a, b) => File.GetLastWriteTime(b).CompareTo(File.GetLastWriteTime(a))); foreach (var f in files) _historyListBox.Items.Add(Path.GetFileName(f)); } }
         private void LoadPastChatLog(string file) { try { string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Conversations", file); if (!File.Exists(path)) return; string text = File.ReadAllText(path); _chatHistoryPanel.Children.Clear(); _conversationHistory.Clear(); _historyContainer.Visibility = Visibility.Collapsed; string[] turns = text.Split("==========================================================================", StringSplitOptions.RemoveEmptyEntries); foreach (var turn in turns) { int uIdx = turn.IndexOf("USER: "), jIdx = turn.IndexOf("JARVIS: "); if (uIdx >= 0 && jIdx > uIdx) { string u = turn.Substring(uIdx + 6, jIdx - (uIdx + 6)).Trim(); string j = turn.Substring(jIdx + 8).Trim(); if (!string.IsNullOrEmpty(u)) AddMessageBubble(u, false); if (!string.IsNullOrEmpty(j)) AddMessageBubble(j, true); _conversationHistory.Add(new ChatTurn { Role = "user", Text = u }); _conversationHistory.Add(new ChatTurn { Role = "model", Text = j }); } } } catch { } }
@@ -373,10 +374,75 @@ namespace JarvisLauncher
                 _conversationHistory.Add(new ChatTurn { Role = "user", Text = message });
                 _conversationHistory.Add(new ChatTurn { Role = "model", Text = finalResult });
                 LogConversationTurn(message, finalResult);
+                SaveActiveChatHistory();
             }
         }
 
         private static void LogConversationTurn(string u, string j) { try { string dir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Conversations"); if (!Directory.Exists(dir)) Directory.CreateDirectory(dir); File.AppendAllText(Path.Combine(dir, $"ChatLog_{DateTime.Now:yyyy-MM-dd}.txt"), $"\nUSER: {u}\nJARVIS: {j}\n" + new string('=', 60) + "\n"); } catch { } }
+
+        private static string GetChatHistoryFilePath()
+        {
+            string dataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
+            if (!Directory.Exists(dataDir)) Directory.CreateDirectory(dataDir);
+            return Path.Combine(dataDir, "ChatHistory.json");
+        }
+
+        private void LoadOrWelcomeActiveChatHistory()
+        {
+            try
+            {
+                string path = GetChatHistoryFilePath();
+                if (File.Exists(path))
+                {
+                    string json = File.ReadAllText(path);
+                    var turns = JsonSerializer.Deserialize<List<ChatTurn>>(json);
+                    if (turns != null && turns.Count > 0)
+                    {
+                        _chatHistoryPanel.Children.Clear();
+                        _conversationHistory.Clear();
+                        foreach (var turn in turns)
+                        {
+                            _conversationHistory.Add(turn);
+                            AddMessageBubble(turn.Text, turn.Role == "model");
+                        }
+                        return;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugConsoleOverlay.Log("ChatHistory", $"Error loading persistent history: {ex.Message}");
+            }
+
+            AddMessageBubble("Hello! I am your Jarvis AI Companion. How can I help you today?", isAi: true);
+        }
+
+        private void SaveActiveChatHistory()
+        {
+            try
+            {
+                string path = GetChatHistoryFilePath();
+                var turnsToSave = _conversationHistory.Count > 200 
+                    ? _conversationHistory.Skip(_conversationHistory.Count - 200).ToList() 
+                    : _conversationHistory;
+                string json = JsonSerializer.Serialize(turnsToSave, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(path, json);
+            }
+            catch (Exception ex)
+            {
+                DebugConsoleOverlay.Log("ChatHistory", $"Error saving persistent history: {ex.Message}");
+            }
+        }
+
+        private void DeleteActiveChatHistory()
+        {
+            try
+            {
+                string path = GetChatHistoryFilePath();
+                if (File.Exists(path)) File.Delete(path);
+            }
+            catch { }
+        }
 
         private (Border Border, TextBlock TextContent) AddMessageBubbleWithControl(string text, bool isAi, bool isItalic = false)
         {

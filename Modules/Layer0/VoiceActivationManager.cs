@@ -85,7 +85,7 @@ namespace JarvisLauncher
                         _wakeWordEngine.LoadGrammar(new Grammar(gb));
 
                         _wakeWordEngine.SpeechRecognized += (s, e) => {
-                            if (e.Result.Confidence > 0.86) {
+                            if (e.Result.Confidence >= SettingsManager.Current.MinVoiceConfidence) {
                                 DebugConsoleOverlay.Log("Voice-ML (SAPI)", $"High Confidence Match: '{e.Result.Text}' ({e.Result.Confidence:P0})");
                                 TriggerJarvis("SAPI-ML");
                             }
@@ -294,6 +294,12 @@ namespace JarvisLauncher
         {
             if (_isInConversation || _isRecordingCommand) return;
 
+            // Gate wake word by speaker biometrics
+            if (!VerifyWakeWordSpeaker())
+            {
+                return;
+            }
+
             _isInConversation = true;
             _lastInteractionTime = DateTime.Now;
             DebugConsoleOverlay.Log("Voice", $"Wake word TRIGGERED via {source}");
@@ -305,6 +311,54 @@ namespace JarvisLauncher
             }
 
             Task.Run(async () => await TriggerCommandCapture(isFollowUp: false));
+        }
+
+        private static bool VerifyWakeWordSpeaker()
+        {
+            if (!SettingsManager.Current.IsSpeakerVerificationEnabled || !SpeakerBiometricsManager.IsEnrolled)
+            {
+                return true; // Verification not active or no voiceprint enrolled
+            }
+
+            // Extract the last 2.5 seconds from circular buffer
+            byte[] clipData;
+            lock (_circularBuffer)
+            {
+                // 2.5 seconds of 16kHz 16-bit mono = 80,000 bytes
+                int bytesToTake = Math.Min(_circularBuffer.Count, 80000);
+                if (bytesToTake < 16000) return false; // Too short to verify
+                
+                clipData = _circularBuffer.Skip(_circularBuffer.Count - bytesToTake).Take(bytesToTake).ToArray();
+            }
+
+            string tempWav = Path.Combine(Path.GetTempPath(), "jarvis_wake_verify.wav");
+            try
+            {
+                using (var fs = File.Create(tempWav))
+                using (var writer = new WaveFileWriter(fs, new WaveFormat(16000, 1)))
+                {
+                    writer.Write(clipData, 0, clipData.Length);
+                }
+
+                var (isVerified, score) = SpeakerBiometricsManager.VerifySpeakerFromWav(tempWav);
+                try { File.Delete(tempWav); } catch { }
+
+                if (isVerified)
+                {
+                    DebugConsoleOverlay.Log("Biometrics Security", $"Wake word speaker VERIFIED (score: {score:F3}).");
+                    return true;
+                }
+                else
+                {
+                    DebugConsoleOverlay.Log("Biometrics Security", $"Wake word speaker REJECTED (score: {score:F3} < threshold: {SettingsManager.Current.SpeakerVerificationThreshold:F2}).");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugConsoleOverlay.Log("Biometrics Error", $"Wake verification failed: {ex.Message}");
+                return true; // Fail-open on unexpected file/io errors to not brick the wake pipeline
+            }
         }
 
         private static double CalculateRMS(byte[] buffer, int length)
@@ -343,6 +397,38 @@ namespace JarvisLauncher
             byte[] data = _commandAudioStream.ToArray();
             if (data.Length > 8000)
             {
+                // Save temp wav file for biometrics verification
+                string tempWav = Path.Combine(Path.GetTempPath(), "jarvis_command_temp.wav");
+                try
+                {
+                    using (var fs = File.Create(tempWav))
+                    using (var writer = new WaveFileWriter(fs, new WaveFormat(16000, 1)))
+                    {
+                        writer.Write(data, 0, data.Length);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DebugConsoleOverlay.Log("Biometrics Error", $"Failed to save temp WAV: {ex.Message}");
+                }
+
+                // Owner Biometric Verification Gate
+                if (SettingsManager.Current.IsSpeakerVerificationEnabled && SpeakerBiometricsManager.IsEnrolled)
+                {
+                    var (isVerified, score) = SpeakerBiometricsManager.VerifySpeakerFromWav(tempWav);
+                    if (!isVerified)
+                    {
+                        DebugConsoleOverlay.Log("Biometrics Security", $"BLOCKED: Speaker match failed (score: {score:F3} < threshold: {SettingsManager.Current.SpeakerVerificationThreshold:F2}).");
+                        TextOverlay.Show("⚠️ Biometrics Denied: Speaker identity verification failed.", 4000);
+                        _isInConversation = false;
+                        try { File.Delete(tempWav); } catch { }
+                        return;
+                    }
+                }
+
+                // Clean up temp file
+                try { if (File.Exists(tempWav)) File.Delete(tempWav); } catch { }
+
                 string activeWin = MemoryManager.GetCurrentWindowTitle();
                 string base64 = ConvertToBase64Wav(data);
                 string transcribePrompt = $"Context: User is focused on \"{activeWin}\".\n" +
@@ -454,6 +540,69 @@ namespace JarvisLauncher
                 // Set threshold to 1.6x the ambient noise floor
                 float newFloor = (float)Math.Clamp(avg * 1.6, 0.03, 0.25);
                 SettingsManager.Current.MicAudioEnergyFloor = newFloor;
+            }
+        }
+
+        public static async Task EnrollVoiceAsync(string name)
+        {
+            if (_isRecordingCommand || _isProcessingWakeWord)
+            {
+                TextOverlay.Show("⚠️ Voice engine busy, try again.", 3000);
+                return;
+            }
+
+            _isInConversation = true;
+
+            TtsManager.Speak($"Recording your voiceprint profile for {name}. Please speak your wake phrase after the chime.");
+            await Task.Delay(2500); // Give them time to listen
+
+            _isRecordingCommand = true;
+            _commandAudioStream = new MemoryStream();
+            _lastSpeechTime = DateTime.Now;
+
+            DebugConsoleOverlay.Log("Biometrics", "Voice enrollment recording started...");
+            TextOverlay.Show("🎙️ Recording Voiceprint (Speak now)...", 4000);
+
+            // Record for exactly 4 seconds
+            await Task.Delay(4000);
+
+            _isRecordingCommand = false;
+            _isInConversation = false;
+
+            byte[] data = _commandAudioStream.ToArray();
+            if (data.Length > 8000)
+            {
+                string tempWav = Path.Combine(Path.GetTempPath(), "jarvis_enroll_temp.wav");
+                try
+                {
+                    using (var fs = File.Create(tempWav))
+                    using (var writer = new WaveFileWriter(fs, new WaveFormat(16000, 1)))
+                    {
+                        writer.Write(data, 0, data.Length);
+                    }
+
+                    bool success = SpeakerBiometricsManager.EnrollFromWav(name, tempWav);
+                    if (success)
+                    {
+                        TtsManager.Speak($"Voice profile saved successfully for {name}. Owner verification is now ready.");
+                        TextOverlay.Show($"✅ Speaker verification enrolled for {name}!", 4000);
+                    }
+                    else
+                    {
+                        TtsManager.Speak("Failed to extract voiceprint features. Please speak louder and retry.");
+                        TextOverlay.Show("❌ Voiceprint extraction failed.", 4000);
+                    }
+
+                    try { File.Delete(tempWav); } catch { }
+                }
+                catch (Exception ex)
+                {
+                    DebugConsoleOverlay.Log("Biometrics Error", $"Enrollment failed: {ex.Message}");
+                }
+            }
+            else
+            {
+                TtsManager.Speak("No audio captured. Voice enrollment aborted.");
             }
         }
 

@@ -119,5 +119,53 @@ namespace JarvisLauncher
             double sim = dot / (Math.Sqrt(magA) * Math.Sqrt(magB));
             return Math.Clamp(sim, 0.0, 1.0);
         }
+
+        /// <summary>
+        /// Computes Dynamic Time Warping (DTW) alignment distance between two sequences of feature vectors.
+        /// Warps the time-series non-linearly to measure acoustic alignment independent of speaking speed.
+        /// </summary>
+        public static double ComputeDtwDistance(double[][] seqA, double[][] seqB)
+        {
+            if (seqA == null || seqB == null || seqA.Length == 0 || seqB.Length == 0) return double.MaxValue;
+
+            int n = seqA.Length;
+            int m = seqB.Length;
+            double[,] dtw = new double[n + 1, m + 1];
+
+            // Initialize DTW distance matrix
+            for (int i = 0; i <= n; i++)
+            {
+                for (int j = 0; j <= m; j++)
+                {
+                    dtw[i, j] = double.MaxValue;
+                }
+            }
+            dtw[0, 0] = 0.0;
+
+            // Compute dynamic programming warping path cost
+            for (int i = 1; i <= n; i++)
+            {
+                for (int j = 1; j <= m; j++)
+                {
+                    double cost = EuclideanDistance(seqA[i - 1], seqB[j - 1]);
+                    double minPrev = Math.Min(dtw[i - 1, j], Math.Min(dtw[i, j - 1], dtw[i - 1, j - 1]));
+                    dtw[i, j] = cost + (minPrev == double.MaxValue ? 0.0 : minPrev);
+                }
+            }
+
+            return dtw[n, m];
+        }
+
+        private static double EuclideanDistance(double[] a, double[] b)
+        {
+            double sum = 0.0;
+            int len = Math.Min(a.Length, b.Length);
+            for (int i = 0; i < len; i++)
+            {
+                double diff = a[i] - b[i];
+                sum += diff * diff;
+            }
+            return Math.Sqrt(sum);
+        }
     }
 }

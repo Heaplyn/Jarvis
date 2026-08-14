@@ -23,11 +23,13 @@ namespace JarvisLauncher
         private const int CTRL_SHIFT_R_ID = 9002;
         private const int CTRL_ALT_M_ID = 9003;
         private const int CTRL_SHIFT_A_ID = 9004;
+        private const int CTRL_SHIFT_V_ID = 9005;
         private const uint VK_OEM_3 = 0xC0; // Backtick (`) / Tilde (~) key on US keyboard
         private const uint VK_C = 0x43;      // 'C' key
         private const uint VK_R = 0x52;      // 'R' key
         private const uint VK_M = 0x4D;      // 'M' key
         private const uint VK_A = 0x41;      // 'A' key
+        private const uint VK_V = 0x56;      // 'V' key
 
         private HwndSource? _hwndSource;
         private IntPtr _previousForegroundWindow = IntPtr.Zero;
@@ -179,6 +181,9 @@ namespace JarvisLauncher
 
             // Register Hotkey: Ctrl + Shift + A (AI Chat Overlay)
             NativeMethods.RegisterHotKey(helper.Handle, CTRL_SHIFT_A_ID, ctrlShift, VK_A);
+
+            // Register Hotkey: Ctrl + Shift + V (Voice Mode Toggle)
+            NativeMethods.RegisterHotKey(helper.Handle, CTRL_SHIFT_V_ID, ctrlShift, VK_V);
         }
 
         private IntPtr HwndHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -200,6 +205,16 @@ namespace JarvisLauncher
                 {
                     handled = true;
                     ChatOverlay.ShowChat();
+                }
+                else if (hotkeyId == CTRL_SHIFT_V_ID)
+                {
+                    handled = true;
+                    bool state = !SettingsManager.Current.IsVoiceModeActive;
+                    SettingsManager.Current.IsVoiceModeActive = state;
+                    SettingsManager.Save();
+                    string stateStr = state ? "ON" : "OFF";
+                    TextOverlay.Show($"🎙️ Voice Activation: {stateStr}", 3000);
+                    TtsManager.Speak($"Voice activation is now {(state ? "active" : "inactive")}.", isShortSpeech: true);
                 }
                 else if (hotkeyId == CTRL_SHIFT_C_ID)
                 {
@@ -528,6 +543,9 @@ namespace JarvisLauncher
                 NativeMethods.UnregisterHotKey(helper.Handle, HOTKEY_ID);
                 NativeMethods.UnregisterHotKey(helper.Handle, CTRL_SHIFT_C_ID);
                 NativeMethods.UnregisterHotKey(helper.Handle, CTRL_SHIFT_R_ID);
+                NativeMethods.UnregisterHotKey(helper.Handle, CTRL_ALT_M_ID);
+                NativeMethods.UnregisterHotKey(helper.Handle, CTRL_SHIFT_A_ID);
+                NativeMethods.UnregisterHotKey(helper.Handle, CTRL_SHIFT_V_ID);
                 _hwndSource.RemoveHook(HwndHook);
                 _hwndSource = null;
             }
