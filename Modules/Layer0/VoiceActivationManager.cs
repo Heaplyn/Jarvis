@@ -17,14 +17,16 @@ namespace JarvisLauncher
         private static bool _isRecordingCommand = false;
         private static bool _isProcessingWakeWord = false;
         private static SpeechRecognitionEngine? _wakeWordEngine;
+        private static bool _useVoskAsPrimary = true;
         private static readonly string TrainingPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "VoiceTraining.json");
         private static List<string> _learnedPhrases = new List<string>();
 
         // Settings
         private static int ConversationTimeoutSeconds = 60;
         private static readonly List<byte> _circularBuffer = new List<byte>();
+        private static readonly List<double> _ambientHistory = new List<double>();
         private const int BufferSeconds = 3;
-        private static float SpeechThreshold = 0.065f; // Raised to ignore ambient background noise
+        private static float SpeechThreshold => Math.Max(0.02f, SettingsManager.Current.MicAudioEnergyFloor);
         private static int SilenceTimeoutMs = 800; // Reduced from 1500 for snappier response
 
         private static DateTime _lastInteractionTime = DateTime.MinValue;
@@ -47,26 +49,51 @@ namespace JarvisLauncher
 
                 try
                 {
-                    _wakeWordEngine = new SpeechRecognitionEngine(culture);
-                    LoadLearnedPhrases();
+                    if (VoskEngine.Initialize())
+                    {
+                        VoskEngine.OnFinalResult += (text) =>
+                        {
+                            if (!SettingsManager.Current.IsJarvisEnabled) return;
+                            if (string.IsNullOrWhiteSpace(text)) return;
 
-                    Choices commands = new Choices();
-                    commands.Add(new string[] { "Jarvis", "Hey Jarvis", "Wake up Jarvis", "Hello Jarvis", "Computer" });
-                    if (_learnedPhrases.Count > 0) commands.Add(_learnedPhrases.ToArray());
+                            string lower = text.ToLower();
+                            if (lower.Contains("jarvis") || lower.Contains("jar") || lower.Contains("vis"))
+                            {
+                                DebugConsoleOverlay.Log("Voice-ML (Vosk)", $"Neural Match: '{text}'");
+                                TriggerJarvis("Vosk-ML");
+                            }
+                        };
+                        DebugConsoleOverlay.Log("Voice", "Vosk Neural Engine Integrated into Pipeline.");
+                    }
+                    else
+                    {
+                        DebugConsoleOverlay.Log("Voice Warning", "Vosk model not found. Using SAPI fallback.");
+                        _useVoskAsPrimary = false;
+                    }
 
-                    GrammarBuilder gb = new GrammarBuilder();
-                    gb.Append(commands);
-                    _wakeWordEngine.LoadGrammar(new Grammar(gb));
+                    if (!_useVoskAsPrimary)
+                    {
+                        _wakeWordEngine = new SpeechRecognitionEngine(culture);
+                        LoadLearnedPhrases();
 
-                    _wakeWordEngine.SpeechRecognized += (s, e) => {
-                        if (e.Result.Confidence > 0.7) {
-                            DebugConsoleOverlay.Log("Voice-ML", $"High Confidence Match: '{e.Result.Text}' ({e.Result.Confidence:P0})");
-                            TriggerJarvis("ML-High");
-                        }
-                    };
+                        Choices commands = new Choices();
+                        commands.Add(new string[] { "Jarvis", "Hey Jarvis", "Wake up Jarvis", "Hello Jarvis", "Computer" });
+                        if (_learnedPhrases.Count > 0) commands.Add(_learnedPhrases.ToArray());
 
-                    _wakeWordEngine.SetInputToDefaultAudioDevice();
-                    _wakeWordEngine.RecognizeAsync(RecognizeMode.Multiple);
+                        GrammarBuilder gb = new GrammarBuilder();
+                        gb.Append(commands);
+                        _wakeWordEngine.LoadGrammar(new Grammar(gb));
+
+                        _wakeWordEngine.SpeechRecognized += (s, e) => {
+                            if (e.Result.Confidence > 0.86) {
+                                DebugConsoleOverlay.Log("Voice-ML (SAPI)", $"High Confidence Match: '{e.Result.Text}' ({e.Result.Confidence:P0})");
+                                TriggerJarvis("SAPI-ML");
+                            }
+                        };
+
+                        _wakeWordEngine.SetInputToDefaultAudioDevice();
+                        _wakeWordEngine.RecognizeAsync(RecognizeMode.Multiple);
+                    }
                 }
                 catch { _wakeWordEngine = null; }
 
@@ -100,6 +127,12 @@ namespace JarvisLauncher
 
             double rms = CalculateRMS(e.Buffer, e.BytesRecorded);
 
+            // Dynamic Voice Filter Autocalibration
+            if (!_isRecordingCommand && !_isInConversation && !_isProcessingWakeWord)
+            {
+                UpdateAmbientNoiseFloor(rms);
+            }
+
             if (DateTime.Now < _cooldownUntil) return;
 
             // Pass real-time microphone PCM audio buffer directly to Vosk Neural Speech Engine
@@ -125,15 +158,20 @@ namespace JarvisLauncher
 
             if (_isInConversation || _isProcessingWakeWord) return;
 
-            // --- TIER 1: THE ALGORITHM (Instant, local energy pattern) ---
+            // 1. Feature Extraction: Spectral Analysis (High-frequency content for 's')
+            double highFreqEnergy = CalculateHighFrequencyEnergy(e.Buffer, e.BytesRecorded);
+            double zcr = CalculateZeroCrossingRate(e.Buffer, e.BytesRecorded);
+
+            // --- TIER 1: THE ALGORITHM (Instant, local energy pattern + Phonetic cues) ---
             _rmsHistory.Add(rms);
             if (_rmsHistory.Count > HistorySize) _rmsHistory.RemoveAt(0);
 
-            // Look for a specific "Jar-vis" energy pattern (two spikes separated by a small dip)
-            if (DetectSyllablePattern())
+            // Look for a specific "Jar-vis" energy pattern
+            // "vis" ends with a fricative (high ZCR and high-freq energy)
+            if (DetectNeuralPhoneticPattern(rms, zcr, highFreqEnergy))
             {
-                DebugConsoleOverlay.Log("Voice-Algo", "Pattern Match Detected! Syllable cadence looks like 'Jarvis'.");
-                TriggerJarvis("Algorithm");
+                DebugConsoleOverlay.Log("Voice-Algo", "Neural Pulse Match! Syllable cadence and spectral profile match 'Jarvis'.");
+                TriggerJarvis("Algorithm-V2");
                 return;
             }
 
@@ -148,6 +186,55 @@ namespace JarvisLauncher
                 DebugConsoleOverlay.Log("Voice-Triage", $"Significant sustained sound (RMS: {rms:F3}). Asking Gemini...");
                 Task.Run(async () => await VerifyWithAi());
             }
+        }
+
+        private static bool DetectNeuralPhoneticPattern(double rms, double zcr, double highEnergy)
+        {
+            if (_rmsHistory.Count < HistorySize) return false;
+
+            // Simple state machine for "Jar" (loud, mid-freq) followed by "vis" (loud, high-freq/noisy)
+            bool hasJarSyllable = false;
+            bool hasVisSyllable = false;
+
+            for (int i = 0; i < _rmsHistory.Count; i++)
+            {
+                // "Jar" part: Significant volume
+                if (_rmsHistory[i] > 0.06) hasJarSyllable = true;
+
+                // "vis" part: Significant volume + noise characteristics (High ZCR or High Freq Energy)
+                if (hasJarSyllable && i > 5 && _rmsHistory[i] > 0.04 && (zcr > 0.15 || highEnergy > 0.02))
+                {
+                    hasVisSyllable = true;
+                }
+            }
+
+            return hasJarSyllable && hasVisSyllable;
+        }
+
+        private static double CalculateZeroCrossingRate(byte[] buffer, int length)
+        {
+            int crossings = 0;
+            for (int i = 2; i < length; i += 2)
+            {
+                short prev = (short)((buffer[i - 1] << 8) | buffer[i - 2]);
+                short curr = (short)((buffer[i + 1] << 8) | buffer[i]);
+                if ((prev > 0 && curr < 0) || (prev < 0 && curr > 0)) crossings++;
+            }
+            return (double)crossings / (length / 2);
+        }
+
+        private static double CalculateHighFrequencyEnergy(byte[] buffer, int length)
+        {
+            // Simple high-pass proxy: energy of differences between adjacent samples
+            double diffSum = 0;
+            for (int i = 2; i < length; i += 2)
+            {
+                short prev = (short)((buffer[i - 1] << 8) | buffer[i - 2]);
+                short curr = (short)((buffer[i + 1] << 8) | buffer[i]);
+                double diff = (curr - prev) / 32768.0;
+                diffSum += diff * diff;
+            }
+            return Math.Sqrt(diffSum / (length / 2));
         }
 
         private static bool DetectSyllablePattern()
@@ -240,18 +327,41 @@ namespace JarvisLauncher
             if (data.Length > 8000)
             {
                 string base64 = ConvertToBase64Wav(data);
-                string text = await AiAPI.AnalyzeAudioAsync("Transcribe the spoken audio exactly as heard. Do not generate a response, only output the transcribed text. If no speech is detected, return '...'.", base64);
+                string text = await AiAPI.AnalyzeAudioAsync("Transcribe the spoken human speech exactly as heard. Do not generate a response, only output the transcribed text. If there is no clear human speech (e.g., only breathing, keyboard typing clicks, background sigh/cough, or silence), return '...'.", base64);
 
-                if (!string.IsNullOrWhiteSpace(text) && text != "...")
+                string cleanText = (text ?? "").Trim();
+                string lowerText = cleanText.ToLower();
+                
+                // Smart Rejection Filter: Skip ambient noises, transcript markers, and single noise particles
+                bool isNoiseText = lowerText == "..." || 
+                                   lowerText.Contains("breathing") || 
+                                   lowerText.Contains("sighing") || 
+                                   lowerText.Contains("coughing") || 
+                                   lowerText.Contains("typing") || 
+                                   lowerText.Contains("keyboard") || 
+                                   lowerText.Contains("click") || 
+                                   lowerText.Contains("static");
+
+                // If it's a single tiny word (length <= 3) and not a recognized command keyword, reject it as a false audio trigger
+                bool isTinyNoiseWord = cleanText.Length <= 3 && 
+                                       !lowerText.Contains("run") && 
+                                       !lowerText.Contains("git") && 
+                                       !lowerText.Contains("ipa") && 
+                                       !lowerText.Contains("mcp") && 
+                                       !lowerText.Contains("off") && 
+                                       !lowerText.Contains("on") && 
+                                       !lowerText.Contains("set");
+
+                if (!string.IsNullOrWhiteSpace(cleanText) && !isNoiseText && !isTinyNoiseWord)
                 {
                     _lastInteractionTime = DateTime.Now;
-                    await ChatOverlay.SubmitVoiceCommand(text, false);
+                    await ChatOverlay.SubmitVoiceCommand(cleanText, false);
                 }
                 else
                 {
                     // If no valid speech was detected after capture, reset conversation state
                     _isInConversation = false;
-                    DebugConsoleOverlay.Log("Voice", "No valid command captured. Resetting conversation mode.");
+                    DebugConsoleOverlay.Log("Voice", $"Discarded ambient/particle sound trigger: '{cleanText}'");
                 }
             }
         }
@@ -288,6 +398,21 @@ namespace JarvisLauncher
             {
                 using (var writer = new WaveFileWriter(ms, new WaveFormat(16000, 1))) writer.Write(pcmData, 0, pcmData.Length);
                 return Convert.ToBase64String(ms.ToArray());
+            }
+        }
+
+        private static void UpdateAmbientNoiseFloor(double rms)
+        {
+            if (rms <= 0) return;
+            lock (_ambientHistory)
+            {
+                _ambientHistory.Add(rms);
+                if (_ambientHistory.Count > 100) _ambientHistory.RemoveAt(0);
+
+                double avg = _ambientHistory.Average();
+                // Set threshold to 1.6x the ambient noise floor
+                float newFloor = (float)Math.Clamp(avg * 1.6, 0.03, 0.25);
+                SettingsManager.Current.MicAudioEnergyFloor = newFloor;
             }
         }
 

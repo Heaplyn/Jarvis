@@ -43,7 +43,13 @@ namespace JarvisLauncher
             try
             {
                 TextOverlay.Show("📥 Auto-Installing Hugging Face CLI via pip...", 4000);
-                Process.Start("cmd.exe", "/c start cmd /k \"echo Installing Hugging Face Hub CLI... & pip install -U \\\"huggingface_hub[cli]\\\" & echo Finished! & pause\"");
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = "/k \"echo Installing Hugging Face Hub CLI... && pip install -U huggingface_hub[cli] && echo Finished! && pause\"",
+                    CreateNoWindow = false,
+                    UseShellExecute = true
+                });
             }
             catch (Exception ex)
             {

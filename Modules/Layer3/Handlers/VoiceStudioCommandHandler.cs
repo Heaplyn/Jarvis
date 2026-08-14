@@ -21,6 +21,8 @@ namespace JarvisLauncher
                    query == "downloadvosk" || query == "downloadmodel" || query == "voskmodel" ||
                    query == "ttsvoices" || query == "customvoice" || query == "ttssamples" || query == "ttsvoice" ||
                    query == "offline" || query == "offlinemode" || query == "precache" || query == "cacheoffline" ||
+                   query == "disable voice" || query == "enable voice" || query == "voicemode off" || query == "voicemode on" || query == "toggle voice" ||
+                   query == "voice dataset" || query == "voice classification" || query == "classify voice" || query == "teleprompter" ||
                    query.StartsWith("voice ") || query.StartsWith("record ");
         }
 
@@ -28,6 +30,55 @@ namespace JarvisLauncher
         {
             var results = new List<CommandResult>();
             string lower = query.ToLower().Trim();
+
+            // Voice Mode Toggle Commands
+            if (lower == "disable voice" || lower == "voicemode off" || lower == "stop voice")
+            {
+                results.Add(new CommandResult
+                {
+                    Title = "🔇 Disable Master Voice Mode",
+                    Description = "Stops all microphone speech recognition and background wake word listening",
+                    Similarity = 6.0,
+                    Execute = () =>
+                    {
+                        SettingsManager.Current.IsVoiceModeActive = false;
+                        SettingsManager.Save();
+                        LocalWakeWordDetector.Stop();
+                        TextOverlay.Show("🔇 Master Voice Mode DISABLED", 3000);
+                    }
+                });
+                return results;
+            }
+
+            if (lower == "enable voice" || lower == "voicemode on" || lower == "start voice")
+            {
+                results.Add(new CommandResult
+                {
+                    Title = "🎙️ Enable Master Voice Mode",
+                    Description = "Starts microphone speech recognition and continuous wake word listening",
+                    Similarity = 6.0,
+                    Execute = () =>
+                    {
+                        SettingsManager.Current.IsVoiceModeActive = true;
+                        SettingsManager.Save();
+                        LocalWakeWordDetector.Initialize();
+                        TextOverlay.Show("🎙️ Master Voice Mode ENABLED", 3000);
+                    }
+                });
+                return results;
+            }
+
+            if (lower.Contains("dataset") || lower.Contains("classification") || lower.Contains("classify"))
+            {
+                results.Add(new CommandResult
+                {
+                    Title = "🏷️ Open Voice Dataset & Classification Studio",
+                    Description = "View, play, tag (Command, AI Chat, Wake Word, Noise), & train acoustic voice dataset",
+                    Similarity = 6.0,
+                    Execute = () => VoiceStudioOverlay.ShowOverlay()
+                });
+                return results;
+            }
 
             if (lower == "offline" || lower == "offlinemode" || lower == "precache" || lower == "cacheoffline")
             {

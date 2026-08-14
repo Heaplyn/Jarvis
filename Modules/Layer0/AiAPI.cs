@@ -35,6 +35,11 @@ namespace JarvisLauncher
             return await AskGeminiInternal(prompt, base64Image, null, null);
         }
 
+        public static async Task<string> AnalyzeImageBase64Async(string prompt, string base64Image, string mimeType = "image/png")
+        {
+            return await AskGeminiInternal(prompt, base64Image, null, null);
+        }
+
         public static async Task<string> AnalyzeAudioAsync(string prompt, string base64Audio)
         {
             return await AskGeminiInternal(prompt, null, base64Audio, null);
@@ -48,7 +53,10 @@ namespace JarvisLauncher
                 return "Error: Gemini API Key is not set. Use 'setkey google <your_key>' to configure it.";
             }
 
-            string currentPrompt = prompt;
+            // Inject User Activity, Active Window, & Command History Context
+            string activityContext = UserActivityContextManager.BuildFullActivityContext();
+            string currentPrompt = $"{activityContext}\nUser Query: {prompt}";
+
             string lastResponse = "";
             string lastToolOutput = "";
             int loopLimit = 5;
@@ -610,8 +618,10 @@ namespace JarvisLauncher
 
                     string instructions = InstructionsManager.GetFormattedInstructions();
                     string instructionsPath = InstructionsManager.InstructionsDirectory;
+                    string adaptiveTelemetry = SelfAdaptingAiContext.BuildDynamicAdaptiveContext();
                     string systemPrompt =
-                        $"You are Jarvis — a sharp, direct AI assistant embedded in Kyle's Windows HUD. Codebase root: '{projectRoot}'.\n\n" +
+                        $"You are Jarvis — a sharp, direct AI assistant embedded in the user's Windows HUD. Codebase root: '{projectRoot}'.\n\n" +
+                        adaptiveTelemetry + "\n\n" +
                         "## HOW TO TALK\n" +
                         "- Respond like a knowledgeable friend texting back. Short, natural, confident.\n" +
                         "- NEVER say 'The user said...', 'The user provided...', 'As an AI...', 'I should...', 'I will now...', 'Let me...'\n" +
@@ -619,6 +629,8 @@ namespace JarvisLauncher
                         "- NEVER output scratchpad notes, inner monologue bullet points (* ...), reasoning steps, or prompt meta-analysis.\n" +
                         "- NEVER refer to yourself in third person or explain what you're about to do.\n" +
                         "- Keep answers under 3 sentences unless writing code or showing output.\n\n" +
+                        "## HEURISTIC SELF-SCRIPTING & AUTOMATION\n" +
+                        "- If the user asks to automate tasks, check systems, clean folders, or create custom triggers, write C#, Python, or Batch scripts to disk via `[WRITE_FILE: C:\\path\\to\\file]` and execute them immediately using `[EXEC_SHELL: ...]` or `[EXEC_PS: ...]` to achieve the goal dynamically.\n\n" +
                         "## ACTIONS (use these tags to DO things, no explanation needed before them)\n" +
                         "[READ_FILE: C:\\path\\to\\file.cs]\n" +
                         "[WRITE_FILE: C:\\path\\to\\file.txt]\ncontent\n[END_WRITE]\n" +

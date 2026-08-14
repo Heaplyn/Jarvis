@@ -125,8 +125,8 @@ namespace JarvisLauncher
             if (e.Result == null || string.IsNullOrWhiteSpace(e.Result.Text)) return;
             if (TtsManager.IsSpeakingOrEchoing) return;
 
-            // Strict confidence gate (default 55%) to make voice recognition less sensitive to background room noise
-            double minConf = Math.Max(0.40, SettingsManager.Current.MinVoiceConfidence);
+            // Strict confidence gate (default 75%, up to 98%) to make voice recognition less sensitive to background room noise
+            double minConf = Math.Max(0.30, SettingsManager.Current.MinVoiceConfidence);
             if (e.Result.Confidence < minConf)
             {
                 DebugConsoleOverlay.Log("Voice Ignored (Low Confidence)", $"\"{e.Result.Text}\" ({e.Result.Confidence * 100:F0}% < {minConf * 100:F0}%)");

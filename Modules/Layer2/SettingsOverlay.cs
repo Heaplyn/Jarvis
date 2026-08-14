@@ -76,7 +76,7 @@ namespace JarvisLauncher
 
         public static void ShowSettings()
         {
-            if (_instance == null || !_instance.IsLoaded)
+            if (_instance == null || !_instance.IsLoaded || !_instance.IsVisible)
             {
                 _instance = new SettingsOverlay();
                 _instance.Show();
@@ -84,10 +84,12 @@ namespace JarvisLauncher
             else
             {
                 _instance.Activate();
+                _instance.BringToFront();
+                _instance.Focus();
             }
         }
 
-        public static new void ShowOverlay()
+        public static void ShowOverlay()
         {
             ShowSettings();
         }
@@ -95,6 +97,8 @@ namespace JarvisLauncher
         public SettingsOverlay()
             : base("⚙️ MASTER SETTINGS & CONFIGURATION STUDIO", width: 760, height: 700)
         {
+            this.Closed += (s, e) => { _instance = null; };
+
             var workArea = SystemParameters.WorkArea;
             this.Left = (workArea.Width - this.Width) / 2;
             this.Top = (workArea.Height - this.Height) / 2;

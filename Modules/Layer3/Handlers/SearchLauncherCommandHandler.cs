@@ -51,6 +51,7 @@ namespace JarvisLauncher
         {
             try
             {
+                UserActivityContextManager.TrackUserQuery(searchTerms);
                 string escapedQuery = Uri.EscapeDataString(searchTerms);
                 string url = $"https://www.google.com/search?q={escapedQuery}";
 

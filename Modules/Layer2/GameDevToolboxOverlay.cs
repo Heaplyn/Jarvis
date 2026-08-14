@@ -222,7 +222,8 @@ namespace JarvisLauncher
             pathGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             _robloxProjectPathBox = CreateTextBox();
-            _robloxProjectPathBox.Text = @"C:\Users\Kyle\Downloads\Projects\Dragon Blox Essence";
+            string defaultUserDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            _robloxProjectPathBox.Text = System.IO.Path.Combine(defaultUserDir, "Downloads", "Projects", "Dragon Blox Essence");
             Grid.SetColumn(_robloxProjectPathBox, 0);
             pathGrid.Children.Add(_robloxProjectPathBox);
 
@@ -1424,7 +1425,8 @@ namespace JarvisLauncher
             srcGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             _portSourcePathBox = CreateTextBox();
-            _portSourcePathBox.Text = @"C:\Users\Kyle\Downloads\Projects\Dragon Blox Essence";
+            string defaultUserDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            _portSourcePathBox.Text = System.IO.Path.Combine(defaultUserDir, "Downloads", "Projects", "Dragon Blox Essence");
             _portSourcePathBox.ToolTip = "Folder of .lua/.luau files  OR  a .rbxlx / .rbxl place file";
             Grid.SetColumn(_portSourcePathBox, 0);
             srcGrid.Children.Add(_portSourcePathBox);
@@ -1438,7 +1440,7 @@ namespace JarvisLauncher
 
             var bxBtn = MakeSmallButton("🗂️ .rbxlx", () =>
             {
-                var d = new Microsoft.Win32.OpenFileDialog { Title = "Select place file", Filter = "Roblox Place|*.rbxlx;*.rbxl", InitialDirectory = @"C:\Users\Kyle\Downloads" };
+                var d = new Microsoft.Win32.OpenFileDialog { Title = "Select place file", Filter = "Roblox Place|*.rbxlx;*.rbxl", InitialDirectory = System.IO.Path.Combine(defaultUserDir, "Downloads") };
                 if (d.ShowDialog() == true) _portSourcePathBox.Text = d.FileName;
             }, leftMargin: 4);
             Grid.SetColumn(bxBtn, 2); srcGrid.Children.Add(bxBtn);
@@ -1518,7 +1520,7 @@ namespace JarvisLauncher
             rojoGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             var _rojoOutBox = CreateTextBox();
-            _rojoOutBox.Text = @"C:\Users\Kyle\Downloads\Projects\StarfallRojo";
+            _rojoOutBox.Text = System.IO.Path.Combine(defaultUserDir, "Downloads", "Projects", "StarfallRojo");
             _rojoOutBox.ToolTip = "Output folder for the Rojo project";
             Grid.SetColumn(_rojoOutBox, 0); rojoGrid.Children.Add(_rojoOutBox);
 
@@ -2308,7 +2310,7 @@ namespace JarvisLauncher
                             $"# Configurations\n" +
                             $"MODEL_NAME = \"{model}\"\n" +
                             $"FRAME_COUNT = {frames}\n" +
-                            $"OUTPUT_DIR = \"C:/Users/Kyle/Downloads/animated_textures/\"\n" +
+                            $"OUTPUT_DIR = os.path.join(os.path.expanduser('~'), 'Downloads', 'animated_textures')\n" +
                             $"RESOLUTION_X = {rx}\n" +
                             $"RESOLUTION_Y = {ry}\n" +
                             $"TRANSPARENT_BG = { (trans ? "True" : "False") }\n\n" +

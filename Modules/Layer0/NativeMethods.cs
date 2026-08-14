@@ -169,8 +169,7 @@ namespace JarvisLauncher
 
         public static void Restart()
         {
-            string projectRoot = @"C:\Users\Kyle\Downloads\Projects\Jarvis";
-
+            string projectRoot = AppDomain.CurrentDomain.BaseDirectory;
             string checkDir = AppDomain.CurrentDomain.BaseDirectory;
             for (int i = 0; i < 5; i++)
             {
@@ -186,28 +185,37 @@ namespace JarvisLauncher
 
             try
             {
+                // DETACHED AUTO-COMPILER & RE-LAUNCHER:
+                // 1. Wait 1 second (via timeout) to let this process exit and release all file locks on JarvisLauncher.exe.
+                // 2. Build the project to apply any new source code changes.
+                // 3. Start the newly compiled app binary.
+                string command = $"timeout /t 1 /nobreak && cd /d \"{projectRoot}\" && dotnet build & start bin\\Debug\\net8.0-windows\\JarvisLauncher.exe";
+
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = "cmd.exe",
-                    Arguments = $"/c cd /d \"{projectRoot}\" && dotnet run",
+                    Arguments = $"/c \"{command}\"",
                     CreateNoWindow = true,
                     UseShellExecute = false
                 });
-                
                 Environment.Exit(0);
             }
             catch
             {
-                var exePath = Environment.ProcessPath;
-                if (!string.IsNullOrEmpty(exePath))
+                try
                 {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    var exePath = Environment.ProcessPath;
+                    if (!string.IsNullOrEmpty(exePath) && System.IO.File.Exists(exePath))
                     {
-                        FileName = exePath,
-                        UseShellExecute = true
-                    });
-                    Environment.Exit(0);
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = exePath,
+                            UseShellExecute = true
+                        });
+                    }
                 }
+                catch { }
+                Environment.Exit(0);
             }
         }
 

@@ -503,6 +503,37 @@ namespace JarvisLauncher
                         string json = JsonSerializer.Serialize(new { status = "success", message = "Theme synced." });
                         await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes(json), "application/json");
                     }
+                    else if (path.Equals("/api/ipa/download", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string ipaPath = IpaCompilerService.LastCompiledIpaPath;
+                        if (!string.IsNullOrEmpty(ipaPath) && File.Exists(ipaPath))
+                        {
+                            try
+                            {
+                                byte[] fileBytes = File.ReadAllBytes(ipaPath);
+                                await SendResponseAsync(stream, 200, "OK", fileBytes, "application/octet-stream");
+                            }
+                            catch (Exception ex)
+                            {
+                                await SendResponseAsync(stream, 500, "Error", Encoding.UTF8.GetBytes($"{{\"error\":\"{ex.Message}\"}}"), "application/json");
+                            }
+                        }
+                        else
+                        {
+                            await SendResponseAsync(stream, 404, "Not Found", Encoding.UTF8.GetBytes("{\"error\":\"No compiled IPA file found.\"}"), "application/json");
+                        }
+                    }
+                    else if (path.Equals("/api/ipa/status", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var statusPayload = new
+                        {
+                            status = IpaCompilerService.CompileStatus,
+                            lastCompiledPath = IpaCompilerService.LastCompiledIpaPath,
+                            fileName = string.IsNullOrEmpty(IpaCompilerService.LastCompiledIpaPath) ? "" : Path.GetFileName(IpaCompilerService.LastCompiledIpaPath)
+                        };
+                        string json = JsonSerializer.Serialize(statusPayload);
+                        await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes(json), "application/json");
+                    }
                     else if (path.Equals("/api/memories", StringComparison.OrdinalIgnoreCase))
                     {
                         try

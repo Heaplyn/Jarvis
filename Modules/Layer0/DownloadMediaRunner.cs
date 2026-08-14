@@ -20,11 +20,12 @@ namespace JarvisLauncher
 
         public static async Task<string> DownloadAsync(string url, string? customDestinationDir = null)
         {
-            string projectDir = @"C:\Users\Kyle\Downloads\Projects\Discord Music Downloader";
+            string projectDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Modules", "Layer0", "DownloadMedia");
 
             if (!Directory.Exists(projectDir))
             {
-                return $"Error: Discord Music Downloader directory not found at: {projectDir}";
+                // Fallback check
+                projectDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DownloadMedia");
             }
 
             var output = new StringBuilder();

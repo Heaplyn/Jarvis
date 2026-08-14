@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -64,8 +65,6 @@ namespace JarvisLauncher
         private TextBlock _endlessCurrentWordText;
         private TextBlock _endlessNextWordText;
         private Button _endlessToggleBtn;
-        private DispatcherTimer _endlessSilenceTimer;
-        private bool _endlessSpeechSpiked = false;
 
         private readonly string[] _endlessWordBank = new string[]
         {
@@ -440,32 +439,32 @@ namespace JarvisLauncher
             calibGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
             var calibStack = new StackPanel();
-            calibStack.Children.Add(new TextBlock { Text = "Voice Recognition Sensitivity Threshold:", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.LightGray });
+            calibStack.Children.Add(new TextBlock { Text = "Speech Confidence Filter (30% to 98% Strict Noise Gate):", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.LightGray });
 
-            var sliderGrid = new Grid { Margin = new Thickness(0, 8, 0, 16) };
+            var sliderGrid = new Grid { Margin = new Thickness(0, 4, 0, 8) };
             sliderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             sliderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             _sensitivitySlider = new Slider
             {
-                Minimum = 0.1,
-                Maximum = 1.0,
-                Value = VoiceTrainerManager.Profile.SensitivityThreshold,
-                TickFrequency = 0.05,
+                Minimum = 0.30,
+                Maximum = 0.98,
+                Value = SettingsManager.Current.MinVoiceConfidence,
+                TickFrequency = 0.02,
                 IsSnapToTickEnabled = true
             };
             _sensitivitySlider.ValueChanged += (s, e) =>
             {
-                VoiceTrainerManager.Profile.SensitivityThreshold = Math.Round(_sensitivitySlider.Value, 2);
-                if (_sensitivityValText != null) _sensitivityValText.Text = $"{VoiceTrainerManager.Profile.SensitivityThreshold * 100}%";
-                VoiceTrainerManager.SaveProfile();
+                SettingsManager.Current.MinVoiceConfidence = Math.Round(_sensitivitySlider.Value, 2);
+                if (_sensitivityValText != null) _sensitivityValText.Text = $"{SettingsManager.Current.MinVoiceConfidence * 100:F0}%";
+                SettingsManager.Save();
             };
             Grid.SetColumn(_sensitivitySlider, 0);
             sliderGrid.Children.Add(_sensitivitySlider);
 
             _sensitivityValText = new TextBlock
             {
-                Text = $"{VoiceTrainerManager.Profile.SensitivityThreshold * 100}%",
+                Text = $"{SettingsManager.Current.MinVoiceConfidence * 100:F0}%",
                 FontSize = 13,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.Cyan,
@@ -476,6 +475,82 @@ namespace JarvisLauncher
             sliderGrid.Children.Add(_sensitivityValText);
 
             calibStack.Children.Add(sliderGrid);
+
+            // Audio Energy Volume Floor Slider
+            calibStack.Children.Add(new TextBlock { Text = "Microphone Audio Energy Floor (2% to 30% Required Volume):", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.LightGray, Margin = new Thickness(0, 6, 0, 0) });
+            var energyGrid = new Grid { Margin = new Thickness(0, 4, 0, 8) };
+            energyGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            energyGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var energySlider = new Slider
+            {
+                Minimum = 0.02,
+                Maximum = 0.30,
+                Value = SettingsManager.Current.MicAudioEnergyFloor,
+                TickFrequency = 0.01,
+                IsSnapToTickEnabled = true
+            };
+            var energyText = new TextBlock
+            {
+                Text = $"{SettingsManager.Current.MicAudioEnergyFloor * 100:F0}%",
+                FontSize = 13,
+                FontWeight = FontWeights.Bold,
+                Foreground = Brushes.Cyan,
+                Margin = new Thickness(10, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            energySlider.ValueChanged += (s, e) =>
+            {
+                SettingsManager.Current.MicAudioEnergyFloor = (float)Math.Round(energySlider.Value, 2);
+                energyText.Text = $"{SettingsManager.Current.MicAudioEnergyFloor * 100:F0}%";
+                SettingsManager.Save();
+            };
+            Grid.SetColumn(energySlider, 0);
+            energyGrid.Children.Add(energySlider);
+            Grid.SetColumn(energyText, 1);
+            energyGrid.Children.Add(energyText);
+            calibStack.Children.Add(energyGrid);
+
+            // 1-Click Noise Gate Presets
+            calibStack.Children.Add(new TextBlock { Text = "🛡️ 1-Click Noise-Proof Presets:", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.LightGray, Margin = new Thickness(0, 6, 0, 4) });
+            var presetGrid = new UniformGrid { Columns = 4, Margin = new Thickness(0, 2, 0, 10) };
+
+            var pWhisper = CreateStyledButton("🎙️ Whisper", (s, e) =>
+            {
+                _sensitivitySlider.Value = 0.45;
+                energySlider.Value = 0.03;
+                TextOverlay.Show("🎙️ Whisper Mode Activated", 2500);
+            });
+            pWhisper.Margin = new Thickness(0, 0, 4, 0);
+            presetGrid.Children.Add(pWhisper);
+
+            var pBalanced = CreateStyledButton("⚖️ Balanced", (s, e) =>
+            {
+                _sensitivitySlider.Value = 0.65;
+                energySlider.Value = 0.08;
+                TextOverlay.Show("⚖️ Balanced Sensitivity Activated", 2500);
+            });
+            pBalanced.Margin = new Thickness(0, 0, 4, 0);
+            presetGrid.Children.Add(pBalanced);
+
+            var pStrict = CreateStyledButton("🛡️ Quiet Room", (s, e) =>
+            {
+                _sensitivitySlider.Value = 0.78;
+                energySlider.Value = 0.14;
+                TextOverlay.Show("🛡️ Quiet Room Filtering Activated", 2500);
+            });
+            pStrict.Margin = new Thickness(0, 0, 4, 0);
+            presetGrid.Children.Add(pStrict);
+
+            var pNoiseMax = CreateStyledButton("🛑 Noise-Proof Max", (s, e) =>
+            {
+                _sensitivitySlider.Value = 0.92;
+                energySlider.Value = 0.22;
+                TextOverlay.Show("🛑 Noise-Proof Max Activated", 2500);
+            }, isPrimary: true);
+            presetGrid.Children.Add(pNoiseMax);
+
+            calibStack.Children.Add(presetGrid);
             Grid.SetRow(calibStack, 0);
             calibGrid.Children.Add(calibStack);
 
@@ -487,6 +562,126 @@ namespace JarvisLauncher
 
             calibrationTab.Content = calibGrid;
             tabControl.Items.Add(calibrationTab);
+
+            // ── TAB 6: 🏷️ Voice Classification Studio & Dataset ───────────────────────────
+            var datasetTab = new TabItem { Header = "🏷️ Voice Dataset & Classification" };
+            var datasetGrid = new Grid { Margin = new Thickness(14) };
+            datasetGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            datasetGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+            var datasetHeaderStack = new StackPanel { Margin = new Thickness(0, 0, 0, 10) };
+            datasetHeaderStack.Children.Add(new TextBlock { Text = "🏷️ Recorded Voice Dataset & Classifier Studio", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = Brushes.Cyan });
+
+            // Master Voice Mode Toggle CheckBox
+            var voiceToggleCheck = new CheckBox
+            {
+                Content = "🎙️ Master Voice Recognition Mode Active (Uncheck to Disable Voice Mode)",
+                IsChecked = SettingsManager.Current.IsVoiceModeActive,
+                Foreground = Brushes.White,
+                FontSize = 12,
+                Margin = new Thickness(0, 6, 0, 8)
+            };
+            voiceToggleCheck.Click += (s, e) =>
+            {
+                bool isActive = voiceToggleCheck.IsChecked == true;
+                SettingsManager.Current.IsVoiceModeActive = isActive;
+                SettingsManager.Save();
+                if (isActive) LocalWakeWordDetector.Initialize();
+                else LocalWakeWordDetector.Stop();
+                TextOverlay.Show(isActive ? "🎙️ Voice Mode ENABLED" : "🔇 Voice Mode DISABLED", 2500);
+            };
+            datasetHeaderStack.Children.Add(voiceToggleCheck);
+
+            var trainBtn = CreateStyledButton("🧬 Train Acoustic Classification Model", (s, e) =>
+            {
+                string summary = VoiceDatasetManager.TrainClassifierModel();
+                MessageBox.Show(summary, "Voice Dataset Classifier", MessageBoxButton.OK, MessageBoxImage.Information);
+            }, isPrimary: true);
+            trainBtn.Margin = new Thickness(0, 4, 0, 8);
+            datasetHeaderStack.Children.Add(trainBtn);
+
+            Grid.SetRow(datasetHeaderStack, 0);
+            datasetGrid.Children.Add(datasetHeaderStack);
+
+            var datasetScroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var datasetStack = new StackPanel();
+
+            Action refreshDatasetUI = null!;
+            refreshDatasetUI = () =>
+            {
+                datasetStack.Children.Clear();
+                VoiceDatasetManager.LoadMetadata();
+
+                if (VoiceDatasetManager.Records.Count == 0)
+                {
+                    datasetStack.Children.Add(new TextBlock { Text = "No voice recordings found in dataset folder yet. Speak or record commands to populate!", FontSize = 11, Foreground = Brushes.Gray });
+                    return;
+                }
+
+                foreach (var rec in VoiceDatasetManager.Records)
+                {
+                    var card = new Border
+                    {
+                        Background = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)),
+                        CornerRadius = new CornerRadius(8),
+                        Padding = new Thickness(10),
+                        Margin = new Thickness(0, 0, 0, 8)
+                    };
+
+                    var cardGrid = new Grid();
+                    cardGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    cardGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                    var infoStack = new StackPanel();
+                    infoStack.Children.Add(new TextBlock { Text = $"🎵 {rec.FileName} [{rec.DurationSeconds:F1}s | {rec.FileSizeBytes / 1024} KB]", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.White });
+                    infoStack.Children.Add(new TextBlock { Text = $"Recorded: {rec.RecordedAt:yyyy-MM-dd HH:mm:ss} | Current Label: {rec.Classification}", FontSize = 10, Foreground = Brushes.Cyan });
+
+                    Grid.SetColumn(infoStack, 0);
+                    cardGrid.Children.Add(infoStack);
+
+                    var btnStack = new StackPanel { Orientation = Orientation.Horizontal };
+
+                    var playBtn = CreateStyledButton("🔊 Play", (s, e) =>
+                    {
+                        if (File.Exists(rec.FilePath))
+                        {
+                            using var player = new System.Media.SoundPlayer(rec.FilePath);
+                            player.Play();
+                        }
+                    });
+                    playBtn.Margin = new Thickness(0, 0, 4, 0);
+                    btnStack.Children.Add(playBtn);
+
+                    var lblCmd = CreateStyledButton("🏷️ Cmd", (s, e) => { VoiceDatasetManager.ClassifyRecord(rec.FilePath, "Command"); refreshDatasetUI(); });
+                    lblCmd.Margin = new Thickness(0, 0, 4, 0);
+                    btnStack.Children.Add(lblCmd);
+
+                    var lblChat = CreateStyledButton("🏷️ AI", (s, e) => { VoiceDatasetManager.ClassifyRecord(rec.FilePath, "AI Chat"); refreshDatasetUI(); });
+                    lblChat.Margin = new Thickness(0, 0, 4, 0);
+                    btnStack.Children.Add(lblChat);
+
+                    var lblWake = CreateStyledButton("🏷️ Wake", (s, e) => { VoiceDatasetManager.ClassifyRecord(rec.FilePath, "Wake Word"); refreshDatasetUI(); });
+                    lblWake.Margin = new Thickness(0, 0, 4, 0);
+                    btnStack.Children.Add(lblWake);
+
+                    var delBtn = CreateStyledButton("❌ Delete", (s, e) => { VoiceDatasetManager.DeleteRecord(rec.FilePath); refreshDatasetUI(); });
+                    btnStack.Children.Add(delBtn);
+
+                    Grid.SetColumn(btnStack, 1);
+                    cardGrid.Children.Add(btnStack);
+
+                    card.Child = cardGrid;
+                    datasetStack.Children.Add(card);
+                }
+            };
+
+            refreshDatasetUI();
+            datasetScroll.Content = datasetStack;
+            Grid.SetRow(datasetScroll, 1);
+            datasetGrid.Children.Add(datasetScroll);
+
+            datasetTab.Content = datasetGrid;
+            tabControl.Items.Add(datasetTab);
 
             Grid.SetRow(tabControl, 1);
             mainGrid.Children.Add(tabControl);

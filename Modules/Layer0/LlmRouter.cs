@@ -26,24 +26,26 @@ namespace JarvisLauncher
 
             try
             {
+                if (backend == "Gemini" && !OfflineCacheManager.CanUseGemini())
+                {
+                    DebugConsoleOverlay.Log("LlmRouter Offline", "Gemini offline or key missing. Auto-routing query to Ollama local model.");
+                    return await AskOllamaAsync(prompt, history);
+                }
+
                 return backend switch
                 {
                     "OpenAI"   => await AskOpenAIAsync(prompt, history),
                     "Ollama"   => await AskOllamaAsync(prompt, history),
                     "Custom"   => await AskCustomAsync(prompt, history),
                     "P2P"      => await JarvisP2PClient.AskBestPeerAsync(prompt, history),
-                    _          => await AiAPI.AskGemini(prompt, history)  // Default: Gemini
+                    _          => await AiAPI.AskGemini(prompt, history)
                 };
             }
             catch (Exception ex)
             {
-                ChatOverlay.LogConsoleAction("LlmRouter Fallback", $"{backend} failed: {ex.Message}. Falling back to Gemini.");
-                // Graceful fallback to Gemini
-                if (backend != "Gemini")
-                {
-                    try { return await AiAPI.AskGemini(prompt, history); }
-                    catch { }
-                }
+                ChatOverlay.LogConsoleAction("LlmRouter Fallback", $"{backend} failed: {ex.Message}. Falling back to Ollama local model.");
+                try { return await AskOllamaAsync(prompt, history); }
+                catch { }
                 return $"⚠️ LLM Error ({backend}): {ex.Message}";
             }
         }
