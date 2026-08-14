@@ -6,6 +6,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:gif="http://wpfanimatedgif.codeplex.com"
         mc:Ignorable="d"
         Title="Jarvis Launcher" 
         Width="680"
@@ -34,87 +35,112 @@
                 Background="{DynamicResource WindowBackgroundBrush}" 
                 BorderBrush="{DynamicResource WindowBorderBrush}" 
                 BorderThickness="1" 
-                CornerRadius="12" 
+                CornerRadius="{DynamicResource WindowCornerRadius}" 
                 Opacity="1.0"
                 ClipToBounds="True">
-            
+
             <Border.Effect>
                 <DropShadowEffect BlurRadius="15" Color="#000000" Opacity="0.1" ShadowDepth="4"/>
             </Border.Effect>
-            
+
             <Border.RenderTransform>
                 <TranslateTransform x:Name="WindowTranslate" Y="-50"/>
             </Border.RenderTransform>
-            
-            <Grid Margin="16">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
- 
-                <!-- Search Panel -->
-                <Grid Grid.Row="0">
-                    <TextBox x:Name="SearchInput" 
+
+            <Grid>
+                <!-- GIF/Media Background -->
+                <Image x:Name="BackgroundMedia"
+                       gif:ImageBehavior.AnimatedSource="{DynamicResource WindowBackgroundMediaSource}"
+                       gif:ImageBehavior.RepeatBehavior="Forever"
+                       Stretch="UniformToFill"
+                       Opacity="0.6"
+                       IsHitTestVisible="False"
+                       Visibility="{DynamicResource WindowMediaVisibility}"/>
+
+                <Grid Margin="16">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Search Panel -->
+                    <Grid Grid.Row="0">
+                        <TextBox x:Name="SearchInput"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 Foreground="{DynamicResource TextPrimaryBrush}"
+                                 FontSize="20"
+                                 FontFamily="{DynamicResource ActiveFontFamily}"
+                                 CaretBrush="{DynamicResource AccentCaretBrush}"
+                                 Padding="6,4"
+                                 VerticalAlignment="Center"
+                                 TextChanged="SearchInput_TextChanged"
+                                 PreviewKeyDown="SearchInput_PreviewKeyDown"/>
+
+                        <TextBlock x:Name="PlaceholderText"
+                                   Text="Type a command, math, or app name..."
+                                   Foreground="{DynamicResource TextPlaceholderBrush}"
+                                   FontSize="20"
+                                   FontFamily="{DynamicResource ActiveFontFamily}"
+                                   IsHitTestVisible="False"
+                                   Margin="12,4"
+                                   VerticalAlignment="Center"/>
+
+                        <!-- Autocomplete ghost suffix (Tab to accept) -->
+                        <TextBlock x:Name="AutocompleteGhost"
+                                   Foreground="{DynamicResource TextPlaceholderBrush}"
+                                   FontSize="20"
+                                   FontFamily="{DynamicResource ActiveFontFamily}"
+                                   IsHitTestVisible="False"
+                                   Margin="6,4"
+                                   Padding="6,4"
+                                   VerticalAlignment="Center"
+                                   HorizontalAlignment="Left"
+                                   Visibility="Collapsed"
+                                   Opacity="0.45"/>
+                    </Grid>
+
+                    <!-- Divider line -->
+                    <Separator Grid.Row="1"
+                               Background="#26FFFFFF"
+                               Margin="0,8,0,8"
+                               Height="1"
+                               x:Name="DividerLine"
+                               Visibility="Collapsed"/>
+
+                    <!-- Suggestions Panel -->
+                    <ListBox Grid.Row="2"
+                             x:Name="ResultsList"
                              Background="Transparent" 
                              BorderThickness="0" 
-                             Foreground="{DynamicResource TextPrimaryBrush}" 
-                             FontSize="20" 
-                             FontFamily="Segoe UI Semibold, Arial"
-                             CaretBrush="{DynamicResource AccentCaretBrush}" 
-                             Padding="6,4"
-                             VerticalAlignment="Center"
-                             TextChanged="SearchInput_TextChanged"
-                             PreviewKeyDown="SearchInput_PreviewKeyDown"/>
-                    
-                    <TextBlock x:Name="PlaceholderText" 
-                               Text="Type a command, math, or app name..." 
-                               Foreground="{DynamicResource TextPlaceholderBrush}" 
-                               FontSize="20" 
-                               FontFamily="Segoe UI Semibold, Arial"
-                               IsHitTestVisible="False" 
-                               Margin="12,4" 
-                               VerticalAlignment="Center"/>
+                             ItemContainerStyle="{StaticResource ResultItemStyle}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             SelectionMode="Single"
+                             Visibility="Collapsed"
+                             MouseDoubleClick="ResultsList_MouseDoubleClick"
+                             PreviewMouseLeftButtonUp="ResultsList_PreviewMouseLeftButtonUp"
+                             PreviewKeyDown="ResultsList_PreviewKeyDown">
+
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Vertical">
+                                    <TextBlock Text="{Binding Title}"
+                                               Foreground="{DynamicResource TextPrimaryBrush}"
+                                               FontSize="15"
+                                               FontWeight="SemiBold"
+                                               FontFamily="{DynamicResource ActiveFontFamily}"/>
+                                    <TextBlock Text="{Binding Description}"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"
+                                               FontSize="12"
+                                               Margin="0,2,0,0"
+                                               FontFamily="{DynamicResource ActiveFontFamily}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </Grid>
-
-                <!-- Divider line -->
-                <Separator Grid.Row="1" 
-                           Background="#26FFFFFF" 
-                           Margin="0,8,0,8" 
-                           Height="1"
-                           x:Name="DividerLine"
-                           Visibility="Collapsed"/>
-
-                <!-- Suggestions Panel -->
-                <ListBox Grid.Row="2" 
-                         x:Name="ResultsList" 
-                         Background="Transparent" 
-                         BorderThickness="0" 
-                         ItemContainerStyle="{StaticResource ResultItemStyle}"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                         ScrollViewer.VerticalScrollBarVisibility="Auto"
-                         SelectionMode="Single"
-                         Visibility="Collapsed"
-                         MouseDoubleClick="ResultsList_MouseDoubleClick"
-                         PreviewKeyDown="ResultsList_PreviewKeyDown">
-                    
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Orientation="Vertical">
-                                <TextBlock Text="{Binding Title}" 
-                                           Foreground="{DynamicResource TextPrimaryBrush}" 
-                                           FontSize="15" 
-                                           FontWeight="SemiBold"
-                                           FontFamily="Segoe UI"/>
-                                <TextBlock Text="{Binding Description}" 
-                                           Foreground="{DynamicResource TextSecondaryBrush}" 
-                                           FontSize="12" 
-                                           Margin="0,2,0,0"
-                                           FontFamily="Segoe UI"/>
-                            </StackPanel>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
             </Grid>
         </Border>
     </Grid>

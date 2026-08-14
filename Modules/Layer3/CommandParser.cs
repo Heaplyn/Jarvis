@@ -60,7 +60,19 @@ namespace JarvisLauncher
         FFMPEG,
         LLM,
         PHONE,
-        DIAGNOSTICS
+        DIAGNOSTICS,
+        WEB_SCRAPING,
+        CALENDAR,
+        REMINDERS,
+        FILE_ORGANIZER,
+        SCREEN_ANALYSIS,
+        BACKGROUND,
+        VOICE_STUDIO,
+        HELP_CENTER,
+        ANIMATION_OPTIONS,
+        EXPANDED_COMMANDS,
+        ORGANIZATION_TOOLS,
+        ADHD_FOCUS_SUITE
     };
 
     public static class CommandParser
@@ -124,6 +136,18 @@ namespace JarvisLauncher
             RegisterHandler(CommandType.LLM, "LLM Gui", () => new LLMCommandHandler());
             RegisterHandler(CommandType.PHONE, "Manage mobile companion connectivity", () => new PhoneControlCommandHandler());
             RegisterHandler(CommandType.DIAGNOSTICS, "System and network connectivity diagnostics hub", () => new DiagnosticsCommandHandler());
+            RegisterHandler(CommandType.WEB_SCRAPING, "Scrape webpages and read Discord servers via official Bot API", () => new WebScrapingCommandHandler());
+            RegisterHandler(CommandType.CALENDAR, "Visual month calendar and event planner", () => new CalendarCommandHandler());
+            RegisterHandler(CommandType.REMINDERS, "Schedule notifications and alarms", () => new ReminderCommandHandler());
+            RegisterHandler(CommandType.FILE_ORGANIZER, "Visual file organizer utility and cleaner", () => new FileOrganizerCommandHandler());
+            RegisterHandler(CommandType.SCREEN_ANALYSIS, "Extract palette colors and tile open desktop windows", () => new ScreenAnalysisCommandHandler());
+            RegisterHandler(CommandType.BACKGROUND, "Manage UI background modes (GIF, Gradient, Solid)", () => new BackgroundCommandHandler());
+            RegisterHandler(CommandType.VOICE_STUDIO, "Train AI voice profiles, audio recorder, and voice shortcuts", () => new VoiceStudioCommandHandler());
+            RegisterHandler(CommandType.HELP_CENTER, "Interactive command directory, hotkeys cheat sheet, and documentation", () => new HelpCommandHandler());
+            RegisterHandler(CommandType.ANIMATION_OPTIONS, "Configure HUD animations, transition speeds, and visual effects", () => new AnimationCommandHandler());
+            RegisterHandler(CommandType.EXPANDED_COMMANDS, "Access 50+ system power, security, file, media, developer, and productivity commands", () => new ExpandedCommandsHandler());
+            RegisterHandler(CommandType.ORGANIZATION_TOOLS, "Organize desktop, downloads, deduplicate files, sort by date/extension, and backup folders", () => new OrganizationCommandsHandler());
+            RegisterHandler(CommandType.ADHD_FOCUS_SUITE, "ADHD focus Pomodoro sprints, task micro-chunking, dopamine check-ins, and TTS voice alerts", () => new AdhdFocusSuiteHandler());
         }
 
         private static void RegisterHandler(CommandType type, string description, Func<ICommandHandler> factory)
@@ -137,6 +161,33 @@ namespace JarvisLauncher
             {
                 System.Diagnostics.Debug.WriteLine($"Failed to load command handler {type}: {ex.Message}");
             }
+        }
+
+        public static bool IsKnownLocalCommand(string query)
+        {
+            if (string.IsNullOrWhiteSpace(query)) return false;
+            string q = query.Trim().ToLower();
+
+            foreach (var pair in Handlers.Values)
+            {
+                try
+                {
+                    if (pair.Item2.CanHandle(q))
+                    {
+                        return true;
+                    }
+                }
+                catch { }
+            }
+
+            try
+            {
+                var matchingApps = WindowsAppScanner.GetMatchingApps(q);
+                if (matchingApps != null && matchingApps.Count > 0) return true;
+            }
+            catch { }
+
+            return false;
         }
 
         public static List<CommandResult> GetSuggestions(string query)
@@ -160,7 +211,7 @@ namespace JarvisLauncher
                     {
                         Title       = $"⚡ Execute Chained Pipeline ({chainParts.Length} Commands)",
                         Description = $"Run: {query}",
-                        Similarity  = 5.0, // High priority match
+                        Similarity  = 5.0,
                         Execute     = () => ExecuteChainedPipeline(chainParts)
                     });
                 }
@@ -180,13 +231,36 @@ namespace JarvisLauncher
                 }
             }
 
+            // 2. Inject ML-learned history suggestions for short queries (fast recall)
+            if (expandedQuery.Length <= 4)
+            {
+                var topResults = QueryLearner.GetTopResults(expandedQuery, topN: 3);
+                foreach (var (title, count) in topResults)
+                {
+                    string targetTitle = title;
+                    suggestions.Add(new CommandResult
+                    {
+                        Title       = title.StartsWith("⭐ ") ? title : $"⭐ {title}",
+                        Description = $"Recently used ({count}×) — click or press Enter to run",
+                        Similarity  = 7.0 + Math.Min(3.0, Math.Sqrt(count) * 0.5), // Always at top
+                        Execute     = () => ExecuteFirstSuggestion(targetTitle)
+                    });
+                }
+            }
+
+            // 3. Handler suggestions (check both raw query and space-stripped query e.g. "pre cache" -> "precache")
+            string noSpacesQuery = expandedQuery.Replace(" ", "").Replace("-", "");
             foreach (var (type, handler) in Handlers)
             {
                 try
                 {
-                    if (handler.Item2.CanHandle(expandedQuery))
+                    if (handler.Item2.CanHandle(expandedQuery) || handler.Item2.CanHandle(noSpacesQuery))
                     {
                         var results = handler.Item2.GetSuggestions(expandedQuery);
+                        if (results == null || results.Count == 0)
+                        {
+                            results = handler.Item2.GetSuggestions(noSpacesQuery);
+                        }
                         if (results != null && results.Count > 0)
                         {
                             suggestions.AddRange(results);
@@ -199,28 +273,47 @@ namespace JarvisLauncher
                 }
             }
 
-            // 2. Global fuzzy & partial prefix matching against ALL registered Jarvis command definitions
+            // 3b. Windows Installed Apps autocomplete
+            try
+            {
+                var appMatches = WindowsAppScanner.GetMatchingApps(expandedQuery);
+                if (appMatches.Count > 0)
+                {
+                    suggestions.AddRange(appMatches);
+                }
+            }
+            catch { }
+
+            // 4. Global fuzzy & partial prefix matching against ALL registered Jarvis command definitions
             try
             {
                 var allDescs = GetAllCommandDescriptions();
                 string lowerQuery = expandedQuery.ToLower().Trim();
+                string lowerNoSpaces = lowerQuery.Replace(" ", "").Replace("-", "");
 
                 foreach (var cd in allDescs)
                 {
                     if (cd == null || string.IsNullOrWhiteSpace(cd.CommandName)) continue;
 
                     string cmdName = cd.CommandName.ToLower();
+                    string cmdNameNoSpaces = cmdName.Replace(" ", "").Replace("-", "");
                     string example = (cd.CommandExample ?? "").ToLower();
-                    string desc = (cd.CommandDescription ?? "").ToLower();
+                    string exampleNoSpaces = example.Replace(" ", "").Replace("-", "");
+                    string desc    = (cd.CommandDescription ?? "").ToLower();
 
-                    bool isMatch = cmdName.StartsWith(lowerQuery) ||
-                                   example.StartsWith(lowerQuery) ||
-                                   cmdName.Contains(lowerQuery) ||
-                                   desc.Contains(lowerQuery);
+                    // Enhanced matching: prefix, substring, acronym, word-boundary, description, & space-insensitive
+                    bool isMatch = cmdName.StartsWith(lowerQuery)      || cmdNameNoSpaces.StartsWith(lowerNoSpaces) ||
+                                   example.StartsWith(lowerQuery)      || exampleNoSpaces.StartsWith(lowerNoSpaces) ||
+                                   cmdName.Contains(lowerQuery)        || cmdNameNoSpaces.Contains(lowerNoSpaces) ||
+                                   desc.Contains(lowerQuery)           || desc.Contains(lowerNoSpaces) ||
+                                   SearchUtil.IsAcronymMatch(lowerQuery, cmdName) ||
+                                   SearchUtil.IsClose(lowerQuery, cmdName) ||
+                                   SearchUtil.IsClose(lowerNoSpaces, cmdNameNoSpaces);
 
                     if (isMatch)
                     {
-                        double sim = cmdName.StartsWith(lowerQuery) ? 4.5 : (example.StartsWith(lowerQuery) ? 4.0 : 2.5);
+                        double sim = SearchUtil.GetSimilarity(lowerQuery, cmdName);
+                        if (sim < 1.0) sim = (cmdName.StartsWith(lowerQuery) || cmdNameNoSpaces.StartsWith(lowerNoSpaces)) ? 4.5 : (example.StartsWith(lowerQuery) ? 4.0 : 2.5);
 
                         // Avoid duplicates if specific handler already produced exact card
                         if (!suggestions.Any(s => s.Title.IndexOf(cd.CommandName, StringComparison.OrdinalIgnoreCase) >= 0 || (!string.IsNullOrEmpty(cd.CommandExample) && s.Title.IndexOf(cd.CommandExample, StringComparison.OrdinalIgnoreCase) >= 0)))
@@ -228,10 +321,10 @@ namespace JarvisLauncher
                             string runTarget = !string.IsNullOrWhiteSpace(cd.CommandExample) ? cd.CommandExample : cd.CommandName;
                             suggestions.Add(new CommandResult
                             {
-                                Title = $"⚡ Command: {cd.CommandName}",
+                                Title       = $"⚡ Command: {cd.CommandName}",
                                 Description = $"{cd.CommandDescription} (Example: {cd.CommandExample})",
-                                Similarity = sim,
-                                Execute = () => ExecuteFirstSuggestion(runTarget)
+                                Similarity  = sim,
+                                Execute     = () => ExecuteFirstSuggestion(runTarget)
                             });
                         }
                     }
@@ -239,20 +332,87 @@ namespace JarvisLauncher
             }
             catch { }
 
-            // Sort suggestions in descending order of similarity
-            suggestions.Sort((a, b) => b.Similarity.CompareTo(a.Similarity));
+            // 5. Apply ML learned boost on top of every suggestion's raw similarity
+            foreach (var s in suggestions)
+            {
+                double boost = QueryLearner.GetBoost(expandedQuery, s.Title);
+                if (boost > 0) s.Similarity += boost;
+            }
 
-            return suggestions;
+            // 6. Deduplicate by title (keep highest scoring) then sort descending
+            var deduped = suggestions
+                .GroupBy(s => s.Title, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.OrderByDescending(s => s.Similarity).First())
+                .OrderByDescending(s => s.Similarity)
+                .Take(12)
+                .ToList();
+
+            return deduped;
         }
 
         public static void ExecuteFirstSuggestion(string query)
         {
             if (string.IsNullOrWhiteSpace(query)) return;
-            var suggestions = GetSuggestions(query);
-            if (suggestions.Count > 0 && suggestions[0].Execute != null)
+
+            // Trigger parallel Dual-LLM Co-Pilot analysis if enabled (default disabled)
+            DualLlmCopilot.ProcessQueryParallel(query);
+
+            string cleanQuery = CleanTitlePrefixes(query);
+
+            // Get all suggestions sorted by Similarity score descending
+            var suggestions = GetSuggestions(cleanQuery);
+            foreach (var s in suggestions)
             {
-                suggestions[0].Execute?.Invoke();
+                if (s.Title.StartsWith("⭐ ")) continue; // Skip circular star items
+                if (s.Execute != null)
+                {
+                    s.Execute.Invoke();
+                    return;
+                }
             }
+
+            // Fallback: try raw query if cleanQuery yielded nothing
+            if (cleanQuery != query)
+            {
+                var rawSuggestions = GetSuggestions(query);
+                foreach (var s in rawSuggestions)
+                {
+                    if (s.Title.StartsWith("⭐ ")) continue;
+                    if (s.Execute != null)
+                    {
+                        s.Execute.Invoke();
+                        return;
+                    }
+                }
+            }
+        }
+
+        public static string CleanTitlePrefixes(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title)) return string.Empty;
+
+            string clean = title.Trim();
+            string[] prefixes = new[] { "⭐ ", "⚡ Command: ", "⚡ ", "🎙️ ", "🤖 ", "🌐 ", "📥 ", "⚙️ ", "🎵 ", "🔲 ", "🏷️ ", "📶 ", "🎨 ", "🧠 ", "🦙 ", "💻 ", "🔬 ", "📐 ", "🚀 " };
+            foreach (var p in prefixes)
+            {
+                if (clean.StartsWith(p, StringComparison.OrdinalIgnoreCase))
+                {
+                    clean = clean.Substring(p.Length).Trim();
+                }
+            }
+
+            // Strip action verbs from queries like "open settings & options gui" -> "settings & options gui"
+            string[] verbPrefixes = new[] { "open ", "launch ", "run ", "start " };
+            foreach (var vp in verbPrefixes)
+            {
+                if (clean.StartsWith(vp, StringComparison.OrdinalIgnoreCase))
+                {
+                    clean = clean.Substring(vp.Length).Trim();
+                    break;
+                }
+            }
+
+            return clean;
         }
 
         private static void ExecuteChainedPipeline(string[] chainParts)
@@ -324,6 +484,109 @@ namespace JarvisLauncher
             }
 
             return descs;
+        }
+
+        // Groups each handler's commands under a display category for the categorized command browser overlay.
+        public static readonly Dictionary<CommandType, string> Categories = new Dictionary<CommandType, string>
+        {
+            { CommandType.MATH, "Utilities" },
+            { CommandType.VOLUME, "Audio & Media" },
+            { CommandType.LOCK, "System & Power" },
+            { CommandType.RESTART, "System & Power" },
+            { CommandType.OPACITY, "Customization" },
+            { CommandType.TIMER, "Utilities" },
+            { CommandType.SYSTEM_STATS, "Diagnostics" },
+            { CommandType.LOCAL_IP, "Network & Mobile" },
+            { CommandType.BRIGHTNESS, "System & Power" },
+            { CommandType.CLI_RUNNER, "Developer Tools" },
+            { CommandType.APP_LAUNCHER, "Apps & Launcher" },
+            { CommandType.VIEW_FILE, "Files & Editing" },
+            { CommandType.SETTINGS, "Customization" },
+            { CommandType.AI, "AI & Automation" },
+            { CommandType.RECYCLE_BIN, "Files & Editing" },
+            { CommandType.PROCESS_KILLER, "System & Power" },
+            { CommandType.POWER, "System & Power" },
+            { CommandType.ALIAS, "Customization" },
+            { CommandType.TEXT_OPACITY, "Customization" },
+            { CommandType.GIT_PUSH, "Developer Tools" },
+            { CommandType.COMMANDS, "Utilities" },
+            { CommandType.GIT_SETUP, "Developer Tools" },
+            { CommandType.LOGS, "Diagnostics" },
+            { CommandType.DOWNLOAD_PATH, "Customization" },
+            { CommandType.EXIT, "System & Power" },
+            { CommandType.UPDATE, "System & Power" },
+            { CommandType.POWERSHELL, "Developer Tools" },
+            { CommandType.UPDATE_COMPUTER, "System & Power" },
+            { CommandType.SYS_INFO, "Diagnostics" },
+            { CommandType.SEARCH_LAUNCHER, "Apps & Launcher" },
+            { CommandType.SCREENSHOT, "Utilities" },
+            { CommandType.MUTE, "Audio & Media" },
+            { CommandType.CLIPBOARD, "Utilities" },
+            { CommandType.TODO, "Productivity" },
+            { CommandType.THEME, "Customization" },
+            { CommandType.EDIT, "Files & Editing" },
+            { CommandType.OPEN, "Files & Editing" },
+            { CommandType.GRID, "Apps & Launcher" },
+            { CommandType.PRODUCTIVITY, "Productivity" },
+            { CommandType.EXTRA_FEATURES, "Network & Mobile" },
+            { CommandType.NEW_IDEAS, "Productivity" },
+            { CommandType.MUSIC_PLAYLIST, "Audio & Media" },
+            { CommandType.STICKY_NOTE, "Productivity" },
+            { CommandType.GAME_DEV_TOOLBOX, "Developer Tools" },
+            { CommandType.FFMPEG, "Media Processing" },
+            { CommandType.LLM, "AI & Automation" },
+            { CommandType.PHONE, "Network & Mobile" },
+            { CommandType.DIAGNOSTICS, "Diagnostics" },
+            { CommandType.WEB_SCRAPING, "Web Scraping" },
+            { CommandType.FILE_ORGANIZER, "Visual file organizer utility and cleaner" },
+            { CommandType.SCREEN_ANALYSIS, "Customization" },
+            { CommandType.BACKGROUND, "Customization" },
+            { CommandType.VOICE_STUDIO, "Audio & Media" },
+            { CommandType.HELP_CENTER, "Utilities" },
+            { CommandType.ANIMATION_OPTIONS, "Customization" }
+        };
+
+        // Preferred display order for categories in the browser overlay.
+        public static readonly List<string> CategoryOrder = new List<string>
+        {
+            "AI & Automation", "System & Power", "Files & Editing", "Apps & Launcher",
+            "Network & Mobile", "Web Scraping", "Audio & Media", "Media Processing", "Productivity",
+            "Developer Tools", "Diagnostics", "Customization", "Utilities", "Other"
+        };
+
+        public static Dictionary<string, List<CommandDesc>> GetCommandDescriptionsByCategory()
+        {
+            var result = new Dictionary<string, List<CommandDesc>>();
+            var seenCommands = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var kvp in Handlers)
+            {
+                string category = Categories.TryGetValue(kvp.Key, out string? cat) ? cat : "Other";
+                try
+                {
+                    var handlerDescs = kvp.Value.Item2.GetCommandDescriptions();
+                    if (handlerDescs == null) continue;
+
+                    foreach (var cd in handlerDescs)
+                    {
+                        if (cd == null || !cd.Show || string.IsNullOrWhiteSpace(cd.CommandName)) continue;
+                        if (!seenCommands.Add(cd.CommandName)) continue;
+
+                        if (!result.TryGetValue(category, out var list))
+                        {
+                            list = new List<CommandDesc>();
+                            result[category] = list;
+                        }
+                        list.Add(cd);
+                    }
+                }
+                catch
+                {
+                    // Fail-safe for individual handler description gathering
+                }
+            }
+
+            return result;
         }
 
         public static void Initialize()

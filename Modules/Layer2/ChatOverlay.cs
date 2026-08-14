@@ -51,16 +51,10 @@ namespace JarvisLauncher
                 {
                     _instance = new ChatOverlay();
                     _instance.Closed += (s, e) => _instance = null;
-                    _instance.Show();
                 }
-                else
-                {
-                    _instance.Activate();
-                    if (_instance.WindowState == WindowState.Minimized)
-                    {
-                        _instance.WindowState = WindowState.Normal;
-                    }
-                }
+
+                // Use the robust base Show method which handles animations and visibility
+                _instance.Show();
             });
         }
 
@@ -154,7 +148,8 @@ namespace JarvisLauncher
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
                 FontSize = 11,
-                MaxHeight = 120
+                MaxHeight = 120,
+                ItemContainerStyle = (Style)Application.Current.FindResource("ResultItemStyle")
             };
             _historyListBox.SetResourceReference(ListBox.ForegroundProperty, "TextPrimaryBrush");
             _historyListBox.SelectionChanged += (s, e) =>
@@ -610,6 +605,40 @@ namespace JarvisLauncher
         private bool _isFolderContext = false;
         private readonly List<ChatTurn> _conversationHistory = new List<ChatTurn>();
 
+        public static async Task SubmitVoiceCommand(string message, bool showUi = false)
+        {
+            if (!SettingsManager.Current.IsJarvisEnabled || !SettingsManager.Current.IsVoiceModeActive)
+            {
+                string trimmed = message.Trim();
+                var suggestions = CommandParser.GetSuggestions(trimmed);
+                if (suggestions.Count > 0 && suggestions[0].Similarity >= 3.0)
+                {
+                    await Application.Current.Dispatcher.InvokeAsync(() =>
+                    {
+                        CommandParser.ExecuteFirstSuggestion(trimmed);
+                    });
+                    return;
+                }
+
+                TextOverlay.Show("⚡ Voice AI is paused. Enable in Settings (⚙️).", 2000);
+                return;
+            }
+
+            await Application.Current.Dispatcher.InvokeAsync(async () =>
+            {
+                if (showUi) ShowChat();
+
+                if (_instance == null)
+                {
+                    _instance = new ChatOverlay();
+                    _instance.Opacity = 0;
+                    _instance.Visibility = Visibility.Collapsed;
+                }
+
+                await _instance.SendUserMessage(message);
+            });
+        }
+
         private async Task SendUserMessage(string message)
         {
             string displayMessage = message;
@@ -736,7 +765,7 @@ namespace JarvisLauncher
                     "✨ Finalizing output..."
                 };
             int phaseIndex = 0;
-            var thinkingTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            var thinkingTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             thinkingTimer.Tick += (s, e) =>
             {
                 aiTextBox.Text = thinkingPhases[phaseIndex % thinkingPhases.Length];
@@ -745,7 +774,7 @@ namespace JarvisLauncher
             };
             thinkingTimer.Start();
 
-            // 4. Run AI on background thread — awaiting without ConfigureAwait(false) so we resume on UI thread
+            // 4. Run AI on background thread
             string finalResult = "";
             try
             {
@@ -762,10 +791,10 @@ namespace JarvisLauncher
             }
             finally
             {
-                thinkingTimer.Stop(); // back on UI thread — safe
+                thinkingTimer.Stop();
             }
 
-            // 5. Write final result — we are on the UI thread, direct access is safe
+            // 5. Write final result
             if (string.IsNullOrWhiteSpace(finalResult))
             {
                 finalResult = "⚠️ No response text returned from AI.";
@@ -774,6 +803,9 @@ namespace JarvisLauncher
             aiTextBox.FontStyle = FontStyles.Normal;
             _scrollViewer.UpdateLayout();
             _scrollViewer.ScrollToBottom();
+
+            // Speak response as a concise, fast spoken summary
+            TtsManager.Speak(finalResult, isShortSpeech: true);
 
             if (!finalResult.StartsWith("⚠️"))
             {
@@ -883,9 +915,11 @@ namespace JarvisLauncher
                 MaxWidth = 280
             };
 
+            var containerStack = new StackPanel { Orientation = Orientation.Vertical };
+            bubbleBorder.Child = containerStack;
+
             var textBox = new TextBox
             {
-                Text = text,
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
                 IsReadOnly = true,
@@ -899,21 +933,258 @@ namespace JarvisLauncher
                 FocusVisualStyle = null
             };
             textBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
+            containerStack.Children.Add(textBox);
 
-            bubbleBorder.Child = textBox;
+            textBox.TextChanged += (s, e) =>
+            {
+                string currentText = textBox.Text;
+                if (currentText.Contains("```"))
+                {
+                    textBox.Visibility = Visibility.Collapsed;
+
+                    for (int i = containerStack.Children.Count - 1; i >= 0; i--)
+                    {
+                        if (containerStack.Children[i] != textBox)
+                        {
+                            containerStack.Children.RemoveAt(i);
+                        }
+                    }
+
+                    var parts = ParseMessageParts(currentText);
+                    foreach (var part in parts)
+                    {
+                        if (part.IsCode)
+                        {
+                            int lineCount = part.Content.Split('\n').Length;
+                            if (lineCount < 4 && part.Content.Length < 100)
+                            {
+                                var codeTextBox = new TextBox
+                                {
+                                    Text = part.Content.Trim(),
+                                    Background = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255)),
+                                    BorderThickness = new Thickness(0),
+                                    IsReadOnly = true,
+                                    FontSize = 12,
+                                    FontFamily = new FontFamily("Consolas"),
+                                    TextWrapping = TextWrapping.Wrap,
+                                    Padding = new Thickness(6),
+                                    Margin = new Thickness(0, 4, 0, 4),
+                                    Cursor = Cursors.Arrow,
+                                    FocusVisualStyle = null
+                                };
+                                codeTextBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
+                                containerStack.Children.Add(codeTextBox);
+                            }
+                            else
+                            {
+                                string langLabel = string.IsNullOrEmpty(part.Language) ? "Code Document" : $"{char.ToUpper(part.Language[0])}{part.Language.Substring(1)} Source";
+                                string filename = ExtractFilename(part.Content, part.Language);
+                                
+                                var cardBorder = new Border
+                                {
+                                    Background = new SolidColorBrush(Color.FromArgb(30, 59, 130, 246)),
+                                    BorderThickness = new Thickness(1),
+                                    BorderBrush = new SolidColorBrush(Color.FromArgb(80, 59, 130, 246)),
+                                    CornerRadius = new CornerRadius(6),
+                                    Padding = new Thickness(8),
+                                    Margin = new Thickness(0, 6, 0, 6),
+                                    Cursor = Cursors.Hand
+                                };
+
+                                var cardGrid = new Grid();
+                                cardGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                                cardGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+                                var iconBlock = new TextBlock
+                                {
+                                    Text = "📄",
+                                    FontSize = 24,
+                                    Margin = new Thickness(0, 0, 8, 0),
+                                    VerticalAlignment = VerticalAlignment.Center
+                                };
+                                Grid.SetColumn(iconBlock, 0);
+                                cardGrid.Children.Add(iconBlock);
+
+                                var textStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+                                var titleBlock = new TextBlock
+                                {
+                                    Text = filename,
+                                    FontSize = 12,
+                                    FontWeight = FontWeights.Bold,
+                                    TextTrimming = TextTrimming.CharacterEllipsis
+                                };
+                                titleBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+                                textStack.Children.Add(titleBlock);
+
+                                var detailsBlock = new TextBlock
+                                {
+                                    Text = $"{langLabel} ({lineCount} lines) • Click to Edit",
+                                    FontSize = 10,
+                                    Opacity = 0.8
+                                };
+                                detailsBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
+                                textStack.Children.Add(detailsBlock);
+
+                                Grid.SetColumn(textStack, 1);
+                                cardGrid.Children.Add(textStack);
+
+                                cardBorder.Child = cardGrid;
+
+                                cardBorder.PreviewMouseLeftButtonDown += (sender, args) =>
+                                {
+                                    try
+                                    {
+                                        string tempDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Temp");
+                                        if (!Directory.Exists(tempDir)) Directory.CreateDirectory(tempDir);
+
+                                        string tempPath = Path.Combine(tempDir, filename);
+                                        File.WriteAllText(tempPath, part.Content);
+
+                                        TextEditorOverlay.OpenFile(tempPath);
+                                        TextOverlay.Show($"Opened in Editor: {filename}", 2000);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        MessageBox.Show($"Failed to open code block: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                                    }
+                                };
+
+                                containerStack.Children.Add(cardBorder);
+                            }
+                        }
+                        else
+                        {
+                            if (!string.IsNullOrWhiteSpace(part.Content))
+                            {
+                                var normalBlock = new TextBlock
+                                {
+                                    Text = part.Content.Trim(),
+                                    FontSize = 13,
+                                    FontFamily = new FontFamily("Segoe UI"),
+                                    TextWrapping = TextWrapping.Wrap,
+                                    Margin = new Thickness(0, 2, 0, 2)
+                                };
+                                normalBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+                                containerStack.Children.Add(normalBlock);
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    textBox.Visibility = Visibility.Visible;
+                    for (int i = containerStack.Children.Count - 1; i >= 0; i--)
+                    {
+                        if (containerStack.Children[i] != textBox)
+                        {
+                            containerStack.Children.RemoveAt(i);
+                        }
+                    }
+                }
+            };
+
+            textBox.Text = text;
             _chatHistoryPanel.Children.Add(bubbleBorder);
 
-            // Auto-scroll to the bottom of the history
             _scrollViewer.UpdateLayout();
             _scrollViewer.ScrollToBottom();
 
             return (bubbleBorder, textBox);
         }
 
+        private static List<MessagePart> ParseMessageParts(string text)
+        {
+            var parts = new List<MessagePart>();
+            if (string.IsNullOrEmpty(text)) return parts;
+
+            int idx = 0;
+            while (idx < text.Length)
+            {
+                int startCodeIdx = text.IndexOf("```", idx);
+                if (startCodeIdx == -1)
+                {
+                    parts.Add(new MessagePart { IsCode = false, Content = text.Substring(idx) });
+                    break;
+                }
+
+                if (startCodeIdx > idx)
+                {
+                    parts.Add(new MessagePart { IsCode = false, Content = text.Substring(idx, startCodeIdx - idx) });
+                }
+
+                int endCodeIdx = text.IndexOf("```", startCodeIdx + 3);
+                if (endCodeIdx == -1)
+                {
+                    parts.Add(new MessagePart { IsCode = true, Content = text.Substring(startCodeIdx + 3) });
+                    break;
+                }
+
+                string codeBlock = text.Substring(startCodeIdx + 3, endCodeIdx - (startCodeIdx + 3));
+                string lang = "";
+                int firstNewLine = codeBlock.IndexOf('\n');
+                if (firstNewLine != -1)
+                {
+                    lang = codeBlock.Substring(0, firstNewLine).Trim();
+                    codeBlock = codeBlock.Substring(firstNewLine + 1);
+                }
+
+                parts.Add(new MessagePart { IsCode = true, Language = lang, Content = codeBlock });
+                idx = endCodeIdx + 3;
+            }
+
+            return parts;
+        }
+
+        private static string ExtractFilename(string code, string lang)
+        {
+            using (var reader = new StringReader(code))
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    string? line = reader.ReadLine()?.Trim();
+                    if (line == null) break;
+
+                    string cleaned = line.TrimStart('/', '*', '#', '-', ' ', '<', '!');
+                    cleaned = cleaned.Replace("filename:", "", StringComparison.OrdinalIgnoreCase);
+                    cleaned = cleaned.Replace("file:", "", StringComparison.OrdinalIgnoreCase);
+                    cleaned = cleaned.Trim();
+
+                    if (cleaned.Contains('.') && cleaned.Length > 2 && cleaned.Length < 40 && !cleaned.Contains(' '))
+                    {
+                        return cleaned;
+                    }
+                }
+            }
+
+            string ext = "txt";
+            if (lang.Equals("csharp", StringComparison.OrdinalIgnoreCase) || lang.Equals("cs", StringComparison.OrdinalIgnoreCase)) ext = "cs";
+            else if (lang.Equals("lua", StringComparison.OrdinalIgnoreCase) || lang.Equals("luau", StringComparison.OrdinalIgnoreCase)) ext = "lua";
+            else if (lang.Equals("json", StringComparison.OrdinalIgnoreCase)) ext = "json";
+            else if (lang.Equals("xml", StringComparison.OrdinalIgnoreCase)) ext = "xml";
+            else if (lang.Equals("md", StringComparison.OrdinalIgnoreCase) || lang.Equals("markdown", StringComparison.OrdinalIgnoreCase)) ext = "md";
+            else if (lang.Equals("html", StringComparison.OrdinalIgnoreCase)) ext = "html";
+            else if (lang.Equals("css", StringComparison.OrdinalIgnoreCase)) ext = "css";
+            else if (lang.Equals("javascript", StringComparison.OrdinalIgnoreCase) || lang.Equals("js", StringComparison.OrdinalIgnoreCase)) ext = "js";
+            else if (lang.Equals("typescript", StringComparison.OrdinalIgnoreCase) || lang.Equals("ts", StringComparison.OrdinalIgnoreCase)) ext = "ts";
+            else if (lang.Equals("python", StringComparison.OrdinalIgnoreCase) || lang.Equals("py", StringComparison.OrdinalIgnoreCase)) ext = "py";
+            else if (lang.Equals("powershell", StringComparison.OrdinalIgnoreCase) || lang.Equals("ps1", StringComparison.OrdinalIgnoreCase)) ext = "ps1";
+            else if (lang.Equals("bash", StringComparison.OrdinalIgnoreCase) || lang.Equals("sh", StringComparison.OrdinalIgnoreCase)) ext = "sh";
+            else if (lang.Equals("bat", StringComparison.OrdinalIgnoreCase) || lang.Equals("cmd", StringComparison.OrdinalIgnoreCase)) ext = "bat";
+
+            return $"artifact_{Guid.NewGuid().ToString().Substring(0, 8)}.{ext}";
+        }
+
         private Border AddMessageBubble(string text, bool isAi, bool isItalic = false)
         {
             var tuple = AddMessageBubbleWithControl(text, isAi, isItalic);
             return tuple.Border;
+        }
+
+        private class MessagePart
+        {
+            public bool IsCode { get; set; }
+            public string Language { get; set; } = "";
+            public string Content { get; set; } = "";
         }
     }
 }

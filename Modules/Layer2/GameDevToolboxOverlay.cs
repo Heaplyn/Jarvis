@@ -93,12 +93,6 @@ namespace JarvisLauncher
                 }
 
                 _instance.Show();
-                if (_instance.WindowState == WindowState.Minimized)
-                {
-                    _instance.WindowState = WindowState.Normal;
-                }
-                _instance.Activate();
-                _instance.Focus();
             });
         }
 
@@ -124,7 +118,7 @@ namespace JarvisLauncher
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
                 Margin = new Thickness(0, 0, 4, 0),
-                
+                ItemContainerStyle = (Style)Application.Current.FindResource("ResultItemStyle")
             };
             _categoryListBox.SetValue(
                 ScrollViewer.HorizontalScrollBarVisibilityProperty,
@@ -1280,6 +1274,7 @@ namespace JarvisLauncher
                 BorderThickness = new Thickness(1),
                 Background = Brushes.Transparent,
                 Margin = new Thickness(0, 0, 0, 8),
+                ItemContainerStyle = (Style)Application.Current.FindResource("ResultItemStyle")
             };
             ScrollViewer.SetVerticalScrollBarVisibility(_aiFilesListBox, ScrollBarVisibility.Auto);
             _aiFilesListBox.SetResourceReference(ListBox.BorderBrushProperty, "WindowBorderBrush");

@@ -1,14 +1,16 @@
 // Developer: heaplyn
-// Date: 2026-08-10
-// Summary: Glassmorphic LLM Settings overlay. Lets user switch between Gemini, OpenAI, Ollama,
-//          Custom endpoint, and P2P peer backends. Also manages P2P peer list and server toggle.
+// Date: 2026-08-13
+// Summary: Glassmorphic LLM Settings & Installer Overlay.
+// Provides backend switching (Gemini, OpenAI, Ollama, Custom, P2P) & 1-Click Local LLM Installers (Ollama, LM Studio, Jan.ai, GPT4All, DeepSeek R1, Llama 3.2, Mistral).
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 
@@ -28,7 +30,7 @@ namespace JarvisLauncher
         private TextBlock _statusText = null!;
 
         public LlmSettingsOverlay()
-            : base("LLM ENGINE SETTINGS", width: 480, height: 600)
+            : base("LLM ENGINE & INSTALLER STUDIO", width: 520, height: 680)
         {
             var workArea = SystemParameters.WorkArea;
             this.Left = (workArea.Width - this.Width) / 2;
@@ -39,7 +41,7 @@ namespace JarvisLauncher
             scroll.Content = root;
 
             // ── Backend Selector ──────────────────────────────────────────────────────
-            root.Children.Add(MakeSectionHeader("🤖 LLM Backend"));
+            root.Children.Add(CreateHeader("🤖 Active LLM Engine"));
 
             _backendCombo = new ComboBox
             {
@@ -55,39 +57,40 @@ namespace JarvisLauncher
 
             // ── Gemini Panel ──────────────────────────────────────────────────────────
             _geminiPanel = new StackPanel();
-            _geminiPanel.Children.Add(MakeLabel("Google Gemini API Key:"));
-            var geminiKey = MakeTextBox(SettingsManager.Current.GoogleAIKey, "AIza...");
+            _geminiPanel.Children.Add(CreateLabel("Google Gemini API Key:"));
+            var geminiKey = CreateTextBox(SettingsManager.Current.GoogleAIKey);
             geminiKey.TextChanged += (s, e) => SettingsManager.Current.GoogleAIKey = geminiKey.Text.Trim();
             _geminiPanel.Children.Add(geminiKey);
             root.Children.Add(_geminiPanel);
 
             // ── OpenAI Panel ──────────────────────────────────────────────────────────
             _openAiPanel = new StackPanel();
-            _openAiPanel.Children.Add(MakeLabel("OpenAI API Key (or LM Studio key):"));
-            var oaiKey = MakeTextBox(SettingsManager.Current.OpenAIKey, "sk-...");
+            _openAiPanel.Children.Add(CreateLabel("OpenAI API Key (or LM Studio key):"));
+            var oaiKey = CreateTextBox(SettingsManager.Current.OpenAIKey);
             oaiKey.TextChanged += (s, e) => SettingsManager.Current.OpenAIKey = oaiKey.Text.Trim();
             _openAiPanel.Children.Add(oaiKey);
-            _openAiPanel.Children.Add(MakeLabel("Base URL (default: https://api.openai.com/v1):"));
-            var oaiBase = MakeTextBox(SettingsManager.Current.OpenAIBaseUrl, "https://api.openai.com/v1");
+            _openAiPanel.Children.Add(CreateLabel("Base URL (default: https://api.openai.com/v1):"));
+            var oaiBase = CreateTextBox(SettingsManager.Current.OpenAIBaseUrl);
             oaiBase.TextChanged += (s, e) => SettingsManager.Current.OpenAIBaseUrl = oaiBase.Text.Trim();
             _openAiPanel.Children.Add(oaiBase);
-            _openAiPanel.Children.Add(MakeLabel("Model (e.g. gpt-4o-mini, gpt-4o):"));
-            var oaiModel = MakeTextBox(SettingsManager.Current.OpenAIModel, "gpt-4o-mini");
+            _openAiPanel.Children.Add(CreateLabel("Model (e.g. gpt-4o-mini, gpt-4o):"));
+            var oaiModel = CreateTextBox(SettingsManager.Current.OpenAIModel);
             oaiModel.TextChanged += (s, e) => SettingsManager.Current.OpenAIModel = oaiModel.Text.Trim();
             _openAiPanel.Children.Add(oaiModel);
             root.Children.Add(_openAiPanel);
 
-            // ── Ollama Panel ──────────────────────────────────────────────────────────
+            // ── Ollama & Local LLM Panel ──────────────────────────────────────────────
             _ollamaPanel = new StackPanel();
-            _ollamaPanel.Children.Add(MakeLabel("Ollama Endpoint (default: http://localhost:11434):"));
-            var ollamaEndpoint = MakeTextBox(SettingsManager.Current.OllamaEndpoint, "http://localhost:11434");
+            _ollamaPanel.Children.Add(CreateLabel("Ollama Endpoint (default: http://localhost:11434):"));
+            var ollamaEndpoint = CreateTextBox(SettingsManager.Current.OllamaEndpoint);
             ollamaEndpoint.TextChanged += (s, e) => SettingsManager.Current.OllamaEndpoint = ollamaEndpoint.Text.Trim();
             _ollamaPanel.Children.Add(ollamaEndpoint);
-            _ollamaPanel.Children.Add(MakeLabel("Model (e.g. llama3, mistral, phi3):"));
-            var ollamaModel = MakeTextBox(SettingsManager.Current.OllamaModel, "llama3");
+            _ollamaPanel.Children.Add(CreateLabel("Model (e.g. llama3, mistral, deepseek-r1):"));
+            var ollamaModel = CreateTextBox(SettingsManager.Current.OllamaModel);
             ollamaModel.TextChanged += (s, e) => SettingsManager.Current.OllamaModel = ollamaModel.Text.Trim();
             _ollamaPanel.Children.Add(ollamaModel);
-            var detectBtn = MakeButton("🔍 Auto-Detect Installed Models");
+
+            var detectBtn = CreateButton("🔍 Auto-Detect Installed Local Models");
             detectBtn.Click += async (s, e) =>
             {
                 detectBtn.Content = "⏳ Detecting...";
@@ -95,35 +98,90 @@ namespace JarvisLauncher
                 if (models.Count > 0)
                 {
                     ollamaModel.Text = models[0];
-                    detectBtn.Content = $"✅ Found: {string.Join(", ", models)}";
+                    detectBtn.Content = $"✅ Found ({models.Count}): {string.Join(", ", models)}";
                 }
                 else
-                    detectBtn.Content = "⚠️ Ollama not running or no models installed";
+                {
+                    detectBtn.Content = "⚠️ No active local models found. Use 1-Click Installers below!";
+                }
             };
             _ollamaPanel.Children.Add(detectBtn);
+
+            // ── 1-Click LLM Installers ────────────────────────────────────────────────
+            _ollamaPanel.Children.Add(CreateHeader("🛠️ 1-Click Local LLM & Engine Installers"));
+
+            var installOllamaBtn = CreateButton("📥 Install Ollama Engine (winget / web)");
+            installOllamaBtn.Click += (s, e) => InstallTool("winget install Ollama.Ollama", "https://ollama.com/download");
+            _ollamaPanel.Children.Add(installOllamaBtn);
+
+            var modelGrid = new UniformGrid { Columns = 2, Margin = new Thickness(0, 4, 0, 4) };
+
+            var pullLlamaBtn = CreateButton("🦙 Pull Llama 3.2 (3B)");
+            pullLlamaBtn.Click += (s, e) => PullOllamaModel("llama3.2");
+            modelGrid.Children.Add(pullLlamaBtn);
+
+            var pullDeepseekBtn = CreateButton("🧠 Pull DeepSeek R1");
+            pullDeepseekBtn.Click += (s, e) => PullOllamaModel("deepseek-r1:7b");
+            modelGrid.Children.Add(pullDeepseekBtn);
+
+            var pullMistralBtn = CreateButton("⚡ Pull Mistral (7B)");
+            pullMistralBtn.Click += (s, e) => PullOllamaModel("mistral");
+            modelGrid.Children.Add(pullMistralBtn);
+
+            var pullQwenBtn = CreateButton("💻 Pull Qwen 2.5 Coder");
+            pullQwenBtn.Click += (s, e) => PullOllamaModel("qwen2.5-coder");
+            modelGrid.Children.Add(pullQwenBtn);
+
+            var pullGemmaBtn = CreateButton("🔬 Pull Gemma 2 (2B)");
+            pullGemmaBtn.Click += (s, e) => PullOllamaModel("gemma2:2b");
+            modelGrid.Children.Add(pullGemmaBtn);
+
+            var pullPhiBtn = CreateButton("📐 Pull Phi-3 Mini");
+            pullPhiBtn.Click += (s, e) => PullOllamaModel("phi3");
+            modelGrid.Children.Add(pullPhiBtn);
+
+            _ollamaPanel.Children.Add(modelGrid);
+
+            // ── Other Local LLM Tools ──────────────────────────────────────────
+            _ollamaPanel.Children.Add(CreateHeader("💻 Alternative Local LLM Apps"));
+
+            var appsGrid = new UniformGrid { Columns = 3, Margin = new Thickness(0, 4, 0, 4) };
+
+            var installLmStudioBtn = CreateButton("💻 LM Studio");
+            installLmStudioBtn.Click += (s, e) => InstallTool("winget install ElementLabs.LMStudio", "https://lmstudio.ai");
+            appsGrid.Children.Add(installLmStudioBtn);
+
+            var installJanBtn = CreateButton("🤖 Jan.ai");
+            installJanBtn.Click += (s, e) => InstallTool("winget install Jan.Jan", "https://jan.ai");
+            appsGrid.Children.Add(installJanBtn);
+
+            var installGpt4AllBtn = CreateButton("🔮 GPT4All");
+            installGpt4AllBtn.Click += (s, e) => InstallTool("winget install Nomic.GPT4All", "https://gpt4all.io");
+            appsGrid.Children.Add(installGpt4AllBtn);
+
+            _ollamaPanel.Children.Add(appsGrid);
             root.Children.Add(_ollamaPanel);
 
             // ── Custom Panel ──────────────────────────────────────────────────────────
             _customPanel = new StackPanel();
-            _customPanel.Children.Add(MakeLabel("Custom Endpoint URL (OpenAI-compatible /chat/completions):"));
-            var customUrl = MakeTextBox(SettingsManager.Current.CustomLlmEndpoint, "http://...");
+            _customPanel.Children.Add(CreateLabel("Custom Endpoint URL (OpenAI-compatible /chat/completions):"));
+            var customUrl = CreateTextBox(SettingsManager.Current.CustomLlmEndpoint);
             customUrl.TextChanged += (s, e) => SettingsManager.Current.CustomLlmEndpoint = customUrl.Text.Trim();
             _customPanel.Children.Add(customUrl);
-            _customPanel.Children.Add(MakeLabel("API Key (optional):"));
-            var customKey = MakeTextBox(SettingsManager.Current.CustomLlmKey, "optional");
+            _customPanel.Children.Add(CreateLabel("API Key (optional):"));
+            var customKey = CreateTextBox(SettingsManager.Current.CustomLlmKey);
             customKey.TextChanged += (s, e) => SettingsManager.Current.CustomLlmKey = customKey.Text.Trim();
             _customPanel.Children.Add(customKey);
-            _customPanel.Children.Add(MakeLabel("Model name:"));
-            var customModel = MakeTextBox(SettingsManager.Current.CustomLlmModel, "model-name");
+            _customPanel.Children.Add(CreateLabel("Model name:"));
+            var customModel = CreateTextBox(SettingsManager.Current.CustomLlmModel);
             customModel.TextChanged += (s, e) => SettingsManager.Current.CustomLlmModel = customModel.Text.Trim();
             _customPanel.Children.Add(customModel);
             root.Children.Add(_customPanel);
 
             // ── P2P Panel ─────────────────────────────────────────────────────────────
             _p2pPanel = new StackPanel();
-            _p2pPanel.Children.Add(MakeSectionHeader("🌐 P2P Peer Compute Nodes"));
+            _p2pPanel.Children.Add(CreateHeader("🌐 P2P Peer Compute Nodes"));
 
-            // Server toggle
             var serverToggle = new CheckBox
             {
                 Content = "📡 Enable P2P Server on This PC (let peers offload to me)",
@@ -137,31 +195,30 @@ namespace JarvisLauncher
             serverToggle.Unchecked += (s, e) => { SettingsManager.Current.P2PServerEnabled = false; SettingsManager.Save(); };
             _p2pPanel.Children.Add(serverToggle);
 
-            _p2pPanel.Children.Add(MakeLabel("Shared Secret (optional, protects /p2p/ask from strangers):"));
-            var secretBox = MakeTextBox(SettingsManager.Current.P2PServerSecret, "leave blank for LAN-open");
+            _p2pPanel.Children.Add(CreateLabel("Shared Secret (optional, protects /p2p/ask from strangers):"));
+            var secretBox = CreateTextBox(SettingsManager.Current.P2PServerSecret);
             secretBox.TextChanged += (s, e) => { SettingsManager.Current.P2PServerSecret = secretBox.Text.Trim(); SettingsManager.Save(); };
             _p2pPanel.Children.Add(secretBox);
 
-            _p2pPanel.Children.Add(MakeSectionHeader("🖥️ Registered Peer PCs"));
+            _p2pPanel.Children.Add(CreateHeader("🖥️ Registered Peer PCs"));
             _peerListStack = new StackPanel { Margin = new Thickness(0, 4, 0, 8) };
             _p2pPanel.Children.Add(_peerListStack);
             RefreshPeerList();
 
-            // Add peer row
             var addRow = new Grid { Margin = new Thickness(0, 4, 0, 0) };
             addRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             addRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var peerUrlBox = MakeTextBox("", "http://192.168.1.x:8085 or Cloudflare URL");
+            var peerUrlBox = CreateTextBox("");
             Grid.SetColumn(peerUrlBox, 0);
             addRow.Children.Add(peerUrlBox);
-            var peerSecretBox = MakeTextBox("", "secret (opt.)");
+            var peerSecretBox = CreateTextBox("");
             peerSecretBox.Width = 100;
             peerSecretBox.Margin = new Thickness(6, 0, 0, 0);
             Grid.SetColumn(peerSecretBox, 1);
             addRow.Children.Add(peerSecretBox);
             _p2pPanel.Children.Add(addRow);
 
-            var addBtn = MakeButton("➕ Add Peer PC");
+            var addBtn = CreateButton("➕ Add Peer PC");
             addBtn.Click += (s, e) =>
             {
                 string url = peerUrlBox.Text.Trim();
@@ -173,7 +230,7 @@ namespace JarvisLauncher
             };
             _p2pPanel.Children.Add(addBtn);
 
-            var probeBtn = MakeButton("📡 Probe All Peers");
+            var probeBtn = CreateButton("📡 Probe All Peers");
             probeBtn.Click += async (s, e) =>
             {
                 probeBtn.Content = "⏳ Probing...";
@@ -185,8 +242,8 @@ namespace JarvisLauncher
             root.Children.Add(_p2pPanel);
 
             // ── Test Button + Status ───────────────────────────────────────────────────
-            root.Children.Add(MakeSectionHeader(""));
-            var testBtn = MakeButton("⚡ Test Selected Backend");
+            root.Children.Add(CreateHeader(""));
+            var testBtn = CreateButton("⚡ Test Selected Backend");
             testBtn.Margin = new Thickness(0, 8, 0, 6);
             testBtn.Click += async (s, e) =>
             {
@@ -220,20 +277,95 @@ namespace JarvisLauncher
             _statusText.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
             root.Children.Add(_statusText);
 
-            // Save & Close button
-            var saveBtn = MakeButton("💾 Save & Close");
+            var saveBtn = CreateButton("💾 Save & Close");
             saveBtn.Margin = new Thickness(0, 12, 0, 0);
             saveBtn.Click += (s, e) =>
             {
                 SettingsManager.Current.LlmBackend = (_backendCombo.SelectedItem as string) ?? "Gemini";
                 SettingsManager.Save();
                 TextOverlay.Show($"✅ LLM Backend set to: {SettingsManager.Current.LlmBackend}", 2500);
-                this.Close();
+                this.FadeOutAndClose();
             };
             root.Children.Add(saveBtn);
 
             this.UserContent = scroll;
             UpdatePanelVisibility();
+        }
+
+        private static TextBlock CreateHeader(string title)
+        {
+            var header = new TextBlock
+            {
+                Text = title,
+                FontSize = 13,
+                FontWeight = FontWeights.Bold,
+                Margin = new Thickness(0, 8, 0, 4)
+            };
+            header.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+            return header;
+        }
+
+        private static TextBlock CreateLabel(string text)
+        {
+            var lbl = new TextBlock
+            {
+                Text = text,
+                FontSize = 11,
+                Margin = new Thickness(0, 4, 0, 2)
+            };
+            lbl.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
+            return lbl;
+        }
+
+        private static TextBox CreateTextBox(string initialText)
+        {
+            var tb = new TextBox
+            {
+                Text = initialText ?? "",
+                Margin = new Thickness(0, 0, 0, 6),
+                Padding = new Thickness(6, 4, 6, 4),
+                FontSize = 12
+            };
+            return tb;
+        }
+
+        private static Button CreateButton(string content)
+        {
+            var btn = new Button
+            {
+                Content = content,
+                Margin = new Thickness(0, 2, 0, 2),
+                Padding = new Thickness(8, 5, 8, 5),
+                FontSize = 12,
+                Cursor = Cursors.Hand
+            };
+            return btn;
+        }
+
+        private static void InstallTool(string wingetCommand, string fallbackUrl)
+        {
+            try
+            {
+                TextOverlay.Show($"📥 Launching Installer: {wingetCommand}", 3500);
+                Process.Start("cmd.exe", $"/c start cmd /k \"echo Installing LLM Tool via Winget... & {wingetCommand} || start {fallbackUrl}\"");
+            }
+            catch
+            {
+                Process.Start(new ProcessStartInfo { FileName = fallbackUrl, UseShellExecute = true });
+            }
+        }
+
+        private static void PullOllamaModel(string modelName)
+        {
+            try
+            {
+                TextOverlay.Show($"📥 Pulling Ollama Model '{modelName}'...", 4000);
+                Process.Start("cmd.exe", $"/c start cmd /k \"echo Pulling Ollama Model: {modelName}... & ollama pull {modelName}\"");
+            }
+            catch (Exception ex)
+            {
+                TextOverlay.Show($"⚠️ Failed to pull model: {ex.Message}", 3000);
+            }
         }
 
         private void UpdatePanelVisibility()
@@ -248,148 +380,75 @@ namespace JarvisLauncher
 
         private void RefreshPeerList()
         {
+            if (_peerListStack == null) return;
             _peerListStack.Children.Clear();
             var peers = JarvisP2PClient.Peers;
             if (peers.Count == 0)
             {
-                var empty = new TextBlock
-                {
-                    Text = "No peers registered. Add a peer PC URL below.",
-                    FontSize = 11,
-                    Margin = new Thickness(0, 2, 0, 2)
-                };
+                var empty = new TextBlock { Text = "No peer PCs added yet. Add a peer URL above.", FontSize = 11, FontStyle = FontStyles.Italic };
                 empty.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
                 _peerListStack.Children.Add(empty);
                 return;
             }
 
-            foreach (var peer in peers)
+            foreach (var p in peers)
             {
-                var row = new Border
+                var card = new Border
                 {
-                    BorderThickness = new Thickness(1),
                     CornerRadius = new CornerRadius(6),
                     Padding = new Thickness(8, 6, 8, 6),
-                    Margin = new Thickness(0, 2, 0, 2)
+                    Margin = new Thickness(0, 0, 0, 4)
                 };
-                row.SetResourceReference(Border.BorderBrushProperty, "WindowBorderBrush");
-                row.SetResourceReference(Border.BackgroundProperty, "HoverBackgroundBrush");
+                card.SetResourceReference(Border.BackgroundProperty, "CardBackgroundBrush");
 
-                var rowGrid = new Grid();
-                rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                var grid = new Grid();
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-                string status = peer.IsOnline
-                    ? $"✅ {peer.PcName} | CPU {peer.CpuLoad:F0}% | {peer.RamFreeGb:F1}GB free | {peer.LatencyMs}ms"
-                    : peer.LastChecked == DateTime.MinValue ? "⬜ Not yet probed" : "❌ Offline";
-
-                var info = new TextBlock
+                string statusDot = p.IsOnline ? "🟢" : "🔴";
+                var txt = new TextBlock
                 {
-                    FontSize = 11,
-                    TextWrapping = TextWrapping.Wrap,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Text = $"{peer.Nickname}\n{status}"
-                };
-                info.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
-                Grid.SetColumn(info, 0);
-                rowGrid.Children.Add(info);
-
-                var removeBtn = new Button
-                {
-                    Content = "🗑️",
+                    Text = $"{statusDot} {p.Url}{(string.IsNullOrEmpty(p.PcName) ? "" : " (" + p.PcName + ")")} - {(p.IsOnline ? p.LatencyMs + "ms" : "Offline")}",
                     FontSize = 12,
-                    Padding = new Thickness(6, 2, 6, 2),
-                    Cursor = Cursors.Hand,
-                    ToolTip = "Remove peer"
+                    VerticalAlignment = VerticalAlignment.Center
                 };
-                string peerUrl = peer.Url;
-                removeBtn.Click += (s, e) =>
+                txt.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+                Grid.SetColumn(txt, 0);
+                grid.Children.Add(txt);
+
+                var delBtn = new Button
                 {
-                    JarvisP2PClient.RemovePeer(peerUrl);
+                    Content = "❌",
+                    Width = 24,
+                    Height = 24,
+                    Padding = new Thickness(0),
+                    FontSize = 10,
+                    Cursor = Cursors.Hand
+                };
+                delBtn.Click += (s, e) =>
+                {
+                    JarvisP2PClient.RemovePeer(p.Url);
                     RefreshPeerList();
                 };
-                Grid.SetColumn(removeBtn, 1);
-                rowGrid.Children.Add(removeBtn);
+                Grid.SetColumn(delBtn, 1);
+                grid.Children.Add(delBtn);
 
-                row.Child = rowGrid;
-                _peerListStack.Children.Add(row);
+                card.Child = grid;
+                _peerListStack.Children.Add(card);
             }
-        }
-
-        // ── UI Helpers ────────────────────────────────────────────────────────────────
-
-        private static TextBlock MakeSectionHeader(string text)
-        {
-            var tb = new TextBlock
-            {
-                Text = text,
-                FontSize = 12,
-                FontWeight = FontWeights.Bold,
-                Margin = new Thickness(0, 10, 0, 6)
-            };
-            tb.SetResourceReference(TextBlock.ForegroundProperty, "AccentCaretBrush");
-            return tb;
-        }
-
-        private static TextBlock MakeLabel(string text)
-        {
-            var tb = new TextBlock
-            {
-                Text = text,
-                FontSize = 11,
-                Margin = new Thickness(0, 4, 0, 2),
-                TextWrapping = TextWrapping.Wrap
-            };
-            tb.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
-            return tb;
-        }
-
-        private static TextBox MakeTextBox(string value, string placeholder)
-        {
-            var tb = new TextBox
-            {
-                Text = value,
-                FontSize = 12,
-                Padding = new Thickness(8, 5, 8, 5),
-                Margin = new Thickness(0, 0, 0, 6),
-                BorderThickness = new Thickness(1)
-            };
-            tb.SetResourceReference(TextBox.BackgroundProperty, "WindowBackgroundBrush");
-            tb.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
-            tb.SetResourceReference(TextBox.BorderBrushProperty, "WindowBorderBrush");
-            return tb;
-        }
-
-        private static Button MakeButton(string label)
-        {
-            var btn = new Button
-            {
-                Content = label,
-                FontSize = 12,
-                Padding = new Thickness(10, 6, 10, 6),
-                Margin = new Thickness(0, 2, 0, 4),
-                Cursor = Cursors.Hand
-            };
-            btn.SetResourceReference(Button.BackgroundProperty, "HoverBackgroundBrush");
-            btn.SetResourceReference(Button.ForegroundProperty, "TextPrimaryBrush");
-            return btn;
         }
 
         public static void ShowOverlay()
         {
-            Application.Current.Dispatcher.Invoke(() =>
+            if (_instance == null || !_instance.IsLoaded)
             {
-                if (_instance == null || !_instance.IsLoaded)
-                {
-                    _instance = new LlmSettingsOverlay();
-                    _instance.Show();
-                }
-                else
-                {
-                    _instance.Activate();
-                    _instance.Focus();
-                }
-            });
+                _instance = new LlmSettingsOverlay();
+                _instance.Show();
+            }
+            else
+            {
+                _instance.Activate();
+            }
         }
     }
 }

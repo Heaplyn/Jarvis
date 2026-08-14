@@ -20,6 +20,31 @@ namespace JarvisLauncher
         public bool AlwaysOnTop { get; set; } = true;
         public double WindowOpacity { get; set; } = 1.0;
         public string DefaultSearchEngine { get; set; } = "Google";
+        public int WindowMargin { get; set; } = 10;
+        public bool UseGradientBackground { get; set; } = true;
+        public string BackgroundMode { get; set; } = "Gradient"; // Solid | Gradient | Media
+        public string BackgroundMediaSource { get; set; } = string.Empty; // Path to GIF or Video
+        public bool EnableAnimations { get; set; } = true;
+        public bool UseRoundedCorners { get; set; } = true;
+        public string CustomFontFamily { get; set; } = "Segoe UI";
+        public bool IsJarvisEnabled { get; set; } = true;
+        public bool IsVoiceModeActive { get; set; } = true;
+        public bool EnableWindowsAppIndexing { get; set; } = true;
+        public int MaxSearchSuggestions { get; set; } = 10;
+        public bool AutoFocusSearchOnLaunch { get; set; } = true;
+
+        // Voice & Assistant Fine-Tuning Controls
+        public bool EnableVoiceCommandChunking { get; set; } = true;
+        public int VoiceChunkingSilenceMs { get; set; } = 700;
+        public double MinVoiceConfidence { get; set; } = 0.55; // 55% strict confidence threshold
+        public int TtsSpeechRate { get; set; } = 0;
+        public int TtsSpeechVolume { get; set; } = 100;
+        public string SelectedTtsVoice { get; set; } = string.Empty;
+        public string CustomTtsSamplePath { get; set; } = string.Empty;
+        public string CustomTtsVoiceName { get; set; } = string.Empty;
+        public string GeminiVoiceDetailLevel { get; set; } = "Concise"; // Concise | Detailed | Bullet Points
+        public bool PhoneticFuzzyMatching { get; set; } = true;
+
         public System.Collections.Generic.Dictionary<string, string> Aliases { get; set; } = new System.Collections.Generic.Dictionary<string, string>();
 
         // LLM Backend Selection
@@ -33,9 +58,26 @@ namespace JarvisLauncher
         public string CustomLlmKey { get; set; } = string.Empty;
         public string CustomLlmModel { get; set; } = string.Empty;
 
+        // Dual LLM Co-Pilot Query Processor (Optional - Default Disabled)
+        public bool EnableDualLlmCopilot { get; set; } = false;
+        public string DualLlmBackend { get; set; } = "Ollama";
+        public string DualLlmModel { get; set; } = "deepseek-r1:7b";
+
         // P2P Compute Node Settings
         public bool P2PServerEnabled { get; set; } = false;
         public string P2PServerSecret { get; set; } = string.Empty;
+
+        // Mobile Companion & Tunnel Settings
+        public int MobilePort { get; set; } = 9000;
+        public string MobilePreferredTunnel { get; set; } = "None"; // None | Cloudflare | Ngrok
+        public bool MobileAutoStartTunnel { get; set; } = false;
+        public bool MobileAllowTerminal { get; set; } = true;
+        public bool MobileAllowFiles { get; set; } = true;
+        public bool MobileAllowScreenMirror { get; set; } = true;
+        public bool MobileAllowClipboard { get; set; } = true;
+
+        // Discord Bot API (official Bot token — used for legitimate, ToS-compliant server reading)
+        public string DiscordBotToken { get; set; } = string.Empty;
     }
 
     public static class SettingsManager

@@ -11,8 +11,6 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Collections.Generic;
 
-using System.Runtime.InteropServices;
-
 namespace JarvisLauncher
 {
     public class SystemSpecsOverlay : BaseOverlay

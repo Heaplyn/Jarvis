@@ -33,14 +33,6 @@ namespace JarvisLauncher
 
                 _instance.RefreshProcessList();
                 _instance.Show();
-
-                if (_instance.WindowState == WindowState.Minimized)
-                {
-                    _instance.WindowState = WindowState.Normal;
-                }
-
-                _instance.Activate();
-                _instance.Focus();
             });
         }
 

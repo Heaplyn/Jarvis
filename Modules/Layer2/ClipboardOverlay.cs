@@ -33,12 +33,6 @@ namespace JarvisLauncher
                     _instance.Closed += (s, e) => _instance = null;
                 }
                 _instance.Show();
-                if (_instance.WindowState == WindowState.Minimized)
-                {
-                    _instance.WindowState = WindowState.Normal;
-                }
-                _instance.Activate();
-                _instance.Focus();
             });
         }
 

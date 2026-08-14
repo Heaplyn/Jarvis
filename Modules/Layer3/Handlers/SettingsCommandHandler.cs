@@ -11,15 +11,17 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query.StartsWith("setkey") || query.StartsWith("getkey") || query == "settings" || query == "options" || query == "config"
-                || query.StartsWith("ontop") || query.StartsWith("topmost") || query.StartsWith("alwaysontop");
+            string q = query.Trim().ToLower();
+            return q.Contains("setting") || q.Contains("option") || q.Contains("config") || q.Contains("pref")
+                || q.StartsWith("setkey") || q.StartsWith("getkey")
+                || q.StartsWith("ontop") || q.StartsWith("topmost") || q.StartsWith("alwaysontop")
+                || q.StartsWith("disable") || q.StartsWith("enable") || q == "sleep jarvis" || q == "wake jarvis";
         }
 
         public List<CommandResult> GetSuggestions(string query)
         {
             var suggestions = new List<CommandResult>();
-            query = query.Trim();
+            string lowerQuery = query.Trim().ToLower();
 
             var parts = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             if (parts.Length == 0) return suggestions;
@@ -27,13 +29,13 @@ namespace JarvisLauncher
             string cmd = parts[0].ToLower();
             double similarity = 2.0; // High priority match
 
-            if (cmd == "settings" || cmd == "options" || cmd == "config")
+            if (lowerQuery.Contains("setting") || lowerQuery.Contains("option") || lowerQuery.Contains("config") || lowerQuery.Contains("pref"))
             {
                 suggestions.Add(new CommandResult
                 {
                     Title       = "⚙️ Open Settings & Options GUI",
                     Description = "Visually configure API keys, download folders, and color themes",
-                    Similarity  = similarity + 1.0,
+                    Similarity  = similarity + 3.0,
                     Execute     = () => SettingsOverlay.OpenSettings()
                 });
             }
@@ -183,7 +185,58 @@ namespace JarvisLauncher
                 }
             }
 
+            if (cmd == "disable" || cmd == "sleep")
+            {
+                if (query.Contains("jarvis") || parts.Length == 1)
+                {
+                    suggestions.Add(new CommandResult
+                    {
+                        Title = "🔇 Disable Jarvis (Sleep Mode)",
+                        Description = "Pause voice activation, tracking, and background analysis",
+                        Execute = () => SetJarvisEnabled(false),
+                        Similarity = similarity + 1.0
+                    });
+                }
+            }
+            else if (cmd == "enable" || cmd == "wake")
+            {
+                if (query.Contains("jarvis") || parts.Length == 1)
+                {
+                    suggestions.Add(new CommandResult
+                    {
+                        Title = "🔋 Enable Jarvis (Wake Up)",
+                        Description = "Resume all Jarvis background services and listeners",
+                        Execute = () => SetJarvisEnabled(true),
+                        Similarity = similarity + 1.0
+                    });
+                }
+            }
+
             return suggestions;
+        }
+
+        private static void SetJarvisEnabled(bool value)
+        {
+            try
+            {
+                SettingsManager.Current.IsJarvisEnabled = value;
+                SettingsManager.Save();
+
+                if (value)
+                {
+                    TtsManager.Speak("Jarvis systems online. How can I help you, Kyle?");
+                    TextOverlay.Show("🔋 Jarvis Services Enabled", 3000);
+                }
+                else
+                {
+                    TtsManager.Speak("Jarvis systems entering sleep mode. Standing by.");
+                    TextOverlay.Show("🔇 Jarvis Services Disabled (Sleep)", 3000);
+                }
+            }
+            catch (Exception ex)
+            {
+                TextOverlay.Show($"⚠️ Error: {ex.Message}", 3000);
+            }
         }
 
         private static void SetAlwaysOnTop(bool value)

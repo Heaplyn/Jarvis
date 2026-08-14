@@ -82,6 +82,7 @@
         <button class="tab-btn" onclick="switchTab('terminal')">💻 Terminal</button>
         <button class="tab-btn" onclick="switchTab('commands')">⚡ Commands</button>
         <button class="tab-btn" onclick="switchTab('screen')">📸 Screen</button>
+        <button class="tab-btn" onclick="switchTab('organizer')">📂 Organizer</button>
         <button class="tab-btn" onclick="switchTab('remote')">🎛️ Deck</button>
         <button class="tab-btn" onclick="switchTab('stats')">📊 Stats</button>
     </div>
@@ -202,7 +203,7 @@ Type any command below (e.g. dir, git status, ping, ipconfig)
         </div>
 
         <!-- 3. High Quality PC Screen Mirror View -->
-        <div id="view-screen" class="view">
+        <div id="view-screen" class="view" style="overflow-y: auto;">
             <div class="screenshot-box">
                 <div class="stream-bar">
                     <button id="btn-stream-1s" class="stream-btn" onclick="setStreamInterval(1000)">🔴 Live 1s</button>
@@ -210,7 +211,16 @@ Type any command below (e.g. dir, git status, ping, ipconfig)
                     <button id="btn-stream-off" class="stream-btn active" onclick="setStreamInterval(0)">⏸️ Pause</button>
                 </div>
                 <img id="screen-img" class="screenshot-img" src="/api/screenshot" alt="PC Screen Capture">
-                <button class="btn-action" onclick="refreshScreenshot()">📸 Snap Single Frame</button>
+                <button class="btn-action" onclick="refreshScreenshot()" style="margin-bottom: 8px;">📸 Snap Single Frame</button>
+                
+                <div class="stat-box" style="width: 100%; padding: 12px; margin-top: 4px;">
+                    <div class="stat-label">PC Layout & Overlap Analysis</div>
+                    <div id="mob-screen-stats" style="font-size:0.75rem; color:#cbd5e1; margin-bottom: 10px; line-height:1.45;">Loading stats...</div>
+                    <div style="display:flex; gap:8px;">
+                        <button class="stream-btn" style="flex:1; font-size: 0.72rem; padding: 8px 4px;" onclick="syncPCTheme()">🎨 Sync PC Theme</button>
+                        <button class="stream-btn" style="flex:1; font-size: 0.72rem; padding: 8px 4px;" onclick="tilePCWindows()">🧩 Grid Tile PC</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -305,6 +315,33 @@ Type any command below (e.g. dir, git status, ping, ipconfig)
                 </div>
             </div>
         </div>
+ 
+        <!-- 6. File Organizer & Cleaner View -->
+        <div id="view-organizer" class="view" style="padding: 14px; gap: 10px;">
+            <div class="stat-box">
+                <div class="stat-label" style="margin-bottom: 6px;">Target Directory</div>
+                <input type="text" id="mob-organize-path" placeholder="C:\Users\Kyle\Downloads" style="width:100%; background:rgba(30,41,59,0.8); border:1px solid rgba(255,255,255,0.12); border-radius:10px; padding:10px 14px; color:#fff; font-size:0.85rem; outline:none; margin-bottom: 10px;">
+                
+                <div class="stat-label" style="margin-bottom: 6px;">Select Organizer Task</div>
+                <select id="mob-organize-task" style="width:100%; background:rgba(30,41,59,0.9); border:1px solid rgba(255,255,255,0.12); border-radius:10px; padding:10px; color:#fff; font-size:0.85rem; outline:none; margin-bottom: 14px;">
+                    <option value="extension">🗂️ Cluster files by type / extension</option>
+                    <option value="date">📅 Archive into Date folders (yyyy-MM)</option>
+                    <option value="duplicate">👥 Detect identical MD5 duplicates</option>
+                    <option value="large">🔍 Audit large files (>100MB)</option>
+                    <option value="empty">🧹 Purge empty directories</option>
+                </select>
+                
+                <div style="display:flex; gap:10px;">
+                    <button class="stream-btn" style="flex:1; padding: 10px;" onclick="runMobileOrganizer(false)">🔍 Dry Run Preview</button>
+                    <button class="btn-action" style="flex:1;" onclick="runMobileOrganizer(true)">⚡ Execute Action</button>
+                </div>
+            </div>
+            
+            <div class="stat-box" style="flex: 1; display:flex; flex-direction:column; overflow:hidden;">
+                <div class="stat-label">Analysis Logs / Results</div>
+                <div id="mob-organize-logs" style="flex:1; overflow-y:auto; font-family:'Fira Code', monospace; font-size:0.75rem; color:#4ade80; line-height:1.45; white-space:pre-wrap; background:#050811; padding:10px; border-radius:10px; margin-top:6px; border:1px solid rgba(255,255,255,0.06);">[Awaiting analysis request...]</div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -316,7 +353,7 @@ Type any command below (e.g. dir, git status, ping, ipconfig)
             event.target.classList.add('active');
             document.getElementById('view-' + name).classList.add('active');
             if (name === 'stats') fetchStats();
-            if (name === 'screen') refreshScreenshot();
+            if (name === 'screen') { refreshScreenshot(); fetchScreenStats(); }
             if (name !== 'screen') setStreamInterval(0);
         }
 
@@ -466,7 +503,55 @@ Type any command below (e.g. dir, git status, ping, ipconfig)
                 document.getElementById('stat-window').innerText = data.activeWindow;
             } catch (e) {}
         }
+ 
+        async function fetchScreenStats() {
+            try {
+                const res = await fetch('/api/screen/analyze');
+                const data = await res.json();
+                document.getElementById('mob-screen-stats').innerHTML = 
+                    `<b>Coverage:</b> ${data.coverage}% | <b>Overlap:</b> ${data.overlap}%<br>` +
+                    `<b>Windows:</b> ${data.windowsCount} open<br>` +
+                    `<b>Dominant:</b> <span style="color:${data.dominantHex}">${data.dominantHex}</span> | ` +
+                    `<b>Accent:</b> <span style="color:${data.accentHex}">${data.accentHex}</span><br>` +
+                    `<span style="color:#94a3b8; font-size: 0.72rem;">${data.feedback}</span>`;
+            } catch(e) {
+                document.getElementById('mob-screen-stats').innerText = "Failed to load layout analysis.";
+            }
+        }
 
+        async function tilePCWindows() {
+            try {
+                await fetch('/api/screen/tile', { method: 'POST' });
+                setTimeout(fetchScreenStats, 600);
+            } catch(e) {}
+        }
+
+        async function syncPCTheme() {
+            try {
+                await fetch('/api/screen/synctheme', { method: 'POST' });
+                setTimeout(fetchScreenStats, 600);
+            } catch(e) {}
+        }
+
+        async function runMobileOrganizer(execute) {
+            const path = document.getElementById('mob-organize-path').value.trim() || 'C:\\Users\\Kyle\\Downloads';
+            const task = document.getElementById('mob-organize-task').value;
+            const logBox = document.getElementById('mob-organize-logs');
+            logBox.innerText = "Analyzing target directory...";
+
+            try {
+                const res = await fetch('/api/files/organize', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ path: path, task: task, execute: execute })
+                });
+                const logs = await res.json();
+                logBox.innerText = logs.join('\n');
+            } catch(e) {
+                logBox.innerText = "❌ Connection error running organizer: " + e.message;
+            }
+        }
+ 
         setInterval(fetchStats, 5000);
         fetchStats();
     </script>

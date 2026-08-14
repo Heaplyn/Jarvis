@@ -12,19 +12,22 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using System.Collections.Generic;
 
-using System.Windows.Input;
-
 namespace JarvisLauncher
 {
     public class DebugConsoleOverlay : BaseOverlay
     {
         private static DebugConsoleOverlay? _instance;
         private static readonly List<string> _history = new List<string>();
-        private static readonly int _maxHistory = 200;
+        private static readonly int _maxHistory = 500;
 
         private readonly TextBox _consoleBox;
         private readonly TextBlock _statusLabel;
         private readonly DispatcherTimer _refreshTimer;
+
+        // Interactive Debug & Error Tools
+        private readonly TextBox _searchBox;
+        private readonly ComboBox _categoryFilterCombo;
+        private readonly TextBox _commandInputBox;
 
         public static void ShowConsole()
         {
@@ -36,7 +39,6 @@ namespace JarvisLauncher
                     _instance.Closed += (s, e) => _instance = null;
                 }
                 _instance.Show();
-                _instance.Activate();
             });
         }
 
@@ -49,6 +51,15 @@ namespace JarvisLauncher
                 if (_history.Count > _maxHistory) _history.RemoveAt(0);
             }
 
+            // Write to persistent debug log file
+            try
+            {
+                string logFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "jarvis_debug.log");
+                string fileLine = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{category.ToUpper()}] {message}{Environment.NewLine}";
+                File.AppendAllText(logFile, fileLine);
+            }
+            catch { }
+
             Application.Current.Dispatcher.BeginInvoke(new Action(() =>
             {
                 if (_instance != null)
@@ -59,28 +70,84 @@ namespace JarvisLauncher
         }
 
         private DebugConsoleOverlay()
-            : base("🛠️ JARVIS DEBUG CONSOLE", width: 600, height: 450)
+            : base("🛠️ JARVIS DEBUG & DIAGNOSTICS CONSOLE", width: 680, height: 520)
         {
             var mainGrid = new Grid { Margin = new Thickness(10) };
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Header/Stats
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Console
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Toolbar
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Filters
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Console display
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Bottom panel (REPL + Buttons)
 
-            // 1. Header Area
-            var headerStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
-            _statusLabel = new TextBlock { FontSize = 11, FontWeight = FontWeights.Medium };
+            // --- 1. FILTER HEADER AREA ---
+            var filterGrid = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+            filterGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Search Text
+            filterGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });                     // Category Dropdown
+            filterGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });                     // Stats label
+
+            var searchStack = new StackPanel { Orientation = Orientation.Horizontal };
+            searchStack.Children.Add(new TextBlock 
+            { 
+                Text = "🔍 Search: ", 
+                FontSize = 11, 
+                VerticalAlignment = VerticalAlignment.Center, 
+                Margin = new Thickness(0, 0, 4, 0) 
+            });
+            _searchBox = new TextBox 
+            { 
+                Width = 160, 
+                Height = 22, 
+                FontSize = 11, 
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Padding = new Thickness(3, 1, 3, 1)
+            };
+            _searchBox.SetResourceReference(TextBox.BackgroundProperty, "WindowBackgroundBrush");
+            _searchBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
+            _searchBox.SetResourceReference(TextBox.BorderBrushProperty, "WindowBorderBrush");
+            _searchBox.TextChanged += (s, e) => UpdateView();
+            searchStack.Children.Add(_searchBox);
+            Grid.SetColumn(searchStack, 0);
+            filterGrid.Children.Add(searchStack);
+
+            var catStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(10, 0, 0, 0) };
+            catStack.Children.Add(new TextBlock 
+            { 
+                Text = "Category: ", 
+                FontSize = 11, 
+                VerticalAlignment = VerticalAlignment.Center, 
+                Margin = new Thickness(0, 0, 4, 0) 
+            });
+            _categoryFilterCombo = new ComboBox { Width = 110, Height = 22, FontSize = 11 };
+            _categoryFilterCombo.Items.Add("ALL");
+            _categoryFilterCombo.Items.Add("ERROR / FATAL");
+            _categoryFilterCombo.Items.Add("SYSTEM");
+            _categoryFilterCombo.Items.Add("BRIDGE");
+            _categoryFilterCombo.Items.Add("AI");
+            _categoryFilterCombo.SelectedIndex = 0;
+            _categoryFilterCombo.SelectionChanged += (s, e) => UpdateView();
+            catStack.Children.Add(_categoryFilterCombo);
+            Grid.SetColumn(catStack, 1);
+            filterGrid.Children.Add(catStack);
+
+            _statusLabel = new TextBlock 
+            { 
+                FontSize = 11, 
+                FontWeight = FontWeights.Medium, 
+                VerticalAlignment = VerticalAlignment.Center, 
+                Margin = new Thickness(15, 0, 0, 0) 
+            };
             _statusLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
-            headerStack.Children.Add(_statusLabel);
-            Grid.SetRow(headerStack, 0);
-            mainGrid.Children.Add(headerStack);
+            Grid.SetColumn(_statusLabel, 2);
+            filterGrid.Children.Add(_statusLabel);
 
-            // 2. Main Console Box
+            Grid.SetRow(filterGrid, 0);
+            mainGrid.Children.Add(filterGrid);
+
+            // --- 2. CONSOLE WINDOW ---
             var consoleBorder = new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(200, 0, 0, 0)),
+                Background = new SolidColorBrush(Color.FromArgb(220, 10, 8, 16)),
                 BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(4),
-                Padding = new Thickness(5)
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(6)
             };
             consoleBorder.SetResourceReference(Border.BorderBrushProperty, "WindowBorderBrush");
 
@@ -89,7 +156,7 @@ namespace JarvisLauncher
                 IsReadOnly = true,
                 AcceptsReturn = true,
                 Background = Brushes.Transparent,
-                Foreground = Brushes.LimeGreen,
+                Foreground = new SolidColorBrush(Color.FromRgb(140, 235, 140)), // Lime green logs
                 BorderThickness = new Thickness(0),
                 FontFamily = new FontFamily("Consolas"),
                 FontSize = 11,
@@ -100,21 +167,84 @@ namespace JarvisLauncher
             Grid.SetRow(consoleBorder, 1);
             mainGrid.Children.Add(consoleBorder);
 
-            // 3. Bottom Toolbar
-            var toolStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0), HorizontalAlignment = HorizontalAlignment.Right };
+            // --- 3. BOTTOM REPL INPUT & ACTIONS PANEL ---
+            var bottomStack = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
 
-            var clearBtn = CreateToolButton("🧹 Clear", (s, e) => {
-                lock (_history) _history.Clear();
-                UpdateView();
-            });
+            // REPL Command Input Grid
+            var replGrid = new Grid { Margin = new Thickness(0, 0, 0, 8) };
+            replGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            replGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            var netDiagBtn = CreateToolButton("🌐 Net Diag", (s, e) => {
-                ExecuteDiag("netdiag");
-            });
+            _commandInputBox = new TextBox
+            {
+                Height = 24,
+                FontSize = 11,
+                FontFamily = new FontFamily("Consolas"),
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Padding = new Thickness(4, 2, 4, 2)
+            };
+            _commandInputBox.SetResourceReference(TextBox.BackgroundProperty, "WindowBackgroundBrush");
+            _commandInputBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
+            _commandInputBox.SetResourceReference(TextBox.BorderBrushProperty, "WindowBorderBrush");
+            _commandInputBox.PreviewKeyDown += (s, e) =>
+            {
+                if (e.Key == System.Windows.Input.Key.Enter)
+                {
+                    ExecuteDebugCommand();
+                    e.Handled = true;
+                }
+            };
+            Grid.SetColumn(_commandInputBox, 0);
+            replGrid.Children.Add(_commandInputBox);
 
-            var fixFwBtn = CreateToolButton("🛡️ Fix Firewall", async (s, e) => {
-                await MobileBridgeServer.FixFirewallPermissionsAsync();
-                Log("System", "Firewall repair command dispatched.");
+            var runBtn = CreateToolButton("⚡ Run", (s, e) => ExecuteDebugCommand());
+            runBtn.Height = 24;
+            runBtn.Padding = new Thickness(14, 0, 14, 0);
+            runBtn.Margin = new Thickness(6, 0, 0, 0);
+            Grid.SetColumn(runBtn, 1);
+            replGrid.Children.Add(runBtn);
+
+            bottomStack.Children.Add(replGrid);
+
+            // Action Toolbar
+            var toolBar = new Grid();
+            toolBar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            toolBar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var statusUpdateLabel = new TextBlock 
+            { 
+                Text = "Type syslog commands or diagnostics to execute.", 
+                FontSize = 10, 
+                FontStyle = FontStyles.Italic, 
+                VerticalAlignment = VerticalAlignment.Center 
+            };
+            statusUpdateLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
+            Grid.SetColumn(statusUpdateLabel, 0);
+            toolBar.Children.Add(statusUpdateLabel);
+
+            var buttonStack = new StackPanel { Orientation = Orientation.Horizontal };
+
+            var viewLogBtn = CreateToolButton("📂 View Log File", (s, e) => {
+                try
+                {
+                    string logFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "jarvis_debug.log");
+                    if (File.Exists(logFile))
+                    {
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = logFile,
+                            UseShellExecute = true
+                        });
+                    }
+                    else
+                    {
+                        TextOverlay.Show("Log file does not exist yet.", 1500);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log("Error", $"Could not open log file: {ex.Message}");
+                }
             });
 
             var copyBtn = CreateToolButton("📋 Copy All", (s, e) => {
@@ -122,13 +252,21 @@ namespace JarvisLauncher
                 TextOverlay.Show("Logs copied to clipboard", 1500);
             });
 
-            toolStack.Children.Add(netDiagBtn);
-            toolStack.Children.Add(fixFwBtn);
-            toolStack.Children.Add(copyBtn);
-            toolStack.Children.Add(clearBtn);
+            var clearBtn = CreateToolButton("🧹 Clear Display", (s, e) => {
+                lock (_history) _history.Clear();
+                UpdateView();
+            });
 
-            Grid.SetRow(toolStack, 2);
-            mainGrid.Children.Add(toolStack);
+            buttonStack.Children.Add(viewLogBtn);
+            buttonStack.Children.Add(copyBtn);
+            buttonStack.Children.Add(clearBtn);
+            Grid.SetColumn(buttonStack, 1);
+            toolBar.Children.Add(buttonStack);
+
+            bottomStack.Children.Add(toolBar);
+
+            Grid.SetRow(bottomStack, 2);
+            mainGrid.Children.Add(bottomStack);
 
             this.UserContent = mainGrid;
 
@@ -140,18 +278,74 @@ namespace JarvisLauncher
             UpdateStatusLabel();
         }
 
-        private void ExecuteDiag(string cmd)
+        private void ExecuteDebugCommand()
         {
-            Log("Action", $"Running {cmd}...");
-            CommandParser.ExecuteFirstSuggestion(cmd);
+            string cmd = _commandInputBox.Text.Trim();
+            if (string.IsNullOrEmpty(cmd)) return;
+
+            _commandInputBox.Text = string.Empty;
+            Log("Action", $"> {cmd}");
+
+            try
+            {
+                var suggestions = CommandParser.GetSuggestions(cmd);
+                if (suggestions.Count > 0)
+                {
+                    var matched = suggestions.OrderByDescending(r => r.Similarity).First();
+                    Log("Action", $"Executing matched command: '{matched.Title}'");
+                    matched.Execute?.Invoke();
+                }
+                else
+                {
+                    Log("Warning", $"No matching Jarvis command found for: '{cmd}'");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log("Error", $"Command execution error: {ex.Message}");
+            }
         }
 
         private void UpdateView()
         {
+            if (_consoleBox == null) return;
+
+            string searchText = _searchBox?.Text.Trim() ?? "";
+            string selectedCat = _categoryFilterCombo?.SelectedItem as string ?? "ALL";
+
+            List<string> filtered;
             lock (_history)
             {
-                _consoleBox.Text = string.Join(Environment.NewLine, _history);
+                filtered = _history.Where(line =>
+                {
+                    // Filter by category
+                    if (selectedCat != "ALL")
+                    {
+                        if (selectedCat == "ERROR / FATAL")
+                        {
+                            if (!line.Contains("[ERROR]") && !line.Contains("[FATAL]"))
+                                return false;
+                        }
+                        else
+                        {
+                            string expectedTag = $"[{selectedCat.ToUpper()}]";
+                            if (!line.Contains(expectedTag))
+                                return false;
+                        }
+                    }
+
+                    // Filter by search text
+                    if (!string.IsNullOrEmpty(searchText))
+                    {
+                        if (line.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) < 0)
+                            return false;
+                    }
+
+                    return true;
+                }).ToList();
             }
+
+            _consoleBox.Text = string.Join(Environment.NewLine, filtered);
             _consoleBox.ScrollToEnd();
         }
 
@@ -159,15 +353,16 @@ namespace JarvisLauncher
         {
             int threadCount = System.Diagnostics.Process.GetCurrentProcess().Threads.Count;
             string bridgeStatus = MobileBridgeServer.IsActive ? "ONLINE (9000)" : "OFFLINE";
-            _statusLabel.Text = $"Status: {bridgeStatus} | Threads: {threadCount} | Memory: {GC.GetTotalMemory(false) / 1024 / 1024}MB";
+            _statusLabel.Text = $"Bridge: {bridgeStatus} | Threads: {threadCount} | Memory: {GC.GetTotalMemory(false) / 1024 / 1024}MB";
         }
 
         private Button CreateToolButton(string text, RoutedEventHandler onClick)
         {
-            var btn = new Button {
+            var btn = new Button
+            {
                 Content = text,
                 Margin = new Thickness(5, 0, 0, 0),
-                Padding = new Thickness(8, 4, 8, 4),
+                Padding = new Thickness(10, 4, 10, 4),
                 FontSize = 10,
                 Cursor = System.Windows.Input.Cursors.Hand
             };

@@ -40,7 +40,21 @@ namespace JarvisLauncher
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            PositionWindowAtTopCenter();
+            ApplyMarginSettings();
+
+            // Automatically register Jarvis in Windows Search Bar & Start Menu
+            StartMenuRegistrar.EnsureStartMenuShortcut();
+
+            // Initialize 100% offline local wake-word detector ("Jarvis")
+            try
+            {
+                LocalWakeWordDetector.Initialize();
+                LocalWakeWordDetector.OnWakeWordDetected += (phrase) =>
+                {
+                    TextOverlay.Show($"🎙️ Recognized: \"{phrase}\"", 1800);
+                };
+            }
+            catch { }
 
             // Initialize Clipboard History Manager
             ClipboardHistoryManager.Initialize();
@@ -48,7 +62,7 @@ namespace JarvisLauncher
             // Start Mobile Bridge HTTP & REST Server (for phone AI chat & PC remote control deck)
             try
             {
-                MobileBridgeServer.Start(8085);
+                MobileBridgeServer.Start(SettingsManager.Current.MobilePort);
             }
             catch (Exception ex)
             {
@@ -84,11 +98,49 @@ namespace JarvisLauncher
             });
         }
 
-        private void PositionWindowAtTopCenter()
+        public void PositionWindowAtTopCenter()
         {
-            var workArea = SystemParameters.WorkArea;
-            this.Left = (workArea.Width - this.Width) / 2 + workArea.Left;
-            this.Top = workArea.Top + 10; // 10px offset from the very top
+            
+            // Resolve the actual monitor (under the cursor) in physical pixels, then convert to this
+            // window's DIP space, since SystemParameters.WorkArea only reflects the primary monitor
+            // and ignores per-monitor DPI, which was pushing the bar off-center on scaled/secondary displays.
+            var source = PresentationSource.FromVisual(this);
+            if (source?.CompositionTarget is null)
+            {
+                var fallback = SystemParameters.WorkArea;
+                this.Left = (fallback.Width - 689) / 2 + fallback.Left;
+                this.Top = fallback.Top + 10;
+                return;
+            }
+
+            var workAreaPx = System.Windows.Forms.Screen.FromPoint(System.Windows.Forms.Cursor.Position).WorkingArea;
+            var transform = source.CompositionTarget.TransformFromDevice;
+            var topLeft = transform.Transform(new Point(workAreaPx.Left, workAreaPx.Top));
+            var bottomRight = transform.Transform(new Point(workAreaPx.Right, workAreaPx.Bottom));
+            double workWidth = bottomRight.X - topLeft.X;
+
+            this.Left = topLeft.X + (workWidth - 689) / 2;
+            this.Top = topLeft.Y + 10; // 10px offset from the very top
+            CliOutputOverlay.Show("MainWindow", $"this.Left = {this.Left}");
+            CliOutputOverlay.Show("MainWindow", $"this.Top = {this.Top}");
+            CliOutputOverlay.Show("MainWindow",$"workWidth = {workWidth}");
+            CliOutputOverlay.Show("MainWindow", $"this.ActualWidth = {this.ActualWidth}");
+            
+        }
+
+        private void ApplyMarginSettings()
+        {
+            //RootGrid.Margin = new Thickness(SettingsManager.Current.WindowMargin);
+            PositionWindowAtTopCenter();
+        }
+
+        public void ApplyMargin(int margin)
+        {
+            this.Dispatcher.Invoke(() =>
+            {
+               // RootGrid.Margin = new Thickness(margin);
+                PositionWindowAtTopCenter();
+            });
         }
 
         protected override void OnSourceInitialized(EventArgs e)
@@ -207,9 +259,22 @@ namespace JarvisLauncher
             Keyboard.Focus(SearchInput);
 
             // Play Slide In animation
-            if (Resources["SlideIn"] is Storyboard slideIn)
+            if (SettingsManager.Current.EnableAnimations)
             {
-                slideIn.Begin(this);
+                if (Resources["SlideOut"] is Storyboard slideOut)
+                {
+                    slideOut.Stop(this);
+                }
+                if (Resources["SlideIn"] is Storyboard slideIn)
+                {
+                    slideIn.Begin(this);
+                }
+            }
+            else
+            {
+                WindowTranslate.Y = 0;
+                MainBorder.Opacity = 1.0;
+                this.Opacity = 1.0;
             }
         }
 
@@ -219,33 +284,55 @@ namespace JarvisLauncher
             _isHiding = true;
 
             // Play Slide Out animation
-            if (Resources["SlideOut"] is Storyboard slideOut)
+            if (SettingsManager.Current.EnableAnimations)
             {
-                EventHandler? completedHandler = null;
-                completedHandler = (s, e) =>
+                if (Resources["SlideIn"] is Storyboard slideIn)
                 {
-                    slideOut.Completed -= completedHandler;
-                    if (_isHiding)
+                    slideIn.Stop(this);
+                }
+                if (Resources["SlideOut"] is Storyboard slideOut)
+                {
+                    EventHandler? completedHandler = null;
+                    completedHandler = (s, e) =>
                     {
-                        this.Visibility = Visibility.Collapsed;
-                        SearchInput.Text = string.Empty; // Clear text for next launch
-                        _isHiding = false;
-
-                        // Restore focus back to the previous application window
-                        if (_previousForegroundWindow != IntPtr.Zero)
+                        slideOut.Completed -= completedHandler;
+                        if (_isHiding)
                         {
-                            NativeMethods.SetForegroundWindow(_previousForegroundWindow);
-                            _previousForegroundWindow = IntPtr.Zero;
+                            this.Visibility = Visibility.Collapsed;
+                            SearchInput.Text = string.Empty; // Clear text for next launch
+                            _isHiding = false;
+
+                            // Restore focus back to the previous application window
+                            if (_previousForegroundWindow != IntPtr.Zero)
+                            {
+                                NativeMethods.SetForegroundWindow(_previousForegroundWindow);
+                                _previousForegroundWindow = IntPtr.Zero;
+                            }
                         }
-                    }
-                };
-                slideOut.Completed += completedHandler;
-                slideOut.Begin(this);
+                    };
+                    slideOut.Completed += completedHandler;
+                    slideOut.Begin(this);
+                }
+                else
+                {
+                    this.Visibility = Visibility.Collapsed;
+                    _isHiding = false;
+                }
             }
             else
             {
                 this.Visibility = Visibility.Collapsed;
+                SearchInput.Text = string.Empty;
                 _isHiding = false;
+                WindowTranslate.Y = -50;
+                MainBorder.Opacity = 0.0;
+
+                // Restore focus back to the previous application window
+                if (_previousForegroundWindow != IntPtr.Zero)
+                {
+                    NativeMethods.SetForegroundWindow(_previousForegroundWindow);
+                    _previousForegroundWindow = IntPtr.Zero;
+                }
             }
         }
 
@@ -262,13 +349,38 @@ namespace JarvisLauncher
                 ResultsList.Visibility = Visibility.Visible;
                 DividerLine.Visibility = Visibility.Visible;
                 ResultsList.SelectedIndex = 0;
+
+                // Inline ghost autocomplete hint: show suffix faintly after typed text
+                if (suggestions[0] is CommandResult top)
+                {
+                    string hint = GetAutocompleteSuffix(query, top);
+                    AutocompleteGhost.Text = hint;
+                    AutocompleteGhost.Visibility = string.IsNullOrEmpty(hint)
+                        ? Visibility.Collapsed : Visibility.Visible;
+                }
             }
             else
             {
                 ResultsList.ItemsSource = null;
                 ResultsList.Visibility = Visibility.Collapsed;
                 DividerLine.Visibility = Visibility.Collapsed;
+                AutocompleteGhost.Visibility = Visibility.Collapsed;
             }
+        }
+
+        /// <summary>Extracts a Tab-completable suffix from the top suggestion title.</summary>
+        private static string GetAutocompleteSuffix(string query, CommandResult top)
+        {
+            if (string.IsNullOrWhiteSpace(query)) return string.Empty;
+
+            // Strip emoji prefixes like "⭐ ", "⚡ Command: "
+            string clean = top.Title
+                .Replace("⭐ ", "")
+                .Replace("⚡ Command: ", "")
+                .Replace("⚡ ", "")
+                .Trim();
+
+            return SearchUtil.GetAutocompleteSuffix(query, clean);
         }
 
         private void SearchInput_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -277,6 +389,31 @@ namespace JarvisLauncher
             {
                 HideHUD();
                 e.Handled = true;
+            }
+            else if (e.Key == Key.Tab)
+            {
+                // Tab: accept the inline ghost autocomplete
+                if (AutocompleteGhost.Visibility == Visibility.Visible && !string.IsNullOrEmpty(AutocompleteGhost.Text))
+                {
+                    SearchInput.Text += AutocompleteGhost.Text;
+                    SearchInput.CaretIndex = SearchInput.Text.Length;
+                    AutocompleteGhost.Visibility = Visibility.Collapsed;
+                    e.Handled = true;
+                }
+                else if (ResultsList.Visibility == Visibility.Visible &&
+                         ResultsList.Items.Count > 0 &&
+                         ResultsList.SelectedItem is CommandResult top)
+                {
+                    // Fallback: Tab fills the top result's cleaned command name
+                    string clean = top.Title
+                        .Replace("⭐ ", "")
+                        .Replace("⚡ Command: ", "")
+                        .Replace("⚡ ", "")
+                        .Trim();
+                    SearchInput.Text = clean;
+                    SearchInput.CaretIndex = SearchInput.Text.Length;
+                    e.Handled = true;
+                }
             }
             else if (e.Key == Key.Down)
             {
@@ -335,10 +472,24 @@ namespace JarvisLauncher
             ExecuteSelection();
         }
 
+        private void ResultsList_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            ExecuteSelection();
+        }
+
         private void ExecuteSelection()
         {
-            if (ResultsList.SelectedItem is CommandResult selectedItem)
+            CommandResult? selectedItem = ResultsList.SelectedItem as CommandResult;
+            if (selectedItem == null && ResultsList.Items.Count > 0)
             {
+                selectedItem = ResultsList.Items[0] as CommandResult;
+            }
+
+            if (selectedItem != null)
+            {
+                // Record this (query → result) pair in the ML learner for future ranking
+                QueryLearner.RecordSelection(SearchInput.Text.Trim(), selectedItem.Title);
+
                 try
                 {
                     selectedItem.Execute?.Invoke();
@@ -348,6 +499,15 @@ namespace JarvisLauncher
                     MessageBox.Show($"Error running command: {ex.Message}", "Jarvis HUD Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
                 HideHUD();
+            }
+            else
+            {
+                string query = SearchInput.Text.Trim();
+                if (!string.IsNullOrEmpty(query))
+                {
+                    CommandParser.ExecuteFirstSuggestion(query);
+                    HideHUD();
+                }
             }
         }
 
