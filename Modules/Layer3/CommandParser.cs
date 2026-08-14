@@ -78,7 +78,10 @@ namespace JarvisLauncher
         CODE_ASSIST,
         IPA_COMPILER,
         INSTALL,
-        TTS
+        TTS,
+        BIOMETRICS,
+        TEMPLATE,
+        TEACHER
     };
 
     public static class CommandParser
@@ -160,6 +163,9 @@ namespace JarvisLauncher
             RegisterHandler(CommandType.ORGANIZATION_TOOLS, "Organize desktop, downloads, deduplicate files, sort by date/extension, and backup folders", () => new OrganizationCommandsHandler());
             RegisterHandler(CommandType.ADHD_FOCUS_SUITE, "ADHD focus Pomodoro sprints, task micro-chunking, dopamine check-ins, and TTS voice alerts", () => new AdhdFocusSuiteHandler());
             RegisterHandler(CommandType.TTS, "Voice text-to-speech output and file reading", () => new TtsCommandHandler());
+            RegisterHandler(CommandType.BIOMETRICS, "Manage speaker voice biometrics", () => new EnrollVoiceCommandHandler());
+            RegisterHandler(CommandType.TEMPLATE, "Manage custom code templates", () => new TemplateCommandHandler());
+            RegisterHandler(CommandType.TEACHER, "Interactive programming assistance teacher", () => new TeacherCommandHandler());
         }
 
         private static void RegisterHandler(CommandType type, string description, Func<ICommandHandler> factory)

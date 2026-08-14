@@ -95,6 +95,7 @@ namespace JarvisLauncher
                 loader.UpdateStatus("Waking up AI...", 95);
                 MemoryManager.Start();
                 VoiceActivationManager.Start();
+                AutonomousAgentEngine.Start();
 
                 MobileBridgeServer.Start(SettingsManager.Current.MobilePort);
                 await Task.Delay(500);
@@ -152,6 +153,7 @@ namespace JarvisLauncher
             TtsManager.Stop();
             MemoryManager.Stop();
             VoiceActivationManager.Stop();
+            AutonomousAgentEngine.Stop();
             _notifyIcon?.Dispose();
             _notifyIcon = null;
             Application.Current.Shutdown();
@@ -199,6 +201,7 @@ namespace JarvisLauncher
             TtsManager.Stop();
             MemoryManager.Stop();
             VoiceActivationManager.Stop();
+            AutonomousAgentEngine.Stop();
             _notifyIcon?.Dispose();
             base.OnExit(e);
         }

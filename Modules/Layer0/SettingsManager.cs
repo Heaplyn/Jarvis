@@ -32,8 +32,13 @@ namespace JarvisLauncher
         public bool EnableWindowsAppIndexing { get; set; } = true;
         public int MaxSearchSuggestions { get; set; } = 10;
         public bool AutoFocusSearchOnLaunch { get; set; } = true;
+        public bool IsSpeakerVerificationEnabled { get; set; } = false;
+        public string EnrolledSpeakerName { get; set; } = "Kyle";
+        public double SpeakerVerificationThreshold { get; set; } = 0.70;
+        public bool IsTeacherModeEnabled { get; set; } = true;
+        public bool IsAutonomousModeEnabled { get; set; } = true;
+        public int AutonomousIntervalMinutes { get; set; } = 2;
 
-        // Voice & Assistant Fine-Tuning Controls
         public bool EnableVoiceCommandChunking { get; set; } = true;
         public int VoiceChunkingSilenceMs { get; set; } = 6000; // 6 seconds silence pause before processing voice
         public double MinVoiceConfidence { get; set; } = 0.75; // 75% strict confidence threshold (range: 0.30 - 0.98)
