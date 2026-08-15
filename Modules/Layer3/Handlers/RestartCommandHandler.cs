@@ -22,12 +22,30 @@ namespace JarvisLauncher
 
             suggestions.Add(new CommandResult
             {
-                TITLE = "🔄 Restart Jarvis HUD (Fresh Boot)",
-                DESCRIPTION = "Purge caches, clean build, and cold-start the application",
+                TITLE = "🔄 Restart Jarvis HUD",
+                DESCRIPTION = "Fast restart of the application (1s delay)",
                 EXECUTE = () =>
                 {
-                    TextOverlay.Show("Initiating Fresh Restart...", 1000);
-                    var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+                    TextOverlay.Show("Restarting Jarvis...", 1000);
+                    var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.8) };
+                    timer.Tick += (s, ev) =>
+                    {
+                        timer.Stop();
+                        NativeMethods.Restart(freshBoot: false);
+                    };
+                    timer.Start();
+                },
+                SIMILARITY = 8.5
+            });
+
+            suggestions.Add(new CommandResult
+            {
+                TITLE = "♻️ Fresh Boot / Rebuild",
+                DESCRIPTION = "Force a clean build and cold-start the application",
+                EXECUTE = () =>
+                {
+                    TextOverlay.Show("Initiating Rebuild & Restart...", 1000);
+                    var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.8) };
                     timer.Tick += (s, ev) =>
                     {
                         timer.Stop();

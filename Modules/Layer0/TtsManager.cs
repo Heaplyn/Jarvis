@@ -31,7 +31,7 @@ namespace JarvisLauncher
             _synthesizer.SpeakCompleted += (s, e) =>
             {
                 IsSpeaking = false;
-                EchoCooldownUntil = DateTime.Now.AddMilliseconds(400);
+                EchoCooldownUntil = DateTime.Now.AddMilliseconds(150);
                 OnSpeechStopped?.Invoke(); // RESUME LISTENING SIGNAL
             };
         }
@@ -116,9 +116,9 @@ namespace JarvisLauncher
         {
             if (!_isEnabled || string.IsNullOrWhiteSpace(text)) return;
 
-            // Set speaking state immediately to prevent microphone feedback loop
             IsSpeaking = true;
-            EchoCooldownUntil = DateTime.Now.AddSeconds(1);
+            // Short initial buffer to prevent immediate feedback on start
+            EchoCooldownUntil = DateTime.Now.AddMilliseconds(200);
 
             DebugConsoleOverlay.Log("TTS", $"Speaking: {text.Substring(0, Math.Min(text.Length, 60))}...");
 

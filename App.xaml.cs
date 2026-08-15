@@ -33,48 +33,66 @@ namespace JarvisLauncher
 
         private async void RunBootSequence()
         {
+            LoadingWindow? loadingWindow = null;
             try
             {
-                // 1. Core Config (Fast)
-                System.Diagnostics.Debug.WriteLine("BOOT: Loading settings...");
+                // 1. Show Loading Screen Immediately
+                loadingWindow = new LoadingWindow();
+                loadingWindow.Show();
+
+                // 2. Fast Initialization
+                loadingWindow.UpdateStatus("Loading system settings...", 10);
                 SettingsManager.Load();
 
-                System.Diagnostics.Debug.WriteLine("BOOT: Applying theme...");
+                loadingWindow.UpdateStatus("Applying visual interface...", 25);
                 ThemeManager.ApplyTheme(SettingsManager.Current.THEME);
 
-                // 2. Build Window
-                System.Diagnostics.Debug.WriteLine("BOOT: Creating MainWindow...");
+                // 3. Background Services (Sequential for progress tracking)
+                await Task.Run(async () => {
+                    void Update(string msg, double p) => loadingWindow?.UpdateStatus(msg, p);
+
+                    Update("Initializing neural wake engine...", 35);
+                    try { VoiceActivationManager.Start(); } catch { }
+
+                    Update("Connecting predictive data streams...", 45);
+                    try { PredictiveStreamManager.Start(); } catch { }
+
+                    Update("Harvesting system knowledge...", 55);
+                    try { SystemKnowledgeManager.Start(); } catch { }
+
+                    Update("Calibrating command handlers...", 65);
+                    try { CommandParser.Initialize(); } catch { }
+
+                    Update("Optimizing voice trainer...", 75);
+                    try { await VoiceDatasetManager.InitializeAsync(); } catch { }
+                    try { await VoiceTrainerManager.InitializeAsync(); } catch { }
+
+                    Update("Establishing mobile bridge...", 85);
+                    try { MobileBridgeServer.Start(SettingsManager.Current.MOBILE_PORT); } catch { }
+
+                    Update("Finalizing HUD environment...", 95);
+                    try { MemoryManager.Start(); } catch { }
+                    try { SelfHealingManager.Initialize(); } catch { }
+                    try { ReminderManager.Initialize(); } catch { }
+
+                    await Task.Delay(500); // Dramatic pause
+                });
+
+                // 4. Build and Show Main Window
                 _mainWindow = new MainWindow();
                 this.MainWindow = _mainWindow;
 
-                // 3. Show Immediately
-                System.Diagnostics.Debug.WriteLine("BOOT: Showing Window...");
+                loadingWindow.UpdateStatus("System Online.", 100);
+                await Task.Delay(300);
+
                 _mainWindow.Show();
                 _mainWindow.ShowHUD();
 
-                // 4. Background Initialization
-                _ = Task.Run(async () => {
-                    // Primitive log to see if this task even runs
-                    System.IO.File.AppendAllText("boot_debug.log", "Task started at " + DateTime.Now + "\n");
+                loadingWindow.Close();
 
-                    DebugConsoleOverlay.Log("System-Boot", "Background initialization started...");
-                    try { VoiceActivationManager.Start(); } catch (Exception ex) { DebugConsoleOverlay.Log("Error", "Voice engine failed: " + ex.Message); }
-                    try { PredictiveStreamManager.Start(); } catch { }
-                    try { SystemKnowledgeManager.Start(); } catch { }
-
-                    try { SelfHealingManager.Initialize(); } catch { }
-                    try { CommandParser.Initialize(); } catch { }
-                    try { await VoiceDatasetManager.InitializeAsync(); } catch { }
-                    try { await VoiceTrainerManager.InitializeAsync(); } catch { }
-                    try { MemoryManager.Start(); } catch { }
-                    try { MobileBridgeServer.Start(SettingsManager.Current.MOBILE_PORT); } catch { }
-                    try { ReminderManager.Initialize(); } catch { }
-                    try { NotesCuratorManager.Initialize(); } catch { }
-                });
-
-                // 5. System Tray (Non-blocking)
+                // 5. System Tray
                 try {
-                    _notifyIcon = new NotifyIcon { Icon = SystemIcons.Application, Visible = true, Text = "Jarvis Launcher" };
+                    _notifyIcon = new NotifyIcon { Icon = SystemIcons.Application, Visible = true, Text = "Jarvis HUD" };
                     var contextMenu = new ContextMenuStrip();
                     contextMenu.Items.Add("Show Launcher", null, (s, ev) => _mainWindow?.Dispatcher.Invoke(() => _mainWindow.ShowHUD()));
                     contextMenu.Items.Add(new ToolStripSeparator());
@@ -83,8 +101,8 @@ namespace JarvisLauncher
                     _notifyIcon.DoubleClick += (s, ev) => _mainWindow?.Dispatcher.Invoke(() => _mainWindow.ShowHUD());
                 } catch { }
 
-                // 6. Restore Overlays (Delayed)
-                _ = Task.Delay(1500).ContinueWith(_ => {
+                // 6. Restore Overlays
+                _ = Task.Delay(1000).ContinueWith(_ => {
                     Application.Current.Dispatcher.Invoke(() => {
                         try { WindowPositionManager.RestoreOpenOverlays(); } catch { }
                     });
@@ -92,7 +110,8 @@ namespace JarvisLauncher
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Jarvis failed to start: " + ex.Message);
+                loadingWindow?.Close();
+                MessageBox.Show("Jarvis failed to boot: " + ex.Message);
             }
         }
 

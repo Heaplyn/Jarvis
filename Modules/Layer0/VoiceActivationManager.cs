@@ -27,8 +27,8 @@ namespace JarvisLauncher
         private static readonly List<byte> _circularBuffer = new List<byte>();
         private static readonly List<double> _ambientHistory = new List<double>();
         private const int BufferSeconds = 3;
-        private static float SpeechThreshold => Math.Max(0.005f, SettingsManager.Current.MIC_AUDIO_ENERGY_FLOOR);
-        private static int SilenceTimeoutMs = 1500;
+        private static float SpeechThreshold => Math.Max(0.010f, SettingsManager.Current.MIC_AUDIO_ENERGY_FLOOR);
+        private static int SilenceTimeoutMs = 1800;
 
         private static DateTime _lastInteractionTime = DateTime.MinValue;
         private static bool _isInConversation = false;
@@ -51,8 +51,12 @@ namespace JarvisLauncher
             TtsManager.OnSpeechStopped += () => {
                 if (_isInConversation && !_isRecordingCommand)
                 {
-                    DebugConsoleOverlay.Log("Voice", "Jarvis finished speaking. Resuming follow-up listening...");
-                    _ = Task.Run(async () => await TriggerCommandCapture(isFollowUp: true));
+                    // Delay slightly to let echo settle and avoid the IsSpeakingOrEchoing block
+                    Task.Run(async () => {
+                        await Task.Delay(300);
+                        DebugConsoleOverlay.Log("Voice", "Jarvis finished speaking. Resuming follow-up listening...");
+                        await TriggerCommandCapture(isFollowUp: true);
+                    });
                 }
             };
 
@@ -225,20 +229,7 @@ namespace JarvisLauncher
                 UpdateAmbientNoiseFloor(rms);
             }
 
-            if (DateTime.Now < _cooldownUntil) return;
-
-            if (VoskEngine.IsInitialized)
-            {
-                VoskEngine.ProcessAudioBuffer(e.Buffer, e.BytesRecorded);
-            }
-
-            if (_isRecordingCommand)
-            {
-                _commandAudioStream.Write(e.Buffer, 0, e.BytesRecorded);
-                if (rms > SpeechThreshold) _lastSpeechTime = DateTime.Now;
-                return;
-            }
-
+            // ONLY fill circular buffer if we aren't already recording a command
             lock (_circularBuffer)
             {
                 _circularBuffer.AddRange(e.Buffer.Take(e.BytesRecorded));
@@ -375,9 +366,9 @@ namespace JarvisLauncher
                 TextOverlay.Show("🎙️ Listening...", 2500);
             });
 
-            // If Jarvis is currently speaking (e.g. from a previous turn),
-            // he will automatically resume listening when done via the OnSpeechStopped event.
-            // If he is silent, we prompt him to start the cycle.
+            // If Jarvis is already talking or we just finished talking,
+            // the OnSpeechStopped event will trigger the capture.
+            // If he is silent, we prompt him with "Yes?".
             if (!TtsManager.IsSpeakingOrEchoing)
             {
                 TtsManager.Speak("Yes?");

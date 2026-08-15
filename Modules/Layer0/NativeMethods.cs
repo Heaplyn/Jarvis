@@ -167,45 +167,65 @@ namespace JarvisLauncher
             return (uint)Environment.TickCount - lastInputInfo.dwTime;
         }
 
-        public static void Restart(bool freshBoot = true)
+        public static void Restart(bool freshBoot = false)
         {
-            string projectRoot = AppDomain.CurrentDomain.BaseDirectory;
-            string checkDir = AppDomain.CurrentDomain.BaseDirectory;
-            for (int i = 0; i < 5; i++)
-            {
-                if (System.IO.File.Exists(System.IO.Path.Combine(checkDir, "JarvisLauncher.csproj")))
-                {
-                    projectRoot = checkDir;
-                    break;
-                }
-                var parent = System.IO.Directory.GetParent(checkDir);
-                if (parent == null) break;
-                checkDir = parent.FullName;
-            }
-
             try
             {
-                // ROBUST DETACHED RELOADER
-                // Uses a secondary PowerShell session to manage the lifecycle transition.
-                string freshArg = freshBoot ? "--fresh" : "";
+                // Most reliable way to find the current EXE in modern .NET
+                string exePath = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName ?? string.Empty;
+                string projectRoot = AppDomain.CurrentDomain.BaseDirectory;
 
-                string script = $@"
-                    $p = Get-Process -Name 'JarvisLauncher' -ErrorAction SilentlyContinue;
-                    if ($p) {{ $p | Stop-Process -Force }};
-                    Start-Sleep -Seconds 1;
-                    if ('{freshBoot}' -eq 'True') {{
-                        Remove-Item -Path '{projectRoot}\\bin', '{projectRoot}\\obj' -Recurse -Force -ErrorAction SilentlyContinue;
-                    }}
-                    Set-Location -Path '{projectRoot}';
-                    dotnet build;
-                    if ($LASTEXITCODE -eq 0) {{
-                        Start-Process dotnet -ArgumentList 'run -- {freshArg}'
-                    }} else {{
-                        # If build fails, try running last known good binary
-                        $exe = Get-ChildItem -Path '{projectRoot}\\bin' -Filter 'JarvisLauncher.exe' -Recurse | Select-Object -First 1;
-                        if ($exe) {{ Start-Process $exe.FullName }}
-                    }}
-                ";
+                // Find project root for "fresh boot" (rebuild) scenario
+                string checkDir = AppDomain.CurrentDomain.BaseDirectory;
+                for (int i = 0; i < 5; i++)
+                {
+                    if (System.IO.File.Exists(System.IO.Path.Combine(checkDir, "JarvisLauncher.csproj")))
+                    {
+                        projectRoot = checkDir;
+                        break;
+                    }
+                    var parent = System.IO.Directory.GetParent(checkDir);
+                    if (parent == null) break;
+                    checkDir = parent.FullName;
+                }
+
+                // If not fresh boot, just do a simple, fast restart of the current EXE
+                string script;
+                if (!freshBoot)
+                {
+                    script = $@"
+                        $currentId = {Process.GetCurrentProcess().Id};
+                        while (Get-Process -Id $currentId -ErrorAction SilentlyContinue) {{ Start-Sleep -Milliseconds 100 }};
+                        Start-Process '{exePath}';
+                    ";
+                }
+                else
+                {
+                    // Fresh Boot: Try to rebuild if in a dev environment, otherwise just restart
+                    bool isDev = System.IO.File.Exists(System.IO.Path.Combine(projectRoot, "JarvisLauncher.csproj"));
+                    if (isDev)
+                    {
+                        script = $@"
+                            $currentId = {Process.GetCurrentProcess().Id};
+                            while (Get-Process -Id $currentId -ErrorAction SilentlyContinue) {{ Start-Sleep -Milliseconds 100 }};
+                            Set-Location -Path '{projectRoot}';
+                            dotnet build -c Debug;
+                            if ($LASTEXITCODE -eq 0) {{
+                                # Use START to launch without inheriting the parent's console window
+                                Start-Process '{projectRoot}\bin\Debug\net8.0-windows\JarvisLauncher.exe'
+                            }} else {{
+                                Start-Process '{exePath}'
+                            }}";
+                    }
+                    else
+                    {
+                        script = $@"
+                            $currentId = {Process.GetCurrentProcess().Id};
+                            while (Get-Process -Id $currentId -ErrorAction SilentlyContinue) {{ Start-Sleep -Milliseconds 100 }};
+                            Start-Process '{exePath}';
+                        ";
+                    }
+                }
 
                 Process.Start(new ProcessStartInfo
                 {
@@ -215,7 +235,6 @@ namespace JarvisLauncher
                     UseShellExecute = false
                 });
 
-                Thread.Sleep(5000);
                 Environment.Exit(0);
             }
             catch
