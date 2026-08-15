@@ -106,16 +106,41 @@ namespace JarvisLauncher
         private UIElement BuildCalibrationTab()
         {
             var stack = new StackPanel { Margin = new Thickness(14) };
-            stack.Children.Add(new TextBlock { Text = "🎛️ Audio Calibration", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Brushes.Cyan, Margin = new Thickness(0,0,0,15) });
+            stack.Children.Add(new TextBlock { Text = "🎛️ Audio Calibration & Mode", FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Brushes.Cyan, Margin = new Thickness(0,0,0,15) });
+
+            var voiceToggleCheck = new CheckBox
+            {
+                Content = "🎙️ Master Voice Mode Active (Listen for Commands)",
+                IsChecked = SettingsManager.Current.IS_VOICE_MODE_ACTIVE,
+                Foreground = Brushes.White,
+                FontSize = 12,
+                Margin = new Thickness(0, 0, 0, 15)
+            };
+            voiceToggleCheck.Click += (s, e) =>
+            {
+                SettingsManager.Current.IS_VOICE_MODE_ACTIVE = voiceToggleCheck.IsChecked == true;
+                SettingsManager.Save();
+                if (SettingsManager.Current.IS_VOICE_MODE_ACTIVE)
+                {
+                    TtsManager.Speak("Voice mode enabled.");
+                    TextOverlay.Show("🎙️ Voice Mode: ON", 2500);
+                }
+                else
+                {
+                    TtsManager.Speak("Voice mode disabled.");
+                    TextOverlay.Show("🔇 Voice Mode: OFF", 2500);
+                }
+            };
+            stack.Children.Add(voiceToggleCheck);
 
             stack.Children.Add(new TextBlock { Text = "Speech Confidence Gate:", FontSize = 12, Foreground = Brushes.White });
-            var slider = new Slider { Minimum = 0.3, Maximum = 0.98, Value = SettingsManager.Current.MinVoiceConfidence, Margin = new Thickness(0, 5, 0, 15) };
-            slider.ValueChanged += (s, e) => { SettingsManager.Current.MinVoiceConfidence = slider.Value; SettingsManager.Save(); };
+            var slider = new Slider { Minimum = 0.3, Maximum = 0.98, Value = SettingsManager.Current.MIN_VOICE_CONFIDENCE, Margin = new Thickness(0, 5, 0, 15) };
+            slider.ValueChanged += (s, e) => { SettingsManager.Current.MIN_VOICE_CONFIDENCE = slider.Value; SettingsManager.Save(); };
             stack.Children.Add(slider);
 
             stack.Children.Add(new TextBlock { Text = "Mic Energy Floor:", FontSize = 12, Foreground = Brushes.White });
-            var energy = new Slider { Minimum = 0.02, Maximum = 1.0, Value = SettingsManager.Current.MicAudioEnergyFloor, Margin = new Thickness(0, 5, 0, 15) };
-            energy.ValueChanged += (s, e) => { SettingsManager.Current.MicAudioEnergyFloor = (float)energy.Value; SettingsManager.Save(); };
+            var energy = new Slider { Minimum = 0.02, Maximum = 1.0, Value = SettingsManager.Current.MIC_AUDIO_ENERGY_FLOOR, Margin = new Thickness(0, 5, 0, 15) };
+            energy.ValueChanged += (s, e) => { SettingsManager.Current.MIC_AUDIO_ENERGY_FLOOR = (float)energy.Value; SettingsManager.Save(); };
             stack.Children.Add(energy);
 
             return stack;

@@ -20,10 +20,10 @@ namespace JarvisLauncher
             double similarity = SearchUtil.GetSimilarity(query.Trim(), "lock");
             suggestions.Add(new CommandResult
             {
-                Title = "Lock Workstation",
-                Description = "Secure the Windows session immediately",
-                Execute = () => NativeMethods.LockWorkStation(),
-                Similarity = similarity
+                TITLE = "Lock Workstation",
+                DESCRIPTION = "Secure the Windows session immediately",
+                EXECUTE = () => NativeMethods.LockWorkStation(),
+                SIMILARITY = similarity
             });
             return suggestions;
         }

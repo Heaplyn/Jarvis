@@ -4,7 +4,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Net.Http;
 using System.Net.NetworkInformation;
 using System.Threading.Tasks;
 
@@ -44,7 +46,7 @@ namespace JarvisLauncher
         /// </summary>
         public static bool CanUseGemini()
         {
-            string key = SettingsManager.Current.GoogleAIKey;
+            string key = SettingsManager.Current.GOOGLE_AI_KEY;
             if (string.IsNullOrWhiteSpace(key)) return false;
             return IsInternetAvailable();
         }
@@ -88,6 +90,177 @@ namespace JarvisLauncher
                 return "Shutdown requested. Awaiting user confirmation.";
 
             return $"Offline Mode Active: Standard desktop system handler ready for '{query}'.";
+        }
+
+        /// <summary>
+        /// Checks if a command/executable is available in the system PATH.
+        /// </summary>
+        public static bool IsCommandAvailable(string cmd)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = $"/c where {cmd}",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var proc = Process.Start(psi);
+                if (proc == null) return false;
+                proc.WaitForExit();
+                return proc.ExitCode == 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Checks if Ollama is running and responding on its API port.
+        /// </summary>
+        public static async Task<bool> IsOllamaRunningAsync()
+        {
+            try
+            {
+                using var client = new HttpClient();
+                client.Timeout = TimeSpan.FromMilliseconds(500);
+                string endpoint = SettingsManager.Current.OLLAMA_ENDPOINT;
+                if (string.IsNullOrWhiteSpace(endpoint)) endpoint = "http://localhost:11434";
+                var response = await client.GetAsync(endpoint);
+                return response.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Checks if a specific model is pulled and cached locally in Ollama.
+        /// </summary>
+        public static async Task<bool> IsOllamaModelCachedAsync(string modelName)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "ollama",
+                    Arguments = "list",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var proc = Process.Start(psi);
+                if (proc == null) return false;
+                string output = await proc.StandardOutput.ReadToEndAsync();
+                await proc.WaitForExitAsync();
+                return output.Contains(modelName, StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Installs a tool via winget in a separate user-facing terminal.
+        /// </summary>
+        public static void InstallToolViaWinget(string packageId, string friendlyName)
+        {
+            try
+            {
+                string args;
+                if (packageId.StartsWith("npm:", StringComparison.OrdinalIgnoreCase))
+                {
+                    string npmPackage = packageId.Substring(4);
+                    args = $"/c start cmd /k \"echo Installing {friendlyName} globally via npm... & npm install -g {npmPackage} & echo. & echo Done! Press any key to close. & pause > null\"";
+                }
+                else
+                {
+                    args = $"/c start cmd /k \"echo Installing {friendlyName}... & winget install -e --id {packageId} --accept-source-agreements --accept-package-agreements & echo. & echo Done! Press any key to close. & pause > null\"";
+                }
+                Process.Start("cmd.exe", args);
+            }
+            catch (Exception ex)
+            {
+                TextOverlay.Show($"❌ Failed to start installer for {friendlyName}: {ex.Message}", 3500);
+            }
+        }
+
+        /// <summary>
+        /// Pulls a model in Ollama in a separate user-facing terminal.
+        /// </summary>
+        public static void PullOllamaModel(string modelName)
+        {
+            try
+            {
+                string args = $"/c start cmd /k \"echo Pulling model {modelName} locally... & ollama pull {modelName} & echo. & echo Done! Press any key to close. & pause > null\"";
+                Process.Start("cmd.exe", args);
+            }
+            catch (Exception ex)
+            {
+                TextOverlay.Show($"❌ Failed to start Ollama pull: {ex.Message}", 3500);
+            }
+        }
+
+        /// <summary>
+        /// Checks if an application is installed, looking in PATH and standard installation paths.
+        /// </summary>
+        public static bool IsAppInstalled(string cmdOrDisplayName)
+        {
+            // 1. Try PATH check first
+            if (IsCommandAvailable(cmdOrDisplayName)) return true;
+
+            // 2. Check common installation directories
+            string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            string programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+            string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+
+            string[] searchPaths = new[]
+            {
+                Path.Combine(programFiles, "paint.net", "PaintDotNet.exe"),
+                Path.Combine(programFiles, "GIMP 2", "bin", "gimp-2.10.exe"),
+                Path.Combine(programFiles, "Krita (x64)", "bin", "krita.exe"),
+                Path.Combine(programFiles, "Inkscape", "bin", "inkscape.exe"),
+                Path.Combine(programFiles, "Blender Foundation", "Blender", "blender.exe"),
+                Path.Combine(programFiles, "Audacity", "Audacity.exe"),
+                Path.Combine(programFilesX86, "Audacity", "Audacity.exe"),
+                Path.Combine(programFiles, "VideoLAN", "VLC", "vlc.exe"),
+                Path.Combine(programFilesX86, "VideoLAN", "VLC", "vlc.exe"),
+                Path.Combine(programFiles, "Microsoft Visual Studio", "2022", "Community", "Common7", "IDE", "devenv.exe"),
+                Path.Combine(localAppData, "Programs", "Microsoft VS Code", "Code.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".cargo", "bin", "rustc.exe"),
+                Path.Combine(programFiles, "LLVM", "bin", "clang.exe"),
+                Path.Combine(programFiles, "nasm", "nasm.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System).Substring(0, 3), "msys64", "msys2.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System).Substring(0, 3), "Strawberry", "perl", "bin", "perl.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System).Substring(0, 3), "Ruby32-x64", "bin", "ruby.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System).Substring(0, 3), "Ruby31-x64", "bin", "ruby.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System).Substring(0, 3), "tools", "php83", "php.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System).Substring(0, 3), "tools", "php82", "php.exe"),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ghcup", "bin", "ghc.exe"),
+                Path.Combine(localAppData, "Programs", "Julia-1.10.0", "bin", "julia.exe"),
+                Path.Combine(localAppData, "Programs", "Julia-1.10.1", "bin", "julia.exe"),
+                Path.Combine(localAppData, "Programs", "Julia-1.10.2", "bin", "julia.exe"),
+                Path.Combine(programFiles, "Unity Hub", "Unity Hub.exe"),
+                Path.Combine(programFiles, "Epic Games", "Launcher", "Portal", "Binaries", "Win64", "EpicGamesLauncher.exe"),
+                Path.Combine(programFilesX86, "Epic Games", "Launcher", "Portal", "Binaries", "Win64", "EpicGamesLauncher.exe"),
+                Path.Combine(programFiles, "OpenTTD", "openttd.exe"),
+                Path.Combine(programFilesX86, "OpenTTD", "openttd.exe")
+            };
+
+            foreach (var path in searchPaths)
+            {
+                if (path.Contains(cmdOrDisplayName, StringComparison.OrdinalIgnoreCase) && File.Exists(path))
+                    return true;
+            }
+
+            return false;
         }
     }
 }

@@ -68,31 +68,52 @@ namespace JarvisLauncher
 
         public static void ImportUserCustomVoiceFile(string absolutePath)
         {
-            if (!File.Exists(absolutePath))
+            if (!File.Exists(absolutePath) && !Directory.Exists(absolutePath))
             {
-                TextOverlay.Show("⚠️ Selected file does not exist.", 2500);
+                TextOverlay.Show("⚠️ Selection does not exist.", 2500);
                 return;
             }
 
             try
             {
-                string ext = Path.GetExtension(absolutePath).ToLower();
-                if (ext != ".mp3" && ext != ".wav" && ext != ".m4a" && ext != ".ogg")
+                if (Directory.Exists(absolutePath))
                 {
-                    TextOverlay.Show("⚠️ Unsupported format. Use MP3, WAV, M4A, or OGG.", 3500);
-                    return;
+                    // Import as a Voice Pack Directory
+                    string folderName = Path.GetFileName(absolutePath);
+                    string destDir = Path.Combine(VoiceDirectory, folderName);
+                    if (!Directory.Exists(destDir)) Directory.CreateDirectory(destDir);
+
+                    foreach (var file in Directory.GetFiles(absolutePath, "*.*"))
+                    {
+                        File.Copy(file, Path.Combine(destDir, Path.GetFileName(file)), true);
+                    }
+
+                    SettingsManager.Current.CUSTOM_TTS_SAMPLE_PATH = destDir;
+                    SettingsManager.Current.CUSTOM_TTS_VOICE_NAME = "Pack: " + folderName;
+                    SettingsManager.Current.USE_CUSTOM_TTS_SOUND_FILE = true;
+                    SettingsManager.Save();
+                    TextOverlay.Show($"✅ Voice Pack Imported:\n{folderName}", 3000);
                 }
+                else
+                {
+                    // Import single file
+                    string ext = Path.GetExtension(absolutePath).ToLower();
+                    if (ext != ".mp3" && ext != ".wav" && ext != ".m4a" && ext != ".ogg")
+                    {
+                        TextOverlay.Show("⚠️ Unsupported format.", 3500);
+                        return;
+                    }
 
-                string fileName = Path.GetFileName(absolutePath);
-                string destPath = Path.Combine(VoiceDirectory, "User_" + fileName);
+                    string fileName = Path.GetFileName(absolutePath);
+                    string destPath = Path.Combine(VoiceDirectory, "User_" + fileName);
+                    File.Copy(absolutePath, destPath, true);
 
-                File.Copy(absolutePath, destPath, true);
-
-                SettingsManager.Current.CustomTtsSamplePath = destPath;
-                SettingsManager.Current.CustomTtsVoiceName = "Custom: " + fileName;
-                SettingsManager.Save();
-
-                TextOverlay.Show($"✅ Custom user file imported:\n{fileName}", 3000);
+                    SettingsManager.Current.CUSTOM_TTS_SAMPLE_PATH = destPath;
+                    SettingsManager.Current.CUSTOM_TTS_VOICE_NAME = "Custom: " + fileName;
+                    SettingsManager.Current.USE_CUSTOM_TTS_SOUND_FILE = true;
+                    SettingsManager.Save();
+                    TextOverlay.Show($"✅ Custom Voice file imported!", 3000);
+                }
             }
             catch (Exception ex)
             {

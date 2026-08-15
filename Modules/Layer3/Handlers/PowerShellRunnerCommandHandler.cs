@@ -28,10 +28,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title       = $"Run PowerShell: {command}",
-                    Description = "Execute in background powershell.exe and display output in system terminal",
-                    Execute     = () => ExecutePowerShellAsync(command),
-                    Similarity  = 2.0
+                    TITLE       = $"Run PowerShell: {command}",
+                    DESCRIPTION = "Execute in background powershell.exe and display output in system terminal",
+                    EXECUTE     = () => ExecutePowerShellAsync(command),
+                    SIMILARITY  = 2.0
                 });
             }
 

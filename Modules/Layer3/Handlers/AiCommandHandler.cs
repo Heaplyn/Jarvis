@@ -10,84 +10,84 @@ namespace JarvisLauncher
 {
     public class AiCommandHandler : ICommandHandler
     {
-        public bool CanHandle(string query)
+        public bool CanHandle(string Query)
         {
-            query = query.Trim();
-            var parts = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length == 0) return false;
+            Query = Query.Trim();
+            var Parts = Query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (Parts.Length == 0) return false;
 
-            string cmd = parts[0].ToLower();
-            return SearchUtil.IsClose(cmd, "ai") || 
-                   SearchUtil.IsClose(cmd, "ask") || 
-                   SearchUtil.IsClose(cmd, "gemini") ||
-                   SearchUtil.IsClose(cmd, "chat") ||
-                   SearchUtil.IsClose(cmd, "companion");
+            string Cmd = Parts[0].ToLower();
+            return SearchUtil.IsClose(Cmd, "ai") ||
+                   SearchUtil.IsClose(Cmd, "ask") ||
+                   SearchUtil.IsClose(Cmd, "gemini") ||
+                   SearchUtil.IsClose(Cmd, "chat") ||
+                   SearchUtil.IsClose(Cmd, "companion");
         }
 
-        public List<CommandResult> GetSuggestions(string query)
+        public List<CommandResult> GetSuggestions(string Query)
         {
-            var suggestions = new List<CommandResult>();
-            query = query.Trim();
+            var Suggestions = new List<CommandResult>();
+            Query = Query.Trim();
 
-            var parts = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length == 0) return suggestions;
+            var Parts = Query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (Parts.Length == 0) return Suggestions;
 
-            string cmd = parts[0].ToLower();
-            double similarity = SearchUtil.GetSimilarity(cmd, "ai");
+            string Cmd = Parts[0].ToLower();
+            double Similarity = SearchUtil.GetSimilarity(Cmd, "ai");
 
-            if (parts.Length > 1)
+            if (Parts.Length > 1)
             {
-                string prompt = query.Substring(cmd.Length).Trim();
-                bool canUseGemini = OfflineCacheManager.CanUseGemini();
+                string Prompt = Query.Substring(Cmd.Length).Trim();
+                bool CanUseGemini = OfflineCacheManager.CanUseGemini();
 
-                if (canUseGemini)
+                if (CanUseGemini)
                 {
-                    suggestions.Add(new CommandResult
+                    Suggestions.Add(new CommandResult
                     {
-                        Title = $"🧠 Ask Gemini AI (Online): \"{prompt}\"",
-                        Description = "Sends query to Gemini API and displays output in console panel",
-                        Execute = () => RunAiQuery(prompt),
-                        Similarity = similarity + 1.0
+                        TITLE = $"🧠 Ask Gemini AI (Online): \"{Prompt}\"",
+                        DESCRIPTION = "Sends query to Gemini API and displays output in console panel",
+                        EXECUTE = () => RunAiQuery(Prompt),
+                        SIMILARITY = Similarity + 1.0
                     });
                 }
                 else
                 {
-                    suggestions.Add(new CommandResult
+                    Suggestions.Add(new CommandResult
                     {
-                        Title = $"🦙 Ask Local LLM / Search (Offline Mode): \"{prompt}\"",
-                        Description = "Offline Mode Active: Routes query to local Ollama model or search engine",
-                        Execute = () => RunAiQuery(prompt),
-                        Similarity = similarity + 0.5
+                        TITLE = $"🦙 Ask Local LLM / Search (Offline Mode): \"{Prompt}\"",
+                        DESCRIPTION = "Offline Mode Active: Routes query to local Ollama model or search engine",
+                        EXECUTE = () => RunAiQuery(Prompt),
+                        SIMILARITY = Similarity + 0.5
                     });
                 }
             }
             else
             {
-                suggestions.Add(new CommandResult
+                Suggestions.Add(new CommandResult
                 {
-                    Title = "Open AI Chat Companion",
-                    Description = "Open the floating interactive chat window",
-                    Execute = () => ChatOverlay.ShowChat(),
-                    Similarity = similarity
+                    TITLE = "Open AI Chat Companion",
+                    DESCRIPTION = "Open the floating interactive chat window",
+                    EXECUTE = () => ChatOverlay.ShowChat(),
+                    SIMILARITY = Similarity
                 });
             }
 
-            return suggestions;
+            return Suggestions;
         }
 
-        private static void RunAiQuery(string prompt)
+        private static void RunAiQuery(string Prompt)
         {
             // Route everything through the modern AI Chat Companion overlay
             Task.Run(async () =>
             {
                 try
                 {
-                    // Use SubmitVoiceCommand as the entry point for chat interaction
-                    await ChatOverlay.SubmitVoiceCommand(prompt, showUi: true);
+                    // Map HUD manual entries as TEXT source
+                    await ChatOverlay.SubmitTextMessage(Prompt);
                 }
-                catch (Exception ex)
+                catch (Exception Ex)
                 {
-                    DebugConsoleOverlay.Log("AI Error", $"Query failed: {ex.Message}");
+                    DebugConsoleOverlay.Log("AI Error", $"Query failed: {Ex.Message}");
                 }
             });
         }

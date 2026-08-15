@@ -12,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Effects;
 using System.Windows.Media.Animation;
 using System.Windows.Shell;
+using System.Windows.Controls.Primitives;
 using Button = System.Windows.Controls.Button;
 
 namespace JarvisLauncher
@@ -169,20 +170,20 @@ namespace JarvisLauncher
             this.AllowsTransparency = true;
             this.Background = Brushes.Transparent;
             this.ShowInTaskbar = true;
-            this.Topmost = SettingsManager.Current.AlwaysOnTop;
+            this.Topmost = SettingsManager.Current.ALWAYS_ON_TOP;
             this.WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
             // Register this overlay for z-order tracking & screen position persistence
             _openOverlays.Add(this);
             this.Closed += (s, e) => _openOverlays.Remove(this);
             try { WindowPositionManager.RegisterWindow(this, this.GetType().Name); } catch { }
-            if (SettingsManager.Current.EnableAnimations)
+            if (SettingsManager.Current.ENABLE_ANIMATIONS)
             {
                 this.Opacity = 0; // Hidden initially for fade-in
             }
             else
             {
-                this.Opacity = SettingsManager.Current.WindowOpacity;
+                this.Opacity = SettingsManager.Current.WINDOW_OPACITY;
             }
 
             var brushConverter = new BrushConverter();
@@ -196,7 +197,7 @@ namespace JarvisLauncher
                 ResizeBorderThickness = new Thickness(6), // 6px resize zone on all edges
                 CaptionHeight = 0,
                 GlassFrameThickness = new Thickness(0),
-                CornerRadius = SettingsManager.Current.UseRoundedCorners ? new CornerRadius(12) : new CornerRadius(0)
+                CornerRadius = SettingsManager.Current.USE_ROUNDED_CORNERS ? new CornerRadius(12) : new CornerRadius(0)
             };
             WindowChrome.SetWindowChrome(this, windowChrome);
 
@@ -376,14 +377,14 @@ namespace JarvisLauncher
                     if (storedMiniMode && !_isMiniMode) ToggleMiniMode();
                 }
 
-                if (SettingsManager.Current.EnableAnimations)
+                if (SettingsManager.Current.ENABLE_ANIMATIONS)
                 {
                     var fadeIn = new DoubleAnimation(0, 1.0, TimeSpan.FromMilliseconds(200));
                     this.BeginAnimation(Window.OpacityProperty, fadeIn);
                 }
                 else
                 {
-                    this.Opacity = SettingsManager.Current.WindowOpacity;
+                    this.Opacity = SettingsManager.Current.WINDOW_OPACITY;
                 }
             };
 
@@ -490,9 +491,9 @@ namespace JarvisLauncher
         }
 
         /// <summary>Hides the window to background (default [X] button behaviour).</summary>
-        public void FadeOutAndHide()
+        public virtual void FadeOutAndHide()
         {
-            if (SettingsManager.Current.EnableAnimations)
+            if (SettingsManager.Current.ENABLE_ANIMATIONS)
             {
                 var fadeOut = new DoubleAnimation(this.Opacity, 0, TimeSpan.FromMilliseconds(200));
                 fadeOut.Completed += (s, e) =>
@@ -522,7 +523,7 @@ namespace JarvisLauncher
             base.Show();
             this.Activate();
 
-            if (SettingsManager.Current.EnableAnimations)
+            if (SettingsManager.Current.ENABLE_ANIMATIONS)
             {
                 this.Opacity = 0;
                 var fadeIn = new DoubleAnimation(0, 1.0, TimeSpan.FromMilliseconds(250));
@@ -530,7 +531,7 @@ namespace JarvisLauncher
             }
             else
             {
-                this.Opacity = SettingsManager.Current.WindowOpacity;
+                this.Opacity = SettingsManager.Current.WINDOW_OPACITY;
             }
 
             BringToFront();
@@ -540,7 +541,7 @@ namespace JarvisLauncher
         public void FadeOutAndClose()
         {
             _forceClose = true;
-            if (SettingsManager.Current.EnableAnimations)
+            if (SettingsManager.Current.ENABLE_ANIMATIONS)
             {
                 var fadeOut = new DoubleAnimation(this.Opacity, 0, TimeSpan.FromMilliseconds(200));
                 fadeOut.Completed += (s, e) => this.Close();
@@ -556,6 +557,28 @@ namespace JarvisLauncher
         {
             tabControl.Background = Brushes.Transparent;
             tabControl.BorderThickness = new Thickness(0);
+
+            var tabControlTemplate = new ControlTemplate(typeof(TabControl));
+            var dockPanel = new FrameworkElementFactory(typeof(DockPanel));
+
+            var tabPanel = new FrameworkElementFactory(typeof(TabPanel));
+            tabPanel.SetValue(TabPanel.IsItemsHostProperty, true);
+            tabPanel.SetValue(DockPanel.DockProperty, Dock.Top);
+            tabPanel.SetValue(TabPanel.BackgroundProperty, Brushes.Transparent);
+            dockPanel.AppendChild(tabPanel);
+
+            var contentBorder = new FrameworkElementFactory(typeof(Border));
+            contentBorder.SetValue(Border.BackgroundProperty, Brushes.Transparent);
+            contentBorder.SetValue(Border.BorderThicknessProperty, new Thickness(0));
+            contentBorder.SetValue(Border.PaddingProperty, new Thickness(0, 8, 0, 0));
+
+            var contentPresenter = new FrameworkElementFactory(typeof(ContentPresenter));
+            contentPresenter.SetValue(ContentPresenter.ContentSourceProperty, "SelectedContent");
+            contentBorder.AppendChild(contentPresenter);
+
+            dockPanel.AppendChild(contentBorder);
+            tabControlTemplate.VisualTree = dockPanel;
+            tabControl.Template = tabControlTemplate;
 
             // Create TabItem Style
             var tabItemStyle = new Style(typeof(TabItem));
@@ -609,6 +632,12 @@ namespace JarvisLauncher
 
             // Apply style to all items dynamically
             tabControl.ItemContainerStyle = tabItemStyle;
+
+            // Ensure manually added TabItems also get the style
+            if (!tabControl.Resources.Contains(typeof(TabItem)))
+            {
+                tabControl.Resources.Add(typeof(TabItem), tabItemStyle);
+            }
         }
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)

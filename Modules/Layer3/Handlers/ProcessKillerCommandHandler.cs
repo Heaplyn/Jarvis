@@ -41,28 +41,28 @@ namespace JarvisLauncher
 
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"Kill Process: \"{targetProcess}\"",
-                    Description = $"Terminate all running instances of '{targetProcess}'",
-                    Execute = () => KillProcessByName(targetProcess),
-                    Similarity = similarity
+                    TITLE = $"Kill Process: \"{targetProcess}\"",
+                    DESCRIPTION = $"Terminate all running instances of '{targetProcess}'",
+                    EXECUTE = () => KillProcessByName(targetProcess),
+                    SIMILARITY = similarity
                 });
             }
             else
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "Kill Process (Prompt)...",
-                    Description = "Prompt for a running application name to terminate",
-                    Execute = () => InputPromptOverlay.Show("Enter process name to terminate (e.g. chrome, discord):", (procName) => KillProcessByName(procName)),
-                    Similarity = similarity + 0.5
+                    TITLE = "Kill Process (Prompt)...",
+                    DESCRIPTION = "Prompt for a running application name to terminate",
+                    EXECUTE = () => InputPromptOverlay.Show("Enter process name to terminate (e.g. chrome, discord):", (procName) => KillProcessByName(procName)),
+                    SIMILARITY = similarity + 0.5
                 });
 
                 suggestions.Add(new CommandResult
                 {
-                    Title = "Kill Process...",
-                    Description = "Type a process name (e.g. 'kill chrome')",
-                    Execute = null,
-                    Similarity = similarity
+                    TITLE = "Kill Process...",
+                    DESCRIPTION = "Type a process name (e.g. 'kill chrome')",
+                    EXECUTE = null,
+                    SIMILARITY = similarity
                 });
             }
 

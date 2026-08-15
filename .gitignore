@@ -1,10 +1,31 @@
 # Core build artifacts (Recursive)
 **/bin/
 **/obj/
+**/publish/
 bin/
 obj/
+publish/
+
+# --- JARVIS RUNTIME DATA & CACHES ---
+# Ignore all dynamic data but keep the folder structure if needed via .gitkeep
 Data/*
 !Data/.gitkeep
+
+# Explicitly ignore large ML models & voice packs
+**/Data/Models/
+**/Data/TtsVoices/
+**/Data/Training/
+**/Data/Conversations/
+**/Data/Sounds/
+**/Data/Tools/
+apptoipa.exe
+
+# Local configuration & credentials
+**/SystemSettings.json
+SystemSettings.json
+**/jarvis_debug.log
+**/boot_debug.log
+*.log
 
 # Visual Studio / VS Code
 .vs/
@@ -19,20 +40,15 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
-# Node.js dependencies and outputs (Recursive)
+# Node.js dependencies and outputs
 **/node_modules/
 node_modules/
 **/downloads/
 downloads/
 **/dist/
 dist/
-*.log
 
 # FlareSolverr / Browser caches
 **/flaresolverr/
 **/debug_before_click.png
 **/debug_error.png
-
-# Configuration files containing credentials/keys
-**/SystemSettings.json
-SystemSettings.json

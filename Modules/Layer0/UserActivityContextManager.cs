@@ -24,6 +24,7 @@ namespace JarvisLauncher
                 _recentQueries.Add($"[{DateTime.Now:HH:mm:ss}] \"{query.Trim()}\"");
                 if (_recentQueries.Count > 20) _recentQueries.RemoveAt(0);
             }
+            PredictiveStreamManager.IngestEvent("COMMAND", query);
         }
 
         public static string BuildFullActivityContext()

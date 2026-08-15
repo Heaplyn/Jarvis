@@ -22,10 +22,10 @@ namespace JarvisLauncher
 
             suggestions.Add(new CommandResult
             {
-                Title = "🎮 Open Game Creator Toolbox",
-                Description = "Roblox Rings validator, Luau anim generators, and Blender texture bakers",
-                Execute = () => GameDevToolboxOverlay.OpenToolbox(),
-                Similarity = similarity + 1.0
+                TITLE = "🎮 Open Game Creator Toolbox",
+                DESCRIPTION = "Roblox Rings validator, Luau anim generators, and Blender texture bakers",
+                EXECUTE = () => GameDevToolboxOverlay.OpenToolbox(),
+                SIMILARITY = similarity + 1.0
             });
 
             return suggestions;

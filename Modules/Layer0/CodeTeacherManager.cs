@@ -17,7 +17,7 @@ namespace JarvisLauncher
         /// </summary>
         public static async Task<string> ScanFileAsync(string filePath)
         {
-            if (!SettingsManager.Current.IsTeacherModeEnabled)
+            if (!SettingsManager.Current.IS_TEACHER_MODE_ENABLED)
             {
                 return "Teacher Mode is currently disabled in Settings.";
             }

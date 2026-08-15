@@ -24,20 +24,20 @@ namespace JarvisLauncher
 
             suggestions.Add(new CommandResult
             {
-                Title = "⚡ Open MCP Registry & Server Manager Studio",
-                Description = "Manage Model Context Protocol servers (Roblox, Filesystem, Brave Search, Memory, GitHub)",
-                Similarity = 6.0,
-                Execute = () => McpStudioOverlay.ShowOverlay()
+                TITLE = "⚡ Open MCP Registry & Server Manager Studio",
+                DESCRIPTION = "Manage Model Context Protocol servers (Roblox, Filesystem, Brave Search, Memory, GitHub)",
+                SIMILARITY = 6.0,
+                EXECUTE = () => McpStudioOverlay.ShowOverlay()
             });
 
             if (lower.Contains("roblox") || lower == "mcp add roblox")
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🎮 Register Roblox Studio MCP Server",
-                    Description = "claude mcp add --transport stdio Roblox_Studio -- cmd.exe /c cd /d %LOCALAPPDATA%\\Roblox && .\\mcp.bat",
-                    Similarity = 5.5,
-                    Execute = () =>
+                    TITLE = "🎮 Register Roblox Studio MCP Server",
+                    DESCRIPTION = "claude mcp add --transport stdio Roblox_Studio -- cmd.exe /c cd /d %LOCALAPPDATA%\\Roblox && .\\mcp.bat",
+                    SIMILARITY = 5.5,
+                    EXECUTE = () =>
                     {
                         McpManager.AddServer(new McpServerConfig
                         {
@@ -55,10 +55,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "📁 Register Filesystem MCP Server",
-                    Description = "npx -y @modelcontextprotocol/server-filesystem %USERPROFILE%",
-                    Similarity = 5.5,
-                    Execute = () =>
+                    TITLE = "📁 Register Filesystem MCP Server",
+                    DESCRIPTION = "npx -y @modelcontextprotocol/server-filesystem %USERPROFILE%",
+                    SIMILARITY = 5.5,
+                    EXECUTE = () =>
                     {
                         McpManager.AddServer(new McpServerConfig
                         {
@@ -78,10 +78,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"⚡ Test Connection: MCP Server [{s.Name}]",
-                    Description = $"{s.Command} {string.Join(" ", s.Args)}",
-                    Similarity = 4.0,
-                    Execute = async () =>
+                    TITLE = $"⚡ Test Connection: MCP Server [{s.Name}]",
+                    DESCRIPTION = $"{s.Command} {string.Join(" ", s.Args)}",
+                    SIMILARITY = 4.0,
+                    EXECUTE = async () =>
                     {
                         bool ok = await McpManager.TestServerConnectionAsync(s);
                         TextOverlay.Show(ok ? $"🟢 MCP Server '{s.Name}' Active!" : $"🔴 MCP Server '{s.Name}' Error!", 3000);

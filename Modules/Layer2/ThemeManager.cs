@@ -265,11 +265,11 @@ namespace JarvisLauncher
             SetColorResource("SelectedBorderBrush", selectedBorderHex);
 
             // Handle Media Background
-            if (SettingsManager.Current.BackgroundMode == "Media" && !string.IsNullOrEmpty(SettingsManager.Current.BackgroundMediaSource))
+            if (SettingsManager.Current.BACKGROUND_MODE == "Media" && !string.IsNullOrEmpty(SettingsManager.Current.BACKGROUND_MEDIA_SOURCE))
             {
                 try
                 {
-                    var uri = new Uri(SettingsManager.Current.BackgroundMediaSource, UriKind.RelativeOrAbsolute);
+                    var uri = new Uri(SettingsManager.Current.BACKGROUND_MEDIA_SOURCE, UriKind.RelativeOrAbsolute);
                     var imgSource = new System.Windows.Media.Imaging.BitmapImage(uri);
                     Application.Current.Resources["WindowBackgroundMediaSource"] = imgSource;
                     Application.Current.Resources["WindowMediaVisibility"] = Visibility.Visible;
@@ -296,7 +296,7 @@ namespace JarvisLauncher
             SetColorResource("TextSecondaryBrush", textSecondary);
 
             // Global Font Family Resource
-            string fontName = string.IsNullOrEmpty(SettingsManager.Current.CustomFontFamily) ? "Segoe UI" : SettingsManager.Current.CustomFontFamily;
+            string fontName = string.IsNullOrEmpty(SettingsManager.Current.CUSTOM_FONT_FAMILY) ? "Segoe UI" : SettingsManager.Current.CUSTOM_FONT_FAMILY;
             FontFamily wpffont;
             if (System.IO.File.Exists(fontName) && 
                 (fontName.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase) || 
@@ -333,7 +333,7 @@ namespace JarvisLauncher
             Application.Current.Resources["ActiveFontFamily"] = wpffont;
 
             // Global Corner Radius Resources
-            bool rounded = SettingsManager.Current.UseRoundedCorners;
+            bool rounded = SettingsManager.Current.USE_ROUNDED_CORNERS;
             Application.Current.Resources["WindowCornerRadius"] = new CornerRadius(rounded ? 12 : 0);
             Application.Current.Resources["ItemCornerRadius"] = new CornerRadius(rounded ? 6 : 0);
         }
@@ -343,13 +343,13 @@ namespace JarvisLauncher
             try
             {
                 Brush brush;
-                if (SettingsManager.Current.BackgroundMode == "Gradient" || SettingsManager.Current.UseGradientBackground)
+                if (SettingsManager.Current.BACKGROUND_MODE == "Gradient" || SettingsManager.Current.USE_GRADIENT_BACKGROUND)
                 {
                     var colorStart = (Color)ColorConverter.ConvertFromString(startHex);
                     var colorEnd = (Color)ColorConverter.ConvertFromString(endHex);
                     var gradient = new LinearGradientBrush(colorStart, colorEnd, new Point(0, 0), new Point(1, 1));
                     
-                    if (SettingsManager.Current.EnableAnimations)
+                    if (SettingsManager.Current.ENABLE_ANIMATIONS)
                     {
                         // Dynamic "Liquid" Gradient Animation
                         // Using slightly larger values to ensure visible movement even on small windows

@@ -28,20 +28,20 @@ namespace JarvisLauncher
 
             suggestions.Add(new CommandResult
             {
-                Title       = "Capture Screenshot",
-                Description = "Save a PNG capture of your primary display to your Pictures folder",
-                Similarity  = similarity + 0.5,
-                Execute     = () => TakeScreenshot()
+                TITLE       = "Capture Screenshot",
+                DESCRIPTION = "Save a PNG capture of your primary display to your Pictures folder",
+                SIMILARITY  = similarity + 0.5,
+                EXECUTE     = () => TakeScreenshot()
             });
 
             if (query.Contains("folder") || query.Contains("open") || query.Contains("view") || query.Contains("recent"))
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "Open Screenshots Folder",
-                    Description = "Open the folder containing automatic memory captures",
-                    Similarity = 4.8,
-                    Execute = () => OpenScreenshotsFolder()
+                    TITLE = "Open Screenshots Folder",
+                    DESCRIPTION = "Open the folder containing automatic memory captures",
+                    SIMILARITY = 4.8,
+                    EXECUTE = () => OpenScreenshotsFolder()
                 });
             }
 

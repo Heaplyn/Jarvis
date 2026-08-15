@@ -26,18 +26,18 @@ namespace JarvisLauncher
 
             suggestions.Add(new CommandResult
             {
-                Title       = "📂 Browse Commands by Category",
-                Description = "Open an overlay grouping all commands into topic categories (System, Media, AI, etc.)",
-                Similarity  = similarity + 0.2,
-                Execute     = () => Application.Current.Dispatcher.Invoke(() => CommandCategoriesOverlay.ShowOverlay())
+                TITLE       = "📂 Browse Commands by Category",
+                DESCRIPTION = "Open an overlay grouping all commands into topic categories (System, Media, AI, etc.)",
+                SIMILARITY  = similarity + 0.2,
+                EXECUTE     = () => Application.Current.Dispatcher.Invoke(() => CommandCategoriesOverlay.ShowOverlay())
             });
 
             suggestions.Add(new CommandResult
             {
-                Title       = "View System Commands",
-                Description = "List all available Jarvis command actions, shortcuts, and parameter guidelines",
-                Similarity  = similarity,
-                Execute     = ShowCommandsList
+                TITLE       = "View System Commands",
+                DESCRIPTION = "List all available Jarvis command actions, shortcuts, and parameter guidelines",
+                SIMILARITY  = similarity,
+                EXECUTE     = ShowCommandsList
             });
 
             return suggestions;
@@ -69,9 +69,9 @@ namespace JarvisLauncher
             
             foreach (var cd in allDescs)
             {
-                if (cd != null && cd.Show)
+                if (cd != null && cd.SHOW)
                 {
-                    AddCmd(sb, cd.CommandName, cd.CommandDescription, cd.CommandExample);
+                    AddCmd(sb, cd.COMMAND_NAME, cd.COMMAND_DESCRIPTION, cd.COMMAND_EXAMPLE);
                 }
             }
 

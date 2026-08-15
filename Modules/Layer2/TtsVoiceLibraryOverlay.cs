@@ -37,12 +37,12 @@ namespace JarvisLauncher
 
             _voiceCombo = new ComboBox { Margin = new Thickness(0, 4, 0, 8), Padding = new Thickness(8, 6, 8, 6), FontSize = 13 };
             foreach (var v in TtsManager.GetInstalledVoices()) _voiceCombo.Items.Add(v);
-            _voiceCombo.SelectedItem = SettingsManager.Current.SelectedTtsVoice;
+            _voiceCombo.SelectedItem = SettingsManager.Current.SELECTED_TTS_VOICE;
             _voiceCombo.SelectionChanged += (s, e) => { if (_voiceCombo.SelectedItem is string sel) TtsManager.SetVoice(sel); };
             root.Children.Add(_voiceCombo);
 
             root.Children.Add(CreateLabel("Speech Speed:"));
-            _speedSlider = new Slider { Minimum = -10, Maximum = 10, Value = SettingsManager.Current.TtsSpeechRate, Margin = new Thickness(0, 2, 0, 8) };
+            _speedSlider = new Slider { Minimum = -10, Maximum = 10, Value = SettingsManager.Current.TTS_SPEECH_RATE, Margin = new Thickness(0, 2, 0, 8) };
             _speedSlider.ValueChanged += (s, e) => TtsManager.SetRate((int)_speedSlider.Value);
             root.Children.Add(_speedSlider);
 
@@ -95,8 +95,8 @@ namespace JarvisLauncher
 
                 var sBtn = CreateButton("Set"); sBtn.Margin = new Thickness(4, 0, 0, 0);
                 sBtn.Click += (s, e) => {
-                    SettingsManager.Current.CustomTtsSamplePath = file.path;
-                    SettingsManager.Current.CustomTtsVoiceName = file.name;
+                    SettingsManager.Current.CUSTOM_TTS_SAMPLE_PATH = file.path;
+                    SettingsManager.Current.CUSTOM_TTS_VOICE_NAME = file.name;
                     SettingsManager.Save();
                     TextOverlay.Show("✅ Active Custom Sound: " + file.name, 2000);
                 };

@@ -63,7 +63,14 @@ namespace JarvisLauncher
             // 4. Add Sideloadly status
             sb.AppendLine($"- iOS Sideloader (Sideloadly): {(SideloadlyIntegrator.IsInstalled ? "🟢 Installed" : "🔴 Not Installed (needs sideloadly.exe)")}");
 
-            // 5. Add Clipboard peek to predict active intent
+            // 5. Add Self-Taught System Knowledge
+            string knowledge = SystemKnowledgeManager.GetSystemKnowledge();
+            if (!string.IsNullOrEmpty(knowledge))
+            {
+                sb.AppendLine("\n" + knowledge);
+            }
+
+            // 6. Add Clipboard peek to predict active intent
             try
             {
                 string clip = System.Windows.Clipboard.GetText().Trim();

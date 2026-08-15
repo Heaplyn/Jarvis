@@ -47,10 +47,10 @@ namespace JarvisLauncher
 
                     suggestions.Add(new CommandResult
                     {
-                        Title       = $"📋 [{capturedTime}] {preview}",
-                        Description = "Click / Press Enter to copy back into active clipboard",
-                        Similarity  = similarity + 0.8,
-                        Execute     = () => CopyItemToClipboard(item.Content)
+                        TITLE       = $"📋 [{capturedTime}] {preview}",
+                        DESCRIPTION = "Click / Press Enter to copy back into active clipboard",
+                        SIMILARITY  = similarity + 0.8,
+                        EXECUTE     = () => CopyItemToClipboard(item.Content)
                     });
                 }
             }
@@ -58,18 +58,18 @@ namespace JarvisLauncher
             // Standard commands
             suggestions.Add(new CommandResult
             {
-                Title       = "📋 Open Visual Clipboard History",
-                Description = "Browse, search, delete, and pin clipboard clips in a GUI window",
-                Similarity  = similarity + 2.0, // High priority
-                Execute     = () => ClipboardOverlay.Open()
+                TITLE       = "📋 Open Visual Clipboard History",
+                DESCRIPTION = "Browse, search, delete, and pin clipboard clips in a GUI window",
+                SIMILARITY  = similarity + 2.0, // High priority
+                EXECUTE     = () => ClipboardOverlay.Open()
             });
 
             suggestions.Add(new CommandResult
             {
-                Title       = "🧹 Clear Clipboard History",
-                Description = "Empty system clipboard and local history log",
-                Similarity  = similarity + 0.1,
-                Execute     = () => ClearClipboard()
+                TITLE       = "🧹 Clear Clipboard History",
+                DESCRIPTION = "Empty system clipboard and local history log",
+                SIMILARITY  = similarity + 0.1,
+                EXECUTE     = () => ClearClipboard()
             });
 
             return suggestions;

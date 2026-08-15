@@ -39,18 +39,18 @@ namespace JarvisLauncher
         private const string ApiBase = "https://discord.com/api/v10";
         private static readonly HttpClient _client = new HttpClient();
 
-        public static bool HasToken => !string.IsNullOrWhiteSpace(SettingsManager.Current.DiscordBotToken);
+        public static bool HasToken => !string.IsNullOrWhiteSpace(SettingsManager.Current.DISCORD_BOT_TOKEN);
 
         public static void SaveBotToken(string token)
         {
-            SettingsManager.Current.DiscordBotToken = token.Trim();
+            SettingsManager.Current.DISCORD_BOT_TOKEN = token.Trim();
             SettingsManager.Save();
         }
 
         private static HttpRequestMessage BuildRequest(string path)
         {
             var req = new HttpRequestMessage(HttpMethod.Get, $"{ApiBase}{path}");
-            req.Headers.Authorization = new AuthenticationHeaderValue("Bot", SettingsManager.Current.DiscordBotToken.Trim());
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bot", SettingsManager.Current.DISCORD_BOT_TOKEN.Trim());
             req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             return req;
         }

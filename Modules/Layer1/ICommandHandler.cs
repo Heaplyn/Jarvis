@@ -8,8 +8,8 @@ namespace JarvisLauncher
 {
     public interface ICommandHandler
     {
-        bool CanHandle(string query);
-        List<CommandResult> GetSuggestions(string query);
+        bool CanHandle(string Query);
+        List<CommandResult> GetSuggestions(string Query);
         void OnStart() { }
         List<CommandDesc> GetCommandDescriptions() => new List<CommandDesc>();
     }

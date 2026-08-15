@@ -165,9 +165,9 @@ namespace JarvisLauncher
             var allCmds = CommandParser.GetAllCommandDescriptions();
             var filtered = string.IsNullOrEmpty(filter)
                 ? allCmds
-                : allCmds.Where(c => c.CommandName.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
-                                     (c.CommandDescription ?? "").Contains(filter, StringComparison.OrdinalIgnoreCase) ||
-                                     (c.CommandExample ?? "").Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
+                : allCmds.Where(c => c.COMMAND_NAME.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+                                     (c.COMMAND_DESCRIPTION ?? "").Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+                                     (c.COMMAND_EXAMPLE ?? "").Contains(filter, StringComparison.OrdinalIgnoreCase)).ToList();
 
             var categories = new Dictionary<string, List<CommandDesc>>
             {
@@ -217,14 +217,14 @@ namespace JarvisLauncher
                         };
 
                         var itemStack = new StackPanel();
-                        var title = new TextBlock { Text = $"⚡ {cmd.CommandName}", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.Cyan };
-                        var desc = new TextBlock { Text = cmd.CommandDescription, FontSize = 11, Foreground = Brushes.LightGray, Margin = new Thickness(0, 2, 0, 0) };
+                        var title = new TextBlock { Text = $"⚡ {cmd.COMMAND_NAME}", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.Cyan };
+                        var desc = new TextBlock { Text = cmd.COMMAND_DESCRIPTION, FontSize = 11, Foreground = Brushes.LightGray, Margin = new Thickness(0, 2, 0, 0) };
                         itemStack.Children.Add(title);
                         itemStack.Children.Add(desc);
 
-                        if (!string.IsNullOrEmpty(cmd.CommandExample))
+                        if (!string.IsNullOrEmpty(cmd.COMMAND_EXAMPLE))
                         {
-                            var ex = new TextBlock { Text = $"Example: {cmd.CommandExample}", FontSize = 10, Foreground = Brushes.Gray, Margin = new Thickness(0, 2, 0, 0) };
+                            var ex = new TextBlock { Text = $"Example: {cmd.COMMAND_EXAMPLE}", FontSize = 10, Foreground = Brushes.Gray, Margin = new Thickness(0, 2, 0, 0) };
                             itemStack.Children.Add(ex);
                         }
 
@@ -239,8 +239,8 @@ namespace JarvisLauncher
 
         private string GetCommandCategory(CommandDesc cmd)
         {
-            string name = cmd.CommandName.ToLower();
-            string desc = (cmd.CommandDescription ?? "").ToLower();
+            string name = cmd.COMMAND_NAME.ToLower();
+            string desc = (cmd.COMMAND_DESCRIPTION ?? "").ToLower();
 
             if (name.Contains("ai") || name.Contains("gemini") || name.Contains("chat") || name.Contains("copilot") || name.Contains("mcp") || name.Contains("oauth") || name.Contains("login") || name.Contains("auth") || name.Contains("llm"))
             {

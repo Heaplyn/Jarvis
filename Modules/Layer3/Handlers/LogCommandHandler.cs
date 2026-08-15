@@ -29,28 +29,28 @@ namespace JarvisLauncher
             // Suggestion 1: View logs in Jarvis Terminal
             suggestions.Add(new CommandResult
             {
-                Title       = "View System Logs",
-                Description = "Read Jarvis execution history inside the System Terminal",
-                Similarity  = similarity + 0.1,
-                Execute     = () => ShowLogsInTerminal(logPath)
+                TITLE       = "View System Logs",
+                DESCRIPTION = "Read Jarvis execution history inside the System Terminal",
+                SIMILARITY  = similarity + 0.1,
+                EXECUTE     = () => ShowLogsInTerminal(logPath)
             });
 
             // Suggestion 2: Open log file in Notepad
             suggestions.Add(new CommandResult
             {
-                Title       = "Open Logs in Notepad",
-                Description = "Open the raw Jarvis.log file in your system text editor",
-                Similarity  = similarity,
-                Execute     = () => OpenLogInNotepad(logPath)
+                TITLE       = "Open Logs in Notepad",
+                DESCRIPTION = "Open the raw Jarvis.log file in your system text editor",
+                SIMILARITY  = similarity,
+                EXECUTE     = () => OpenLogInNotepad(logPath)
             });
 
             // Suggestion 3: Clear logs
             suggestions.Add(new CommandResult
             {
-                Title       = "Clear System Logs",
-                Description = "Permanently empty the Jarvis.log file on disk",
-                Similarity  = similarity - 0.2,
-                Execute     = () => ClearLogs(logPath)
+                TITLE       = "Clear System Logs",
+                DESCRIPTION = "Permanently empty the Jarvis.log file on disk",
+                SIMILARITY  = similarity - 0.2,
+                EXECUTE     = () => ClearLogs(logPath)
             });
 
             return suggestions;

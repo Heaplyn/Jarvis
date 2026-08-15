@@ -43,10 +43,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "📂 Open File Organizer Dashboard",
-                    Description = "Launch interactive visual File Organizer Overlay",
-                    Similarity = 6.0,
-                    Execute = () => FileOrganizerOverlay.Open()
+                    TITLE = "📂 Open File Organizer Dashboard",
+                    DESCRIPTION = "Launch interactive visual File Organizer Overlay",
+                    SIMILARITY = 6.0,
+                    EXECUTE = () => FileOrganizerOverlay.Open()
                 });
             }
 
@@ -56,10 +56,10 @@ namespace JarvisLauncher
                 string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🧹 Organize Desktop Loose Files",
-                    Description = $"Sort Desktop files into categorized folders ({desktopPath})",
-                    Similarity = 5.5,
-                    Execute = () => OrganizeDirectoryByCategory(desktopPath)
+                    TITLE = "🧹 Organize Desktop Loose Files",
+                    DESCRIPTION = $"Sort Desktop files into categorized folders ({desktopPath})",
+                    SIMILARITY = 5.5,
+                    EXECUTE = () => OrganizeDirectoryByCategory(desktopPath)
                 });
             }
 
@@ -69,10 +69,10 @@ namespace JarvisLauncher
                 string downloadsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
                 suggestions.Add(new CommandResult
                 {
-                    Title = "📥 Organize Downloads Folder",
-                    Description = $"Sort Downloads into subfolders by file extension ({downloadsPath})",
-                    Similarity = 5.5,
-                    Execute = () => OrganizeDirectoryByCategory(downloadsPath)
+                    TITLE = "📥 Organize Downloads Folder",
+                    DESCRIPTION = $"Sort Downloads into subfolders by file extension ({downloadsPath})",
+                    SIMILARITY = 5.5,
+                    EXECUTE = () => OrganizeDirectoryByCategory(downloadsPath)
                 });
             }
 
@@ -84,10 +84,10 @@ namespace JarvisLauncher
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title = $"📂 Organize Folder: {Path.GetFileName(targetPath)}",
-                        Description = $"Sort files in {targetPath} into category subfolders",
-                        Similarity = 5.0,
-                        Execute = () => OrganizeDirectoryByCategory(targetPath)
+                        TITLE = $"📂 Organize Folder: {Path.GetFileName(targetPath)}",
+                        DESCRIPTION = $"Sort files in {targetPath} into category subfolders",
+                        SIMILARITY = 5.0,
+                        EXECUTE = () => OrganizeDirectoryByCategory(targetPath)
                     });
                 }
             }
@@ -100,10 +100,10 @@ namespace JarvisLauncher
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title = $"🗑️ Remove Empty Directories in {Path.GetFileName(targetPath)}",
-                        Description = "Purge empty subfolders recursively",
-                        Similarity = 4.8,
-                        Execute = () => RemoveEmptyFolders(targetPath)
+                        TITLE = $"🗑️ Remove Empty Directories in {Path.GetFileName(targetPath)}",
+                        DESCRIPTION = "Purge empty subfolders recursively",
+                        SIMILARITY = 4.8,
+                        EXECUTE = () => RemoveEmptyFolders(targetPath)
                     });
                 }
             }
@@ -116,10 +116,10 @@ namespace JarvisLauncher
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title = $"📅 Sort Files by Creation Date (YYYY-MM)",
-                        Description = $"Organize files in {Path.GetFileName(targetPath)} into Year-Month subfolders",
-                        Similarity = 4.8,
-                        Execute = () => SortFilesByDate(targetPath)
+                        TITLE = $"📅 Sort Files by Creation Date (YYYY-MM)",
+                        DESCRIPTION = $"Organize files in {Path.GetFileName(targetPath)} into Year-Month subfolders",
+                        SIMILARITY = 4.8,
+                        EXECUTE = () => SortFilesByDate(targetPath)
                     });
                 }
             }
@@ -132,10 +132,10 @@ namespace JarvisLauncher
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title = $"📄 Flatten Folder Hierarchy in {Path.GetFileName(targetPath)}",
-                        Description = "Move all nested subfolder files into top-level folder",
-                        Similarity = 4.8,
-                        Execute = () => FlattenFolder(targetPath)
+                        TITLE = $"📄 Flatten Folder Hierarchy in {Path.GetFileName(targetPath)}",
+                        DESCRIPTION = "Move all nested subfolder files into top-level folder",
+                        SIMILARITY = 4.8,
+                        EXECUTE = () => FlattenFolder(targetPath)
                     });
                 }
             }
@@ -148,10 +148,10 @@ namespace JarvisLauncher
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title = $"📦 Backup Folder to ZIP: {Path.GetFileName(targetPath)}",
-                        Description = "Create timestamped ZIP archive backup of folder",
-                        Similarity = 5.0,
-                        Execute = () => BackupFolderToZip(targetPath)
+                        TITLE = $"📦 Backup Folder to ZIP: {Path.GetFileName(targetPath)}",
+                        DESCRIPTION = "Create timestamped ZIP archive backup of folder",
+                        SIMILARITY = 5.0,
+                        EXECUTE = () => BackupFolderToZip(targetPath)
                     });
                 }
             }
@@ -164,10 +164,10 @@ namespace JarvisLauncher
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title = $"🔍 Find & Remove Duplicate Files in {Path.GetFileName(targetPath)}",
-                        Description = "Scan MD5 hashes to identify identical duplicate files",
-                        Similarity = 5.0,
-                        Execute = () => FindAndDedupeFiles(targetPath)
+                        TITLE = $"🔍 Find & Remove Duplicate Files in {Path.GetFileName(targetPath)}",
+                        DESCRIPTION = "Scan MD5 hashes to identify identical duplicate files",
+                        SIMILARITY = 5.0,
+                        EXECUTE = () => FindAndDedupeFiles(targetPath)
                     });
                 }
             }

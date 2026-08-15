@@ -12,7 +12,7 @@ namespace JarvisLauncher
     {
         public static async Task<string> GetInboxSummaryAsync(int limit = 5)
         {
-            if (string.IsNullOrEmpty(SettingsManager.Current.GoogleOAuthAccessToken))
+            if (string.IsNullOrEmpty(SettingsManager.Current.GOOGLE_OAUTH_ACCESS_TOKEN))
             {
                 return "Error: Gmail requires Google OAuth2. Type 'oauth google' to sign in.";
             }

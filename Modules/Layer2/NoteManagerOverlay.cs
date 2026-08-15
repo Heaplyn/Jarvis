@@ -66,8 +66,9 @@ namespace JarvisLauncher
 
             _treeView = new TreeView
             {
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
+                Background = new SolidColorBrush(Color.FromArgb(10, 255, 255, 255)), // Subtle white glass background
+                BorderThickness = new Thickness(0, 0, 1, 0), // Right divider border
+                BorderBrush = (Brush)Application.Current.Resources["WindowBorderBrush"],
                 Foreground = Brushes.White,
                 Margin = new Thickness(0)
             };
@@ -90,7 +91,7 @@ namespace JarvisLauncher
                 AcceptsTab = true,
                 TextWrapping = TextWrapping.Wrap,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                Background = new SolidColorBrush(Color.FromArgb(15, 255, 255, 255)),
+                Background = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)), // Increased opacity from 15 to 30 for readability
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(10),
                 FontSize = 14,
@@ -98,6 +99,10 @@ namespace JarvisLauncher
                 Foreground = Brushes.White,
                 CaretBrush = Brushes.Cyan
             };
+            _editor.SetResourceReference(TextBox.BorderBrushProperty, "WindowBorderBrush");
+            _autosaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            _autosaveTimer.Tick += (s, e) => { _autosaveTimer.Stop(); SaveActiveNote(); };
+
             _editor.TextChanged += (s, e) => { if (!_isChangingNote) _autosaveTimer.Start(); };
             Grid.SetRow(_editor, 0);
             editorGrid.Children.Add(_editor);
@@ -106,8 +111,9 @@ namespace JarvisLauncher
             {
                 Text = "Ready.",
                 FontSize = 11,
-                Foreground = Brushes.Gray,
-                Margin = new Thickness(0, 5, 0, 0)
+                Foreground = Brushes.LightGray, // More readable
+                Margin = new Thickness(0, 5, 0, 0),
+                Opacity = 0.7
             };
             Grid.SetRow(_statusLabel, 1);
             editorGrid.Children.Add(_statusLabel);
@@ -116,9 +122,6 @@ namespace JarvisLauncher
             mainGrid.Children.Add(editorGrid);
 
             this.UserContent = mainGrid;
-
-            _autosaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-            _autosaveTimer.Tick += (s, e) => { _autosaveTimer.Stop(); SaveActiveNote(); };
 
             RefreshTree();
         }
@@ -137,7 +140,7 @@ namespace JarvisLauncher
         {
             var tvi = new TreeViewItem
             {
-                Header = (item.IsFolder ? "📁 " : "📄 ") + item.Name,
+                Header = (item.IS_FOLDER ? "📁 " : "📄 ") + item.NAME,
                 Tag = item,
                 IsExpanded = false,
                 Foreground = Brushes.White,
@@ -145,7 +148,7 @@ namespace JarvisLauncher
                 Margin = new Thickness(0, 2, 0, 2)
             };
 
-            foreach (var child in item.Children)
+            foreach (var child in item.CHILDREN)
             {
                 tvi.Items.Add(CreateTreeViewItem(child));
             }
@@ -155,9 +158,9 @@ namespace JarvisLauncher
 
         private void TreeView_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
         {
-            if (_treeView.SelectedItem is TreeViewItem tvi && tvi.Tag is NoteItem item && !item.IsFolder)
+            if (_treeView.SelectedItem is TreeViewItem tvi && tvi.Tag is NoteItem item && !item.IS_FOLDER)
             {
-                LoadNote(item.RelativePath);
+                LoadNote(item.RELATIVE_PATH);
             }
         }
 
@@ -183,9 +186,9 @@ namespace JarvisLauncher
         private void CreateNewCategory()
         {
             string parent = "";
-            if (_treeView.SelectedItem is TreeViewItem tvi && tvi.Tag is NoteItem item && item.IsFolder)
+            if (_treeView.SelectedItem is TreeViewItem tvi && tvi.Tag is NoteItem item && item.IS_FOLDER)
             {
-                parent = item.RelativePath;
+                parent = item.RELATIVE_PATH;
             }
 
             InputPromptOverlay.Show("New Category Name:", (name) =>
@@ -199,9 +202,9 @@ namespace JarvisLauncher
         private void CreateNewNote()
         {
             string parent = "";
-            if (_treeView.SelectedItem is TreeViewItem tvi && tvi.Tag is NoteItem item && item.IsFolder)
+            if (_treeView.SelectedItem is TreeViewItem tvi && tvi.Tag is NoteItem item && item.IS_FOLDER)
             {
-                parent = item.RelativePath;
+                parent = item.RELATIVE_PATH;
             }
 
             InputPromptOverlay.Show("New Note Title:", (name) =>
@@ -217,11 +220,11 @@ namespace JarvisLauncher
         {
             if (_treeView.SelectedItem is TreeViewItem tvi && tvi.Tag is NoteItem item)
             {
-                var res = MessageBox.Show($"Delete '{item.Name}' permanently?", "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                var res = MessageBox.Show($"Delete '{item.NAME}' permanently?", "Confirm Delete", MessageBoxButton.YesNo, MessageBoxImage.Warning);
                 if (res == MessageBoxResult.Yes)
                 {
-                    if (_activeNoteRelativePath == item.RelativePath) _activeNoteRelativePath = null;
-                    NotesManager.DeleteItem(item.RelativePath);
+                    if (_activeNoteRelativePath == item.RELATIVE_PATH) _activeNoteRelativePath = null;
+                    NotesManager.DeleteItem(item.RELATIVE_PATH);
                     RefreshTree();
                     _editor.Text = "";
                     _statusLabel.Text = "Item deleted.";

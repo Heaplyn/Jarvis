@@ -38,20 +38,20 @@ namespace JarvisLauncher
                     string url = parts[1].Trim();
                     suggestions.Add(new CommandResult
                     {
-                        Title = $"🕸️ Scrape Page: {url}",
-                        Description = "Extract title, meta description, headings, and links from the page",
-                        Similarity = 4.0,
-                        Execute = () => RunScrape(url)
+                        TITLE = $"🕸️ Scrape Page: {url}",
+                        DESCRIPTION = "Extract title, meta description, headings, and links from the page",
+                        SIMILARITY = 4.0,
+                        EXECUTE = () => RunScrape(url)
                     });
                 }
                 else
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title = "🕸️ Scrape Webpage...",
-                        Description = "Prompt for a URL and extract structured page data",
-                        Similarity = 3.0,
-                        Execute = () => InputPromptOverlay.Show("Enter URL to scrape:", RunScrape)
+                        TITLE = "🕸️ Scrape Webpage...",
+                        DESCRIPTION = "Prompt for a URL and extract structured page data",
+                        SIMILARITY = 3.0,
+                        EXECUTE = () => InputPromptOverlay.Show("Enter URL to scrape:", RunScrape)
                     });
                 }
                 return suggestions;
@@ -68,20 +68,20 @@ namespace JarvisLauncher
                     {
                         suggestions.Add(new CommandResult
                         {
-                            Title = "🔑 Save Discord Bot Token",
-                            Description = "Store your bot token (from discord.com/developers) for server reading",
-                            Similarity = 4.5,
-                            Execute = () => { DiscordScraperManager.SaveBotToken(arg); TextOverlay.Show("🔑 Discord bot token saved.", 2500); }
+                            TITLE = "🔑 Save Discord Bot Token",
+                            DESCRIPTION = "Store your bot token (from discord.com/developers) for server reading",
+                            SIMILARITY = 4.5,
+                            EXECUTE = () => { DiscordScraperManager.SaveBotToken(arg); TextOverlay.Show("🔑 Discord bot token saved.", 2500); }
                         });
                     }
                     else
                     {
                         suggestions.Add(new CommandResult
                         {
-                            Title = "🔑 Set Discord Bot Token...",
-                            Description = "Prompt for your official Discord Bot token",
-                            Similarity = 3.5,
-                            Execute = () => InputPromptOverlay.Show("Enter your Discord Bot token:", (t) =>
+                            TITLE = "🔑 Set Discord Bot Token...",
+                            DESCRIPTION = "Prompt for your official Discord Bot token",
+                            SIMILARITY = 3.5,
+                            EXECUTE = () => InputPromptOverlay.Show("Enter your Discord Bot token:", (t) =>
                             {
                                 DiscordScraperManager.SaveBotToken(t);
                                 TextOverlay.Show("🔑 Discord bot token saved.", 2500);
@@ -95,10 +95,10 @@ namespace JarvisLauncher
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title = "📡 List Discord Servers (Bot API)",
-                        Description = "List servers your configured bot has joined",
-                        Similarity = 4.0,
-                        Execute = () => RunListGuilds()
+                        TITLE = "📡 List Discord Servers (Bot API)",
+                        DESCRIPTION = "List servers your configured bot has joined",
+                        SIMILARITY = 4.0,
+                        EXECUTE = () => RunListGuilds()
                     });
                     return suggestions;
                 }
@@ -107,10 +107,10 @@ namespace JarvisLauncher
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title = $"📃 List Channels in Server {arg}",
-                        Description = "List readable text channels for the given server ID",
-                        Similarity = 4.0,
-                        Execute = () => RunListChannels(arg)
+                        TITLE = $"📃 List Channels in Server {arg}",
+                        DESCRIPTION = "List readable text channels for the given server ID",
+                        SIMILARITY = 4.0,
+                        EXECUTE = () => RunListChannels(arg)
                     });
                     return suggestions;
                 }
@@ -124,20 +124,20 @@ namespace JarvisLauncher
 
                     suggestions.Add(new CommandResult
                     {
-                        Title = summarize ? $"🧠 Scrape & Summarize Channel: {channelId}" : $"💬 Read Channel Messages: {channelId}",
-                        Description = summarize ? "Fetch recent messages and summarize discussion with AI" : $"Fetch last {limit} messages via Bot API",
-                        Similarity = 4.0,
-                        Execute = () => RunReadChannel(channelId, limit, summarize)
+                        TITLE = summarize ? $"🧠 Scrape & Summarize Channel: {channelId}" : $"💬 Read Channel Messages: {channelId}",
+                        DESCRIPTION = summarize ? "Fetch recent messages and summarize discussion with AI" : $"Fetch last {limit} messages via Bot API",
+                        SIMILARITY = 4.0,
+                        EXECUTE = () => RunReadChannel(channelId, limit, summarize)
                     });
                     return suggestions;
                 }
 
                 suggestions.Add(new CommandResult
                 {
-                    Title = "📖 Discord Bot API Help",
-                    Description = "discord token <t> | discord servers | discord channels <id> | discord read <id> [n] | discord scrape <id> [n]",
-                    Similarity = 2.5,
-                    Execute = () => CliOutputOverlay.Show("Discord Commands",
+                    TITLE = "📖 Discord Bot API Help",
+                    DESCRIPTION = "discord token <t> | discord servers | discord channels <id> | discord read <id> [n] | discord scrape <id> [n]",
+                    SIMILARITY = 2.5,
+                    EXECUTE = () => CliOutputOverlay.Show("Discord Commands",
                         "discord token <token>       Save your official Bot token\n" +
                         "discord servers              List servers your bot has joined\n" +
                         "discord channels <guildId>   List text channels in a server\n" +

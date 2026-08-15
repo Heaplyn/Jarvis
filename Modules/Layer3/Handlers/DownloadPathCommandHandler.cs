@@ -28,27 +28,27 @@ namespace JarvisLauncher
 
             if (cmd == "getdlpath")
             {
-                string currentPath = SettingsManager.Current.DownloadDirectory;
+                string currentPath = SettingsManager.Current.DOWNLOAD_DIRECTORY;
                 string displayPath = string.IsNullOrWhiteSpace(currentPath) 
                     ? GetDefaultDownloadPath() + " [Default]"
                     : currentPath;
 
                 suggestions.Add(new CommandResult
                 {
-                    Title       = $"Downloads Folder: {displayPath}",
-                    Description = "Display the target directory path where music files are saved",
-                    Similarity  = similarity,
-                    Execute     = null
+                    TITLE       = $"Downloads Folder: {displayPath}",
+                    DESCRIPTION = "Display the target directory path where music files are saved",
+                    SIMILARITY  = similarity,
+                    EXECUTE     = null
                 });
             }
             else if (cmd == "resetdlpath")
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title       = "Reset Downloads Folder",
-                    Description = $"Restore default target path to project folder: {GetDefaultDownloadPath()}",
-                    Similarity  = similarity,
-                    Execute     = () => ResetDownloadPath()
+                    TITLE       = "Reset Downloads Folder",
+                    DESCRIPTION = $"Restore default target path to project folder: {GetDefaultDownloadPath()}",
+                    SIMILARITY  = similarity,
+                    EXECUTE     = () => ResetDownloadPath()
                 });
             }
             else if (cmd == "setdlpath")
@@ -58,20 +58,20 @@ namespace JarvisLauncher
                     string targetPath = parts[1].Trim().Trim('"', '\'');
                     suggestions.Add(new CommandResult
                     {
-                        Title       = $"Set Downloads Folder to: {targetPath}",
-                        Description = "Update the download destination folder for Lucida/YT-DLP",
-                        Similarity  = similarity,
-                        Execute     = () => SetDownloadPath(targetPath)
+                        TITLE       = $"Set Downloads Folder to: {targetPath}",
+                        DESCRIPTION = "Update the download destination folder for Lucida/YT-DLP",
+                        SIMILARITY  = similarity,
+                        EXECUTE     = () => SetDownloadPath(targetPath)
                     });
                 }
                 else
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title       = "Set Downloads Folder...",
-                        Description = "Type the destination folder path (e.g. setdlpath C:\\Users\\Name\\Music)",
-                        Similarity  = similarity,
-                        Execute     = null
+                        TITLE       = "Set Downloads Folder...",
+                        DESCRIPTION = "Type the destination folder path (e.g. setdlpath C:\\Users\\Name\\Music)",
+                        SIMILARITY  = similarity,
+                        EXECUTE     = null
                     });
                 }
             }
@@ -106,7 +106,7 @@ namespace JarvisLauncher
                     Directory.CreateDirectory(path);
                 }
 
-                SettingsManager.Current.DownloadDirectory = path;
+                SettingsManager.Current.DOWNLOAD_DIRECTORY = path;
                 SettingsManager.Save();
                 TextOverlay.Show($"📁 Downloads directory configured successfully!", 2500);
             }
@@ -120,7 +120,7 @@ namespace JarvisLauncher
         {
             try
             {
-                SettingsManager.Current.DownloadDirectory = string.Empty;
+                SettingsManager.Current.DOWNLOAD_DIRECTORY = string.Empty;
                 SettingsManager.Save();
                 TextOverlay.Show("📁 Downloads path reset to project default.", 2500);
             }

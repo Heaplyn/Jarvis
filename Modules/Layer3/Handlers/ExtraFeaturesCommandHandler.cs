@@ -60,10 +60,10 @@ namespace JarvisLauncher
                 bool wantPass = query.ToLower().Contains("pass");
                 suggestions.Add(new CommandResult
                 {
-                    Title = wantPass ? "🔑 View Wi-Fi Password" : "📶 View Wi-Fi Network Info",
-                    Description = wantPass ? "Display saved Wi-Fi password for current network" : "Display connected Wi-Fi SSID, signal, & local IP",
-                    Similarity = 4.0,
-                    Execute = () => ShowWifiInfo(wantPass)
+                    TITLE = wantPass ? "🔑 View Wi-Fi Password" : "📶 View Wi-Fi Network Info",
+                    DESCRIPTION = wantPass ? "Display saved Wi-Fi password for current network" : "Display connected Wi-Fi SSID, signal, & local IP",
+                    SIMILARITY = 4.0,
+                    EXECUTE = () => ShowWifiInfo(wantPass)
                 });
                 return suggestions;
             }
@@ -72,10 +72,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🔧 Open Tunnel Manager UI",
-                    Description = "Open the compact Tunnel Manager overlay to start/stop tunnels",
-                    Similarity = 4.0,
-                    Execute = () => Application.Current.Dispatcher.Invoke(() => TunnelOverlay.ShowOverlay())
+                    TITLE = "🔧 Open Tunnel Manager UI",
+                    DESCRIPTION = "Open the compact Tunnel Manager overlay to start/stop tunnels",
+                    SIMILARITY = 4.0,
+                    EXECUTE = () => Application.Current.Dispatcher.Invoke(() => TunnelOverlay.ShowOverlay())
                 });
                 return suggestions;
             }
@@ -84,10 +84,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "⏱️ System Uptime",
-                    Description = "Display host PC uptime in days, hours, and minutes",
-                    Similarity = 4.0,
-                    Execute = ShowUptime
+                    TITLE = "⏱️ System Uptime",
+                    DESCRIPTION = "Display host PC uptime in days, hours, and minutes",
+                    SIMILARITY = 4.0,
+                    EXECUTE = ShowUptime
                 });
                 return suggestions;
             }
@@ -96,10 +96,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "⚡ Flush DNS Resolver Cache",
-                    Description = "Purge Windows DNS cache to fix network issues",
-                    Similarity = 4.0,
-                    Execute = FlushDns
+                    TITLE = "⚡ Flush DNS Resolver Cache",
+                    DESCRIPTION = "Purge Windows DNS cache to fix network issues",
+                    SIMILARITY = 4.0,
+                    EXECUTE = FlushDns
                 });
                 return suggestions;
             }
@@ -109,10 +109,10 @@ namespace JarvisLauncher
                 string host = parts.Length > 1 ? parts[1].Trim() : "google.com";
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"📡 Ping {host}",
-                    Description = $"Measure network roundtrip latency to {host}",
-                    Similarity = 4.0,
-                    Execute = () => PingHost(host)
+                    TITLE = $"📡 Ping {host}",
+                    DESCRIPTION = $"Measure network roundtrip latency to {host}",
+                    SIMILARITY = 4.0,
+                    EXECUTE = () => PingHost(host)
                 });
                 return suggestions;
             }
@@ -122,10 +122,10 @@ namespace JarvisLauncher
                 string textToSpeak = parts.Length > 1 ? parts[1].Trim() : "Hello Kyle!";
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🗣️ Speak: \"{textToSpeak}\"",
-                    Description = "Synthesize and read text out loud via Windows Speech engine",
-                    Similarity = 4.0,
-                    Execute = () => SpeakText(textToSpeak)
+                    TITLE = $"🗣️ Speak: \"{textToSpeak}\"",
+                    DESCRIPTION = "Synthesize and read text out loud via Windows Speech engine",
+                    SIMILARITY = 4.0,
+                    EXECUTE = () => SpeakText(textToSpeak)
                 });
                 return suggestions;
             }
@@ -135,10 +135,10 @@ namespace JarvisLauncher
                 string copyText = parts.Length > 1 ? parts[1].Trim() : "";
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"📋 Copy to Clipboard: \"{copyText}\"",
-                    Description = "Set text directly to system clipboard",
-                    Similarity = 4.0,
-                    Execute = () => { try { Clipboard.SetText(copyText); TextOverlay.Show("📋 Copied to Clipboard!", 2000); } catch {} }
+                    TITLE = $"📋 Copy to Clipboard: \"{copyText}\"",
+                    DESCRIPTION = "Set text directly to system clipboard",
+                    SIMILARITY = 4.0,
+                    EXECUTE = () => { try { Clipboard.SetText(copyText); TextOverlay.Show("📋 Copied to Clipboard!", 2000); } catch {} }
                 });
                 return suggestions;
             }
@@ -150,10 +150,10 @@ namespace JarvisLauncher
                     string tokenStr = parts[1].Replace("token", "").Trim();
                     suggestions.Add(new CommandResult
                     {
-                        Title = $"🔑 Save Permanent Cloudflare Token",
-                        Description = $"Save token & bind static custom domain on every restart",
-                        Similarity = 4.5,
-                        Execute = () =>
+                        TITLE = $"🔑 Save Permanent Cloudflare Token",
+                        DESCRIPTION = $"Save token & bind static custom domain on every restart",
+                        SIMILARITY = 4.5,
+                        EXECUTE = () =>
                         {
                             CloudflareTunnelManager.SaveTunnelToken(tokenStr);
                             TextOverlay.Show("🔑 Permanent Cloudflare Token Saved!\nRestart tunnel to bind.", 4000);
@@ -166,10 +166,10 @@ namespace JarvisLauncher
 
                 suggestions.Add(new CommandResult
                 {
-                    Title = isRunning ? $"🌐 Cloudflare Tunnel Active: {activeUrl}" : "🌐 Start Cloudflare Public Web Tunnel",
-                    Description = isRunning ? "Click to open public HTTPS URL in browser" : "Auto-downloads cloudflared.exe & hosts Jarvis Mobile App to the public web",
-                    Similarity = 3.5,
-                    Execute = () =>
+                    TITLE = isRunning ? $"🌐 Cloudflare Tunnel Active: {activeUrl}" : "🌐 Start Cloudflare Public Web Tunnel",
+                    DESCRIPTION = isRunning ? "Click to open public HTTPS URL in browser" : "Auto-downloads cloudflared.exe & hosts Jarvis Mobile App to the public web",
+                    SIMILARITY = 3.5,
+                    EXECUTE = () =>
                     {
                         System.Threading.Tasks.Task.Run(async () =>
                         {
@@ -193,10 +193,10 @@ namespace JarvisLauncher
                     string tokenStr = parts[1].Replace("token", "").Trim();
                     suggestions.Add(new CommandResult
                     {
-                        Title = $"🔑 Save Permanent ngrok Token",
-                        Description = $"Save ngrok authtoken for higher-rate/public tunnels",
-                        Similarity = 4.5,
-                        Execute = () =>
+                        TITLE = $"🔑 Save Permanent ngrok Token",
+                        DESCRIPTION = $"Save ngrok authtoken for higher-rate/public tunnels",
+                        SIMILARITY = 4.5,
+                        EXECUTE = () =>
                         {
                             NgrokTunnelManager.SaveAuthToken(tokenStr);
                             TextOverlay.Show("🔑 ngrok Token Saved!\nRestart tunnel to apply.", 4000);
@@ -208,10 +208,10 @@ namespace JarvisLauncher
                 string ngrokUrl = NgrokTunnelManager.PublicUrl ?? "";
                 suggestions.Add(new CommandResult
                 {
-                    Title = ngrokRunning ? $"🌐 ngrok Tunnel Active: {ngrokUrl}" : "🌐 Start ngrok Public Web Tunnel",
-                    Description = ngrokRunning ? "Open public ngrok URL in browser" : "Auto-downloads ngrok.exe & hosts Jarvis Mobile App to the public web",
-                    Similarity = 3.2,
-                    Execute = () =>
+                    TITLE = ngrokRunning ? $"🌐 ngrok Tunnel Active: {ngrokUrl}" : "🌐 Start ngrok Public Web Tunnel",
+                    DESCRIPTION = ngrokRunning ? "Open public ngrok URL in browser" : "Auto-downloads ngrok.exe & hosts Jarvis Mobile App to the public web",
+                    SIMILARITY = 3.2,
+                    EXECUTE = () =>
                     {
                         System.Threading.Tasks.Task.Run(async () =>
                         {
@@ -235,10 +235,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🚀 Deploy Mobile Companion to Vercel (1-Click Free Hosting)",
-                    Description = "Get a permanent HTTPS URL (https://jarvis.vercel.app) that never expires or gets 502 errors",
-                    Similarity = 4.5,
-                    Execute = () => OpenWebBrowser("https://vercel.com/new")
+                    TITLE = "🚀 Deploy Mobile Companion to Vercel (1-Click Free Hosting)",
+                    DESCRIPTION = "Get a permanent HTTPS URL (https://jarvis.vercel.app) that never expires or gets 502 errors",
+                    SIMILARITY = 4.5,
+                    EXECUTE = () => OpenWebBrowser("https://vercel.com/new")
                 });
                 return suggestions;
             }
@@ -253,15 +253,15 @@ namespace JarvisLauncher
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title = "🔒 Mobile Privacy Lockdown",
-                        Description = "Instantly disable remote terminal, files, screen mirror & clipboard sync",
-                        Similarity = 5.0,
-                        Execute = () =>
+                        TITLE = "🔒 Mobile Privacy Lockdown",
+                        DESCRIPTION = "Instantly disable remote terminal, files, screen mirror & clipboard sync",
+                        SIMILARITY = 5.0,
+                        EXECUTE = () =>
                         {
-                            SettingsManager.Current.MobileAllowTerminal = false;
-                            SettingsManager.Current.MobileAllowFiles = false;
-                            SettingsManager.Current.MobileAllowScreenMirror = false;
-                            SettingsManager.Current.MobileAllowClipboard = false;
+                            SettingsManager.Current.MOBILE_ALLOW_TERMINAL = false;
+                            SettingsManager.Current.MOBILE_ALLOW_FILES = false;
+                            SettingsManager.Current.MOBILE_ALLOW_SCREEN_MIRROR = false;
+                            SettingsManager.Current.MOBILE_ALLOW_CLIPBOARD = false;
                             SettingsManager.Save();
                             TextOverlay.Show("🔒 All remote phone capabilities disabled.", 2500);
                         }
@@ -274,12 +274,12 @@ namespace JarvisLauncher
                     string provider = char.ToUpper(arg[0]) + arg.Substring(1);
                     suggestions.Add(new CommandResult
                     {
-                        Title = $"🌍 Set Preferred Tunnel: {provider}",
-                        Description = "Auto-start this provider next time the Mobile Hub opens (if auto-start is enabled)",
-                        Similarity = 5.0,
-                        Execute = () =>
+                        TITLE = $"🌍 Set Preferred Tunnel: {provider}",
+                        DESCRIPTION = "Auto-start this provider next time the Mobile Hub opens (if auto-start is enabled)",
+                        SIMILARITY = 5.0,
+                        EXECUTE = () =>
                         {
-                            SettingsManager.Current.MobilePreferredTunnel = provider;
+                            SettingsManager.Current.MOBILE_PREFERRED_TUNNEL = provider;
                             SettingsManager.Save();
                             TextOverlay.Show($"🌍 Preferred tunnel set to {provider}", 2000);
                         }
@@ -289,26 +289,26 @@ namespace JarvisLauncher
 
                 suggestions.Add(new CommandResult
                 {
-                    Title = "📷 Scan QR Code to Pair Phone Instantly",
-                    Description = "Display QR Code on PC monitor — scan with phone camera to connect in 1 second",
-                    Similarity = 4.2,
-                    Execute = () => MobileOverlay.ShowQrPairingWindow()
+                    TITLE = "📷 Scan QR Code to Pair Phone Instantly",
+                    DESCRIPTION = "Display QR Code on PC monitor — scan with phone camera to connect in 1 second",
+                    SIMILARITY = 4.2,
+                    EXECUTE = () => MobileOverlay.ShowQrPairingWindow()
                 });
 
                 suggestions.Add(new CommandResult
                 {
-                    Title = "📱 Open Mobile & Tunnel Hub Overlay",
-                    Description = "Manage connection links, Cloudflare/ngrok tunnels, and phone capability customization",
-                    Similarity = 4.0,
-                    Execute = () => MobileOverlay.ShowOverlay()
+                    TITLE = "📱 Open Mobile & Tunnel Hub Overlay",
+                    DESCRIPTION = "Manage connection links, Cloudflare/ngrok tunnels, and phone capability customization",
+                    SIMILARITY = 4.0,
+                    EXECUTE = () => MobileOverlay.ShowOverlay()
                 });
 
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🛠️ Run Mobile Connectivity Diagnostics",
-                    Description = "Analyze network interfaces, port status, and firewall configuration",
-                    Similarity = 3.8,
-                    Execute = () => {
+                    TITLE = "🛠️ Run Mobile Connectivity Diagnostics",
+                    DESCRIPTION = "Analyze network interfaces, port status, and firewall configuration",
+                    SIMILARITY = 3.8,
+                    EXECUTE = () => {
                         var log = MobileBridgeServer.GetRecentLogs(50);
                         ChatOverlay.LogConsoleAction("Connectivity Diagnostics", log);
                         MobileOverlay.ShowOverlay();
@@ -317,17 +317,17 @@ namespace JarvisLauncher
 
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🌐 Connect Mobile via DNS: {dnsUrl}",
-                    Description = $"Open {dnsUrl} or {ipUrl} on phone browser to connect AI Chat & PC Deck",
-                    Similarity = 3.5,
-                    Execute = () => OpenWebBrowser(dnsUrl)
+                    TITLE = $"🌐 Connect Mobile via DNS: {dnsUrl}",
+                    DESCRIPTION = $"Open {dnsUrl} or {ipUrl} on phone browser to connect AI Chat & PC Deck",
+                    SIMILARITY = 3.5,
+                    EXECUTE = () => OpenWebBrowser(dnsUrl)
                 });
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"📱 Connect Mobile via IP: {ipUrl}",
-                    Description = "Direct local network IP connection",
-                    Similarity = 3.0,
-                    Execute = () => OpenWebBrowser(ipUrl)
+                    TITLE = $"📱 Connect Mobile via IP: {ipUrl}",
+                    DESCRIPTION = "Direct local network IP connection",
+                    SIMILARITY = 3.0,
+                    EXECUTE = () => OpenWebBrowser(ipUrl)
                 });
                 return suggestions;
             }
@@ -341,28 +341,28 @@ namespace JarvisLauncher
                     {
                         suggestions.Add(new CommandResult
                         {
-                            Title = $"📂 Open: {Path.GetFileName(path)}",
-                            Description = $"Open '{path}' in default Windows application",
-                            Similarity = 3.0,
-                            Execute = () => OpenFileNatively(path)
+                            TITLE = $"📂 Open: {Path.GetFileName(path)}",
+                            DESCRIPTION = $"Open '{path}' in default Windows application",
+                            SIMILARITY = 3.0,
+                            EXECUTE = () => OpenFileNatively(path)
                         });
 
                         suggestions.Add(new CommandResult
                         {
-                            Title = $"📝 Edit: {Path.GetFileName(path)}",
-                            Description = $"Open '{path}' in default text editor",
-                            Similarity = 2.8,
-                            Execute = () => OpenFileInEditor(path)
+                            TITLE = $"📝 Edit: {Path.GetFileName(path)}",
+                            DESCRIPTION = $"Open '{path}' in default text editor",
+                            SIMILARITY = 2.8,
+                            EXECUTE = () => OpenFileInEditor(path)
                         });
                     }
                     else
                     {
                         suggestions.Add(new CommandResult
                         {
-                            Title = $"📂 Open Path: {path}",
-                            Description = "Attempt to open specified file or directory path",
-                            Similarity = 2.5,
-                            Execute = () => OpenFileNatively(path)
+                            TITLE = $"📂 Open Path: {path}",
+                            DESCRIPTION = "Attempt to open specified file or directory path",
+                            SIMILARITY = 2.5,
+                            EXECUTE = () => OpenFileNatively(path)
                         });
                     }
                 }
@@ -370,10 +370,10 @@ namespace JarvisLauncher
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title = "📂 Open File...",
-                        Description = "Pick a file from dialog to open in default application",
-                        Similarity = 2.0,
-                        Execute = InteractiveOpenFile
+                        TITLE = "📂 Open File...",
+                        DESCRIPTION = "Pick a file from dialog to open in default application",
+                        SIMILARITY = 2.0,
+                        EXECUTE = InteractiveOpenFile
                     });
                 }
                 return suggestions;
@@ -389,19 +389,19 @@ namespace JarvisLauncher
                     // Option A: Search Google Web Browser
                     suggestions.Add(new CommandResult
                     {
-                        Title       = $"🌐 Search Google for \"{target}\"",
-                        Description = $"Open browser to search Google for '{target}'",
-                        Similarity  = 2.5,
-                        Execute     = () => OpenWebBrowser($"https://www.google.com/search?q={Uri.EscapeDataString(target)}")
+                        TITLE       = $"🌐 Search Google for \"{target}\"",
+                        DESCRIPTION = $"Open browser to search Google for '{target}'",
+                        SIMILARITY  = 2.5,
+                        EXECUTE     = () => OpenWebBrowser($"https://www.google.com/search?q={Uri.EscapeDataString(target)}")
                     });
 
                     // Option B: Search DuckDuckGo Web Browser
                     suggestions.Add(new CommandResult
                     {
-                        Title       = $"🦆 Search DuckDuckGo for \"{target}\"",
-                        Description = $"Open browser to search DuckDuckGo for '{target}'",
-                        Similarity  = 2.4,
-                        Execute     = () => OpenWebBrowser($"https://duckduckgo.com/?q={Uri.EscapeDataString(target)}")
+                        TITLE       = $"🦆 Search DuckDuckGo for \"{target}\"",
+                        DESCRIPTION = $"Open browser to search DuckDuckGo for '{target}'",
+                        SIMILARITY  = 2.4,
+                        EXECUTE     = () => OpenWebBrowser($"https://duckduckgo.com/?q={Uri.EscapeDataString(target)}")
                     });
 
                     // Option C: Local Files Search
@@ -411,10 +411,10 @@ namespace JarvisLauncher
                         string fn = Path.GetFileName(file);
                         suggestions.Add(new CommandResult
                         {
-                            Title       = $"📄 {fn}",
-                            Description = file,
-                            Similarity  = 2.0,
-                            Execute     = () => OpenFileNatively(file)
+                            TITLE       = $"📄 {fn}",
+                            DESCRIPTION = file,
+                            SIMILARITY  = 2.0,
+                            EXECUTE     = () => OpenFileNatively(file)
                         });
                     }
                 }
@@ -422,10 +422,10 @@ namespace JarvisLauncher
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title       = "Search Web in Browser...",
-                        Description = "Type query (e.g. 'search how to build a PC')",
-                        Similarity  = 1.5,
-                        Execute     = () => InputPromptOverlay.Show("Enter web query to search:", (q) => OpenWebBrowser($"https://www.google.com/search?q={Uri.EscapeDataString(q)}"))
+                        TITLE       = "Search Web in Browser...",
+                        DESCRIPTION = "Type query (e.g. 'search how to build a PC')",
+                        SIMILARITY  = 1.5,
+                        EXECUTE     = () => InputPromptOverlay.Show("Enter web query to search:", (q) => OpenWebBrowser($"https://www.google.com/search?q={Uri.EscapeDataString(q)}"))
                     });
                 }
             }
@@ -446,10 +446,10 @@ namespace JarvisLauncher
                             string sContent = snipParts[1];
                             suggestions.Add(new CommandResult
                             {
-                                Title       = $"Save Snippet: '{sName}'",
-                                Description = $"Content: {sContent}",
-                                Similarity  = 2.0,
-                                Execute     = () => ExtraFeaturesManager.AddSnippet(sName, sContent)
+                                TITLE       = $"Save Snippet: '{sName}'",
+                                DESCRIPTION = $"Content: {sContent}",
+                                SIMILARITY  = 2.0,
+                                EXECUTE     = () => ExtraFeaturesManager.AddSnippet(sName, sContent)
                             });
                         }
                     }
@@ -459,19 +459,19 @@ namespace JarvisLauncher
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title       = $"✂️ Snippet: {snip.Name}",
-                        Description = $"Copy: \"{snip.Content}\"",
-                        Similarity  = 1.0,
-                        Execute     = () => CopySnippet(snip.Content)
+                        TITLE       = $"✂️ Snippet: {snip.Name}",
+                        DESCRIPTION = $"Copy: \"{snip.Content}\"",
+                        SIMILARITY  = 1.0,
+                        EXECUTE     = () => CopySnippet(snip.Content)
                     });
                 }
 
                 suggestions.Add(new CommandResult
                 {
-                    Title       = "Add New Snippet...",
-                    Description = "Type format: snippet add <name> <text>",
-                    Similarity  = 0.5,
-                    Execute     = () => InputPromptOverlay.Show("Enter format: <name> <text>", (str) => ParseAndAddSnippet(str))
+                    TITLE       = "Add New Snippet...",
+                    DESCRIPTION = "Type format: snippet add <name> <text>",
+                    SIMILARITY  = 0.5,
+                    EXECUTE     = () => InputPromptOverlay.Show("Enter format: <name> <text>", (str) => ParseAndAddSnippet(str))
                 });
             }
             // --- 3. APPLICATION LAUNCHER SHORTCUTS ---
@@ -487,10 +487,10 @@ namespace JarvisLauncher
                         {
                             suggestions.Add(new CommandResult
                             {
-                                Title       = $"{a.IconEmoji} Launch {a.Name.ToUpper()}",
-                                Description = a.TargetPath,
-                                Similarity  = 2.0,
-                                Execute     = () => LaunchApp(a.TargetPath)
+                                TITLE       = $"{a.IconEmoji} Launch {a.Name.ToUpper()}",
+                                DESCRIPTION = a.TargetPath,
+                                SIMILARITY  = 2.0,
+                                EXECUTE     = () => LaunchApp(a.TargetPath)
                             });
                         }
                     }
@@ -501,10 +501,10 @@ namespace JarvisLauncher
                     {
                         suggestions.Add(new CommandResult
                         {
-                            Title       = $"{a.IconEmoji} Launch {a.Name.ToUpper()}",
-                            Description = a.TargetPath,
-                            Similarity  = 1.0,
-                            Execute     = () => LaunchApp(a.TargetPath)
+                            TITLE       = $"{a.IconEmoji} Launch {a.Name.ToUpper()}",
+                            DESCRIPTION = a.TargetPath,
+                            SIMILARITY  = 1.0,
+                            EXECUTE     = () => LaunchApp(a.TargetPath)
                         });
                     }
                 }
@@ -517,20 +517,20 @@ namespace JarvisLauncher
                     string url = parts[1].Trim();
                     suggestions.Add(new CommandResult
                     {
-                        Title       = $"🌐 Fetch & Summarize URL: {url}",
-                        Description = "Scrape webpage text and summarize with Gemini AI",
-                        Similarity  = 2.0,
-                        Execute     = () => FetchAndSummarize(url)
+                        TITLE       = $"🌐 Fetch & Summarize URL: {url}",
+                        DESCRIPTION = "Scrape webpage text and summarize with Gemini AI",
+                        SIMILARITY  = 2.0,
+                        EXECUTE     = () => FetchAndSummarize(url)
                     });
                 }
                 else
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title       = "Fetch & Summarize Webpage...",
-                        Description = "Prompt for a URL to scrape and summarize",
-                        Similarity  = 1.5,
-                        Execute     = () => InputPromptOverlay.Show("Enter URL to fetch:", (url) => FetchAndSummarize(url))
+                        TITLE       = "Fetch & Summarize Webpage...",
+                        DESCRIPTION = "Prompt for a URL to scrape and summarize",
+                        SIMILARITY  = 1.5,
+                        EXECUTE     = () => InputPromptOverlay.Show("Enter URL to fetch:", (url) => FetchAndSummarize(url))
                     });
                 }
             }
@@ -539,10 +539,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title       = "⚡ Toggle Live Floating System Monitor",
-                    Description = "Display real-time CPU %, RAM, and active processes overlay",
-                    Similarity  = 2.0,
-                    Execute     = () => SystemMonitorOverlay.ToggleMonitor()
+                    TITLE       = "⚡ Toggle Live Floating System Monitor",
+                    DESCRIPTION = "Display real-time CPU %, RAM, and active processes overlay",
+                    SIMILARITY  = 2.0,
+                    EXECUTE     = () => SystemMonitorOverlay.ToggleMonitor()
                 });
             }
             // --- 6. VOLUME PRESETS ---
@@ -555,20 +555,20 @@ namespace JarvisLauncher
                     {
                         suggestions.Add(new CommandResult
                         {
-                            Title       = "🌙 Preset: Night Mode (10% Volume)",
-                            Description = "Set master volume to 10%",
-                            Similarity  = 2.0,
-                            Execute     = () => CommandParser.GetSuggestions("volume 10")[0].Execute?.Invoke()
+                            TITLE       = "🌙 Preset: Night Mode (10% Volume)",
+                            DESCRIPTION = "Set master volume to 10%",
+                            SIMILARITY  = 2.0,
+                            EXECUTE     = () => CommandParser.GetSuggestions("volume 10")[0].EXECUTE?.Invoke()
                         });
                     }
                     else if (preset == "gaming" || preset == "music" || preset == "loud")
                     {
                         suggestions.Add(new CommandResult
                         {
-                            Title       = "🎵 Preset: Gaming/Music (75% Volume)",
-                            Description = "Set master volume to 75%",
-                            Similarity  = 2.0,
-                            Execute     = () => CommandParser.GetSuggestions("volume 75")[0].Execute?.Invoke()
+                            TITLE       = "🎵 Preset: Gaming/Music (75% Volume)",
+                            DESCRIPTION = "Set master volume to 75%",
+                            SIMILARITY  = 2.0,
+                            EXECUTE     = () => CommandParser.GetSuggestions("volume 75")[0].EXECUTE?.Invoke()
                         });
                     }
                 }
@@ -579,10 +579,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🌐 Inspect Open Browser Tabs & Windows",
-                    Description = "Scans Chrome, Edge, Firefox, Brave, and Opera active window/tab titles",
-                    Similarity = 3.0,
-                    Execute = () => InspectBrowserTabs()
+                    TITLE = "🌐 Inspect Open Browser Tabs & Windows",
+                    DESCRIPTION = "Scans Chrome, Edge, Firefox, Brave, and Opera active window/tab titles",
+                    SIMILARITY = 3.0,
+                    EXECUTE = () => InspectBrowserTabs()
                 });
             }
 

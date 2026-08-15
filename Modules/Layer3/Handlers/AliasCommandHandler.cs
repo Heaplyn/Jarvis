@@ -36,10 +36,10 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
 
                     suggestions.Add(new CommandResult
                     {
-                        Title = $"Create Alias: {shortcut} -> \"{expansion}\"",
-                        Description = "Save this custom command shortcut",
-                        Execute = () => SetAlias(shortcut, expansion),
-                        Similarity = similarity
+                        TITLE = $"Create Alias: {shortcut} -> \"{expansion}\"",
+                        DESCRIPTION = "Save this custom command shortcut",
+                        EXECUTE = () => SetAlias(shortcut, expansion),
+                        SIMILARITY = similarity
                     });
                 }
                 else if (parts.Length > 1)
@@ -47,36 +47,36 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
                     string shortcut = parts[1].ToLower();
                     suggestions.Add(new CommandResult
                     {
-                        Title = $"Create Alias for '{shortcut}'...",
-                        Description = $"Type the target command (e.g. 'alias {shortcut} empty')",
-                        Execute = null,
-                        Similarity = similarity
+                        TITLE = $"Create Alias for '{shortcut}'...",
+                        DESCRIPTION = $"Type the target command (e.g. 'alias {shortcut} empty')",
+                        EXECUTE = null,
+                        SIMILARITY = similarity
                     });
                 }
                 else
                 {
                     // Show all configured aliases
-                    var currentAliases = SettingsManager.Current.Aliases;
+                    var currentAliases = SettingsManager.Current.ALIASES;
                     if (currentAliases.Count > 0)
                     {
                         foreach (var alias in currentAliases)
                         {
                             suggestions.Add(new CommandResult
                             {
-                                Title = $"Alias: {alias.Key} -> \"{alias.Value}\"",
-                                Description = $"Type 'unalias {alias.Key}' to remove this shortcut",
-                                Execute = null,
-                                Similarity = similarity - 0.1
+                                TITLE = $"Alias: {alias.Key} -> \"{alias.Value}\"",
+                                DESCRIPTION = $"Type 'unalias {alias.Key}' to remove this shortcut",
+                                EXECUTE = null,
+                                SIMILARITY = similarity - 0.1
                             });
                         }
                     }
 
                     suggestions.Add(new CommandResult
                     {
-                        Title = "Create Alias...",
-                        Description = "Type 'alias <shortcut> <command>' (e.g. 'alias clean empty')",
-                        Execute = null,
-                        Similarity = similarity
+                        TITLE = "Create Alias...",
+                        DESCRIPTION = "Type 'alias <shortcut> <command>' (e.g. 'alias clean empty')",
+                        EXECUTE = null,
+                        SIMILARITY = similarity
                     });
                 }
             }
@@ -85,24 +85,24 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
                 if (parts.Length > 1)
                 {
                     string shortcut = parts[1].ToLower();
-                    if (SettingsManager.Current.Aliases.TryGetValue(shortcut, out string? expansion))
+                    if (SettingsManager.Current.ALIASES.TryGetValue(shortcut, out string? expansion))
                     {
                         suggestions.Add(new CommandResult
                         {
-                            Title = $"Remove Alias: '{shortcut}'",
-                            Description = $"Delete the shortcut mapping to: \"{expansion}\"",
-                            Execute = () => RemoveAlias(shortcut),
-                            Similarity = similarity
+                            TITLE = $"Remove Alias: '{shortcut}'",
+                            DESCRIPTION = $"Delete the shortcut mapping to: \"{expansion}\"",
+                            EXECUTE = () => RemoveAlias(shortcut),
+                            SIMILARITY = similarity
                         });
                     }
                     else
                     {
                         suggestions.Add(new CommandResult
                         {
-                            Title = $"Remove Alias: '{shortcut}' (Not Found)",
-                            Description = "No such alias is currently configured",
-                            Execute = null,
-                            Similarity = similarity
+                            TITLE = $"Remove Alias: '{shortcut}' (Not Found)",
+                            DESCRIPTION = "No such alias is currently configured",
+                            EXECUTE = null,
+                            SIMILARITY = similarity
                         });
                     }
                 }
@@ -110,10 +110,10 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title = "Remove Alias...",
-                        Description = "Type the alias shortcut to remove (e.g. 'unalias clean')",
-                        Execute = null,
-                        Similarity = similarity
+                        TITLE = "Remove Alias...",
+                        DESCRIPTION = "Type the alias shortcut to remove (e.g. 'unalias clean')",
+                        EXECUTE = null,
+                        SIMILARITY = similarity
                     });
                 }
             }
@@ -132,7 +132,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
                     return;
                 }
 
-                SettingsManager.Current.Aliases[shortcut] = expansion;
+                SettingsManager.Current.ALIASES[shortcut] = expansion;
                 SettingsManager.Save();
                 TextOverlay.Show($"🏷️ Configured alias '{shortcut}' successfully!", 2500);
             }
@@ -146,7 +146,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
         {
             try
             {
-                if (SettingsManager.Current.Aliases.Remove(shortcut))
+                if (SettingsManager.Current.ALIASES.Remove(shortcut))
                 {
                     SettingsManager.Save();
                     TextOverlay.Show($"🏷️ Removed alias '{shortcut}' successfully!", 2500);

@@ -32,19 +32,19 @@ namespace JarvisLauncher
             // Suggestion 1: Check winget program updates
             suggestions.Add(new CommandResult
             {
-                Title       = "Check Software Updates",
-                Description = "Run 'winget upgrade' to scan for outdated desktop programs",
-                Similarity  = similarity + 0.1, // Slight priority boost
-                Execute     = () => Task.Run(async () => await CheckWingetUpdatesAsync())
+                TITLE       = "Check Software Updates",
+                DESCRIPTION = "Run 'winget upgrade' to scan for outdated desktop programs",
+                SIMILARITY  = similarity + 0.1, // Slight priority boost
+                EXECUTE     = () => Task.Run(async () => await CheckWingetUpdatesAsync())
             });
 
             // Suggestion 2: Open Windows settings OS check
             suggestions.Add(new CommandResult
             {
-                Title       = "Check Windows OS Updates",
-                Description = "Launch Windows Update Settings panel to scan for system patches",
-                Similarity  = similarity,
-                Execute     = () => OpenWindowsUpdateSettings()
+                TITLE       = "Check Windows OS Updates",
+                DESCRIPTION = "Launch Windows Update Settings panel to scan for system patches",
+                SIMILARITY  = similarity,
+                EXECUTE     = () => OpenWindowsUpdateSettings()
             });
 
             return suggestions;

@@ -22,10 +22,10 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
 
             results.Add(new CommandResult
             {
-                Title = "📖 Open Interactive Help & Documentation Center",
-                Description = "Browse all commands, global hotkeys, voice shortcuts, and pipeline tips",
-                Similarity = 5.8,
-                Execute = () => HelpCenterOverlay.ShowOverlay()
+                TITLE = "📖 Open Interactive Help & Documentation Center",
+                DESCRIPTION = "Browse all commands, global hotkeys, voice shortcuts, and pipeline tips",
+                SIMILARITY = 5.8,
+                EXECUTE = () => HelpCenterOverlay.ShowOverlay()
             });
 
             return results;

@@ -29,9 +29,9 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🗂️ List All Code Templates",
-                    Description = "Show all saved templates in the Cache",
-                    Execute = () =>
+                    TITLE = "🗂️ List All Code Templates",
+                    DESCRIPTION = "Show all saved templates in the Cache",
+                    EXECUTE = () =>
                     {
                         var list = TemplateCacheManager.ListTemplates();
                         if (list.Count == 0)
@@ -46,7 +46,7 @@ namespace JarvisLauncher
                             TextOverlay.Show($"Listed {list.Count} templates in Console.", 3000);
                         }
                     },
-                    Similarity = 8.5
+                    SIMILARITY = 8.5
                 });
             }
 
@@ -56,9 +56,9 @@ namespace JarvisLauncher
                 string name = q.Substring(14).Trim();
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"💾 Save Clipboard as Template '{name}'",
-                    Description = "Saves current clipboard text content as a template",
-                    Execute = () =>
+                    TITLE = $"💾 Save Clipboard as Template '{name}'",
+                    DESCRIPTION = "Saves current clipboard text content as a template",
+                    EXECUTE = () =>
                     {
                         string clipboardText = string.Empty;
                         try
@@ -88,7 +88,7 @@ namespace JarvisLauncher
                             }
                         }
                     },
-                    Similarity = 8.5
+                    SIMILARITY = 8.5
                 });
             }
 
@@ -102,9 +102,9 @@ namespace JarvisLauncher
 
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"⚡ Import & Adapt Template '{templateName}'",
-                    Description = $"Adjusts template with AI: \"{adjustments}\"",
-                    Execute = () =>
+                    TITLE = $"⚡ Import & Adapt Template '{templateName}'",
+                    DESCRIPTION = $"Adjusts template with AI: \"{adjustments}\"",
+                    EXECUTE = () =>
                     {
                         Task.Run(async () =>
                         {
@@ -115,7 +115,7 @@ namespace JarvisLauncher
                             }
                         });
                     },
-                    Similarity = 8.5
+                    SIMILARITY = 8.5
                 });
             }
 
@@ -124,13 +124,13 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🗂️ Template Cache commands",
-                    Description = "Usage: template list | template save [name] | template import [name] [changes]",
-                    Execute = () =>
+                    TITLE = "🗂️ Template Cache commands",
+                    DESCRIPTION = "Usage: template list | template save [name] | template import [name] [changes]",
+                    EXECUTE = () =>
                     {
                         TextOverlay.Show("Usage: template list | template save [name] | template import [name] [changes]", 4000);
                     },
-                    Similarity = 3.0
+                    SIMILARITY = 3.0
                 });
             }
 

@@ -6,8 +6,10 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace JarvisLauncher
@@ -18,7 +20,38 @@ namespace JarvisLauncher
         public static string CompileStatus { get; set; } = "Idle. Select a C# project and click Compile.";
         public static event Action<string>? OnCompileLogUpdated;
 
-        public static async Task<bool> CompileProjectAsync(string csprojPath, string certificateName = "", string provisioningProfileName = "")
+        public static string GetIosTargetFramework(string csprojPath)
+        {
+            try
+            {
+                if (File.Exists(csprojPath))
+                {
+                    string content = File.ReadAllText(csprojPath);
+                    var match = Regex.Match(content, @"<TargetFrameworks?>(.*?)</TargetFrameworks?>");
+                    if (match.Success)
+                    {
+                        string tfmVal = match.Groups[1].Value;
+                        var tfms = tfmVal.Split(';');
+                        foreach (var tfm in tfms)
+                        {
+                            string cleanTfm = tfm.Trim();
+                            if (cleanTfm.Contains("-ios"))
+                            {
+                                return cleanTfm;
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            return "net8.0-ios"; // Fallback default
+        }
+
+        public static async Task<bool> CompileProjectAsync(
+            string csprojPath, 
+            string certificateName = "", 
+            string provisioningProfileName = "",
+            string runtimeIdentifier = "ios-arm64")
         {
             if (!File.Exists(csprojPath))
             {
@@ -27,30 +60,30 @@ namespace JarvisLauncher
                 return false;
             }
 
-            CompileStatus = "Compiling C# project to iOS IPA target...";
-            OnCompileLogUpdated?.Invoke("🚀 Initializing .NET iOS MSBuild compilation pipeline...\n");
+            string tfm = GetIosTargetFramework(csprojPath);
+            CompileStatus = $"Compiling C# project to iOS IPA target ({tfm}, {runtimeIdentifier})...";
+            OnCompileLogUpdated?.Invoke($"🚀 Initializing .NET iOS MSBuild compilation pipeline for target {tfm} ({runtimeIdentifier})...\n");
 
             string projectDir = Path.GetDirectoryName(csprojPath)!;
-            string buildLogs = "";
+            string binDir = Path.Combine(projectDir, "bin");
 
             return await Task.Run(() =>
             {
                 try
                 {
-                    // Clean previous IPA builds
-                    string outputDir = Path.Combine(projectDir, "bin", "Release", "net8.0-ios");
-                    if (Directory.Exists(outputDir))
+                    // Clean previous IPA builds across the bin directory
+                    if (Directory.Exists(binDir))
                     {
-                        foreach (var file in Directory.GetFiles(outputDir, "*.ipa", SearchOption.AllDirectories))
+                        foreach (var file in Directory.GetFiles(binDir, "*.ipa", SearchOption.AllDirectories))
                         {
                             try { File.Delete(file); } catch { }
                         }
                     }
 
-                    // Build Arguments: Supports hot-restart local provisioning or standard key/profile association
+                    // Build Arguments: Specifying -r (RuntimeIdentifier) is mandatory for generating native iOS app bundles/IPAs
                     var args = new StringBuilder();
-                    args.Append($"publish \"{csprojPath}\" -f net8.0-ios -c Release -p:BuildIpa=true");
-                    
+                    args.Append($"publish \"{csprojPath}\" -f {tfm} -c Release -r {runtimeIdentifier} -p:BuildIpa=true");
+
                     if (!string.IsNullOrEmpty(certificateName))
                     {
                         args.Append($" -p:CodesignKey=\"{certificateName}\"");
@@ -96,21 +129,121 @@ namespace JarvisLauncher
 
                         if (process.ExitCode == 0)
                         {
-                            // Find the resulting .ipa file
-                            if (Directory.Exists(outputDir))
+                            if (Directory.Exists(binDir))
                             {
-                                var ipaFile = Directory.GetFiles(outputDir, "*.ipa", SearchOption.AllDirectories)
+                                // 1. Check if MSBuild directly emitted an .ipa anywhere under bin/
+                                var ipaFile = Directory.GetFiles(binDir, "*.ipa", SearchOption.AllDirectories)
+                                    .OrderByDescending(File.GetLastWriteTimeUtc)
                                     .FirstOrDefault();
 
-                                if (ipaFile != null && File.Exists(ipaFile))
+                                if (!string.IsNullOrEmpty(ipaFile) && File.Exists(ipaFile))
                                 {
                                     LastCompiledIpaPath = ipaFile;
                                     CompileStatus = "Success";
                                     OnCompileLogUpdated?.Invoke($"\n🎉 SUCCESS! Compiled IPA path: {ipaFile}\nIt is now ready to download via your Jarvis Mobile Companion!\n");
                                     return true;
                                 }
+
+                                // 2. Fallback: Find the latest generated .app bundle and package it into an IPA
+                                var appDir = Directory.GetDirectories(binDir, "*.app", SearchOption.AllDirectories)
+                                    .OrderByDescending(Directory.GetLastWriteTimeUtc)
+                                    .FirstOrDefault();
+
+                                if (!string.IsNullOrEmpty(appDir) && Directory.Exists(appDir))
+                                {
+                                    string appName = Path.GetFileNameWithoutExtension(appDir);
+                                    string parentDir = Path.GetDirectoryName(appDir)!;
+                                    string targetIpaPath = Path.Combine(parentDir, $"{appName}.ipa");
+
+                                    OnCompileLogUpdated?.Invoke($"📦 No direct .ipa produced by MSBuild. Packaging '{appName}.app' into '{appName}.ipa' using IPABundler...\n");
+
+                                    string bundlerPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Tools", "apptoipa.exe");
+                                    if (!File.Exists(bundlerPath))
+                                    {
+                                        OnCompileLogUpdated?.Invoke("📥 Downloading IPABundler (apptoipa.exe) from GitHub...\n");
+                                        try
+                                        {
+                                            using (var client = new System.Net.Http.HttpClient())
+                                            {
+                                                var bytes = client.GetByteArrayAsync("https://github.com/deqline/IPABundler/releases/download/3.0/apptoipa.exe").GetAwaiter().GetResult();
+                                                string toolsDir = Path.GetDirectoryName(bundlerPath)!;
+                                                if (!Directory.Exists(toolsDir)) Directory.CreateDirectory(toolsDir);
+                                                File.WriteAllBytes(bundlerPath, bytes);
+                                                OnCompileLogUpdated?.Invoke("✅ IPABundler downloaded.\n");
+                                            }
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            OnCompileLogUpdated?.Invoke($"⚠️ IPABundler download failed: {ex.Message}. Falling back to standard zip packaging.\n");
+                                        }
+                                    }
+
+                                    bool bundledWithExe = false;
+                                    if (File.Exists(bundlerPath))
+                                    {
+                                        try
+                                        {
+                                            if (File.Exists(targetIpaPath)) File.Delete(targetIpaPath);
+                                            var bundlerPsi = new ProcessStartInfo
+                                            {
+                                                FileName = bundlerPath,
+                                                Arguments = $"\"{appDir}\"",
+                                                WorkingDirectory = parentDir,
+                                                RedirectStandardOutput = true,
+                                                RedirectStandardError = true,
+                                                UseShellExecute = false,
+                                                CreateNoWindow = true
+                                            };
+                                            using var bundlerProc = Process.Start(bundlerPsi);
+                                            if (bundlerProc != null)
+                                            {
+                                                bundlerProc.WaitForExit();
+                                                if (bundlerProc.ExitCode == 0 && File.Exists(targetIpaPath))
+                                                {
+                                                    bundledWithExe = true;
+                                                }
+                                                else
+                                                {
+                                                    OnCompileLogUpdated?.Invoke($"⚠️ IPABundler packaging failed with exit code {bundlerProc.ExitCode}. Trying zip fallback...\n");
+                                                }
+                                            }
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            OnCompileLogUpdated?.Invoke($"⚠️ IPABundler execution failed: {ex.Message}. Trying zip fallback...\n");
+                                        }
+                                    }
+
+                                    if (!bundledWithExe)
+                                    {
+                                        string tempDir = Path.Combine(parentDir, $"TempIpaPackaging_{Guid.NewGuid():N}");
+                                        if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
+
+                                        string payloadDir = Path.Combine(tempDir, "Payload");
+                                        Directory.CreateDirectory(payloadDir);
+
+                                        // Copy app directory structure into Payload/AppName.app
+                                        string targetAppDir = Path.Combine(payloadDir, Path.GetFileName(appDir));
+                                        CopyDirectory(appDir, targetAppDir);
+
+                                        if (File.Exists(targetIpaPath)) File.Delete(targetIpaPath);
+                                        ZipFile.CreateFromDirectory(tempDir, targetIpaPath);
+
+                                        // Cleanup temporary packaging folder
+                                        try { Directory.Delete(tempDir, true); } catch { }
+                                    }
+
+                                    if (File.Exists(targetIpaPath))
+                                    {
+                                        LastCompiledIpaPath = targetIpaPath;
+                                        CompileStatus = "Success";
+                                        OnCompileLogUpdated?.Invoke($"\n🎉 SUCCESS! Packaged IPA path: {targetIpaPath}\nReady for sideloading!\n");
+                                        return true;
+                                    }
+                                }
                             }
-                            CompileStatus = "Error: Compilation finished but no .ipa output file was found in bin output directory.";
+
+                            CompileStatus = "Error: Build completed with code 0, but no .ipa or .app artifacts were found in the bin directory.";
                             OnCompileLogUpdated?.Invoke($"\n❌ {CompileStatus}\n");
                             return false;
                         }
@@ -129,6 +262,27 @@ namespace JarvisLauncher
                     return false;
                 }
             });
+        }
+
+        private static void CopyDirectory(string sourceDir, string destinationDir)
+        {
+            var dir = new DirectoryInfo(sourceDir);
+            if (!dir.Exists) throw new DirectoryNotFoundException($"Source directory not found: {dir.FullName}");
+
+            DirectoryInfo[] dirs = dir.GetDirectories();
+            Directory.CreateDirectory(destinationDir);
+
+            foreach (FileInfo file in dir.GetFiles())
+            {
+                string targetFilePath = Path.Combine(destinationDir, file.Name);
+                file.CopyTo(targetFilePath, true);
+            }
+
+            foreach (DirectoryInfo subDir in dirs)
+            {
+                string newDestinationDir = Path.Combine(destinationDir, subDir.Name);
+                CopyDirectory(subDir.FullName, newDestinationDir);
+            }
         }
     }
 }

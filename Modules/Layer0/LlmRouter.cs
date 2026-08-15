@@ -23,7 +23,7 @@ namespace JarvisLauncher
             try
             {
                 using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromMilliseconds(800));
-                string endpoint = SettingsManager.Current.OllamaEndpoint.TrimEnd('/');
+                string endpoint = SettingsManager.Current.OLLAMA_ENDPOINT.TrimEnd('/');
                 var resp = await _http.GetAsync($"{endpoint}/api/tags", cts.Token);
                 return resp.IsSuccessStatusCode;
             }
@@ -37,7 +37,7 @@ namespace JarvisLauncher
         /// Route a prompt to the configured LLM backend.
         /// Falls back to Gemini or local Ollama if offline.
         /// </summary>
-        public static async Task<string> AskAsync(string prompt, List<ChatTurn>? history = null)
+        public static async Task<string> AskAsync(string prompt, List<ChatTurn>? history = null, CancellationToken ct = default)
         {
             string contextSummary = BackgroundContextManager.GetActiveContextSummary();
             if (!string.IsNullOrEmpty(contextSummary))
@@ -45,7 +45,12 @@ namespace JarvisLauncher
                 prompt = $"[Active Workspace Context: {contextSummary}]\n\n" + prompt;
             }
 
-            string backend = SettingsManager.Current.LlmBackend;
+            // INJECT PREDICTIVE PASS
+            string infoPass = PredictiveStreamManager.GetInfoPass();
+            string prediction = PredictiveStreamManager.GetCurrentPrediction();
+            prompt = $"[PREDICTIVE_STATE: {infoPass}]\n[AI_PREDICTION: {prediction}]\n\n" + prompt;
+
+            string backend = SettingsManager.Current.LLM_BACKEND;
             bool isLocalLlmAvailable = await IsOllamaAvailableAsync();
 
             // Detect if internet is disconnected, and automatically resort to local LLM to avoid online dependency
@@ -62,25 +67,27 @@ namespace JarvisLauncher
                     if (isLocalLlmAvailable)
                     {
                         DebugConsoleOverlay.Log("LlmRouter Offline", "Gemini offline or key missing. Auto-routing query to Ollama local model.");
-                        return await AskOllamaAsync(prompt, history);
+                        return await AskOllamaAsync(prompt, history, ct);
                     }
                 }
 
                 return backend switch
                 {
-                    "OpenAI"   => await AskOpenAIAsync(prompt, history),
-                    "Ollama"   => await AskOllamaAsync(prompt, history),
-                    "Custom"   => await AskCustomAsync(prompt, history),
+                    "OpenAI"   => await AskOpenAIAsync(prompt, history, ct),
+                    "Ollama"   => await AskOllamaAsync(prompt, history, ct),
+                    "Custom"   => await AskCustomAsync(prompt, history, ct),
                     "P2P"      => await JarvisP2PClient.AskBestPeerAsync(prompt, history),
-                    _          => await AiAPI.AskGemini(prompt, history)
+                    _          => await AiAPI.AskGemini(prompt, history, ct)
                 };
             }
             catch (Exception ex)
             {
+                if (ex is OperationCanceledException) throw;
+
                 ChatOverlay.LogConsoleAction("LlmRouter Fallback", $"{backend} failed: {ex.Message}. Falling back to Ollama local model.");
                 if (isLocalLlmAvailable)
                 {
-                    try { return await AskOllamaAsync(prompt, history); }
+                    try { return await AskOllamaAsync(prompt, history, ct); }
                     catch { }
                 }
                 return $"⚠️ LLM Error ({backend}): {ex.Message}";
@@ -89,14 +96,14 @@ namespace JarvisLauncher
 
         // ── OpenAI-Compatible ─────────────────────────────────────────────────────
 
-        public static async Task<string> AskOpenAIAsync(string prompt, List<ChatTurn>? history = null)
+        public static async Task<string> AskOpenAIAsync(string prompt, List<ChatTurn>? history = null, CancellationToken ct = default)
         {
             var s = SettingsManager.Current;
-            if (string.IsNullOrEmpty(s.OpenAIKey))
+            if (string.IsNullOrEmpty(s.OPENAI_KEY))
                 throw new Exception("OpenAI API key not set. Use 'llm' settings to configure.");
 
-            string baseUrl = s.OpenAIBaseUrl.TrimEnd('/');
-            string model = s.OpenAIModel;
+            string baseUrl = s.OPENAI_BASE_URL.TrimEnd('/');
+            string model = s.OPENAI_MODEL;
 
             var messages = new List<object>
             {
@@ -116,11 +123,11 @@ namespace JarvisLauncher
             string json = JsonSerializer.Serialize(payload);
 
             var req = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/chat/completions");
-            req.Headers.Add("Authorization", $"Bearer {s.OpenAIKey}");
+            req.Headers.Add("Authorization", $"Bearer {s.OPENAI_KEY}");
             req.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var resp = await _http.SendAsync(req);
-            string body = await resp.Content.ReadAsStringAsync();
+            var resp = await _http.SendAsync(req, ct);
+            string body = await resp.Content.ReadAsStringAsync(ct);
 
             if (!resp.IsSuccessStatusCode)
                 throw new Exception($"OpenAI API error {(int)resp.StatusCode}: {body}");
@@ -154,8 +161,8 @@ namespace JarvisLauncher
             }
 
             var s = SettingsManager.Current;
-            string endpoint = s.OllamaEndpoint.TrimEnd('/');
-            string model = s.OllamaModel;
+            string endpoint = s.OLLAMA_ENDPOINT.TrimEnd('/');
+            string model = s.OLLAMA_MODEL;
 
             var compressedHistory = await CompressHistoryAsync(history);
 
@@ -270,11 +277,11 @@ namespace JarvisLauncher
             return sb.ToString();
         }
 
-        public static async Task<string> AskOllamaAsync(string prompt, List<ChatTurn>? history = null)
+        public static async Task<string> AskOllamaAsync(string prompt, List<ChatTurn>? history = null, CancellationToken ct = default)
         {
             var s = SettingsManager.Current;
-            string endpoint = s.OllamaEndpoint.TrimEnd('/');
-            string model = s.OllamaModel;
+            string endpoint = s.OLLAMA_ENDPOINT.TrimEnd('/');
+            string model = s.OLLAMA_MODEL;
 
             var compressedHistory = await CompressHistoryAsync(history);
 
@@ -312,8 +319,8 @@ namespace JarvisLauncher
             var req = new HttpRequestMessage(HttpMethod.Post, $"{endpoint}/api/chat");
             req.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var resp = await _http.SendAsync(req);
-            string body = await resp.Content.ReadAsStringAsync();
+            var resp = await _http.SendAsync(req, ct);
+            string body = await resp.Content.ReadAsStringAsync(ct);
 
             if (!resp.IsSuccessStatusCode)
                 throw new Exception($"Ollama error {(int)resp.StatusCode}: {body}");
@@ -327,14 +334,14 @@ namespace JarvisLauncher
 
         // ── Custom OpenAI-Compatible Endpoint ─────────────────────────────────────
 
-        public static async Task<string> AskCustomAsync(string prompt, List<ChatTurn>? history = null)
+        public static async Task<string> AskCustomAsync(string prompt, List<ChatTurn>? history = null, CancellationToken ct = default)
         {
             var s = SettingsManager.Current;
-            if (string.IsNullOrEmpty(s.CustomLlmEndpoint))
+            if (string.IsNullOrEmpty(s.CUSTOM_LLM_ENDPOINT))
                 throw new Exception("Custom LLM endpoint not set. Use 'llm' settings to configure.");
 
-            string endpoint = s.CustomLlmEndpoint.TrimEnd('/');
-            string model = s.CustomLlmModel;
+            string endpoint = s.CUSTOM_LLM_ENDPOINT.TrimEnd('/');
+            string model = s.CUSTOM_LLM_MODEL;
 
             // Use compact system prompt for local LLMs to prevent context overload & timeouts
             var messages = new List<object>
@@ -355,12 +362,12 @@ namespace JarvisLauncher
             string json = JsonSerializer.Serialize(payload);
 
             var req = new HttpRequestMessage(HttpMethod.Post, endpoint);
-            if (!string.IsNullOrEmpty(s.CustomLlmKey))
-                req.Headers.Add("Authorization", $"Bearer {s.CustomLlmKey}");
+            if (!string.IsNullOrEmpty(s.CUSTOM_LLM_KEY))
+                req.Headers.Add("Authorization", $"Bearer {s.CUSTOM_LLM_KEY}");
             req.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var resp = await _http.SendAsync(req);
-            string body = await resp.Content.ReadAsStringAsync();
+            var resp = await _http.SendAsync(req, ct);
+            string body = await resp.Content.ReadAsStringAsync(ct);
 
             if (!resp.IsSuccessStatusCode)
                 throw new Exception($"Custom LLM error {(int)resp.StatusCode}: {body}");
@@ -379,7 +386,7 @@ namespace JarvisLauncher
         {
             try
             {
-                string endpoint = SettingsManager.Current.OllamaEndpoint.TrimEnd('/');
+                string endpoint = SettingsManager.Current.OLLAMA_ENDPOINT.TrimEnd('/');
                 var resp = await _http.GetAsync($"{endpoint}/api/tags");
                 if (!resp.IsSuccessStatusCode) return new();
 
@@ -405,21 +412,27 @@ namespace JarvisLauncher
                 return history ?? new List<ChatTurn>();
 
             const int RECENT_KEEP = 6;  // Always keep last N turns verbatim
-            var old   = history.GetRange(0, history.Count - RECENT_KEEP);
             var recent = history.GetRange(history.Count - RECENT_KEEP, RECENT_KEEP);
 
-            // Build a summary prompt from the older turns
+            // PRUNE INSTEAD OF SUMMARIZE: If history is getting very deep, just prune to avoid recursive stalls
+            if (history.Count > 40) return recent;
+
+            var old   = history.GetRange(0, history.Count - RECENT_KEEP);
             var oldText = new StringBuilder();
             foreach (var t in old)
                 oldText.AppendLine($"{(t.Role == "user" ? "User" : "Jarvis")}: {t.Text}");
 
             string summaryPrompt =
-                "Summarize this conversation in 3-5 short bullet points (key facts only, no filler):\n" +
+                "Summarize this conversation in 3-5 short bullet points (key facts only):\n" +
                 oldText.ToString();
 
             string summary;
-            try { summary = await AskOllamaAsync(summaryPrompt, null); }
-            catch { summary = "[prior conversation]"; }
+            try
+            {
+                // Set a strict timeout and use Gemini (parallel) if possible
+                summary = await AiAPI.AskGemini(summaryPrompt, null);
+            }
+            catch { summary = "[prior conversation context]"; }
 
             var compressed = new List<ChatTurn>
             {

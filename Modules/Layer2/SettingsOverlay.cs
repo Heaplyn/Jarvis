@@ -213,7 +213,7 @@ namespace JarvisLauncher
             _themeComboBox = new ComboBox { Margin = new Thickness(0, 0, 0, 8), FontSize = 12, Padding = new Thickness(6, 4, 6, 4) };
             foreach (var t in new[] { "purple", "dark", "cyberpunk", "emerald", "sunset", "ocean", "midnight", "rose" })
                 _themeComboBox.Items.Add(t);
-            _themeComboBox.SelectedItem = settings.Theme;
+            _themeComboBox.SelectedItem = settings.THEME;
             _themeComboBox.SelectionChanged += (s, e) =>
             {
                 if (_themeComboBox.SelectedItem is string th) ThemeManager.ApplyTheme(th);
@@ -224,43 +224,43 @@ namespace JarvisLauncher
             _searchEngineComboBox = new ComboBox { Margin = new Thickness(0, 0, 0, 8), FontSize = 12, Padding = new Thickness(6, 4, 6, 4) };
             foreach (var se in new[] { "Google", "DuckDuckGo", "Bing", "YouTube", "GitHub", "Wikipedia" })
                 _searchEngineComboBox.Items.Add(se);
-            _searchEngineComboBox.SelectedItem = settings.DefaultSearchEngine;
+            _searchEngineComboBox.SelectedItem = settings.DEFAULT_SEARCH_ENGINE;
             root.Children.Add(_searchEngineComboBox);
 
             root.Children.Add(CreateLabel($"Window Opacity:"));
-            _opacitySlider = new Slider { Minimum = 0.3, Maximum = 1.0, Value = settings.WindowOpacity, Margin = new Thickness(0, 2, 0, 8) };
+            _opacitySlider = new Slider { Minimum = 0.3, Maximum = 1.0, Value = settings.WINDOW_OPACITY, Margin = new Thickness(0, 2, 0, 8) };
             root.Children.Add(_opacitySlider);
 
             root.Children.Add(CreateHeader("⚙️ System Behavior"));
 
-            _startWithWinCheckBox = CreateCheckBox("🚀 Launch automatically when Windows starts", settings.StartWithWindows);
+            _startWithWinCheckBox = CreateCheckBox("🚀 Launch automatically when Windows starts", settings.START_WITH_WINDOWS);
             root.Children.Add(_startWithWinCheckBox);
 
-            _playSoundsCheckBox = CreateCheckBox("🔊 Play sound effects on command execution", settings.PlaySounds);
+            _playSoundsCheckBox = CreateCheckBox("🔊 Play sound effects on command execution", settings.PLAY_SOUNDS);
             root.Children.Add(_playSoundsCheckBox);
 
-            _autoHideCheckBox = CreateCheckBox("🙈 Auto-hide HUD after launching commands", settings.AutoHideOnExecute);
+            _autoHideCheckBox = CreateCheckBox("🙈 Auto-hide HUD after launching commands", settings.AUTO_HIDE_ON_EXECUTE);
             root.Children.Add(_autoHideCheckBox);
 
-            _alwaysOnTopCheckBox = CreateCheckBox("📌 Always Keep Launcher on Top", settings.AlwaysOnTop);
+            _alwaysOnTopCheckBox = CreateCheckBox("📌 Always Keep Launcher on Top", settings.ALWAYS_ON_TOP);
             root.Children.Add(_alwaysOnTopCheckBox);
 
             root.Children.Add(CreateHeader("🔑 API Credentials & Downloads"));
 
             root.Children.Add(CreateLabel("Google Gemini API Key:"));
-            _googleKeyBox = CreateTextBox(settings.GoogleAIKey);
+            _googleKeyBox = CreateTextBox(settings.GOOGLE_AI_KEY);
             root.Children.Add(_googleKeyBox);
 
             root.Children.Add(CreateLabel("GitHub Access Token:"));
-            _githubTokenBox = CreateTextBox(settings.GithubToken);
+            _githubTokenBox = CreateTextBox(settings.GITHUB_TOKEN);
             root.Children.Add(_githubTokenBox);
 
             root.Children.Add(CreateLabel("Default Downloads Folder:"));
-            _downloadDirBox = CreateTextBox(settings.DownloadDirectory);
+            _downloadDirBox = CreateTextBox(settings.DOWNLOAD_DIRECTORY);
             root.Children.Add(_downloadDirBox);
 
             root.Children.Add(CreateLabel("Mobile Bridge Server Port (default 8080):"));
-            _mobilePortBox = CreateTextBox(settings.MobilePort.ToString());
+            _mobilePortBox = CreateTextBox(settings.MOBILE_PORT.ToString());
             root.Children.Add(_mobilePortBox);
 
             return scroll;
@@ -279,7 +279,7 @@ namespace JarvisLauncher
 
             _llmBackendCombo = new ComboBox { Margin = new Thickness(0, 0, 0, 10), FontSize = 12, Padding = new Thickness(6, 4, 6, 4) };
             foreach (var b in new[] { "Gemini", "OpenAI", "Ollama", "Custom", "P2P" }) _llmBackendCombo.Items.Add(b);
-            _llmBackendCombo.SelectedItem = settings.LlmBackend;
+            _llmBackendCombo.SelectedItem = settings.LLM_BACKEND;
             _llmBackendCombo.SelectionChanged += (s, e) => UpdateLlmPanels();
             root.Children.Add(_llmBackendCombo);
 
@@ -291,24 +291,24 @@ namespace JarvisLauncher
             // OpenAI Panel
             _openAiPanel = new StackPanel();
             _openAiPanel.Children.Add(CreateLabel("OpenAI API Key (or LM Studio key):"));
-            var oaiKey = CreateTextBox(settings.OpenAIKey);
-            oaiKey.TextChanged += (s, e) => settings.OpenAIKey = oaiKey.Text.Trim();
+            var oaiKey = CreateTextBox(settings.OPENAI_KEY);
+            oaiKey.TextChanged += (s, e) => settings.OPENAI_KEY = oaiKey.Text.Trim();
             _openAiPanel.Children.Add(oaiKey);
             _openAiPanel.Children.Add(CreateLabel("Base URL (default https://api.openai.com/v1):"));
-            var oaiBase = CreateTextBox(settings.OpenAIBaseUrl);
-            oaiBase.TextChanged += (s, e) => settings.OpenAIBaseUrl = oaiBase.Text.Trim();
+            var oaiBase = CreateTextBox(settings.OPENAI_BASE_URL);
+            oaiBase.TextChanged += (s, e) => settings.OPENAI_BASE_URL = oaiBase.Text.Trim();
             _openAiPanel.Children.Add(oaiBase);
             root.Children.Add(_openAiPanel);
 
             // Ollama Panel
             _ollamaPanel = new StackPanel();
             _ollamaPanel.Children.Add(CreateLabel("Ollama Endpoint (default http://localhost:11434):"));
-            var ollamaUrl = CreateTextBox(settings.OllamaEndpoint);
-            ollamaUrl.TextChanged += (s, e) => settings.OllamaEndpoint = ollamaUrl.Text.Trim();
+            var ollamaUrl = CreateTextBox(settings.OLLAMA_ENDPOINT);
+            ollamaUrl.TextChanged += (s, e) => settings.OLLAMA_ENDPOINT = ollamaUrl.Text.Trim();
             _ollamaPanel.Children.Add(ollamaUrl);
             _ollamaPanel.Children.Add(CreateLabel("Active Ollama Model (e.g. llama3.2, deepseek-r1):"));
-            var ollamaModel = CreateTextBox(settings.OllamaModel);
-            ollamaModel.TextChanged += (s, e) => settings.OllamaModel = ollamaModel.Text.Trim();
+            var ollamaModel = CreateTextBox(settings.OLLAMA_MODEL);
+            ollamaModel.TextChanged += (s, e) => settings.OLLAMA_MODEL = ollamaModel.Text.Trim();
             _ollamaPanel.Children.Add(ollamaModel);
 
             var detectBtn = CreateButton("🔍 Auto-Detect Installed Ollama Models");
@@ -325,8 +325,8 @@ namespace JarvisLauncher
             // Custom Panel
             _customPanel = new StackPanel();
             _customPanel.Children.Add(CreateLabel("Custom Endpoint URL:"));
-            var customUrl = CreateTextBox(settings.CustomLlmEndpoint);
-            customUrl.TextChanged += (s, e) => settings.CustomLlmEndpoint = customUrl.Text.Trim();
+            var customUrl = CreateTextBox(settings.CUSTOM_LLM_ENDPOINT);
+            customUrl.TextChanged += (s, e) => settings.CUSTOM_LLM_ENDPOINT = customUrl.Text.Trim();
             _customPanel.Children.Add(customUrl);
             root.Children.Add(_customPanel);
 
@@ -355,20 +355,20 @@ namespace JarvisLauncher
             // Dual-LLM Co-Pilot Processor Section
             root.Children.Add(CreateHeader("⚡ Dual-LLM Co-Pilot Processor (Optional)"));
 
-            _enableDualLlmCheckBox = CreateCheckBox("⚡ Enable Parallel Dual-LLM Co-Pilot Processing (Default Disabled)", settings.EnableDualLlmCopilot);
+            _enableDualLlmCheckBox = CreateCheckBox("⚡ Enable Parallel Dual-LLM Co-Pilot Processing (Default Disabled)", settings.ENABLE_DUAL_LLM_COPILOT);
             root.Children.Add(_enableDualLlmCheckBox);
 
             root.Children.Add(CreateLabel("Co-Pilot Engine Backend:"));
             _dualLlmBackendCombo = new ComboBox { Margin = new Thickness(0, 2, 0, 6), FontSize = 12, Padding = new Thickness(6, 4, 6, 4) };
             foreach (var b in new[] { "Ollama", "Gemini", "OpenAI" }) _dualLlmBackendCombo.Items.Add(b);
-            _dualLlmBackendCombo.SelectedItem = settings.DualLlmBackend;
+            _dualLlmBackendCombo.SelectedItem = settings.DUAL_LLM_BACKEND;
             root.Children.Add(_dualLlmBackendCombo);
 
             root.Children.Add(CreateLabel("Recommended Co-Pilot Models:"));
             _dualLlmModelCombo = new ComboBox { Margin = new Thickness(0, 2, 0, 8), FontSize = 12, Padding = new Thickness(6, 4, 6, 4) };
             foreach (var m in DualLlmCopilot.RecommendedModels) _dualLlmModelCombo.Items.Add(m);
 
-            string currentCopilotModel = settings.DualLlmModel;
+            string currentCopilotModel = settings.DUAL_LLM_MODEL;
             int matchIdx = DualLlmCopilot.RecommendedModels.FindIndex(m => m.StartsWith(currentCopilotModel, StringComparison.OrdinalIgnoreCase));
             if (matchIdx >= 0) _dualLlmModelCombo.SelectedIndex = matchIdx;
             else _dualLlmModelCombo.SelectedIndex = 0;
@@ -401,7 +401,7 @@ namespace JarvisLauncher
             var voices = TtsManager.GetInstalledVoices();
             foreach (var v in voices) _ttsVoiceCombo.Items.Add(v);
 
-            string currentVoice = SettingsManager.Current.SelectedTtsVoice;
+            string currentVoice = SettingsManager.Current.SELECTED_TTS_VOICE;
             if (!string.IsNullOrEmpty(currentVoice) && _ttsVoiceCombo.Items.Contains(currentVoice))
                 _ttsVoiceCombo.SelectedItem = currentVoice;
             else if (_ttsVoiceCombo.Items.Count > 0)
@@ -414,12 +414,12 @@ namespace JarvisLauncher
             root.Children.Add(_ttsVoiceCombo);
 
             root.Children.Add(CreateLabel("Speech Speed (-10 Slow ... +10 Fast):"));
-            _ttsSpeedSlider = new Slider { Minimum = -10, Maximum = 10, Value = SettingsManager.Current.TtsSpeechRate, SmallChange = 1, Margin = new Thickness(0, 2, 0, 6) };
+            _ttsSpeedSlider = new Slider { Minimum = -10, Maximum = 10, Value = SettingsManager.Current.TTS_SPEECH_RATE, SmallChange = 1, Margin = new Thickness(0, 2, 0, 6) };
             _ttsSpeedSlider.ValueChanged += (s, e) => TtsManager.SetRate((int)_ttsSpeedSlider.Value);
             root.Children.Add(_ttsSpeedSlider);
 
             root.Children.Add(CreateLabel("Speech Volume (0 Quiet ... 100 Loud):"));
-            _ttsVolumeSlider = new Slider { Minimum = 0, Maximum = 100, Value = SettingsManager.Current.TtsSpeechVolume, SmallChange = 5, Margin = new Thickness(0, 2, 0, 8) };
+            _ttsVolumeSlider = new Slider { Minimum = 0, Maximum = 100, Value = SettingsManager.Current.TTS_SPEECH_VOLUME, SmallChange = 5, Margin = new Thickness(0, 2, 0, 8) };
             _ttsVolumeSlider.ValueChanged += (s, e) => TtsManager.SetVolume((int)_ttsVolumeSlider.Value);
             root.Children.Add(_ttsVolumeSlider);
 
@@ -440,15 +440,15 @@ namespace JarvisLauncher
             customGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             customGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            _useCustomTtsCheckBox = CreateCheckBox("🔉 Play custom audio file before AI synthesis", SettingsManager.Current.UseCustomTtsSoundFile);
-            _useCustomTtsCheckBox.Checked += (s, e) => SettingsManager.Current.UseCustomTtsSoundFile = true;
-            _useCustomTtsCheckBox.Unchecked += (s, e) => SettingsManager.Current.UseCustomTtsSoundFile = false;
+            _useCustomTtsCheckBox = CreateCheckBox("🔉 Play custom audio file before AI synthesis", SettingsManager.Current.USE_CUSTOM_TTS_SOUND_FILE);
+            _useCustomTtsCheckBox.Checked += (s, e) => SettingsManager.Current.USE_CUSTOM_TTS_SOUND_FILE = true;
+            _useCustomTtsCheckBox.Unchecked += (s, e) => SettingsManager.Current.USE_CUSTOM_TTS_SOUND_FILE = false;
             Grid.SetRow(_useCustomTtsCheckBox, 0);
             customGrid.Children.Add(_useCustomTtsCheckBox);
 
-            _customTtsOnlyCheckBox = CreateCheckBox("🔇 Skip synthesis (Play custom sound ONLY)", SettingsManager.Current.CustomSoundOnly);
-            _customTtsOnlyCheckBox.Checked += (s, e) => SettingsManager.Current.CustomSoundOnly = true;
-            _customTtsOnlyCheckBox.Unchecked += (s, e) => SettingsManager.Current.CustomSoundOnly = false;
+            _customTtsOnlyCheckBox = CreateCheckBox("🔇 Skip synthesis (Play custom sound ONLY)", SettingsManager.Current.CUSTOM_SOUND_ONLY);
+            _customTtsOnlyCheckBox.Checked += (s, e) => SettingsManager.Current.CUSTOM_SOUND_ONLY = true;
+            _customTtsOnlyCheckBox.Unchecked += (s, e) => SettingsManager.Current.CUSTOM_SOUND_ONLY = false;
             Grid.SetRow(_customTtsOnlyCheckBox, 1);
             customGrid.Children.Add(_customTtsOnlyCheckBox);
 
@@ -471,7 +471,7 @@ namespace JarvisLauncher
 
             _customTtsFileNameLabel = new TextBlock
             {
-                Text = string.IsNullOrEmpty(SettingsManager.Current.CustomTtsVoiceName) ? "No file selected." : "Active: " + SettingsManager.Current.CustomTtsVoiceName,
+                Text = string.IsNullOrEmpty(SettingsManager.Current.CUSTOM_TTS_VOICE_NAME) ? "No file selected." : "Active: " + SettingsManager.Current.CUSTOM_TTS_VOICE_NAME,
                 FontSize = 10,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(10, 0, 0, 0),
@@ -499,16 +499,16 @@ namespace JarvisLauncher
 
             root.Children.Add(CreateHeader("🎙️ Master Voice Activation"));
 
-            _isJarvisEnabledCheckBox = CreateCheckBox("🎙️ Enable 100% Offline Voice Wake-Word (\"Hey Jarvis\")", settings.IsJarvisEnabled);
-            _isJarvisEnabledCheckBox.Checked += (s, e) => settings.IsJarvisEnabled = true;
-            _isJarvisEnabledCheckBox.Unchecked += (s, e) => settings.IsJarvisEnabled = false;
+            _isJarvisEnabledCheckBox = CreateCheckBox("🎙️ Enable 100% Offline Voice Wake-Word (\"Hey Jarvis\")", settings.IS_JARVIS_ENABLED);
+            _isJarvisEnabledCheckBox.Checked += (s, e) => settings.IS_JARVIS_ENABLED = true;
+            _isJarvisEnabledCheckBox.Unchecked += (s, e) => settings.IS_JARVIS_ENABLED = false;
             root.Children.Add(_isJarvisEnabledCheckBox);
 
             root.Children.Add(CreateHeader("🎛️ Acoustic Microphone Sensitivity"));
 
             root.Children.Add(CreateLabel("Minimum Speech Confidence Gate (0% Permissive ... 100% Strict):"));
-            _minConfidenceSlider = new Slider { Minimum = 0.05, Maximum = 0.95, Value = settings.MinVoiceConfidence, SmallChange = 0.05, Margin = new Thickness(0, 2, 0, 8) };
-            _minConfidenceSlider.ValueChanged += (s, e) => settings.MinVoiceConfidence = _minConfidenceSlider.Value;
+            _minConfidenceSlider = new Slider { Minimum = 0.05, Maximum = 0.95, Value = settings.MIN_VOICE_CONFIDENCE, SmallChange = 0.05, Margin = new Thickness(0, 2, 0, 8) };
+            _minConfidenceSlider.ValueChanged += (s, e) => settings.MIN_VOICE_CONFIDENCE = _minConfidenceSlider.Value;
             root.Children.Add(_minConfidenceSlider);
 
             root.Children.Add(CreateHeader("🎙️ Acoustic Voice Training & Calibration"));
@@ -623,7 +623,7 @@ namespace JarvisLauncher
                 string v = _newAliasValueBox.Text.Trim();
                 if (string.IsNullOrEmpty(k) || string.IsNullOrEmpty(v)) return;
 
-                SettingsManager.Current.Aliases[k] = v;
+                SettingsManager.Current.ALIASES[k] = v;
                 SettingsManager.Save();
                 _newAliasKeyBox.Text = "";
                 _newAliasValueBox.Text = "";
@@ -642,7 +642,7 @@ namespace JarvisLauncher
             var packProductivity = CreateButton("🚀 Productivity Pack");
             packProductivity.Click += (s, e) =>
             {
-                var dict = SettingsManager.Current.Aliases;
+                var dict = SettingsManager.Current.ALIASES;
                 dict["g"] = "open google";
                 dict["yt"] = "open youtube";
                 dict["gpt"] = "open chatgpt";
@@ -657,7 +657,7 @@ namespace JarvisLauncher
             var packSystem = CreateButton("💻 System & Power Pack");
             packSystem.Click += (s, e) =>
             {
-                var dict = SettingsManager.Current.Aliases;
+                var dict = SettingsManager.Current.ALIASES;
                 dict["re"] = "restart";
                 dict["off"] = "shutdown";
                 dict["lock"] = "lock pc";
@@ -672,7 +672,7 @@ namespace JarvisLauncher
             var packAi = CreateButton("🤖 AI & Voice Pack");
             packAi.Click += (s, e) =>
             {
-                var dict = SettingsManager.Current.Aliases;
+                var dict = SettingsManager.Current.ALIASES;
                 dict["deep"] = "deepseek";
                 dict["llama"] = "llama3";
                 dict["voices"] = "ttsvoices";
@@ -700,7 +700,7 @@ namespace JarvisLauncher
             if (_aliasListStack == null) return;
             _aliasListStack.Children.Clear();
 
-            var aliases = SettingsManager.Current.Aliases;
+            var aliases = SettingsManager.Current.ALIASES;
             if (aliases.Count == 0)
             {
                 var empty = new TextBlock { Text = "No custom aliases created yet. Add one above or import a 1-click pack!", FontSize = 11, FontStyle = FontStyles.Italic };
@@ -745,7 +745,7 @@ namespace JarvisLauncher
                 string targetKey = kvp.Key;
                 delBtn.Click += (s, e) =>
                 {
-                    SettingsManager.Current.Aliases.Remove(targetKey);
+                    SettingsManager.Current.ALIASES.Remove(targetKey);
                     SettingsManager.Save();
                     RefreshAliasList();
                 };
@@ -761,29 +761,29 @@ namespace JarvisLauncher
         {
             var settings = SettingsManager.Current;
 
-            if (_themeComboBox.SelectedItem is string th) settings.Theme = th;
-            if (_searchEngineComboBox.SelectedItem is string se) settings.DefaultSearchEngine = se;
+            if (_themeComboBox.SelectedItem is string th) settings.THEME = th;
+            if (_searchEngineComboBox.SelectedItem is string se) settings.DEFAULT_SEARCH_ENGINE = se;
 
-            settings.WindowOpacity = _opacitySlider.Value;
-            settings.StartWithWindows = _startWithWinCheckBox.IsChecked == true;
-            settings.PlaySounds = _playSoundsCheckBox.IsChecked == true;
-            settings.AutoHideOnExecute = _autoHideCheckBox.IsChecked == true;
-            settings.AlwaysOnTop = _alwaysOnTopCheckBox.IsChecked == true;
+            settings.WINDOW_OPACITY = _opacitySlider.Value;
+            settings.START_WITH_WINDOWS = _startWithWinCheckBox.IsChecked == true;
+            settings.PLAY_SOUNDS = _playSoundsCheckBox.IsChecked == true;
+            settings.AUTO_HIDE_ON_EXECUTE = _autoHideCheckBox.IsChecked == true;
+            settings.ALWAYS_ON_TOP = _alwaysOnTopCheckBox.IsChecked == true;
 
-            settings.GoogleAIKey = _googleKeyBox.Text.Trim();
-            settings.GithubToken = _githubTokenBox.Text.Trim();
-            settings.DownloadDirectory = _downloadDirBox.Text.Trim();
-            if (int.TryParse(_mobilePortBox.Text.Trim(), out int port)) settings.MobilePort = port;
+            settings.GOOGLE_AI_KEY = _googleKeyBox.Text.Trim();
+            settings.GITHUB_TOKEN = _githubTokenBox.Text.Trim();
+            settings.DOWNLOAD_DIRECTORY = _downloadDirBox.Text.Trim();
+            if (int.TryParse(_mobilePortBox.Text.Trim(), out int port)) settings.MOBILE_PORT = port;
 
-            if (_llmBackendCombo.SelectedItem is string llm) settings.LlmBackend = llm;
+            if (_llmBackendCombo.SelectedItem is string llm) settings.LLM_BACKEND = llm;
             if (_ttsVoiceCombo.SelectedItem is string voice) TtsManager.SetVoice(voice);
 
-            settings.UseCustomTtsSoundFile = _useCustomTtsCheckBox.IsChecked == true;
-            settings.CustomSoundOnly = _customTtsOnlyCheckBox.IsChecked == true;
+            settings.USE_CUSTOM_TTS_SOUND_FILE = _useCustomTtsCheckBox.IsChecked == true;
+            settings.CUSTOM_SOUND_ONLY = _customTtsOnlyCheckBox.IsChecked == true;
 
-            settings.EnableDualLlmCopilot = _enableDualLlmCheckBox.IsChecked == true;
-            if (_dualLlmBackendCombo.SelectedItem is string db) settings.DualLlmBackend = db;
-            if (_dualLlmModelCombo.SelectedItem is string dm) settings.DualLlmModel = DualLlmCopilot.ExtractModelName(dm);
+            settings.ENABLE_DUAL_LLM_COPILOT = _enableDualLlmCheckBox.IsChecked == true;
+            if (_dualLlmBackendCombo.SelectedItem is string db) settings.DUAL_LLM_BACKEND = db;
+            if (_dualLlmModelCombo.SelectedItem is string dm) settings.DUAL_LLM_MODEL = DualLlmCopilot.ExtractModelName(dm);
 
             SettingsManager.Save();
             TextOverlay.Show("💾 Saved All Master Settings!", 3000);

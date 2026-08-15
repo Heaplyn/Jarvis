@@ -30,10 +30,10 @@ namespace JarvisLauncher
 
             suggestions.Add(new CommandResult
             {
-                Title = $"Run: {query}",
-                Description = $"Execute '{query}' via Windows Shell",
-                Execute = () => LaunchProcess(query),
-                Similarity = 0.05
+                TITLE = $"Run: {query}",
+                DESCRIPTION = $"Execute '{query}' via Windows Shell",
+                EXECUTE = () => LaunchProcess(query),
+                SIMILARITY = 0.05
             });
 
             return suggestions;

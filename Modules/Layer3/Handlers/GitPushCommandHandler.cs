@@ -30,17 +30,17 @@ namespace JarvisLauncher
             // "git status", "git log", "git diff" — run directly
             if (lower == "git status" || lower == "git st")
             {
-                suggestions.Add(new CommandResult { Title = "📋 Git Status", Description = "Show current working tree status", Similarity = 3.0, Execute = () => RunGitQuick("status") });
+                suggestions.Add(new CommandResult { TITLE = "📋 Git Status", DESCRIPTION = "Show current working tree status", SIMILARITY = 3.0, EXECUTE = () => RunGitQuick("status") });
                 return suggestions;
             }
             if (lower == "git log" || lower == "git l")
             {
-                suggestions.Add(new CommandResult { Title = "📜 Git Log (last 15)", Description = "Show recent commit history", Similarity = 3.0, Execute = () => RunGitQuick("log --oneline -n 15") });
+                suggestions.Add(new CommandResult { TITLE = "📜 Git Log (last 15)", DESCRIPTION = "Show recent commit history", SIMILARITY = 3.0, EXECUTE = () => RunGitQuick("log --oneline -n 15") });
                 return suggestions;
             }
             if (lower == "git diff")
             {
-                suggestions.Add(new CommandResult { Title = "🔍 Git Diff", Description = "Show uncommitted file changes", Similarity = 3.0, Execute = () => RunGitQuick("diff --stat") });
+                suggestions.Add(new CommandResult { TITLE = "🔍 Git Diff", DESCRIPTION = "Show uncommitted file changes", SIMILARITY = 3.0, EXECUTE = () => RunGitQuick("diff --stat") });
                 return suggestions;
             }
 
@@ -56,19 +56,31 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🚀 Push: \"{commitMessage}\" → GitHub",
-                    Description = "Stage all, commit, and push to remote",
-                    Similarity = similarity,
-                    Execute = () => ExecuteGitPush(commitMessage)
+                    TITLE = $"🚀 Push: \"{commitMessage}\" → GitHub",
+                    DESCRIPTION = "Stage all, commit, and push to remote",
+                    SIMILARITY = similarity + 5.0,
+                    EXECUTE = () => ExecuteGitPush(commitMessage)
+                });
+            }
+            else if (lower == "push" || lower == "git push")
+            {
+                // Handle bare "push" by using a timestamped message
+                string autoMsg = $"Update: {DateTime.Now:yyyy-MM-dd HH:mm}";
+                suggestions.Add(new CommandResult
+                {
+                    TITLE = "🚀 Push: Auto-commit & Push",
+                    DESCRIPTION = $"Message: \"{autoMsg}\"",
+                    SIMILARITY = similarity + 5.0,
+                    EXECUTE = () => ExecuteGitPush(autoMsg)
                 });
             }
             else
             {
                 // bare "git" or "push" — show the full git menu
-                suggestions.Add(new CommandResult { Title = "🚀 Push Project → GitHub...", Description = "Type a commit message: 'push <message>'", Similarity = similarity, Execute = null });
-                suggestions.Add(new CommandResult { Title = "📋 Git Status", Description = "Show current working tree status", Similarity = similarity - 0.1, Execute = () => RunGitQuick("status") });
-                suggestions.Add(new CommandResult { Title = "📜 Git Log (last 15)", Description = "Show recent commit history", Similarity = similarity - 0.2, Execute = () => RunGitQuick("log --oneline -n 15") });
-                suggestions.Add(new CommandResult { Title = "🔍 Git Diff", Description = "Show uncommitted file changes", Similarity = similarity - 0.3, Execute = () => RunGitQuick("diff --stat") });
+                suggestions.Add(new CommandResult { TITLE = "🚀 Push Project → GitHub...", DESCRIPTION = "Type a commit message: 'push <message>'", SIMILARITY = similarity, EXECUTE = null });
+                suggestions.Add(new CommandResult { TITLE = "📋 Git Status", DESCRIPTION = "Show current working tree status", SIMILARITY = similarity - 0.1, EXECUTE = () => RunGitQuick("status") });
+                suggestions.Add(new CommandResult { TITLE = "📜 Git Log (last 15)", DESCRIPTION = "Show recent commit history", SIMILARITY = similarity - 0.2, EXECUTE = () => RunGitQuick("log --oneline -n 15") });
+                suggestions.Add(new CommandResult { TITLE = "🔍 Git Diff", DESCRIPTION = "Show uncommitted file changes", SIMILARITY = similarity - 0.3, EXECUTE = () => RunGitQuick("diff --stat") });
             }
 
             return suggestions;
@@ -137,7 +149,9 @@ namespace JarvisLauncher
             await RunCommandAsync("git", "rm -r --cached bin", projectRoot);
             await RunCommandAsync("git", "rm -r --cached obj", projectRoot);
             await RunCommandAsync("git", "rm -r --cached Data", projectRoot);
-            log.AppendLine("Tracked folders, bin/obj, and local Data/ folder removed from git cache index.");
+            await RunCommandAsync("git", "rm --cached JarvisLauncher.exe", projectRoot);
+            await RunCommandAsync("git", "rm -r --cached publish", projectRoot);
+            log.AppendLine("Tracked folders, bin/obj, and large EXE files removed from git cache index.");
             log.AppendLine();
 
             // 1. Git Add
@@ -153,13 +167,20 @@ namespace JarvisLauncher
             log.AppendLine(commitResult);
             log.AppendLine();
 
-            if (commitResult.Contains("nothing to commit") || commitResult.Contains("working tree clean"))
+            bool isClean = commitResult.Contains("nothing to commit") || commitResult.Contains("working tree clean");
+
+            // Check if we are ahead of remote
+            string statusCheck = await RunCommandAsync("git", "status", projectRoot);
+            bool isAhead = statusCheck.Contains("Your branch is ahead of") ||
+                           statusCheck.Contains("Your branch is up to date") == false;
+
+            if (isClean && !isAhead)
             {
-                log.AppendLine("ℹ️ No changes detected. Skipping push process.");
+                log.AppendLine("ℹ️ No local changes and branch is up to date. Skipping push.");
                 return log.ToString();
             }
 
-            // 2.5. Git Pull with Rebase to avoid push rejection (update itself properly)
+            // 2.5. Git Pull with Rebase to avoid push rejection
             log.AppendLine($"--- SYNCING WITH REMOTE (pull --rebase origin {branchName}) ---");
             string pullResult = await RunCommandAsync("git", $"pull --rebase origin {branchName}", projectRoot);
             log.AppendLine(string.IsNullOrWhiteSpace(pullResult) ? "Sync complete." : pullResult);
@@ -167,31 +188,35 @@ namespace JarvisLauncher
 
             // 3. Git Push
             log.AppendLine($"--- PUSHING TO GITHUB (push origin {branchName}) ---");
+
+            // Increase buffer size to handle potential large history objects (500MB)
+            await RunCommandAsync("git", "config http.postBuffer 524288000", projectRoot);
+
             string pushResult = await RunCommandAsync("git", $"push origin {branchName}", projectRoot);
             log.AppendLine(pushResult);
 
-            // Self-healing check: If the push was rejected due to large files or secret push protection
-            if (pushResult.Contains("exceeds GitHub's file size limit") || 
-                pushResult.Contains("Large files detected") || 
-                pushResult.Contains("pre-receive hook declined") ||
-                pushResult.Contains("push declined") ||
-                pushResult.Contains("violations found"))
+            // Self-healing check: If push rejected due to timeout, size, or rules
+            if (pushResult.Contains("408") ||
+                pushResult.Contains("exceeds GitHub's file size limit") ||
+                pushResult.Contains("Large files detected") ||
+                pushResult.Contains("pre-receive hook declined"))
             {
-                log.AppendLine("\n⚠️ WARNING: Push rejected due to rule violations (e.g. large files or hardcoded credentials) in local history.");
-                log.AppendLine("🔄 Attempting automatic self-healing recovery: Soft-resetting history and re-committing to enforce .gitignore...");
+                log.AppendLine("\n⚠️ WARNING: Push rejected due to rule violations or timeout.");
+                log.AppendLine("🔄 Attempting automatic self-healing recovery: Resetting and re-committing to enforce .gitignore...");
 
-                // Run: git reset --soft origin/{branchName}
+                // 1. Garbage collect / aggressive prune
+                await RunCommandAsync("git", "gc --prune=now --aggressive", projectRoot);
+
+                // 2. Soft reset to remote state
                 log.AppendLine($"⚡ Resetting commits back to remote origin/{branchName}...");
-                string resetResult = await RunCommandAsync("git", $"reset --soft origin/{branchName}", projectRoot);
-                log.AppendLine(string.IsNullOrWhiteSpace(resetResult) ? "Reset complete." : resetResult);
+                await RunCommandAsync("git", $"reset --soft origin/{branchName}", projectRoot);
 
-                // Run: git commit -m "..."
+                // 3. Re-commit (now with proper .gitignore enforcement from step 0)
                 log.AppendLine("⚡ Re-committing changes...");
-                string reCommitResult = await RunCommandAsync("git", $"commit -m \"{escapedMsg}\"", projectRoot);
-                log.AppendLine(reCommitResult);
+                await RunCommandAsync("git", $"commit -m \"{escapedMsg}\"", projectRoot);
 
-                // Retry: git push
-                log.AppendLine($"⚡ Retrying push to GitHub (push origin {branchName})...");
+                // 4. Retry push
+                log.AppendLine($"⚡ Retrying push to GitHub...");
                 string retryPushResult = await RunCommandAsync("git", $"push origin {branchName}", projectRoot);
                 log.AppendLine(retryPushResult);
             }

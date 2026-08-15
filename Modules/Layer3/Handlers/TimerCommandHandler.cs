@@ -42,10 +42,10 @@ namespace JarvisLauncher
                     string durationText = FormatDurationText(totalSeconds);
                     suggestions.Add(new CommandResult
                     {
-                        Title = $"Start Timer for {durationText}",
-                        Description = $"Triggers a HUD overlay notification when finished",
-                        Execute = () => StartTimer(totalSeconds, durationText),
-                        Similarity = similarity
+                        TITLE = $"Start Timer for {durationText}",
+                        DESCRIPTION = $"Triggers a HUD overlay notification when finished",
+                        EXECUTE = () => StartTimer(totalSeconds, durationText),
+                        SIMILARITY = similarity
                     });
                     return suggestions;
                 }
@@ -54,10 +54,10 @@ namespace JarvisLauncher
             // Default suggestion if no valid time typed yet
             suggestions.Add(new CommandResult
             {
-                Title = "Start Timer...",
-                Description = "Type a duration (e.g. 'timer 5' or 'timer 30s')",
-                Execute = null,
-                Similarity = similarity
+                TITLE = "Start Timer...",
+                DESCRIPTION = "Type a duration (e.g. 'timer 5' or 'timer 30s')",
+                EXECUTE = null,
+                SIMILARITY = similarity
             });
 
             return suggestions;

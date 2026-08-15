@@ -27,782 +27,782 @@ namespace JarvisLauncher
 {
     public static class MobileBridgeServer
     {
-        private static TcpListener? _listener;
-        private static bool _isRunning;
-        private static int _port = 9000;
+        private static TcpListener? Listener;
+        private static bool IsRunningInternal;
+        private static int PortParam = 9000;
 
-        public static bool IsActive => _isRunning && _listener != null;
-        public static int Port => _port;
-        public static string ServerUrl => $"http://{GetLocalIPAddress()}:{_port}/";
-        public static string HostnameDomain => $"http://{Environment.MachineName.ToLower()}.local:{_port}/";
-        public static string JarvisDomain => $"http://jarvis.local:{_port}/";
+        public static bool IsActive => IsRunningInternal && Listener != null;
+        public static int Port => PortParam;
+        public static string ServerUrl => $"http://{GetLocalIPAddress()}:{PortParam}/";
+        public static string HostnameDomain => $"http://{Environment.MachineName.ToLower()}.local:{PortParam}/";
+        public static string JarvisDomain => $"http://jarvis.local:{PortParam}/";
 
-        public static void Start(int port = 9000)
+        public static void Start(int PortNumber = 9000)
         {
-            if (_isRunning) return;
-            _port = port;
-            _isRunning = true;
+            if (IsRunningInternal) return;
+            PortParam = PortNumber;
+            IsRunningInternal = true;
 
             Task.Run(async () =>
             {
                 try
                 {
-                    LogToFile($"Starting Dual-Stack TCP Server on port {_port}...");
+                    LogToFile($"Starting Dual-Stack TCP Server on port {PortParam}...");
 
-                    _listener = TcpListener.Create(_port);
-                    _listener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-                    _listener.Start();
+                    Listener = TcpListener.Create(PortParam);
+                    Listener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                    Listener.Start();
 
-                    LogToFile($"Server LIVE on all interfaces at port {_port}.");
+                    LogToFile($"Server LIVE on all interfaces at port {PortParam}.");
 
                     Application.Current.Dispatcher.Invoke(() =>
-                        ChatOverlay.LogConsoleAction("Mobile Server Active", $"Listening on port {_port} (Dual-Stack TCP)"));
+                        ChatOverlay.LogConsoleAction("Mobile Server Active", $"Listening on port {PortParam} (Dual-Stack TCP)"));
 
-                    while (_isRunning && _listener != null)
+                    while (IsRunningInternal && Listener != null)
                     {
                         try
                         {
-                            var client = await _listener.AcceptTcpClientAsync();
+                            var client = await Listener.AcceptTcpClientAsync();
                             _ = Task.Run(() => HandleClientAsync(client));
                         }
-                        catch (Exception ex)
+                        catch (Exception Ex)
                         {
-                            if (_isRunning) LogToFile($"Accept error: {ex.Message}");
+                            if (IsRunningInternal) LogToFile($"Accept error: {Ex.Message}");
                         }
                     }
                 }
-                catch (Exception ex)
+                catch (Exception Ex)
                 {
-                    _isRunning = false;
-                    LogToFile($"FATAL server crash: {ex}");
+                    IsRunningInternal = false;
+                    LogToFile($"FATAL server crash: {Ex}");
                 }
             });
         }
 
-        private static async Task HandleClientAsync(TcpClient client)
+        private static async Task HandleClientAsync(TcpClient ClientParam)
         {
-            var remoteEp = client.Client.RemoteEndPoint;
+            var RemoteEp = ClientParam.Client.RemoteEndPoint;
             try
             {
-                using (client)
-                using (var stream = client.GetStream())
+                using (ClientParam)
+                using (var Stream = ClientParam.GetStream())
                 {
-                    stream.ReadTimeout = 15000;
+                    Stream.ReadTimeout = 15000;
 
-                    byte[] buffer = new byte[8192];
-                    int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
-                    if (bytesRead == 0) return;
+                    byte[] Buffer = new byte[8192];
+                    int BytesRead = await Stream.ReadAsync(Buffer, 0, Buffer.Length);
+                    if (BytesRead == 0) return;
 
-                    string request = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                    string[] lines = request.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
-                    if (lines.Length == 0) return;
+                    string Request = Encoding.UTF8.GetString(Buffer, 0, BytesRead);
+                    string[] Lines = Request.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+                    if (Lines.Length == 0) return;
 
-                    string[] requestLine = lines[0].Split(' ');
-                    if (requestLine.Length < 2) return;
+                    string[] RequestLine = Lines[0].Split(' ');
+                    if (RequestLine.Length < 2) return;
 
-                    string method = requestLine[0].ToUpper();
-                    string fullPath = requestLine[1];
+                    string Method = RequestLine[0].ToUpper();
+                    string FullPath = RequestLine[1];
 
-                    string path = fullPath;
-                    string queryStr = string.Empty;
-                    int qIndex = fullPath.IndexOf('?');
-                    if (qIndex != -1)
+                    string PathString = FullPath;
+                    string QueryStr = string.Empty;
+                    int QIndex = FullPath.IndexOf('?');
+                    if (QIndex != -1)
                     {
-                        path = fullPath.Substring(0, qIndex);
-                        queryStr = fullPath.Substring(qIndex + 1);
+                        PathString = FullPath.Substring(0, QIndex);
+                        QueryStr = FullPath.Substring(QIndex + 1);
                     }
 
-                    var query = new Dictionary<string, string>();
-                    foreach (var pair in queryStr.Split('&', StringSplitOptions.RemoveEmptyEntries))
+                    var Query = new Dictionary<string, string>();
+                    foreach (var Pair in QueryStr.Split('&', StringSplitOptions.RemoveEmptyEntries))
                     {
-                        var parts2 = pair.Split('=');
-                        if (parts2.Length == 2) query[parts2[0]] = Uri.UnescapeDataString(parts2[1]);
-                        else if (parts2.Length == 1) query[parts2[0]] = string.Empty;
+                        var Parts2 = Pair.Split('=');
+                        if (Parts2.Length == 2) Query[Parts2[0]] = Uri.UnescapeDataString(Parts2[1]);
+                        else if (Parts2.Length == 1) Query[Parts2[0]] = string.Empty;
                     }
 
                     // Read headers
-                    int contentLength = 0;
-                    foreach (var header in lines.Skip(1))
+                    int ContentLength = 0;
+                    foreach (var Header in Lines.Skip(1))
                     {
-                        if (string.IsNullOrWhiteSpace(header)) break;
-                        if (header.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase))
+                        if (string.IsNullOrWhiteSpace(Header)) break;
+                        if (Header.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase))
                         {
-                            int.TryParse(header.Substring(15).Trim(), out contentLength);
+                            int.TryParse(Header.Substring(15).Trim(), out ContentLength);
                         }
                     }
 
-                    if (!path.Contains("screenshot"))
-                        LogToFile($"Request: {method} {path} from {remoteEp}");
+                    if (!PathString.Contains("screenshot"))
+                        LogToFile($"Request: {Method} {PathString} from {RemoteEp}");
 
-                    if (method == "OPTIONS")
+                    if (Method == "OPTIONS")
                     {
-                        await SendResponseAsync(stream, 204, "No Content", null, "text/plain");
+                        await SendResponseAsync(Stream, 204, "No Content", null, "text/plain");
                         return;
                     }
 
-                    if (path == "/" || path.Equals("/index.html", StringComparison.OrdinalIgnoreCase))
+                    if (PathString == "/" || PathString.Equals("/index.html", StringComparison.OrdinalIgnoreCase))
                     {
-                        string html = GetMobileAppHtml();
-                        await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes(html), "text/html; charset=utf-8");
+                        string Html = GetMobileAppHtml();
+                        await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes(Html), "text/html; charset=utf-8");
                     }
-                    else if (path.Equals("/cmd", StringComparison.OrdinalIgnoreCase) || path.Equals("/bar", StringComparison.OrdinalIgnoreCase))
+                    else if (PathString.Equals("/cmd", StringComparison.OrdinalIgnoreCase) || PathString.Equals("/bar", StringComparison.OrdinalIgnoreCase))
                     {
-                        string html = GetMobileCommandBarHtml();
-                        await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes(html), "text/html; charset=utf-8");
+                        string Html = GetMobileCommandBarHtml();
+                        await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes(Html), "text/html; charset=utf-8");
                     }
-                    else if (path.Contains("health", StringComparison.OrdinalIgnoreCase))
+                    else if (PathString.Contains("health", StringComparison.OrdinalIgnoreCase))
                     {
-                        string json = JsonSerializer.Serialize(new { status = "ok", pc = Environment.MachineName, time = DateTime.Now.ToString("HH:mm:ss") });
-                        await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes(json), "application/json");
+                        string Json = JsonSerializer.Serialize(new { status = "ok", pc = Environment.MachineName, time = DateTime.Now.ToString("HH:mm:ss") });
+                        await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes(Json), "application/json");
                     }
-                    else if (path.Equals("/api/suggestions", StringComparison.OrdinalIgnoreCase))
+                    else if (PathString.Equals("/api/suggestions", StringComparison.OrdinalIgnoreCase))
                     {
-                        query.TryGetValue("q", out string? q);
-                        var list = new List<object>();
-                        if (!string.IsNullOrWhiteSpace(q))
+                        Query.TryGetValue("q", out string? Q);
+                        var List = new List<object>();
+                        if (!string.IsNullOrWhiteSpace(Q))
                         {
                             Application.Current.Dispatcher.Invoke(() =>
                             {
                                 try
                                 {
-                                    foreach (var s in CommandParser.GetSuggestions(q).Take(6))
-                                        list.Add(new { title = s.Title, desc = s.Description });
+                                    foreach (var S in CommandParser.GetSuggestions(Q).Take(6))
+                                        List.Add(new { title = S.TITLE, desc = S.DESCRIPTION });
                                 }
                                 catch { }
                             });
                         }
-                        string json = JsonSerializer.Serialize(list);
-                        await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes(json), "application/json");
+                        string Json = JsonSerializer.Serialize(List);
+                        await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes(Json), "application/json");
                     }
-                    else if (path.Equals("/api/chat", StringComparison.OrdinalIgnoreCase) && method == "POST")
+                    else if (PathString.Equals("/api/chat", StringComparison.OrdinalIgnoreCase) && Method == "POST")
                     {
-                        string body = await GetRequestBodyAsync(request, stream, contentLength);
-                        string reply;
+                        string Body = await GetRequestBodyAsync(Request, Stream, ContentLength);
+                        string Reply;
                         try
                         {
-                            using var doc = JsonDocument.Parse(body);
-                            string prompt = doc.RootElement.TryGetProperty("prompt", out var pProp) ? pProp.GetString() ?? "" : "";
-                            reply = await LlmRouter.AskAsync(prompt);
+                            using var Doc = JsonDocument.Parse(Body);
+                            string Prompt = Doc.RootElement.TryGetProperty("prompt", out var PProp) ? PProp.GetString() ?? "" : "";
+                            Reply = await LlmRouter.AskAsync(Prompt);
                         }
-                        catch (Exception ex) { reply = $"Error: {ex.Message}"; }
-                        string json = JsonSerializer.Serialize(new { response = reply });
-                        await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes(json), "application/json");
+                        catch (Exception Ex) { Reply = $"Error: {Ex.Message}"; }
+                        string Json = JsonSerializer.Serialize(new { response = Reply });
+                        await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes(Json), "application/json");
                     }
-                    else if (path.Equals("/api/terminal", StringComparison.OrdinalIgnoreCase) && method == "POST")
+                    else if (PathString.Equals("/api/terminal", StringComparison.OrdinalIgnoreCase) && Method == "POST")
                     {
-                        if (!SettingsManager.Current.MobileAllowTerminal)
+                        if (!SettingsManager.Current.MOBILE_ALLOW_TERMINAL)
                         {
-                            await SendResponseAsync(stream, 403, "Forbidden", Encoding.UTF8.GetBytes("{\"error\":\"Remote terminal is disabled in Mobile Hub settings.\"}"), "application/json");
+                            await SendResponseAsync(Stream, 403, "Forbidden", Encoding.UTF8.GetBytes("{\"error\":\"Remote terminal is disabled in Mobile Hub settings.\"}"), "application/json");
                             return;
                         }
-                        string body = await GetRequestBodyAsync(request, stream, contentLength);
-                        string output;
+                        string Body = await GetRequestBodyAsync(Request, Stream, ContentLength);
+                        string Output;
                         try
                         {
-                            using var doc = JsonDocument.Parse(body);
-                            string command = doc.RootElement.TryGetProperty("command", out var cProp2) ? cProp2.GetString() ?? "" : "";
-                            output = RunPowerShellCommand(command);
+                            using var Doc = JsonDocument.Parse(Body);
+                            string CommandString = Doc.RootElement.TryGetProperty("command", out var CProp2) ? CProp2.GetString() ?? "" : "";
+                            Output = RunPowerShellCommand(CommandString);
                         }
-                        catch (Exception ex) { output = $"Error: {ex.Message}"; }
-                        string json = JsonSerializer.Serialize(new { output });
-                        await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes(json), "application/json");
+                        catch (Exception Ex) { Output = $"Error: {Ex.Message}"; }
+                        string Json = JsonSerializer.Serialize(new { output = Output });
+                        await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes(Json), "application/json");
                     }
-                    else if (path.Equals("/api/stats", StringComparison.OrdinalIgnoreCase))
+                    else if (PathString.Equals("/api/stats", StringComparison.OrdinalIgnoreCase))
                     {
-                        var stats = GetSystemStats();
-                        string json = JsonSerializer.Serialize(stats);
-                        await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes(json), "application/json");
+                        var Stats = GetSystemStats();
+                        string Json = JsonSerializer.Serialize(Stats);
+                        await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes(Json), "application/json");
                     }
-                    else if (path.Contains("screenshot", StringComparison.OrdinalIgnoreCase))
+                    else if (PathString.Contains("screenshot", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (!SettingsManager.Current.MobileAllowScreenMirror)
+                        if (!SettingsManager.Current.MOBILE_ALLOW_SCREEN_MIRROR)
                         {
-                            await SendResponseAsync(stream, 403, "Forbidden", Encoding.UTF8.GetBytes("Screen mirroring is disabled in Mobile Hub settings."), "text/plain");
+                            await SendResponseAsync(Stream, 403, "Forbidden", Encoding.UTF8.GetBytes("Screen mirroring is disabled in Mobile Hub settings."), "text/plain");
                             return;
                         }
-                        byte[]? img = CaptureScreenJpeg();
-                        if (img != null && img.Length > 0)
-                            await SendResponseAsync(stream, 200, "OK", img, "image/jpeg");
+                        byte[]? Img = CaptureScreenJpeg();
+                        if (Img != null && Img.Length > 0)
+                            await SendResponseAsync(Stream, 200, "OK", Img, "image/jpeg");
                         else
-                            await SendResponseAsync(stream, 500, "Error", Encoding.UTF8.GetBytes("Capture failed"), "text/plain");
+                            await SendResponseAsync(Stream, 500, "Error", Encoding.UTF8.GetBytes("Capture failed"), "text/plain");
                     }
-                    else if (path.Equals("/api/clipboard", StringComparison.OrdinalIgnoreCase))
+                    else if (PathString.Equals("/api/clipboard", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (!SettingsManager.Current.MobileAllowClipboard)
+                        if (!SettingsManager.Current.MOBILE_ALLOW_CLIPBOARD)
                         {
-                            await SendResponseAsync(stream, 403, "Forbidden", Encoding.UTF8.GetBytes("{\"error\":\"Clipboard sync is disabled in Mobile Hub settings.\"}"), "application/json");
+                            await SendResponseAsync(Stream, 403, "Forbidden", Encoding.UTF8.GetBytes("{\"error\":\"Clipboard sync is disabled in Mobile Hub settings.\"}"), "application/json");
                             return;
                         }
-                        if (method == "GET")
+                        if (Method == "GET")
                         {
-                            string text = string.Empty;
-                            Application.Current.Dispatcher.Invoke(() => { try { text = Clipboard.GetText(); } catch { } });
-                            string json = JsonSerializer.Serialize(new { text });
-                            await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes(json), "application/json");
+                            string Text = string.Empty;
+                            Application.Current.Dispatcher.Invoke(() => { try { Text = Clipboard.GetText(); } catch { } });
+                            string Json = JsonSerializer.Serialize(new { text = Text });
+                            await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes(Json), "application/json");
                         }
-                        else if (method == "POST")
+                        else if (Method == "POST")
                         {
-                            string body = await GetRequestBodyAsync(request, stream, contentLength);
+                            string Body = await GetRequestBodyAsync(Request, Stream, ContentLength);
                             try
                             {
-                                using var doc = JsonDocument.Parse(body);
-                                string text = doc.RootElement.GetProperty("text").GetString() ?? "";
-                                Application.Current.Dispatcher.Invoke(() => { try { Clipboard.SetText(text); } catch { } });
+                                using var Doc = JsonDocument.Parse(Body);
+                                string Text = Doc.RootElement.GetProperty("text").GetString() ?? "";
+                                Application.Current.Dispatcher.Invoke(() => { try { Clipboard.SetText(Text); } catch { } });
                             }
                             catch { }
-                            await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes("{\"status\":\"success\"}"), "application/json");
+                            await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes("{\"status\":\"success\"}"), "application/json");
                         }
                     }
-                    else if (path.Equals("/api/command", StringComparison.OrdinalIgnoreCase) && method == "POST")
+                    else if (PathString.Equals("/api/command", StringComparison.OrdinalIgnoreCase) && Method == "POST")
                     {
-                        string body = await GetRequestBodyAsync(request, stream, contentLength);
-                        string command = "";
+                        string Body = await GetRequestBodyAsync(Request, Stream, ContentLength);
+                        string CommandToExec = "";
                         try
                         {
-                            using var doc = JsonDocument.Parse(body);
-                            command = doc.RootElement.TryGetProperty("command", out var cProp) ? cProp.GetString() ?? "" : "";
-                            Application.Current.Dispatcher.Invoke(() => CommandParser.ExecuteFirstSuggestion(command));
+                            using var Doc = JsonDocument.Parse(Body);
+                            CommandToExec = Doc.RootElement.TryGetProperty("command", out var CProp) ? CProp.GetString() ?? "" : "";
+                            Application.Current.Dispatcher.Invoke(() => CommandParser.ExecuteFirstSuggestion(CommandToExec));
                         }
                         catch { }
-                        string json = JsonSerializer.Serialize(new { status = "success", message = $"Executed: {command}" });
-                        await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes(json), "application/json");
+                        string Json = JsonSerializer.Serialize(new { status = "success", message = $"Executed: {CommandToExec}" });
+                        await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes(Json), "application/json");
                     }
-                    else if (path.Equals("/api/notes", StringComparison.OrdinalIgnoreCase))
+                    else if (PathString.Equals("/api/notes", StringComparison.OrdinalIgnoreCase))
                     {
-                        string dir = GetNotesDir();
-                        if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                        string Dir = GetNotesDir();
+                        if (!Directory.Exists(Dir)) Directory.CreateDirectory(Dir);
 
-                        if (method == "GET")
+                        if (Method == "GET")
                         {
-                            var list = new List<object>();
-                            foreach (var file in Directory.GetFiles(dir, "*.txt"))
+                            var List = new List<object>();
+                            foreach (var FilePath in Directory.GetFiles(Dir, "*.txt"))
                             {
                                 try
                                 {
-                                    string name = Path.GetFileNameWithoutExtension(file);
-                                    string content = File.ReadAllText(file);
-                                    list.Add(new { name, content });
+                                    string Name = Path.GetFileNameWithoutExtension(FilePath);
+                                    string Content = File.ReadAllText(FilePath);
+                                    List.Add(new { name = Name, content = Content });
                                 }
                                 catch { }
                             }
-                            string json = JsonSerializer.Serialize(list);
-                            await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes(json), "application/json");
+                            string Json = JsonSerializer.Serialize(List);
+                            await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes(Json), "application/json");
                         }
-                        else if (method == "POST")
+                        else if (Method == "POST")
                         {
-                            string body = await GetRequestBodyAsync(request, stream, contentLength);
+                            string Body = await GetRequestBodyAsync(Request, Stream, ContentLength);
                             try
                             {
-                                using var doc = JsonDocument.Parse(body);
-                                string name = doc.RootElement.GetProperty("name").GetString() ?? "";
-                                string content = doc.RootElement.GetProperty("content").GetString() ?? "";
+                                using var Doc = JsonDocument.Parse(Body);
+                                string Name = Doc.RootElement.GetProperty("name").GetString() ?? "";
+                                string Content = Doc.RootElement.GetProperty("content").GetString() ?? "";
 
-                                foreach (char c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
+                                foreach (char C in Path.GetInvalidFileNameChars()) Name = Name.Replace(C, '_');
 
-                                if (!string.IsNullOrEmpty(name))
+                                if (!string.IsNullOrEmpty(Name))
                                 {
-                                    string file = Path.Combine(dir, $"{name}.txt");
-                                    File.WriteAllText(file, content);
-                                    await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes("{\"status\":\"saved\"}"), "application/json");
+                                    string FileToSave = Path.Combine(Dir, $"{Name}.txt");
+                                    File.WriteAllText(FileToSave, Content);
+                                    await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes("{\"status\":\"saved\"}"), "application/json");
                                 }
                                 else
                                 {
-                                    await SendResponseAsync(stream, 400, "Bad Request", Encoding.UTF8.GetBytes("{\"error\":\"Invalid note name\"}"), "application/json");
+                                    await SendResponseAsync(Stream, 400, "Bad Request", Encoding.UTF8.GetBytes("{\"error\":\"Invalid note name\"}"), "application/json");
                                 }
                             }
-                            catch (Exception ex)
+                            catch (Exception Ex)
                             {
-                                await SendResponseAsync(stream, 500, "Error", Encoding.UTF8.GetBytes($"{{\"error\":\"{ex.Message}\"}}"), "application/json");
+                                await SendResponseAsync(Stream, 500, "Error", Encoding.UTF8.GetBytes($"{{\"error\":\"{Ex.Message}\"}}"), "application/json");
                             }
                         }
-                        else if (method == "DELETE")
+                        else if (Method == "DELETE")
                         {
-                            string body = await GetRequestBodyAsync(request, stream, contentLength);
+                            string Body = await GetRequestBodyAsync(Request, Stream, ContentLength);
                             try
                             {
-                                using var doc = JsonDocument.Parse(body);
-                                string name = doc.RootElement.GetProperty("name").GetString() ?? "";
-                                string file = Path.Combine(dir, $"{name}.txt");
-                                if (File.Exists(file))
+                                using var Doc = JsonDocument.Parse(Body);
+                                string Name = Doc.RootElement.GetProperty("name").GetString() ?? "";
+                                string FileToDelete = Path.Combine(Dir, $"{Name}.txt");
+                                if (File.Exists(FileToDelete))
                                 {
-                                    File.Delete(file);
-                                    await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes("{\"status\":\"deleted\"}"), "application/json");
+                                    File.Delete(FileToDelete);
+                                    await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes("{\"status\":\"deleted\"}"), "application/json");
                                 }
                                 else
                                 {
-                                    await SendResponseAsync(stream, 404, "Not Found", Encoding.UTF8.GetBytes("{\"error\":\"Note not found\"}"), "application/json");
+                                    await SendResponseAsync(Stream, 404, "Not Found", Encoding.UTF8.GetBytes("{\"error\":\"Note not found\"}"), "application/json");
                                 }
                             }
-                            catch (Exception ex)
+                            catch (Exception Ex)
                             {
-                                await SendResponseAsync(stream, 500, "Error", Encoding.UTF8.GetBytes($"{{\"error\":\"{ex.Message}\"}}"), "application/json");
+                                await SendResponseAsync(Stream, 500, "Error", Encoding.UTF8.GetBytes($"{{\"error\":\"{Ex.Message}\"}}"), "application/json");
                             }
                         }
                     }
-                    else if (path.Equals("/api/calendar", StringComparison.OrdinalIgnoreCase))
+                    else if (PathString.Equals("/api/calendar", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (method == "GET")
+                        if (Method == "GET")
                         {
-                            var events = CalendarOverlay.LoadEvents();
-                            string json = JsonSerializer.Serialize(events);
-                            await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes(json), "application/json");
+                            var Events = CalendarOverlay.LoadEvents();
+                            string Json = JsonSerializer.Serialize(Events);
+                            await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes(Json), "application/json");
                         }
-                        else if (method == "POST")
+                        else if (Method == "POST")
                         {
-                            string body = await GetRequestBodyAsync(request, stream, contentLength);
+                            string Body = await GetRequestBodyAsync(Request, Stream, ContentLength);
                             try
                             {
-                                var ev = JsonSerializer.Deserialize<CalendarEvent>(body);
-                                if (ev != null)
+                                var Ev = JsonSerializer.Deserialize<CalendarEvent>(Body);
+                                if (Ev != null)
                                 {
-                                    if (ev.Id == Guid.Empty) ev.Id = Guid.NewGuid();
-                                    CalendarOverlay.LogEvent(ev.Title, ev.DateString, ev.Time, ev.Category);
-                                    await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes("{\"status\":\"success\"}"), "application/json");
+                                    if (Ev.Id == Guid.Empty) Ev.Id = Guid.NewGuid();
+                                    CalendarOverlay.LogEvent(Ev.Title, Ev.DateString, Ev.Time, Ev.Category);
+                                    await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes("{\"status\":\"success\"}"), "application/json");
                                 }
                                 else
                                 {
-                                    await SendResponseAsync(stream, 400, "Bad Request", Encoding.UTF8.GetBytes("{\"error\":\"Invalid event format\"}"), "application/json");
+                                    await SendResponseAsync(Stream, 400, "Bad Request", Encoding.UTF8.GetBytes("{\"error\":\"Invalid event format\"}"), "application/json");
                                 }
                             }
-                            catch (Exception ex)
+                            catch (Exception Ex)
                             {
-                                await SendResponseAsync(stream, 500, "Error", Encoding.UTF8.GetBytes($"{{\"error\":\"{ex.Message}\"}}"), "application/json");
+                                await SendResponseAsync(Stream, 500, "Error", Encoding.UTF8.GetBytes($"{{\"error\":\"{Ex.Message}\"}}"), "application/json");
                             }
                         }
-                        else if (method == "DELETE")
+                        else if (Method == "DELETE")
                         {
-                            string body = await GetRequestBodyAsync(request, stream, contentLength);
+                            string Body = await GetRequestBodyAsync(Request, Stream, ContentLength);
                             try
                             {
-                                using var doc = JsonDocument.Parse(body);
-                                Guid id = doc.RootElement.GetProperty("id").GetGuid();
-                                var events = CalendarOverlay.LoadEvents();
-                                var match = events.FirstOrDefault(e => e.Id == id);
-                                if (match != null)
+                                using var Doc = JsonDocument.Parse(Body);
+                                Guid Id = Doc.RootElement.GetProperty("id").GetGuid();
+                                var Events = CalendarOverlay.LoadEvents();
+                                var Match = Events.FirstOrDefault(e => e.Id == Id);
+                                if (Match != null)
                                 {
-                                    events.Remove(match);
+                                    Events.Remove(Match);
                                     CalendarOverlay.SaveEvents();
-                                    await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes("{\"status\":\"deleted\"}"), "application/json");
+                                    await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes("{\"status\":\"deleted\"}"), "application/json");
                                 }
                                 else
                                 {
-                                    await SendResponseAsync(stream, 404, "Not Found", Encoding.UTF8.GetBytes("{\"error\":\"Event not found\"}"), "application/json");
+                                    await SendResponseAsync(Stream, 404, "Not Found", Encoding.UTF8.GetBytes("{\"error\":\"Event not found\"}"), "application/json");
                                 }
                             }
-                            catch (Exception ex)
+                            catch (Exception Ex)
                             {
-                                await SendResponseAsync(stream, 500, "Error", Encoding.UTF8.GetBytes($"{{\"error\":\"{ex.Message}\"}}"), "application/json");
+                                await SendResponseAsync(Stream, 500, "Error", Encoding.UTF8.GetBytes($"{{\"error\":\"{Ex.Message}\"}}"), "application/json");
                             }
                         }
                     }
-                    else if (path.Equals("/api/files/organize", StringComparison.OrdinalIgnoreCase) && method == "POST")
+                    else if (PathString.Equals("/api/files/organize", StringComparison.OrdinalIgnoreCase) && Method == "POST")
                     {
-                        string body = await GetRequestBodyAsync(request, stream, contentLength);
-                        var results = new List<string>();
+                        string Body = await GetRequestBodyAsync(Request, Stream, ContentLength);
+                        var ResultsList = new List<string>();
                         try
                         {
-                            using var doc = JsonDocument.Parse(body);
-                            string targetDir = doc.RootElement.GetProperty("path").GetString() ?? "";
-                            string task = doc.RootElement.GetProperty("task").GetString() ?? "";
-                            bool execute = doc.RootElement.GetProperty("execute").GetBoolean();
+                            using var Doc = JsonDocument.Parse(Body);
+                            string TargetDir = Doc.RootElement.GetProperty("path").GetString() ?? "";
+                            string TaskType = Doc.RootElement.GetProperty("task").GetString() ?? "";
+                            bool ExecuteFlag = Doc.RootElement.GetProperty("execute").GetBoolean();
 
-                            if (Directory.Exists(targetDir))
+                            if (Directory.Exists(TargetDir))
                             {
-                                if (task == "extension") results = FileOrganizer.CategorizeByExtension(targetDir, !execute);
-                                else if (task == "date") results = FileOrganizer.OrganizeByDate(targetDir, !execute);
-                                else if (task == "duplicate")
+                                if (TaskType == "extension") ResultsList = FileOrganizer.CategorizeByExtension(TargetDir, !ExecuteFlag);
+                                else if (TaskType == "date") ResultsList = FileOrganizer.OrganizeByDate(TargetDir, !ExecuteFlag);
+                                else if (TaskType == "duplicate")
                                 {
-                                    List<string> purgeLogs;
-                                    var logs = FileOrganizer.FindDuplicates(targetDir, execute, out purgeLogs);
-                                    results = execute ? purgeLogs : logs;
+                                    List<string> PurgeLogs;
+                                    var Logs = FileOrganizer.FindDuplicates(TargetDir, ExecuteFlag, out PurgeLogs);
+                                    ResultsList = ExecuteFlag ? PurgeLogs : Logs;
                                 }
-                                else if (task == "large") results = FileOrganizer.AuditLargeFiles(targetDir, 100 * 1024 * 1024);
-                                else if (task == "empty") results = FileOrganizer.PurgeEmptyDirectories(targetDir, !execute);
+                                else if (TaskType == "large") ResultsList = FileOrganizer.AuditLargeFiles(TargetDir, 100 * 1024 * 1024);
+                                else if (TaskType == "empty") ResultsList = FileOrganizer.PurgeEmptyDirectories(TargetDir, !ExecuteFlag);
                             }
                             else
                             {
-                                results.Add("⚠️ Target directory does not exist.");
+                                ResultsList.Add("⚠️ Target directory does not exist.");
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception Ex)
                         {
-                            results.Add($"❌ Error: {ex.Message}");
+                            ResultsList.Add($"❌ Error: {Ex.Message}");
                         }
-                        string json = JsonSerializer.Serialize(results);
-                        await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes(json), "application/json");
+                        string Json = JsonSerializer.Serialize(ResultsList);
+                        await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes(Json), "application/json");
                     }
-                    else if (path.Equals("/api/screen/analyze", StringComparison.OrdinalIgnoreCase))
+                    else if (PathString.Equals("/api/screen/analyze", StringComparison.OrdinalIgnoreCase))
                     {
-                        var windows = ScreenAnalyzer.GetActiveWindows();
-                        double coverage, overlap;
-                        string feedback;
-                        ScreenAnalyzer.CalculateClutterIndex(windows, out coverage, out overlap, out feedback);
+                        var Windows = ScreenAnalyzer.GetActiveWindows();
+                        double Coverage, Overlap;
+                        string Feedback;
+                        ScreenAnalyzer.CalculateClutterIndex(Windows, out Coverage, out Overlap, out Feedback);
 
-                        System.Windows.Media.Color dominant, accent;
-                        ScreenAnalyzer.ExtractScreenPalette(out dominant, out accent);
+                        System.Windows.Media.Color Dominant, Accent;
+                        ScreenAnalyzer.ExtractScreenPalette(out Dominant, out Accent);
 
-                        string domHex = $"#{dominant.R:X2}{dominant.G:X2}{dominant.B:X2}";
-                        string accHex = $"#{accent.R:X2}{accent.G:X2}{accent.B:X2}";
+                        string DomHex = $"#{Dominant.R:X2}{Dominant.G:X2}{Dominant.B:X2}";
+                        string AccHex = $"#{Accent.R:X2}{Accent.G:X2}{Accent.B:X2}";
 
-                        var payload = new
+                        var Payload = new
                         {
-                            coverage = Math.Round(coverage, 1),
-                            overlap = Math.Round(overlap, 1),
-                            feedback = feedback,
-                            dominantHex = domHex,
-                            accentHex = accHex,
-                            windowsCount = windows.Count
+                            coverage = Math.Round(Coverage, 1),
+                            overlap = Math.Round(Overlap, 1),
+                            feedback = Feedback,
+                            dominantHex = DomHex,
+                            accentHex = AccHex,
+                            windowsCount = Windows.Count
                         };
 
-                        string json = JsonSerializer.Serialize(payload);
-                        await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes(json), "application/json");
+                        string Json = JsonSerializer.Serialize(Payload);
+                        await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes(Json), "application/json");
                     }
-                    else if (path.Equals("/api/screen/tile", StringComparison.OrdinalIgnoreCase) && method == "POST")
+                    else if (PathString.Equals("/api/screen/tile", StringComparison.OrdinalIgnoreCase) && Method == "POST")
                     {
                         Application.Current.Dispatcher.Invoke(() => ScreenAnalyzer.TileActiveWindows());
-                        string json = JsonSerializer.Serialize(new { status = "success", message = "Windows tiled." });
-                        await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes(json), "application/json");
+                        string Json = JsonSerializer.Serialize(new { status = "success", message = "Windows tiled." });
+                        await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes(Json), "application/json");
                     }
-                    else if (path.Equals("/api/screen/synctheme", StringComparison.OrdinalIgnoreCase) && method == "POST")
+                    else if (PathString.Equals("/api/screen/synctheme", StringComparison.OrdinalIgnoreCase) && Method == "POST")
                     {
                         Application.Current.Dispatcher.Invoke(() =>
                         {
-                            System.Windows.Media.Color dominant, accent;
-                            ScreenAnalyzer.ExtractScreenPalette(out dominant, out accent);
+                            System.Windows.Media.Color Dominant, Accent;
+                            ScreenAnalyzer.ExtractScreenPalette(out Dominant, out Accent);
 
-                            double factor = 0.12;
-                            byte bgR = (byte)(dominant.R * factor);
-                            byte bgG = (byte)(dominant.G * factor);
-                            byte bgB = (byte)(dominant.B * factor);
+                            double Factor = 0.12;
+                            byte BgR = (byte)(Dominant.R * Factor);
+                            byte BgG = (byte)(Dominant.G * Factor);
+                            byte BgB = (byte)(Dominant.B * Factor);
 
-                            string bgHex = $"#F2{bgR:X2}{bgG:X2}{bgB:X2}";
-                            string borderHex = $"#FF{accent.R:X2}{accent.G:X2}{accent.B:X2}";
-                            string caretHex = $"#FF{accent.R:X2}{accent.G:X2}{accent.B:X2}";
-                            string hoverHex = $"#1C{accent.R:X2}{accent.G:X2}{accent.B:X2}";
-                            string selectedHex = $"#33{accent.R:X2}{accent.G:X2}{accent.B:X2}";
-                            string selectedBorderHex = $"#80{accent.R:X2}{accent.G:X2}{accent.B:X2}";
+                            string BgHex = $"#F2{BgR:X2}{BgG:X2}{BgB:X2}";
+                            string BorderHex = $"#FF{Accent.R:X2}{Accent.G:X2}{Accent.B:X2}";
+                            string CaretHex = $"#FF{Accent.R:X2}{Accent.G:X2}{Accent.B:X2}";
+                            string HoverHex = $"#1C{Accent.R:X2}{Accent.G:X2}{Accent.B:X2}";
+                            string SelectedHex = $"#33{Accent.R:X2}{Accent.G:X2}{Accent.B:X2}";
+                            string SelectedBorderHex = $"#80{Accent.R:X2}{Accent.G:X2}{Accent.B:X2}";
 
-                            byte gsR = (byte)Math.Min(255, bgR + 15);
-                            byte gsG = (byte)Math.Min(255, bgG + 15);
-                            byte gsB = (byte)Math.Min(255, bgB + 15);
-                            string gradientStartHex = $"#F2{gsR:X2}{gsG:X2}{gsB:X2}";
-                            string gradientEndHex = $"#F2{Math.Max(0, bgR - 10):X2}{Math.Max(0, bgG - 10):X2}{Math.Max(0, bgB - 10):X2}";
+                            byte GsR = (byte)Math.Min(255, BgR + 15);
+                            byte GsG = (byte)Math.Min(255, BgG + 15);
+                            byte GsB = (byte)Math.Min(255, BgB + 15);
+                            string GradientStartHex = $"#F2{GsR:X2}{GsG:X2}{GsB:X2}";
+                            string GradientEndHex = $"#F2{Math.Max(0, BgR - 10):X2}{Math.Max(0, BgG - 10):X2}{Math.Max(0, BgB - 10):X2}";
 
-                            ThemeManager.SetBackgroundResource("WindowBackgroundBrush", bgHex, gradientStartHex, gradientEndHex);
-                            ThemeManager.SetColorResource("WindowBorderBrush", borderHex);
-                            ThemeManager.SetColorResource("AccentCaretBrush", caretHex);
-                            ThemeManager.SetColorResource("HoverBackgroundBrush", hoverHex);
-                            ThemeManager.SetColorResource("SelectedBackgroundBrush", selectedHex);
-                            ThemeManager.SetColorResource("SelectedBorderBrush", selectedBorderHex);
+                            ThemeManager.SetBackgroundResource("WindowBackgroundBrush", BgHex, GradientStartHex, GradientEndHex);
+                            ThemeManager.SetColorResource("WindowBorderBrush", BorderHex);
+                            ThemeManager.SetColorResource("AccentCaretBrush", CaretHex);
+                            ThemeManager.SetColorResource("HoverBackgroundBrush", HoverHex);
+                            ThemeManager.SetColorResource("SelectedBackgroundBrush", SelectedHex);
+                            ThemeManager.SetColorResource("SelectedBorderBrush", SelectedBorderHex);
 
                             ThemeManager.SetColorResource("TextPrimaryBrush", "#FFFFFF");
                             ThemeManager.SetColorResource("TextPlaceholderBrush", "#5AFFFFFF");
                             ThemeManager.SetColorResource("TextSecondaryBrush", "#8CFFFFFF");
                         });
 
-                        string json = JsonSerializer.Serialize(new { status = "success", message = "Theme synced." });
-                        await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes(json), "application/json");
+                        string Json = JsonSerializer.Serialize(new { status = "success", message = "Theme synced." });
+                        await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes(Json), "application/json");
                     }
-                    else if (path.Equals("/api/ipa/download", StringComparison.OrdinalIgnoreCase))
+                    else if (PathString.Equals("/api/ipa/download", StringComparison.OrdinalIgnoreCase))
                     {
-                        string ipaPath = IpaCompilerService.LastCompiledIpaPath;
-                        if (!string.IsNullOrEmpty(ipaPath) && File.Exists(ipaPath))
+                        string IpaPath = IpaCompilerService.LastCompiledIpaPath;
+                        if (!string.IsNullOrEmpty(IpaPath) && File.Exists(IpaPath))
                         {
                             try
                             {
-                                byte[] fileBytes = File.ReadAllBytes(ipaPath);
-                                await SendResponseAsync(stream, 200, "OK", fileBytes, "application/octet-stream");
+                                byte[] FileBytes = File.ReadAllBytes(IpaPath);
+                                await SendResponseAsync(Stream, 200, "OK", FileBytes, "application/octet-stream");
                             }
-                            catch (Exception ex)
+                            catch (Exception Ex)
                             {
-                                await SendResponseAsync(stream, 500, "Error", Encoding.UTF8.GetBytes($"{{\"error\":\"{ex.Message}\"}}"), "application/json");
+                                await SendResponseAsync(Stream, 500, "Error", Encoding.UTF8.GetBytes($"{{\"error\":\"{Ex.Message}\"}}"), "application/json");
                             }
                         }
                         else
                         {
-                            await SendResponseAsync(stream, 404, "Not Found", Encoding.UTF8.GetBytes("{\"error\":\"No compiled IPA file found.\"}"), "application/json");
+                            await SendResponseAsync(Stream, 404, "Not Found", Encoding.UTF8.GetBytes("{\"error\":\"No compiled IPA file found.\"}"), "application/json");
                         }
                     }
-                    else if (path.Equals("/api/ipa/status", StringComparison.OrdinalIgnoreCase))
+                    else if (PathString.Equals("/api/ipa/status", StringComparison.OrdinalIgnoreCase))
                     {
-                        var statusPayload = new
+                        var StatusPayload = new
                         {
                             status = IpaCompilerService.CompileStatus,
                             lastCompiledPath = IpaCompilerService.LastCompiledIpaPath,
                             fileName = string.IsNullOrEmpty(IpaCompilerService.LastCompiledIpaPath) ? "" : Path.GetFileName(IpaCompilerService.LastCompiledIpaPath)
                         };
-                        string json = JsonSerializer.Serialize(statusPayload);
-                        await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes(json), "application/json");
+                        string Json = JsonSerializer.Serialize(StatusPayload);
+                        await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes(Json), "application/json");
                     }
-                    else if (path.Equals("/api/memories", StringComparison.OrdinalIgnoreCase))
+                    else if (PathString.Equals("/api/memories", StringComparison.OrdinalIgnoreCase))
                     {
                         try
                         {
-                            string memoryFile = Path.Combine(InstructionsManager.InstructionsDirectory, "Memories.md");
-                            if (File.Exists(memoryFile))
+                            string MemoryFile = Path.Combine(InstructionsManager.InstructionsDirectory, "Memories.md");
+                            if (File.Exists(MemoryFile))
                             {
-                                string content = File.ReadAllText(memoryFile);
+                                string Content = File.ReadAllText(MemoryFile);
                                 // Return the last 2000 characters or so to avoid huge payloads
-                                if (content.Length > 5000) content = content.Substring(content.Length - 5000);
-                                await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes(content), "text/plain");
+                                if (Content.Length > 5000) Content = Content.Substring(Content.Length - 5000);
+                                await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes(Content), "text/plain");
                             }
                             else
                             {
-                                await SendResponseAsync(stream, 404, "Not Found", Encoding.UTF8.GetBytes("Memories file not found."), "text/plain");
+                                await SendResponseAsync(Stream, 404, "Not Found", Encoding.UTF8.GetBytes("Memories file not found."), "text/plain");
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception Ex)
                         {
-                            await SendResponseAsync(stream, 500, "Error", Encoding.UTF8.GetBytes(ex.Message), "text/plain");
+                            await SendResponseAsync(Stream, 500, "Error", Encoding.UTF8.GetBytes(Ex.Message), "text/plain");
                         }
                     }
-                    else if (path.Equals("/api/files/root", StringComparison.OrdinalIgnoreCase))
+                    else if (PathString.Equals("/api/files/root", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (!SettingsManager.Current.MobileAllowFiles)
+                        if (!SettingsManager.Current.MOBILE_ALLOW_FILES)
                         {
-                            await SendResponseAsync(stream, 403, "Forbidden", Encoding.UTF8.GetBytes("{\"error\":\"File access is disabled in Mobile Hub settings.\"}"), "application/json");
+                            await SendResponseAsync(Stream, 403, "Forbidden", Encoding.UTF8.GetBytes("{\"error\":\"File access is disabled in Mobile Hub settings.\"}"), "application/json");
                             return;
                         }
-                        string root = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-                        string json = JsonSerializer.Serialize(new { root });
-                        await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes(json), "application/json");
+                        string Root = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                        string Json = JsonSerializer.Serialize(new { root = Root });
+                        await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes(Json), "application/json");
                     }
-                    else if (path.Equals("/api/files/list", StringComparison.OrdinalIgnoreCase))
+                    else if (PathString.Equals("/api/files/list", StringComparison.OrdinalIgnoreCase))
                     {
-                        if (!SettingsManager.Current.MobileAllowFiles)
+                        if (!SettingsManager.Current.MOBILE_ALLOW_FILES)
                         {
-                            await SendResponseAsync(stream, 403, "Forbidden", Encoding.UTF8.GetBytes("[]"), "application/json");
+                            await SendResponseAsync(Stream, 403, "Forbidden", Encoding.UTF8.GetBytes("[]"), "application/json");
                             return;
                         }
-                        query.TryGetValue("path", out string? targetPath);
-                        if (string.IsNullOrEmpty(targetPath)) targetPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                        Query.TryGetValue("path", out string? TargetPath);
+                        if (string.IsNullOrEmpty(TargetPath)) TargetPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
 
-                        var entries = new List<object>();
+                        var Entries = new List<object>();
                         try
                         {
-                            if (Directory.Exists(targetPath))
+                            if (Directory.Exists(TargetPath))
                             {
-                                foreach (var d in Directory.GetDirectories(targetPath))
+                                foreach (var D in Directory.GetDirectories(TargetPath))
                                 {
-                                    var info = new DirectoryInfo(d);
-                                    entries.Add(new { name = info.Name, path = info.FullName, isDirectory = true, size = 0L, modifiedUtc = info.LastWriteTimeUtc });
+                                    var Info = new DirectoryInfo(D);
+                                    Entries.Add(new { name = Info.Name, path = Info.FullName, isDirectory = true, size = 0L, modifiedUtc = Info.LastWriteTimeUtc });
                                 }
-                                foreach (var f in Directory.GetFiles(targetPath))
+                                foreach (var F in Directory.GetFiles(TargetPath))
                                 {
-                                    var info = new FileInfo(f);
-                                    entries.Add(new { name = info.Name, path = info.FullName, isDirectory = false, size = info.Length, modifiedUtc = info.LastWriteTimeUtc });
+                                    var Info = new FileInfo(F);
+                                    Entries.Add(new { name = Info.Name, path = Info.FullName, isDirectory = false, size = Info.Length, modifiedUtc = Info.LastWriteTimeUtc });
                                 }
                             }
                         }
                         catch { }
-                        string json = JsonSerializer.Serialize(entries);
-                        await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes(json), "application/json");
+                        string Json = JsonSerializer.Serialize(Entries);
+                        await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes(Json), "application/json");
                     }
-                    else if (path.Equals("/api/files/delete", StringComparison.OrdinalIgnoreCase) && method == "POST")
+                    else if (PathString.Equals("/api/files/delete", StringComparison.OrdinalIgnoreCase) && Method == "POST")
                     {
-                        string body = await GetRequestBodyAsync(request, stream, contentLength);
+                        string Body = await GetRequestBodyAsync(Request, Stream, ContentLength);
                         try
                         {
-                            using var doc = JsonDocument.Parse(body);
-                            string target = doc.RootElement.GetProperty("path").GetString() ?? "";
-                            if (File.Exists(target)) File.Delete(target);
-                            else if (Directory.Exists(target)) Directory.Delete(target, true);
+                            using var Doc = JsonDocument.Parse(Body);
+                            string Target = Doc.RootElement.GetProperty("path").GetString() ?? "";
+                            if (File.Exists(Target)) File.Delete(Target);
+                            else if (Directory.Exists(Target)) Directory.Delete(Target, true);
                         }
                         catch { }
-                        await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes("{\"status\":\"deleted\"}"), "application/json");
+                        await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes("{\"status\":\"deleted\"}"), "application/json");
                     }
-                    else if (path.Equals("/api/files/upload", StringComparison.OrdinalIgnoreCase) && method == "POST")
+                    else if (PathString.Equals("/api/files/upload", StringComparison.OrdinalIgnoreCase) && Method == "POST")
                     {
-                        query.TryGetValue("path", out string? targetDir);
-                        query.TryGetValue("name", out string? fileName);
-                        if (string.IsNullOrEmpty(fileName)) fileName = "uploaded_file.bin";
+                        Query.TryGetValue("path", out string? TargetDir);
+                        Query.TryGetValue("name", out string? FileName);
+                        if (string.IsNullOrEmpty(FileName)) FileName = "uploaded_file.bin";
 
-                        if (!string.IsNullOrEmpty(targetDir) && Directory.Exists(targetDir))
+                        if (!string.IsNullOrEmpty(TargetDir) && Directory.Exists(TargetDir))
                         {
-                            string fullFile = Path.Combine(targetDir, fileName);
-                            int headerEnd = request.IndexOf("\r\n\r\n") + 4;
-                            using (var fs = new FileStream(fullFile, FileMode.Create))
+                            string FullFile = Path.Combine(TargetDir, FileName);
+                            int HeaderEnd = Request.IndexOf("\r\n\r\n") + 4;
+                            using (var Fs = new FileStream(FullFile, FileMode.Create))
                             {
-                                int initialBodyBytes = bytesRead - headerEnd;
-                                if (initialBodyBytes > 0) await fs.WriteAsync(buffer, headerEnd, initialBodyBytes);
+                                int InitialBodyBytes = BytesRead - HeaderEnd;
+                                if (InitialBodyBytes > 0) await Fs.WriteAsync(Buffer, HeaderEnd, InitialBodyBytes);
 
-                                int totalBodyRead = initialBodyBytes;
-                                while (totalBodyRead < contentLength)
+                                int TotalBodyRead = InitialBodyBytes;
+                                while (TotalBodyRead < ContentLength)
                                 {
-                                    int read = await stream.ReadAsync(buffer, 0, buffer.Length);
-                                    if (read == 0) break;
-                                    await fs.WriteAsync(buffer, 0, read);
-                                    totalBodyRead += read;
+                                    int Read = await Stream.ReadAsync(Buffer, 0, Buffer.Length);
+                                    if (Read == 0) break;
+                                    await Fs.WriteAsync(Buffer, 0, Read);
+                                    TotalBodyRead += Read;
                                 }
                             }
-                            await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes("{\"status\":\"uploaded\"}"), "application/json");
+                            await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes("{\"status\":\"uploaded\"}"), "application/json");
                         }
                         else
                         {
-                            await SendResponseAsync(stream, 400, "Bad Request", Encoding.UTF8.GetBytes("Invalid path"), "text/plain");
+                            await SendResponseAsync(Stream, 400, "Bad Request", Encoding.UTF8.GetBytes("Invalid path"), "text/plain");
                         }
                     }
                     else
                     {
-                        await SendResponseAsync(stream, 200, "OK", Encoding.UTF8.GetBytes("Jarvis Bridge Active"), "text/plain");
+                        await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes("Jarvis Bridge Active"), "text/plain");
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception Ex)
             {
-                LogToFile($"Handle error: {ex.Message}");
+                LogToFile($"Handle error: {Ex.Message}");
             }
         }
 
-        private static async Task<string> GetRequestBodyAsync(string request, Stream stream, int contentLength)
+        private static async Task<string> GetRequestBodyAsync(string Request, Stream StreamParam, int ContentLengthParam)
         {
-            int bodyStartIndex = request.IndexOf("\r\n\r\n") + 4;
-            string body = request.Substring(bodyStartIndex);
+            int BodyStartIndex = Request.IndexOf("\r\n\r\n") + 4;
+            string Body = Request.Substring(BodyStartIndex);
 
-            if (body.Length < contentLength)
+            if (Body.Length < ContentLengthParam)
             {
-                byte[] remainingBody = new byte[contentLength - body.Length];
-                int totalRead = 0;
-                while (totalRead < remainingBody.Length)
+                byte[] RemainingBody = new byte[ContentLengthParam - Body.Length];
+                int TotalRead = 0;
+                while (TotalRead < RemainingBody.Length)
                 {
-                    int read = await stream.ReadAsync(remainingBody, totalRead, remainingBody.Length - totalRead);
-                    if (read == 0) break;
-                    totalRead += read;
+                    int Read = await StreamParam.ReadAsync(RemainingBody, TotalRead, RemainingBody.Length - TotalRead);
+                    if (Read == 0) break;
+                    TotalRead += Read;
                 }
-                body += Encoding.UTF8.GetString(remainingBody, 0, totalRead);
+                Body += Encoding.UTF8.GetString(RemainingBody, 0, TotalRead);
             }
-            return body;
+            return Body;
         }
 
-        private static async Task SendResponseAsync(Stream stream, int code, string status, byte[]? body, string contentType)
+        private static async Task SendResponseAsync(Stream StreamParam, int Code, string Status, byte[]? Body, string ContentType)
         {
             try
             {
-                var headerBuilder = new StringBuilder();
-                headerBuilder.Append($"HTTP/1.1 {code} {status}\r\n");
-                headerBuilder.Append("Access-Control-Allow-Origin: *\r\n");
-                headerBuilder.Append("Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n");
-                headerBuilder.Append("Access-Control-Allow-Headers: Content-Type, X-Jarvis-Secret\r\n");
-                headerBuilder.Append($"Content-Type: {contentType}\r\n");
-                headerBuilder.Append($"Content-Length: {(body?.Length ?? 0)}\r\n");
-                headerBuilder.Append("Connection: close\r\n");
-                headerBuilder.Append("\r\n");
+                var HeaderBuilder = new StringBuilder();
+                HeaderBuilder.Append($"HTTP/1.1 {Code} {Status}\r\n");
+                HeaderBuilder.Append("Access-Control-Allow-Origin: *\r\n");
+                HeaderBuilder.Append("Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n");
+                HeaderBuilder.Append("Access-Control-Allow-Headers: Content-Type, X-Jarvis-Secret\r\n");
+                HeaderBuilder.Append($"Content-Type: {ContentType}\r\n");
+                HeaderBuilder.Append($"Content-Length: {(Body?.Length ?? 0)}\r\n");
+                HeaderBuilder.Append("Connection: close\r\n");
+                HeaderBuilder.Append("\r\n");
 
-                byte[] headerBytes = Encoding.UTF8.GetBytes(headerBuilder.ToString());
-                await stream.WriteAsync(headerBytes, 0, headerBytes.Length);
-                if (body != null) await stream.WriteAsync(body, 0, body.Length);
-                await stream.FlushAsync();
+                byte[] HeaderBytes = Encoding.UTF8.GetBytes(HeaderBuilder.ToString());
+                await StreamParam.WriteAsync(HeaderBytes, 0, HeaderBytes.Length);
+                if (Body != null) await StreamParam.WriteAsync(Body, 0, Body.Length);
+                await StreamParam.FlushAsync();
             }
             catch { }
         }
 
-        private static string? _cachedHtml;
-        private static string? _cachedCmdHtml;
+        private static string? CachedHtml;
+        private static string? CachedCmdHtml;
 
         private static string GetMobileCommandBarHtml()
         {
-            if (_cachedCmdHtml != null) return _cachedCmdHtml;
+            if (CachedCmdHtml != null) return CachedCmdHtml;
 
-            string[] candidates =
+            string[] Candidates =
             {
                 Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "HTML", "MobileCommandBar.html"),
                 Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "HTML", "MobileCommandBar.html"))
             };
 
-            foreach (var path in candidates)
+            foreach (var FilePath in Candidates)
             {
                 try
                 {
-                    if (File.Exists(path))
+                    if (File.Exists(FilePath))
                     {
-                        _cachedCmdHtml = File.ReadAllText(path);
-                        return _cachedCmdHtml;
+                        CachedCmdHtml = File.ReadAllText(FilePath);
+                        return CachedCmdHtml;
                     }
                 }
                 catch { }
             }
 
-            _cachedCmdHtml = "<html><body style='background:#030712;color:#fff;font-family:sans-serif;padding:20px;'>Jarvis Bridge Active, but MobileCommandBar.html was not found.</body></html>";
-            return _cachedCmdHtml;
+            CachedCmdHtml = "<html><body style='background:#030712;color:#fff;font-family:sans-serif;padding:20px;'>Jarvis Bridge Active, but MobileCommandBar.html was not found.</body></html>";
+            return CachedCmdHtml;
         }
 
         private static string GetMobileAppHtml()
         {
-            if (_cachedHtml != null) return _cachedHtml;
+            if (CachedHtml != null) return CachedHtml;
 
             // Look for the source HTML alongside the running exe first, then fall back to the project folder during debugging.
-            string[] candidates =
+            string[] Candidates =
             {
                 Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "HTML", "MobileBridgeServer.html"),
                 Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "HTML", "MobileBridgeServer.html"))
             };
 
-            foreach (var path in candidates)
+            foreach (var FilePath in Candidates)
             {
                 try
                 {
-                    if (File.Exists(path))
+                    if (File.Exists(FilePath))
                     {
-                        _cachedHtml = File.ReadAllText(path);
-                        return _cachedHtml;
+                        CachedHtml = File.ReadAllText(FilePath);
+                        return CachedHtml;
                     }
                 }
                 catch { }
             }
 
-            _cachedHtml = "<html><body style='background:#0b0f19;color:#fff;font-family:sans-serif;padding:20px;'>Jarvis Bridge Active, but MobileBridgeServer.html was not found.</body></html>";
-            return _cachedHtml;
+            CachedHtml = "<html><body style='background:#0b0f19;color:#fff;font-family:sans-serif;padding:20px;'>Jarvis Bridge Active, but MobileBridgeServer.html was not found.</body></html>";
+            return CachedHtml;
         }
 
-        private static string RunPowerShellCommand(string command)
+        private static string RunPowerShellCommand(string CommandText)
         {
             try
             {
-                var psi = new ProcessStartInfo
+                var Psi = new ProcessStartInfo
                 {
                     FileName = "powershell.exe",
-                    Arguments = $"-NoProfile -NonInteractive -Command \"{command.Replace("\"", "\\\"")}\"",
+                    Arguments = $"-NoProfile -NonInteractive -Command \"{CommandText.Replace("\"", "\\\"")}\"",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
-                using var proc = Process.Start(psi);
-                if (proc == null) return "Failed to start PowerShell.";
-                string output = proc.StandardOutput.ReadToEnd();
-                string error = proc.StandardError.ReadToEnd();
-                proc.WaitForExit(10000);
-                return string.IsNullOrWhiteSpace(output) ? error : output;
+                using var Proc = Process.Start(Psi);
+                if (Proc == null) return "Failed to start PowerShell.";
+                string Output = Proc.StandardOutput.ReadToEnd();
+                string Error = Proc.StandardError.ReadToEnd();
+                Proc.WaitForExit(10000);
+                return string.IsNullOrWhiteSpace(Output) ? Error : Output;
             }
-            catch (Exception ex) { return $"Error: {ex.Message}"; }
+            catch (Exception Ex) { return $"Error: {Ex.Message}"; }
         }
 
         private static object GetSystemStats()
         {
             try
             {
-                var mem = new NativeMethods.MEMORYSTATUSEX();
-                mem.dwLength = (uint)System.Runtime.InteropServices.Marshal.SizeOf(typeof(NativeMethods.MEMORYSTATUSEX));
-                NativeMethods.GlobalMemoryStatusEx(ref mem);
+                var Mem = new NativeMethods.MEMORYSTATUSEX();
+                Mem.dwLength = (uint)System.Runtime.InteropServices.Marshal.SizeOf(typeof(NativeMethods.MEMORYSTATUSEX));
+                NativeMethods.GlobalMemoryStatusEx(ref Mem);
 
-                string activeWin = "Unknown";
+                string ActiveWin = "Unknown";
                 try {
-                    var handle = NativeMethods.GetForegroundWindow();
-                    NativeMethods.GetWindowThreadProcessId(handle, out uint pid);
-                    var proc = Process.GetProcessById((int)pid);
-                    activeWin = proc.MainWindowTitle;
-                    if (string.IsNullOrEmpty(activeWin)) activeWin = proc.ProcessName;
+                    var Handle = NativeMethods.GetForegroundWindow();
+                    NativeMethods.GetWindowThreadProcessId(Handle, out uint Pid);
+                    var Proc = Process.GetProcessById((int)Pid);
+                    ActiveWin = Proc.MainWindowTitle;
+                    if (string.IsNullOrEmpty(ActiveWin)) ActiveWin = Proc.ProcessName;
                 } catch { }
 
                 return new
                 {
                     computerName = Environment.MachineName,
                     userName = Environment.UserName,
-                    memoryLoad = mem.dwMemoryLoad,
-                    totalRamMb = mem.ullTotalPhys / 1024 / 1024,
-                    freeRamMb = mem.ullAvailPhys / 1024 / 1024,
-                    usedRamMb = (mem.ullTotalPhys - mem.ullAvailPhys) / 1024 / 1024,
-                    activeWindow = activeWin,
+                    memoryLoad = Mem.dwMemoryLoad,
+                    totalRamMb = Mem.ullTotalPhys / 1024 / 1024,
+                    freeRamMb = Mem.ullAvailPhys / 1024 / 1024,
+                    usedRamMb = (Mem.ullTotalPhys - Mem.ullAvailPhys) / 1024 / 1024,
+                    activeWindow = ActiveWin,
                     serverUrl = ServerUrl,
                     localIp = GetLocalIPAddress(),
                     timestamp = DateTime.Now.ToString("HH:mm:ss")
@@ -812,7 +812,7 @@ namespace JarvisLauncher
         }
 
         [DllImport("user32.dll")]
-        private static extern int GetSystemMetrics(int nIndex);
+        private static extern int GetSystemMetrics(int NIndex);
         private const int SM_XVIRTUALSCREEN = 76;
         private const int SM_YVIRTUALSCREEN = 77;
         private const int SM_CXVIRTUALSCREEN = 78;
@@ -822,72 +822,81 @@ namespace JarvisLauncher
         {
             try
             {
-                byte[]? result = null;
+                byte[]? Result = null;
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     try
                     {
                         // Use low-level SystemMetrics to get raw pixel values, bypassing WPF scaling logic
-                        int left = GetSystemMetrics(SM_XVIRTUALSCREEN);
-                        int top = GetSystemMetrics(SM_YVIRTUALSCREEN);
-                        int width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
-                        int height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
+                        int Left = GetSystemMetrics(SM_XVIRTUALSCREEN);
+                        int Top = GetSystemMetrics(SM_YVIRTUALSCREEN);
+                        int Width = GetSystemMetrics(SM_CXVIRTUALSCREEN);
+                        int Height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
 
                         // If virtual screen returns 0 (single monitor or error), fallback to primary monitor
-                        if (width <= 0 || height <= 0)
+                        if (Width <= 0 || Height <= 0)
                         {
-                            width = (int)System.Windows.Forms.Screen.PrimaryScreen.Bounds.Width;
-                            height = (int)System.Windows.Forms.Screen.PrimaryScreen.Bounds.Height;
-                            left = 0;
-                            top = 0;
+                            var Primary = System.Windows.Forms.Screen.PrimaryScreen;
+                            if (Primary != null)
+                            {
+                                Width = (int)Primary.Bounds.Width;
+                                Height = (int)Primary.Bounds.Height;
+                            }
+                            else
+                            {
+                                Width = 1920; // Hard fallback
+                                Height = 1080;
+                            }
+                            Left = 0;
+                            Top = 0;
                         }
 
-                        using var bmp = new Bitmap(width, height);
-                        using var g = Graphics.FromImage(bmp);
+                        using var Bmp = new Bitmap(Width, Height);
+                        using var G = Graphics.FromImage(Bmp);
 
                         // Captures the entire desktop spanning all monitors
-                        g.CopyFromScreen(left, top, 0, 0, new Size(width, height), CopyPixelOperation.SourceCopy);
+                        G.CopyFromScreen(Left, Top, 0, 0, new Size(Width, Height), CopyPixelOperation.SourceCopy);
 
-                        using var ms = new MemoryStream();
+                        using var Ms = new MemoryStream();
                         // Send as medium-quality Jpeg to balance clarity and speed
-                        var encoderParams = new EncoderParameters(1);
-                        encoderParams.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 65L);
-                        var jpegCodec = ImageCodecInfo.GetImageEncoders().First(c => c.FormatID == ImageFormat.Jpeg.Guid);
+                        var EncoderParams = new EncoderParameters(1);
+                        EncoderParams.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 65L);
+                        var JpegCodec = ImageCodecInfo.GetImageEncoders().First(c => c.FormatID == ImageFormat.Jpeg.Guid);
 
-                        bmp.Save(ms, jpegCodec, encoderParams);
-                        result = ms.ToArray();
+                        Bmp.Save(Ms, JpegCodec, EncoderParams);
+                        Result = Ms.ToArray();
                     }
-                    catch (Exception ex)
+                    catch (Exception Ex)
                     {
-                        LogToFile($"Capture failure: {ex.Message}");
+                        LogToFile($"Capture failure: {Ex.Message}");
                     }
                 });
-                return result;
+                return Result;
             }
             catch { return null; }
         }
 
-        private static void LogToFile(string message)
+        private static void LogToFile(string Message)
         {
             try
             {
-                string path = GetLogPath();
-                File.AppendAllText(path, $"{DateTime.Now}: {message}\n");
-                DebugConsoleOverlay.Log("Bridge", message);
+                string LogFilePath = GetLogPath();
+                File.AppendAllText(LogFilePath, $"{DateTime.Now}: {Message}\n");
+                DebugConsoleOverlay.Log("Bridge", Message);
             }
             catch { }
         }
 
         public static string GetLogPath() => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "mobile_server_log.txt");
 
-        public static string GetRecentLogs(int lines = 10)
+        public static string GetRecentLogs(int LinesCount = 10)
         {
             try
             {
-                string path = GetLogPath();
-                if (!File.Exists(path)) return "No logs found.";
-                var allLines = File.ReadAllLines(path);
-                return string.Join("\n", allLines.TakeLast(lines));
+                string LogFilePath = GetLogPath();
+                if (!File.Exists(LogFilePath)) return "No logs found.";
+                var AllLines = File.ReadAllLines(LogFilePath);
+                return string.Join("\n", AllLines.TakeLast(LinesCount));
             }
             catch { return "Error reading logs."; }
         }
@@ -898,35 +907,35 @@ namespace JarvisLauncher
             {
                 try
                 {
-                    var psi = new ProcessStartInfo
+                    var Psi = new ProcessStartInfo
                     {
                         FileName = "netsh",
-                        Arguments = $"advfirewall firewall add rule name=\"Jarvis Mobile Hub\" dir=in action=allow protocol=TCP localport={_port} profile=any",
+                        Arguments = $"advfirewall firewall add rule name=\"Jarvis Mobile Hub\" dir=in action=allow protocol=TCP localport={PortParam} profile=any",
                         Verb = "runas",
                         UseShellExecute = true,
                         CreateNoWindow = false
                     };
-                    var proc = Process.Start(psi);
-                    proc?.WaitForExit(5000);
+                    var Proc = Process.Start(Psi);
+                    Proc?.WaitForExit(5000);
                 }
                 catch { }
             });
         }
 
-        private static void EnsureFirewallRule(int port)
+        private static void EnsureFirewallRule(int PortNumber)
         {
             Task.Run(() =>
             {
                 try
                 {
-                    var psi = new ProcessStartInfo
+                    var Psi = new ProcessStartInfo
                     {
                         FileName = "netsh",
-                        Arguments = $"advfirewall firewall add rule name=\"Jarvis Bridge\" dir=in action=allow protocol=TCP localport={port} profile=any",
+                        Arguments = $"advfirewall firewall add rule name=\"Jarvis Bridge\" dir=in action=allow protocol=TCP localport={PortNumber} profile=any",
                         UseShellExecute = false,
                         CreateNoWindow = true
                     };
-                    Process.Start(psi);
+                    Process.Start(Psi);
                 }
                 catch { }
             });
@@ -936,56 +945,56 @@ namespace JarvisLauncher
         {
             try
             {
-                var ips = GetAllLocalIPv4Addresses();
-                return ips.FirstOrDefault(i => i.StartsWith("100.")) ??
-                       ips.FirstOrDefault(i => i.StartsWith("192.168.")) ??
-                       ips.FirstOrDefault(i => !i.StartsWith("127.")) ?? "127.0.0.1";
+                var Ips = GetAllLocalIPv4Addresses();
+                return Ips.FirstOrDefault(i => i.StartsWith("100.")) ??
+                       Ips.FirstOrDefault(i => i.StartsWith("192.168.")) ??
+                       Ips.FirstOrDefault(i => !i.StartsWith("127.")) ?? "127.0.0.1";
             }
             catch { return "127.0.0.1"; }
         }
 
         public static List<string> GetAllLocalIPv4Addresses()
         {
-            var ips = new List<string>();
+            var IpsList = new List<string>();
             try
             {
-                foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+                foreach (var Ni in NetworkInterface.GetAllNetworkInterfaces())
                 {
-                    if (ni.OperationalStatus != OperationalStatus.Up) continue;
-                    var props = ni.GetIPProperties();
-                    foreach (var addr in props.UnicastAddresses)
+                    if (Ni.OperationalStatus != OperationalStatus.Up) continue;
+                    var Props = Ni.GetIPProperties();
+                    foreach (var Addr in Props.UnicastAddresses)
                     {
-                        if (addr.Address.AddressFamily == AddressFamily.InterNetwork)
-                            ips.Add(addr.Address.ToString());
+                        if (Addr.Address.AddressFamily == AddressFamily.InterNetwork)
+                            IpsList.Add(Addr.Address.ToString());
                     }
                 }
             }
             catch { }
-            return ips.Distinct().ToList();
+            return IpsList.Distinct().ToList();
         }
 
         private static string GetNotesDir()
         {
-            string baseDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Notes");
-            if (!Directory.Exists(baseDir))
+            string BaseDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Notes");
+            if (!Directory.Exists(BaseDir))
             {
-                string devPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\Data\Notes"));
-                if (Directory.Exists(Path.GetDirectoryName(devPath)!))
+                string DevPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\Data\Notes"));
+                if (Directory.Exists(Path.GetDirectoryName(DevPath)!))
                 {
-                    baseDir = devPath;
+                    BaseDir = DevPath;
                 }
                 else
                 {
-                    Directory.CreateDirectory(baseDir);
+                    Directory.CreateDirectory(BaseDir);
                 }
             }
-            return baseDir;
+            return BaseDir;
         }
 
         public static void Stop()
         {
-            _isRunning = false;
-            try { _listener?.Stop(); _listener = null; } catch { }
+            IsRunningInternal = false;
+            try { Listener?.Stop(); Listener = null; } catch { }
         }
     }
 }

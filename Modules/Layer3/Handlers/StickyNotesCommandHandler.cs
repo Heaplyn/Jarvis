@@ -24,10 +24,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🤖 Trigger AI Notes Curation",
-                    Description = "Have Jarvis review and organize your hierarchical notes and categories now",
-                    Similarity = 5.0,
-                    Execute = () => _ = NotesCuratorManager.PerformAutonomousCurationAsync()
+                    TITLE = "🤖 Trigger AI Notes Curation",
+                    DESCRIPTION = "Have Jarvis review and organize your hierarchical notes and categories now",
+                    SIMILARITY = 5.0,
+                    EXECUTE = () => _ = NotesCuratorManager.PerformAutonomousCurationAsync()
                 });
                 return suggestions;
             }
@@ -38,10 +38,10 @@ namespace JarvisLauncher
 
             suggestions.Add(new CommandResult
             {
-                Title       = "📓 Open Notes Studio",
-                Description = "Launch advanced hierarchical note manager with categories and subcategories",
-                Similarity  = similarity,
-                Execute     = () => NoteManagerOverlay.ShowOverlay()
+                TITLE       = "📓 Open Notes Studio",
+                DESCRIPTION = "Launch advanced hierarchical note manager with categories and subcategories",
+                SIMILARITY  = similarity,
+                EXECUTE     = () => NoteManagerOverlay.ShowOverlay()
             });
 
             return suggestions;

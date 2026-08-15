@@ -32,28 +32,28 @@ namespace JarvisLauncher
                     string text = parts[1];
                     suggestions.Add(new CommandResult
                     {
-                        Title       = $"Append Note: \"{text}\"",
-                        Description = "Save quick timestamped entry into notes.txt",
-                        Similarity  = 2.0,
-                        Execute     = () => AppendNote(text)
+                        TITLE       = $"Append Note: \"{text}\"",
+                        DESCRIPTION = "Save quick timestamped entry into notes.txt",
+                        SIMILARITY  = 2.0,
+                        EXECUTE     = () => AppendNote(text)
                     });
                 }
                 else
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title       = "Quick Note (Prompt)...",
-                        Description = "Prompt for text entry to append into notes.txt",
-                        Similarity  = 1.5,
-                        Execute     = () => InputPromptOverlay.Show("Enter note text to save:", (text) => AppendNote(text))
+                        TITLE       = "Quick Note (Prompt)...",
+                        DESCRIPTION = "Prompt for text entry to append into notes.txt",
+                        SIMILARITY  = 1.5,
+                        EXECUTE     = () => InputPromptOverlay.Show("Enter note text to save:", (text) => AppendNote(text))
                     });
 
                     suggestions.Add(new CommandResult
                     {
-                        Title       = "📓 Open Notes Studio",
-                        Description = "Manage all hierarchical notes and categories",
-                        Similarity  = 1.0,
-                        Execute     = () => NoteManagerOverlay.ShowOverlay()
+                        TITLE       = "📓 Open Notes Studio",
+                        DESCRIPTION = "Manage all hierarchical notes and categories",
+                        SIMILARITY  = 1.0,
+                        EXECUTE     = () => NoteManagerOverlay.ShowOverlay()
                     });
                 }
             }
@@ -64,20 +64,20 @@ namespace JarvisLauncher
                     string args = parts[1];
                     suggestions.Add(new CommandResult
                     {
-                        Title       = $"Set Reminder: {args}",
-                        Description = "e.g. '10s Check oven' or '5m Take a break'",
-                        Similarity  = 2.0,
-                        Execute     = () => ParseAndSetReminder(args)
+                        TITLE       = $"Set Reminder: {args}",
+                        DESCRIPTION = "e.g. '10s Check oven' or '5m Take a break'",
+                        SIMILARITY  = 2.0,
+                        EXECUTE     = () => ParseAndSetReminder(args)
                     });
                 }
                 else
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title       = "Set Reminder (Prompt)...",
-                        Description = "Prompt for reminder format: <duration> <message> (e.g. 5m Take break)",
-                        Similarity  = 1.5,
-                        Execute     = () => InputPromptOverlay.Show("Enter reminder (e.g. 10s Take break, 5m Rest):", (args) => ParseAndSetReminder(args))
+                        TITLE       = "Set Reminder (Prompt)...",
+                        DESCRIPTION = "Prompt for reminder format: <duration> <message> (e.g. 5m Take break)",
+                        SIMILARITY  = 1.5,
+                        EXECUTE     = () => InputPromptOverlay.Show("Enter reminder (e.g. 10s Take break, 5m Rest):", (args) => ParseAndSetReminder(args))
                     });
                 }
             }

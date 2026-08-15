@@ -37,10 +37,10 @@ namespace JarvisLauncher
 
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"📅 Create Event: \"{title}\" on {dateStr} at {timeStr}",
-                    Description = "Add a calendar event directly into the Jarvis Planner database",
-                    Similarity = similarity + 1.0,
-                    Execute = () => CalendarOverlay.LogEvent(title, dateStr, timeStr)
+                    TITLE = $"📅 Create Event: \"{title}\" on {dateStr} at {timeStr}",
+                    DESCRIPTION = "Add a calendar event directly into the Jarvis Planner database",
+                    SIMILARITY = similarity + 1.0,
+                    EXECUTE = () => CalendarOverlay.LogEvent(title, dateStr, timeStr)
                 });
                 return suggestions;
             }
@@ -48,19 +48,19 @@ namespace JarvisLauncher
             // Suggest opening the overlay
             suggestions.Add(new CommandResult
             {
-                Title = "📅 Open Calendar Overlay",
-                Description = "Launch Jarvis visual Month Calendar and daily planners",
-                Similarity = similarity,
-                Execute = () => CalendarOverlay.Open()
+                TITLE = "📅 Open Calendar Overlay",
+                DESCRIPTION = "Launch Jarvis visual Month Calendar and daily planners",
+                SIMILARITY = similarity,
+                EXECUTE = () => CalendarOverlay.Open()
             });
 
             // Help info hint
             suggestions.Add(new CommandResult
             {
-                Title = "calendar add [yyyy-mm-dd] [time] [event details]...",
-                Description = "Quickly log a calendar event (e.g. cal add 2026-08-15 14:00 Standup meeting)",
-                Similarity = similarity - 0.5,
-                Execute = null
+                TITLE = "calendar add [yyyy-mm-dd] [time] [event details]...",
+                DESCRIPTION = "Quickly log a calendar event (e.g. cal add 2026-08-15 14:00 Standup meeting)",
+                SIMILARITY = similarity - 0.5,
+                EXECUTE = null
             });
 
             return suggestions;

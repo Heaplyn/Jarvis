@@ -22,10 +22,10 @@ namespace JarvisLauncher
 
             suggestions.Add(new CommandResult
             {
-                Title = "🍎 Open C# to iOS IPA Compiler Studio",
-                Description = "Select a C# project, build into an IPA, and download directly to your connected phone",
-                Similarity = 7.0,
-                Execute = () => IpaCompilerOverlay.ShowOverlay()
+                TITLE = "🍎 Open C# to iOS IPA Compiler Studio",
+                DESCRIPTION = "Select a C# project, build into an IPA, and download directly to your connected phone",
+                SIMILARITY = 7.0,
+                EXECUTE = () => IpaCompilerOverlay.ShowOverlay()
             });
 
             return suggestions;

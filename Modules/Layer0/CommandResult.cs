@@ -8,9 +8,9 @@ namespace JarvisLauncher
 {
     public class CommandResult
     {
-        public string Title { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-        public Action? Execute { get; set; }
-        public double Similarity { get; set; } = 0.0;
+        public string TITLE { get; set; } = string.Empty;
+        public string DESCRIPTION { get; set; } = string.Empty;
+        public Action? EXECUTE { get; set; }
+        public double SIMILARITY { get; set; } = 0.0;
     }
 }

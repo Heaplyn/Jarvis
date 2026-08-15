@@ -32,18 +32,18 @@ namespace JarvisLauncher
 
             suggestions.Add(new CommandResult
             {
-                Title       = "Update Code from GitHub",
-                Description = "Run 'git pull' safely (stashing any local uncommitted changes)",
-                Similarity  = similarity + 0.5, // Priority boost for direct matches
-                Execute     = () => Task.Run(async () => await PullUpdatesAsync(force: false))
+                TITLE       = "Update Code from GitHub",
+                DESCRIPTION = "Run 'git pull' safely (stashing any local uncommitted changes)",
+                SIMILARITY  = similarity + 0.5, // Priority boost for direct matches
+                EXECUTE     = () => Task.Run(async () => await PullUpdatesAsync(force: false))
             });
 
             suggestions.Add(new CommandResult
             {
-                Title       = "Force Reset Code from GitHub",
-                Description = "⚠️ Wipes all local modifications and forces sync with GitHub remote main",
-                Similarity  = similarity + 0.2,
-                Execute     = () => Task.Run(async () => await PullUpdatesAsync(force: true))
+                TITLE       = "Force Reset Code from GitHub",
+                DESCRIPTION = "⚠️ Wipes all local modifications and forces sync with GitHub remote main",
+                SIMILARITY  = similarity + 0.2,
+                EXECUTE     = () => Task.Run(async () => await PullUpdatesAsync(force: true))
             });
 
             return suggestions;
@@ -140,7 +140,7 @@ namespace JarvisLauncher
             log.AppendLine();
 
             // Check configured GitHub Token in settings
-            string ghToken = SettingsManager.Current.GithubToken;
+            string ghToken = SettingsManager.Current.GITHUB_TOKEN;
             if (!string.IsNullOrEmpty(ghToken))
             {
                 // Configure git extraheader for token authentication

@@ -45,10 +45,10 @@ namespace JarvisLauncher
                     targetVolume = Math.Clamp(targetVolume, 0, 100);
                     suggestions.Add(new CommandResult
                     {
-                        Title = $"Set Volume to {targetVolume}%",
-                        Description = $"Adjust system volume level",
-                        Execute = () => SetSystemVolume(targetVolume),
-                        Similarity = similarity
+                        TITLE = $"Set Volume to {targetVolume}%",
+                        DESCRIPTION = $"Adjust system volume level",
+                        EXECUTE = () => SetSystemVolume(targetVolume),
+                        SIMILARITY = similarity
                     });
                 }
             }
@@ -56,10 +56,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "Toggle Mute Status",
-                    Description = "Mute/unmute global system volume",
-                    Execute = () => ToggleSystemMute(),
-                    Similarity = similarity
+                    TITLE = "Toggle Mute Status",
+                    DESCRIPTION = "Mute/unmute global system volume",
+                    EXECUTE = () => ToggleSystemMute(),
+                    SIMILARITY = similarity
                 });
             }
 

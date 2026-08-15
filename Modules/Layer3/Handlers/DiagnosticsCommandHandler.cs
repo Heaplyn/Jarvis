@@ -39,10 +39,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🩺 Run Jarvis System Self-Check",
-                    Description = "Verify AI API, Bridge Server, Database, and File System status",
-                    Similarity = 5.0,
-                    Execute = () => RunSelfCheck()
+                    TITLE = "🩺 Run Jarvis System Self-Check",
+                    DESCRIPTION = "Verify AI API, Bridge Server, Database, and File System status",
+                    SIMILARITY = 5.0,
+                    EXECUTE = () => RunSelfCheck()
                 });
             }
 
@@ -50,10 +50,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "💻 Show System Specifications",
-                    Description = "Detailed hardware report (CPU, GPU, RAM, OS Build)",
-                    Similarity = 5.0,
-                    Execute = () => SystemSpecsOverlay.ShowSpecs()
+                    TITLE = "💻 Show System Specifications",
+                    DESCRIPTION = "Detailed hardware report (CPU, GPU, RAM, OS Build)",
+                    SIMILARITY = 5.0,
+                    EXECUTE = () => SystemSpecsOverlay.ShowSpecs()
                 });
             }
 
@@ -61,10 +61,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "⚙️ Open Jarvis Process Manager",
-                    Description = "Advanced task manager with search and kill capabilities",
-                    Similarity = 5.0,
-                    Execute = () => ProcessManagerOverlay.OpenManager()
+                    TITLE = "⚙️ Open Jarvis Process Manager",
+                    DESCRIPTION = "Advanced task manager with search and kill capabilities",
+                    SIMILARITY = 5.0,
+                    EXECUTE = () => ProcessManagerOverlay.OpenManager()
                 });
             }
 
@@ -72,10 +72,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🌐 Run Network Connectivity Diagnostics",
-                    Description = "Analyze network adapters, active IPs, and Bridge Server reachability",
-                    Similarity = 5.0,
-                    Execute = () => RunNetworkDiag()
+                    TITLE = "🌐 Run Network Connectivity Diagnostics",
+                    DESCRIPTION = "Analyze network adapters, active IPs, and Bridge Server reachability",
+                    SIMILARITY = 5.0,
+                    EXECUTE = () => RunNetworkDiag()
                 });
             }
 
@@ -84,10 +84,10 @@ namespace JarvisLauncher
                 string target = query.Length > 5 ? query.Substring(5).Trim() : "8.8.8.8";
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"📡 Ping Test: {target}",
-                    Description = "Check network latency and packet loss to a specific host",
-                    Similarity = 5.0,
-                    Execute = () => RunPingTest(target)
+                    TITLE = $"📡 Ping Test: {target}",
+                    DESCRIPTION = "Check network latency and packet loss to a specific host",
+                    SIMILARITY = 5.0,
+                    EXECUTE = () => RunPingTest(target)
                 });
             }
 
@@ -95,10 +95,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🛠️ Open Debug Console",
-                    Description = "View real-time internal Jarvis logs and bridge traffic",
-                    Similarity = 5.0,
-                    Execute = () => DebugConsoleOverlay.ShowConsole()
+                    TITLE = "🛠️ Open Debug Console",
+                    DESCRIPTION = "View real-time internal Jarvis logs and bridge traffic",
+                    SIMILARITY = 5.0,
+                    EXECUTE = () => DebugConsoleOverlay.ShowConsole()
                 });
             }
 
@@ -106,10 +106,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🔌 List Active Listening Ports",
-                    Description = "Shows which applications are using local ports (finds 9000 conflicts)",
-                    Similarity = 5.0,
-                    Execute = () => RunPortDiag()
+                    TITLE = "🔌 List Active Listening Ports",
+                    DESCRIPTION = "Shows which applications are using local ports (finds 9000 conflicts)",
+                    SIMILARITY = 5.0,
+                    EXECUTE = () => RunPortDiag()
                 });
             }
 

@@ -37,10 +37,10 @@ namespace JarvisLauncher
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title = "🔔 View Active Reminders",
-                        Description = "Display all currently pending alarms and reminders in the console",
-                        Similarity = similarity + 0.5,
-                        Execute = () => ListReminders()
+                        TITLE = "🔔 View Active Reminders",
+                        DESCRIPTION = "Display all currently pending alarms and reminders in the console",
+                        SIMILARITY = similarity + 0.5,
+                        EXECUTE = () => ListReminders()
                     });
                     return suggestions;
                 }
@@ -52,10 +52,10 @@ namespace JarvisLauncher
                     {
                         suggestions.Add(new CommandResult
                         {
-                            Title = $"🗑️ Delete Reminder #{idx}",
-                            Description = "Remove this active reminder from the system scheduler",
-                            Similarity = similarity + 0.5,
-                            Execute = () => DeleteReminder(idx)
+                            TITLE = $"🗑️ Delete Reminder #{idx}",
+                            DESCRIPTION = "Remove this active reminder from the system scheduler",
+                            SIMILARITY = similarity + 0.5,
+                            EXECUTE = () => DeleteReminder(idx)
                         });
                         return suggestions;
                     }
@@ -77,10 +77,10 @@ namespace JarvisLauncher
 
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🔔 Remind in {val}{unit}: \"{msg}\"",
-                    Description = $"Set alert timer to fire on {target:HH:mm:ss}",
-                    Similarity = similarity + 1.0,
-                    Execute = () => ScheduleReminder(msg, target)
+                    TITLE = $"🔔 Remind in {val}{unit}: \"{msg}\"",
+                    DESCRIPTION = $"Set alert timer to fire on {target:HH:mm:ss}",
+                    SIMILARITY = similarity + 1.0,
+                    EXECUTE = () => ScheduleReminder(msg, target)
                 });
                 return suggestions;
             }
@@ -93,10 +93,10 @@ namespace JarvisLauncher
 
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🔔 Remind in {val}{unit}: \"{msg}\"",
-                    Description = $"Set alert timer to fire on {target:HH:mm:ss}",
-                    Similarity = similarity + 1.0,
-                    Execute = () => ScheduleReminder(msg, target)
+                    TITLE = $"🔔 Remind in {val}{unit}: \"{msg}\"",
+                    DESCRIPTION = $"Set alert timer to fire on {target:HH:mm:ss}",
+                    SIMILARITY = similarity + 1.0,
+                    EXECUTE = () => ScheduleReminder(msg, target)
                 });
                 return suggestions;
             }
@@ -113,10 +113,10 @@ namespace JarvisLauncher
 
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🔔 Remind at {timeStr}: \"{msg}\"",
-                    Description = $"Set alert scheduler to fire on {target:yyyy-MM-dd HH:mm:ss}",
-                    Similarity = similarity + 1.0,
-                    Execute = () => ScheduleReminder(msg, target)
+                    TITLE = $"🔔 Remind at {timeStr}: \"{msg}\"",
+                    DESCRIPTION = $"Set alert scheduler to fire on {target:yyyy-MM-dd HH:mm:ss}",
+                    SIMILARITY = similarity + 1.0,
+                    EXECUTE = () => ScheduleReminder(msg, target)
                 });
                 return suggestions;
             }
@@ -128,10 +128,10 @@ namespace JarvisLauncher
 
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🔔 Remind at {timeStr}: \"{msg}\"",
-                    Description = $"Set alert scheduler to fire on {target:yyyy-MM-dd HH:mm:ss}",
-                    Similarity = similarity + 1.0,
-                    Execute = () => ScheduleReminder(msg, target)
+                    TITLE = $"🔔 Remind at {timeStr}: \"{msg}\"",
+                    DESCRIPTION = $"Set alert scheduler to fire on {target:yyyy-MM-dd HH:mm:ss}",
+                    SIMILARITY = similarity + 1.0,
+                    EXECUTE = () => ScheduleReminder(msg, target)
                 });
                 return suggestions;
             }
@@ -139,18 +139,18 @@ namespace JarvisLauncher
             // General defaults
             suggestions.Add(new CommandResult
             {
-                Title = "🔔 View Active Reminders",
-                Description = "List all active reminders using 'remind list'",
-                Similarity = similarity,
-                Execute = () => ListReminders()
+                TITLE = "🔔 View Active Reminders",
+                DESCRIPTION = "List all active reminders using 'remind list'",
+                SIMILARITY = similarity,
+                EXECUTE = () => ListReminders()
             });
 
             suggestions.Add(new CommandResult
             {
-                Title = "remind me in [duration] to [message]",
-                Description = "Examples: 'remind me in 10m to stretch' or 'remind me at 18:00 to turn off PC'",
-                Similarity = similarity - 0.5,
-                Execute = null
+                TITLE = "remind me in [duration] to [message]",
+                DESCRIPTION = "Examples: 'remind me in 10m to stretch' or 'remind me at 18:00 to turn off PC'",
+                SIMILARITY = similarity - 0.5,
+                EXECUTE = null
             });
 
             return suggestions;

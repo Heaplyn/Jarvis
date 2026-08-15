@@ -34,10 +34,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title       = "File Launchpad Grid",
-                    Description = "Open visual dashboard layout of saved/pinned files",
-                    Similarity  = similarity + 1.0,
-                    Execute     = () => FileGridOverlay.OpenDashboard()
+                    TITLE       = "File Launchpad Grid",
+                    DESCRIPTION = "Open visual dashboard layout of saved/pinned files",
+                    SIMILARITY  = similarity + 1.0,
+                    EXECUTE     = () => FileGridOverlay.OpenDashboard()
                 });
             }
             else if (cmd == "pin")
@@ -47,28 +47,28 @@ namespace JarvisLauncher
                     string targetPath = parts[1].Trim();
                     suggestions.Add(new CommandResult
                     {
-                        Title       = $"Pin File: {Path.GetFileName(targetPath)}",
-                        Description = $"Pin \"{targetPath}\" persistently to the File Launchpad Dashboard",
-                        Similarity  = 2.0,
-                        Execute     = () => PinFileNatively(targetPath)
+                        TITLE       = $"Pin File: {Path.GetFileName(targetPath)}",
+                        DESCRIPTION = $"Pin \"{targetPath}\" persistently to the File Launchpad Dashboard",
+                        SIMILARITY  = 2.0,
+                        EXECUTE     = () => PinFileNatively(targetPath)
                     });
                 }
                 else
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title       = "Pin File (Prompt)...",
-                        Description = "Type a local file path to pin to your file launchpad grid",
-                        Similarity  = similarity + 0.6,
-                        Execute     = () => InputPromptOverlay.Show("Enter file path to pin:", (path) => PinFileNatively(path))
+                        TITLE       = "Pin File (Prompt)...",
+                        DESCRIPTION = "Type a local file path to pin to your file launchpad grid",
+                        SIMILARITY  = similarity + 0.6,
+                        EXECUTE     = () => InputPromptOverlay.Show("Enter file path to pin:", (path) => PinFileNatively(path))
                     });
 
                     suggestions.Add(new CommandResult
                     {
-                        Title       = "Browse File to Pin...",
-                        Description = "Open Windows file explorer to select a file to pin",
-                        Similarity  = similarity + 0.3,
-                        Execute     = () => PromptAndPinFile()
+                        TITLE       = "Browse File to Pin...",
+                        DESCRIPTION = "Open Windows file explorer to select a file to pin",
+                        SIMILARITY  = similarity + 0.3,
+                        EXECUTE     = () => PromptAndPinFile()
                     });
                 }
             }
@@ -79,20 +79,20 @@ namespace JarvisLauncher
                     string targetPath = parts[1].Trim();
                     suggestions.Add(new CommandResult
                     {
-                        Title       = $"Unpin File: {Path.GetFileName(targetPath)}",
-                        Description = $"Remove \"{targetPath}\" from the File Launchpad Dashboard",
-                        Similarity  = 2.0,
-                        Execute     = () => FileGridOverlay.UnpinFile(targetPath)
+                        TITLE       = $"Unpin File: {Path.GetFileName(targetPath)}",
+                        DESCRIPTION = $"Remove \"{targetPath}\" from the File Launchpad Dashboard",
+                        SIMILARITY  = 2.0,
+                        EXECUTE     = () => FileGridOverlay.UnpinFile(targetPath)
                     });
                 }
                 else
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title       = "Unpin File (Prompt)...",
-                        Description = "Type a file path to unpin from your file grid dashboard",
-                        Similarity  = similarity + 0.5,
-                        Execute     = () => InputPromptOverlay.Show("Enter file path to unpin:", (path) => FileGridOverlay.UnpinFile(path))
+                        TITLE       = "Unpin File (Prompt)...",
+                        DESCRIPTION = "Type a file path to unpin from your file grid dashboard",
+                        SIMILARITY  = similarity + 0.5,
+                        EXECUTE     = () => InputPromptOverlay.Show("Enter file path to unpin:", (path) => FileGridOverlay.UnpinFile(path))
                     });
                 }
             }

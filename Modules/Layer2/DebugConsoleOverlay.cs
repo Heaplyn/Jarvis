@@ -1,6 +1,7 @@
 // Developer: heaplyn
 // Date: 2026-08-12
 // Summary: Advanced real-time Debug Console overlay for monitoring internal Jarvis events, mobile bridge traffic, and system diagnostics.
+// Upgraded with RichText support for color-coded status monitoring.
 
 using System;
 using System.IO;
@@ -8,6 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Threading;
 using System.Collections.Generic;
@@ -17,10 +19,10 @@ namespace JarvisLauncher
     public class DebugConsoleOverlay : BaseOverlay
     {
         private static DebugConsoleOverlay? _instance;
-        private static readonly List<string> _history = new List<string>();
+        private static readonly List<LogEntry> _history = new List<LogEntry>();
         private static readonly int _maxHistory = 500;
 
-        private readonly TextBox _consoleBox;
+        private readonly RichTextBox _consoleBox;
         private readonly TextBlock _statusLabel;
         private readonly DispatcherTimer _refreshTimer;
 
@@ -28,6 +30,16 @@ namespace JarvisLauncher
         private readonly TextBox _searchBox;
         private readonly ComboBox _categoryFilterCombo;
         private readonly TextBox _commandInputBox;
+
+        private class LogEntry
+        {
+            public string Category { get; set; } = string.Empty;
+            public string Message { get; set; } = string.Empty;
+            public string Timestamp { get; set; } = string.Empty;
+            public Brush Color { get; set; } = Brushes.White;
+
+            public string FullLine => $"[{Timestamp}] [{Category.ToUpper()}] {Message}";
+        }
 
         public static void ShowConsole()
         {
@@ -44,10 +56,34 @@ namespace JarvisLauncher
 
         public static void Log(string category, string message)
         {
-            string line = $"[{DateTime.Now:HH:mm:ss}] [{category.ToUpper()}] {message}";
+            string timestamp = DateTime.Now.ToString("HH:mm:ss");
+            string upperCat = category.ToUpper();
+            Brush color = Brushes.White;
+
+            if (upperCat.Contains("ERROR") || upperCat.Contains("FATAL") || upperCat.Contains("FAIL"))
+                color = Brushes.Tomato;
+            else if (upperCat.Contains("WARN"))
+                color = Brushes.Gold;
+            else if (upperCat.Contains("AI"))
+                color = Brushes.SpringGreen;
+            else if (upperCat.Contains("BRIDGE"))
+                color = Brushes.Plum;
+            else if (upperCat.Contains("SYSTEM"))
+                color = Brushes.DeepSkyBlue;
+            else if (upperCat.Contains("ACTION") || message.StartsWith(">"))
+                color = Brushes.Lime;
+
+            var entry = new LogEntry
+            {
+                Category = category,
+                Message = message,
+                Timestamp = timestamp,
+                Color = color
+            };
+
             lock (_history)
             {
-                _history.Add(line);
+                _history.Add(entry);
                 if (_history.Count > _maxHistory) _history.RemoveAt(0);
             }
 
@@ -55,10 +91,12 @@ namespace JarvisLauncher
             try
             {
                 string logFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "jarvis_debug.log");
-                string fileLine = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{category.ToUpper()}] {message}{Environment.NewLine}";
+                string fileLine = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{upperCat}] {message}{Environment.NewLine}";
                 File.AppendAllText(logFile, fileLine);
             }
             catch { }
+
+            if (Application.Current == null) return;
 
             Application.Current.Dispatcher.BeginInvoke(new Action(() =>
             {
@@ -70,7 +108,7 @@ namespace JarvisLauncher
         }
 
         private DebugConsoleOverlay()
-            : base("🛠️ JARVIS DEBUG & DIAGNOSTICS CONSOLE", width: 680, height: 520)
+            : base("🛠️ JARVIS DEBUG & DIAGNOSTICS CONSOLE", width: 720, height: 560)
         {
             var mainGrid = new Grid { Margin = new Thickness(10) };
             mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Filters
@@ -141,28 +179,28 @@ namespace JarvisLauncher
             Grid.SetRow(filterGrid, 0);
             mainGrid.Children.Add(filterGrid);
 
-            // --- 2. CONSOLE WINDOW ---
+            // --- 2. CONSOLE WINDOW (RichText) ---
             var consoleBorder = new Border
             {
-                Background = new SolidColorBrush(Color.FromArgb(220, 10, 8, 16)),
+                Background = new SolidColorBrush(Color.FromArgb(230, 10, 8, 16)),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(6),
                 Padding = new Thickness(6)
             };
             consoleBorder.SetResourceReference(Border.BorderBrushProperty, "WindowBorderBrush");
 
-            _consoleBox = new TextBox
+            _consoleBox = new RichTextBox
             {
                 IsReadOnly = true,
-                AcceptsReturn = true,
                 Background = Brushes.Transparent,
-                Foreground = new SolidColorBrush(Color.FromRgb(140, 235, 140)), // Lime green logs
                 BorderThickness = new Thickness(0),
                 FontFamily = new FontFamily("Consolas"),
                 FontSize = 11,
-                TextWrapping = TextWrapping.Wrap,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Document = new FlowDocument()
             };
+            _consoleBox.Document.PagePadding = new Thickness(0);
+
             consoleBorder.Child = _consoleBox;
             Grid.SetRow(consoleBorder, 1);
             mainGrid.Children.Add(consoleBorder);
@@ -248,7 +286,8 @@ namespace JarvisLauncher
             });
 
             var copyBtn = CreateToolButton("📋 Copy All", (s, e) => {
-                Clipboard.SetText(_consoleBox.Text);
+                TextRange range = new TextRange(_consoleBox.Document.ContentStart, _consoleBox.Document.ContentEnd);
+                Clipboard.SetText(range.Text);
                 TextOverlay.Show("Logs copied to clipboard", 1500);
             });
 
@@ -291,9 +330,9 @@ namespace JarvisLauncher
                 var suggestions = CommandParser.GetSuggestions(cmd);
                 if (suggestions.Count > 0)
                 {
-                    var matched = suggestions.OrderByDescending(r => r.Similarity).First();
-                    Log("Action", $"Executing matched command: '{matched.Title}'");
-                    matched.Execute?.Invoke();
+                    var matched = suggestions.OrderByDescending(r => r.SIMILARITY).First();
+                    Log("Action", $"Executing matched command: '{matched.TITLE}'");
+                    matched.EXECUTE?.Invoke();
                 }
                 else
                 {
@@ -313,23 +352,23 @@ namespace JarvisLauncher
             string searchText = _searchBox?.Text.Trim() ?? "";
             string selectedCat = _categoryFilterCombo?.SelectedItem as string ?? "ALL";
 
-            List<string> filtered;
+            List<LogEntry> filtered;
             lock (_history)
             {
-                filtered = _history.Where(line =>
+                filtered = _history.Where(entry =>
                 {
                     // Filter by category
                     if (selectedCat != "ALL")
                     {
+                        string upperCat = entry.Category.ToUpper();
                         if (selectedCat == "ERROR / FATAL")
                         {
-                            if (!line.Contains("[ERROR]") && !line.Contains("[FATAL]"))
+                            if (!upperCat.Contains("ERROR") && !upperCat.Contains("FATAL") && !upperCat.Contains("FAIL"))
                                 return false;
                         }
                         else
                         {
-                            string expectedTag = $"[{selectedCat.ToUpper()}]";
-                            if (!line.Contains(expectedTag))
+                            if (!upperCat.Contains(selectedCat.ToUpper()))
                                 return false;
                         }
                     }
@@ -337,7 +376,8 @@ namespace JarvisLauncher
                     // Filter by search text
                     if (!string.IsNullOrEmpty(searchText))
                     {
-                        if (line.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) < 0)
+                        if (entry.Message.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) < 0 &&
+                            entry.Category.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) < 0)
                             return false;
                     }
 
@@ -345,7 +385,22 @@ namespace JarvisLauncher
                 }).ToList();
             }
 
-            _consoleBox.Text = string.Join(Environment.NewLine, filtered);
+            _consoleBox.Document.Blocks.Clear();
+            var paragraph = new Paragraph();
+
+            foreach (var entry in filtered)
+            {
+                // Timestamp
+                paragraph.Inlines.Add(new Run($"[{entry.Timestamp}] ") { Foreground = Brushes.DimGray });
+
+                // Category
+                paragraph.Inlines.Add(new Run($"[{entry.Category.ToUpper()}] ") { Foreground = entry.Color, FontWeight = FontWeights.Bold });
+
+                // Message
+                paragraph.Inlines.Add(new Run(entry.Message + Environment.NewLine) { Foreground = entry.Color });
+            }
+
+            _consoleBox.Document.Blocks.Add(paragraph);
             _consoleBox.ScrollToEnd();
         }
 

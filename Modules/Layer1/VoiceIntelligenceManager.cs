@@ -9,29 +9,29 @@ namespace JarvisLauncher
 {
     public static class VoiceIntelligenceManager
     {
-        private static readonly string IntelligencePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "VoiceIntelligence.json");
-        private static Dictionary<string, string> _learnedCorrections = new();
+        private static readonly string INTELLIGENCE_PATH = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "VoiceIntelligence.json");
+        private static Dictionary<string, string> LearnedCorrections = new();
 
         static VoiceIntelligenceManager()
         {
             LoadIntelligence();
         }
 
-        public static string ApplyIntelligence(string transcript)
+        public static string ApplyIntelligence(string Transcript)
         {
-            if (string.IsNullOrWhiteSpace(transcript)) return transcript;
-            string result = transcript;
+            if (string.IsNullOrWhiteSpace(Transcript)) return Transcript;
+            string Result = Transcript;
 
-            foreach (var correction in _learnedCorrections)
+            foreach (var Correction in LearnedCorrections)
             {
-                result = System.Text.RegularExpressions.Regex.Replace(
-                    result,
-                    @"\b" + System.Text.RegularExpressions.Regex.Escape(correction.Key) + @"\b",
-                    correction.Value,
+                Result = System.Text.RegularExpressions.Regex.Replace(
+                    Result,
+                    @"\b" + System.Text.RegularExpressions.Regex.Escape(Correction.Key) + @"\b",
+                    Correction.Value,
                     System.Text.RegularExpressions.RegexOptions.IgnoreCase);
             }
 
-            return result;
+            return Result;
         }
 
         /// <summary>
@@ -41,32 +41,32 @@ namespace JarvisLauncher
         {
             try
             {
-                string datasetExamples = VoiceDatasetManager.GetFewShotExamples();
-                if (datasetExamples.Contains("No recent history")) return;
+                string DatasetExamples = VoiceDatasetManager.GetFewShotExamples();
+                if (DatasetExamples.Contains("No recent history")) return;
 
-                string prompt = "Analyze these recent voice command transcripts and system contexts. " +
+                string Prompt = "Analyze these recent voice command transcripts and system contexts. " +
                                "Find common phonetic misrecognitions (e.g., user says 'run debug' but it's transcribed as 'run big'). " +
                                "Output ONLY a JSON dictionary where the KEY is the misrecognition and the VALUE is the intended command. " +
                                "If no clear corrections found, return {}. " +
-                               "Examples:\n" + datasetExamples;
+                               "Examples:\n" + DatasetExamples;
 
-                string jsonResponse = await LlmRouter.AskAsync(prompt);
+                string JsonResponse = await LlmRouter.AskAsync(Prompt);
 
                 // Extract JSON if model included markdown or chat filler
-                int start = jsonResponse.IndexOf('{');
-                int end = jsonResponse.LastIndexOf('}');
-                if (start >= 0 && end > start)
+                int Start = JsonResponse.IndexOf('{');
+                int End = JsonResponse.LastIndexOf('}');
+                if (Start >= 0 && End > Start)
                 {
-                    string json = jsonResponse.Substring(start, end - start + 1);
-                    var newCorrections = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
-                    if (newCorrections != null)
+                    string Json = JsonResponse.Substring(Start, End - Start + 1);
+                    var NewCorrections = JsonSerializer.Deserialize<Dictionary<string, string>>(Json);
+                    if (NewCorrections != null)
                     {
-                        foreach (var kvp in newCorrections)
+                        foreach (var Kvp in NewCorrections)
                         {
-                            if (!_learnedCorrections.ContainsKey(kvp.Key))
+                            if (!LearnedCorrections.ContainsKey(Kvp.Key))
                             {
-                                _learnedCorrections[kvp.Key] = kvp.Value;
-                                DebugConsoleOverlay.Log("Voice-Intelligence", $"Learned correction: \"{kvp.Key}\" -> \"{kvp.Value}\"");
+                                LearnedCorrections[Kvp.Key] = Kvp.Value;
+                                DebugConsoleOverlay.Log("Voice-Intelligence", $"Learned correction: \"{Kvp.Key}\" -> \"{Kvp.Value}\"");
                             }
                         }
                         SaveIntelligence();
@@ -80,10 +80,10 @@ namespace JarvisLauncher
         {
             try
             {
-                if (File.Exists(IntelligencePath))
+                if (File.Exists(INTELLIGENCE_PATH))
                 {
-                    string json = File.ReadAllText(IntelligencePath);
-                    _learnedCorrections = JsonSerializer.Deserialize<Dictionary<string, string>>(json) ?? new();
+                    string Json = File.ReadAllText(INTELLIGENCE_PATH);
+                    LearnedCorrections = JsonSerializer.Deserialize<Dictionary<string, string>>(Json) ?? new();
                 }
             }
             catch { }
@@ -93,8 +93,8 @@ namespace JarvisLauncher
         {
             try
             {
-                string json = JsonSerializer.Serialize(_learnedCorrections, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(IntelligencePath, json);
+                string Json = JsonSerializer.Serialize(LearnedCorrections, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(INTELLIGENCE_PATH, Json);
             }
             catch { }
         }

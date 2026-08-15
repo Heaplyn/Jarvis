@@ -113,10 +113,10 @@ namespace JarvisLauncher
 
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🎯 Start {workMin}m Focus Sprint: \"{taskName}\"",
-                    Description = "Launches ADHD timer with voice TTS alerts and break check-ins",
-                    Similarity = 6.0,
-                    Execute = () => AdhdFocusManager.StartFocusSprint(taskName, workMin)
+                    TITLE = $"🎯 Start {workMin}m Focus Sprint: \"{taskName}\"",
+                    DESCRIPTION = "Launches ADHD timer with voice TTS alerts and break check-ins",
+                    SIMILARITY = 6.0,
+                    EXECUTE = () => AdhdFocusManager.StartFocusSprint(taskName, workMin)
                 });
             }
 
@@ -126,10 +126,10 @@ namespace JarvisLauncher
                 string taskToChunk = parts.Length > 1 ? raw.Substring(parts[0].Length).Trim() : "Big Overwhelming Project";
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🧩 Chunk Task into Micro-Steps: \"{taskToChunk}\"",
-                    Description = "Breaks complex tasks into 4 tiny 5-minute actionable steps",
-                    Similarity = 5.5,
-                    Execute = () => ChunkTaskWithAI(taskToChunk)
+                    TITLE = $"🧩 Chunk Task into Micro-Steps: \"{taskToChunk}\"",
+                    DESCRIPTION = "Breaks complex tasks into 4 tiny 5-minute actionable steps",
+                    SIMILARITY = 5.5,
+                    EXECUTE = () => ChunkTaskWithAI(taskToChunk)
                 });
             }
 
@@ -138,10 +138,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "⚡ Dopamine Motivation Boost",
-                    Description = "Spoken encouraging check-in and progress celebration",
-                    Similarity = 5.0,
-                    Execute = () =>
+                    TITLE = "⚡ Dopamine Motivation Boost",
+                    DESCRIPTION = "Spoken encouraging check-in and progress celebration",
+                    SIMILARITY = 5.0,
+                    EXECUTE = () =>
                     {
                         string msg = "Awesome job staying on track! Every small step forward is a victory. Keep going!";
                         TtsManager.Speak(msg);
@@ -155,10 +155,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "⏳ Check Focus Sprint Time Left",
-                    Description = "Display time remaining on active focus timer",
-                    Similarity = 5.0,
-                    Execute = () =>
+                    TITLE = "⏳ Check Focus Sprint Time Left",
+                    DESCRIPTION = "Display time remaining on active focus timer",
+                    SIMILARITY = 5.0,
+                    EXECUTE = () =>
                     {
                         if (AdhdFocusManager.IsActive)
                         {

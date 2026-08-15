@@ -32,10 +32,10 @@ namespace JarvisLauncher
                 string url = query.Substring(14).Trim();
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"📥 Download/Clone Dataset List: {url}",
-                    Description = "Parses page links/repos and downloads top voice datasets in background",
-                    Similarity = 9.0,
-                    Execute = () =>
+                    TITLE = $"📥 Download/Clone Dataset List: {url}",
+                    DESCRIPTION = "Parses page links/repos and downloads top voice datasets in background",
+                    SIMILARITY = 9.0,
+                    EXECUTE = () =>
                     {
                         Task.Run(async () =>
                         {
@@ -53,10 +53,10 @@ namespace JarvisLauncher
                 string url = query.Substring(9).Trim();
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"📥 Download File: {url}",
-                    Description = "Downloads this file directly to your User Downloads folder",
-                    Similarity = 8.5,
-                    Execute = () =>
+                    TITLE = $"📥 Download File: {url}",
+                    DESCRIPTION = "Downloads this file directly to your User Downloads folder",
+                    SIMILARITY = 8.5,
+                    EXECUTE = () =>
                     {
                         Task.Run(async () =>
                         {
@@ -74,10 +74,10 @@ namespace JarvisLauncher
                 string url = query.Substring(7).Trim();
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🌐 Scrape Webpage: {url}",
-                    Description = "Downloads and extracts plain readable text from this webpage",
-                    Similarity = 8.5,
-                    Execute = () =>
+                    TITLE = $"🌐 Scrape Webpage: {url}",
+                    DESCRIPTION = "Downloads and extracts plain readable text from this webpage",
+                    SIMILARITY = 8.5,
+                    EXECUTE = () =>
                     {
                         Task.Run(async () =>
                         {
@@ -96,10 +96,10 @@ namespace JarvisLauncher
                 string term = query.Substring(prefixLen).Trim();
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🔍 Search Web for: '{term}'",
-                    Description = "Executes DuckDuckGo search and summarizes top pages",
-                    Similarity = 8.5,
-                    Execute = () =>
+                    TITLE = $"🔍 Search Web for: '{term}'",
+                    DESCRIPTION = "Executes DuckDuckGo search and summarizes top pages",
+                    SIMILARITY = 8.5,
+                    EXECUTE = () =>
                     {
                         Task.Run(async () =>
                         {

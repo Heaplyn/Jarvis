@@ -32,20 +32,20 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"CPU Usage: {_cpuUsage:F1}%",
-                    Description = "Live system processor utilization",
-                    Execute = null,
-                    Similarity = similarity
+                    TITLE = $"CPU Usage: {_cpuUsage:F1}%",
+                    DESCRIPTION = "Live system processor utilization",
+                    EXECUTE = null,
+                    SIMILARITY = similarity
                 });
             }
             else if (query == "ram")
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"RAM Usage: {_ramUsagePercentage:F1}%",
-                    Description = _ramDetails,
-                    Execute = null,
-                    Similarity = similarity
+                    TITLE = $"RAM Usage: {_ramUsagePercentage:F1}%",
+                    DESCRIPTION = _ramDetails,
+                    EXECUTE = null,
+                    SIMILARITY = similarity
                 });
             }
             else
@@ -53,10 +53,10 @@ namespace JarvisLauncher
                 // General "sys" or "stats" keyword
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"CPU: {_cpuUsage:F1}% | RAM: {_ramUsagePercentage:F1}%",
-                    Description = $"Details: {_ramDetails}",
-                    Execute = null,
-                    Similarity = similarity
+                    TITLE = $"CPU: {_cpuUsage:F1}% | RAM: {_ramUsagePercentage:F1}%",
+                    DESCRIPTION = $"Details: {_ramDetails}",
+                    EXECUTE = null,
+                    SIMILARITY = similarity
                 });
             }
 

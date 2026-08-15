@@ -39,10 +39,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "⚡ Open Universal Media Converter Studio",
-                    Description = "Convert WEBP to PNG, GIF to MP4, MP4 to GIF, PNG to WEBP, MP3 to WAV",
-                    Similarity = 5.0,
-                    Execute = () => MediaConverterOverlay.ShowOverlay()
+                    TITLE = "⚡ Open Universal Media Converter Studio",
+                    DESCRIPTION = "Convert WEBP to PNG, GIF to MP4, MP4 to GIF, PNG to WEBP, MP3 to WAV",
+                    SIMILARITY = 5.0,
+                    EXECUTE = () => MediaConverterOverlay.ShowOverlay()
                 });
             }
 
@@ -51,10 +51,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🖼️ Convert WEBP Image ➔ PNG",
-                    Description = "Open Media Converter for WEBP ➔ PNG lossless format",
-                    Similarity = 4.5,
-                    Execute = () => MediaConverterOverlay.ShowOverlay(defaultTargetFormat: "png")
+                    TITLE = "🖼️ Convert WEBP Image ➔ PNG",
+                    DESCRIPTION = "Open Media Converter for WEBP ➔ PNG lossless format",
+                    SIMILARITY = 4.5,
+                    EXECUTE = () => MediaConverterOverlay.ShowOverlay(defaultTargetFormat: "png")
                 });
             }
 
@@ -63,10 +63,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🎞️ Convert Animated GIF ➔ MP4 Video",
-                    Description = "Convert GIF animations to compressed H.264 MP4 videos",
-                    Similarity = 4.5,
-                    Execute = () => MediaConverterOverlay.ShowOverlay(defaultTargetFormat: "mp4")
+                    TITLE = "🎞️ Convert Animated GIF ➔ MP4 Video",
+                    DESCRIPTION = "Convert GIF animations to compressed H.264 MP4 videos",
+                    SIMILARITY = 4.5,
+                    EXECUTE = () => MediaConverterOverlay.ShowOverlay(defaultTargetFormat: "mp4")
                 });
             }
 
@@ -75,10 +75,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🎬 Convert MP4 Video ➔ Animated GIF",
-                    Description = "Create animated GIF clips from MP4 video files",
-                    Similarity = 4.5,
-                    Execute = () => MediaConverterOverlay.ShowOverlay(defaultTargetFormat: "gif")
+                    TITLE = "🎬 Convert MP4 Video ➔ Animated GIF",
+                    DESCRIPTION = "Create animated GIF clips from MP4 video files",
+                    SIMILARITY = 4.5,
+                    EXECUTE = () => MediaConverterOverlay.ShowOverlay(defaultTargetFormat: "gif")
                 });
             }
 
@@ -87,10 +87,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🌐 Convert PNG Image ➔ WEBP",
-                    Description = "Optimize PNG images into compact WEBP web format",
-                    Similarity = 4.5,
-                    Execute = () => MediaConverterOverlay.ShowOverlay(defaultTargetFormat: "webp")
+                    TITLE = "🌐 Convert PNG Image ➔ WEBP",
+                    DESCRIPTION = "Optimize PNG images into compact WEBP web format",
+                    SIMILARITY = 4.5,
+                    EXECUTE = () => MediaConverterOverlay.ShowOverlay(defaultTargetFormat: "webp")
                 });
             }
 
@@ -99,10 +99,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🎵 Convert MP3 Audio ➔ Uncompressed WAV",
-                    Description = "Convert MP3 files into 16-bit 44.1kHz PCM WAV audio",
-                    Similarity = 4.5,
-                    Execute = () => MediaConverterOverlay.ShowOverlay(defaultTargetFormat: "wav")
+                    TITLE = "🎵 Convert MP3 Audio ➔ Uncompressed WAV",
+                    DESCRIPTION = "Convert MP3 files into 16-bit 44.1kHz PCM WAV audio",
+                    SIMILARITY = 4.5,
+                    EXECUTE = () => MediaConverterOverlay.ShowOverlay(defaultTargetFormat: "wav")
                 });
             }
 
@@ -110,42 +110,42 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🎵 FFmpeg: Extract MP3 Audio...",
-                    Description = "Select a video/audio file to extract 192k MP3 audio track",
-                    Similarity = similarity + 0.5,
-                    Execute = InteractiveExtractMp3
+                    TITLE = "🎵 FFmpeg: Extract MP3 Audio...",
+                    DESCRIPTION = "Select a video/audio file to extract 192k MP3 audio track",
+                    SIMILARITY = similarity + 0.5,
+                    EXECUTE = InteractiveExtractMp3
                 });
 
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🎞️ FFmpeg: Convert Video to Animated GIF...",
-                    Description = "Select a video file to convert to high quality animated GIF",
-                    Similarity = similarity + 0.4,
-                    Execute = InteractiveConvertToGif
+                    TITLE = "🎞️ FFmpeg: Convert Video to Animated GIF...",
+                    DESCRIPTION = "Select a video file to convert to high quality animated GIF",
+                    SIMILARITY = similarity + 0.4,
+                    EXECUTE = InteractiveConvertToGif
                 });
 
                 suggestions.Add(new CommandResult
                 {
-                    Title = "📉 FFmpeg: Compress Video File Size...",
-                    Description = "Select a video file to compress using H.264 (CRF 28)",
-                    Similarity = similarity + 0.3,
-                    Execute = InteractiveCompressVideo
+                    TITLE = "📉 FFmpeg: Compress Video File Size...",
+                    DESCRIPTION = "Select a video file to compress using H.264 (CRF 28)",
+                    SIMILARITY = similarity + 0.3,
+                    EXECUTE = InteractiveCompressVideo
                 });
 
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🔇 FFmpeg: Mute Video (Remove Audio)...",
-                    Description = "Select a video file to strip its audio stream",
-                    Similarity = similarity + 0.2,
-                    Execute = InteractiveMuteVideo
+                    TITLE = "🔇 FFmpeg: Mute Video (Remove Audio)...",
+                    DESCRIPTION = "Select a video file to strip its audio stream",
+                    SIMILARITY = similarity + 0.2,
+                    EXECUTE = InteractiveMuteVideo
                 });
 
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🔄 FFmpeg: Convert Media Format...",
-                    Description = "Select input file and output format to convert",
-                    Similarity = similarity + 0.1,
-                    Execute = InteractiveConvertFormat
+                    TITLE = "🔄 FFmpeg: Convert Media Format...",
+                    DESCRIPTION = "Select input file and output format to convert",
+                    SIMILARITY = similarity + 0.1,
+                    EXECUTE = InteractiveConvertFormat
                 });
 
                 return suggestions;
@@ -160,20 +160,20 @@ namespace JarvisLauncher
                     string output = Path.ChangeExtension(target, ".mp3");
                     suggestions.Add(new CommandResult
                     {
-                        Title = $"🎵 Extract MP3: {Path.GetFileName(target)}",
-                        Description = $"Save to {Path.GetFileName(output)}",
-                        Similarity = 3.0,
-                        Execute = () => ExecuteExtractMp3(target, output)
+                        TITLE = $"🎵 Extract MP3: {Path.GetFileName(target)}",
+                        DESCRIPTION = $"Save to {Path.GetFileName(output)}",
+                        SIMILARITY = 3.0,
+                        EXECUTE = () => ExecuteExtractMp3(target, output)
                     });
                 }
                 else
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title = "🎵 Extract MP3 Audio...",
-                        Description = "Pick file to extract MP3",
-                        Similarity = 2.8,
-                        Execute = InteractiveExtractMp3
+                        TITLE = "🎵 Extract MP3 Audio...",
+                        DESCRIPTION = "Pick file to extract MP3",
+                        SIMILARITY = 2.8,
+                        EXECUTE = InteractiveExtractMp3
                     });
                 }
                 return suggestions;
@@ -188,20 +188,20 @@ namespace JarvisLauncher
                     string output = Path.ChangeExtension(target, ".gif");
                     suggestions.Add(new CommandResult
                     {
-                        Title = $"🎞️ Convert GIF: {Path.GetFileName(target)}",
-                        Description = $"Save to {Path.GetFileName(output)}",
-                        Similarity = 3.0,
-                        Execute = () => ExecuteConvertToGif(target, output)
+                        TITLE = $"🎞️ Convert GIF: {Path.GetFileName(target)}",
+                        DESCRIPTION = $"Save to {Path.GetFileName(output)}",
+                        SIMILARITY = 3.0,
+                        EXECUTE = () => ExecuteConvertToGif(target, output)
                     });
                 }
                 else
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title = "🎞️ Convert Video to GIF...",
-                        Description = "Pick video file to convert to GIF",
-                        Similarity = 2.8,
-                        Execute = InteractiveConvertToGif
+                        TITLE = "🎞️ Convert Video to GIF...",
+                        DESCRIPTION = "Pick video file to convert to GIF",
+                        SIMILARITY = 2.8,
+                        EXECUTE = InteractiveConvertToGif
                     });
                 }
                 return suggestions;
@@ -220,20 +220,20 @@ namespace JarvisLauncher
 
                     suggestions.Add(new CommandResult
                     {
-                        Title = $"📉 Compress Video: {Path.GetFileName(target)}",
-                        Description = $"Save to {Path.GetFileName(output)}",
-                        Similarity = 3.0,
-                        Execute = () => ExecuteCompressVideo(target, output)
+                        TITLE = $"📉 Compress Video: {Path.GetFileName(target)}",
+                        DESCRIPTION = $"Save to {Path.GetFileName(output)}",
+                        SIMILARITY = 3.0,
+                        EXECUTE = () => ExecuteCompressVideo(target, output)
                     });
                 }
                 else
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title = "📉 Compress Video File Size...",
-                        Description = "Pick video file to compress",
-                        Similarity = 2.8,
-                        Execute = InteractiveCompressVideo
+                        TITLE = "📉 Compress Video File Size...",
+                        DESCRIPTION = "Pick video file to compress",
+                        SIMILARITY = 2.8,
+                        EXECUTE = InteractiveCompressVideo
                     });
                 }
                 return suggestions;
@@ -252,20 +252,20 @@ namespace JarvisLauncher
 
                     suggestions.Add(new CommandResult
                     {
-                        Title = $"🔇 Mute Video: {Path.GetFileName(target)}",
-                        Description = $"Save to {Path.GetFileName(output)}",
-                        Similarity = 3.0,
-                        Execute = () => ExecuteMuteVideo(target, output)
+                        TITLE = $"🔇 Mute Video: {Path.GetFileName(target)}",
+                        DESCRIPTION = $"Save to {Path.GetFileName(output)}",
+                        SIMILARITY = 3.0,
+                        EXECUTE = () => ExecuteMuteVideo(target, output)
                     });
                 }
                 else
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title = "🔇 Mute Video...",
-                        Description = "Pick video file to remove audio stream",
-                        Similarity = 2.8,
-                        Execute = InteractiveMuteVideo
+                        TITLE = "🔇 Mute Video...",
+                        DESCRIPTION = "Pick video file to remove audio stream",
+                        SIMILARITY = 2.8,
+                        EXECUTE = InteractiveMuteVideo
                     });
                 }
                 return suggestions;
@@ -277,10 +277,10 @@ namespace JarvisLauncher
                 string rawArgs = trimmed.Substring(7).Trim();
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🎬 Execute FFmpeg Command: ffmpeg {rawArgs}",
-                    Description = "Run custom FFmpeg parameters",
-                    Similarity = similarity,
-                    Execute = () => RunFFmpegCommandAsync(rawArgs, rawArgs)
+                    TITLE = $"🎬 Execute FFmpeg Command: ffmpeg {rawArgs}",
+                    DESCRIPTION = "Run custom FFmpeg parameters",
+                    SIMILARITY = similarity,
+                    EXECUTE = () => _ = RunFFmpegCommandAsync(rawArgs, rawArgs)
                 });
             }
 

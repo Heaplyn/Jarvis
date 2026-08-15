@@ -31,41 +31,41 @@ namespace JarvisLauncher
 
             suggestions.Add(new CommandResult
             {
-                Title = $"🎙️ Enroll Voiceprint for '{name}'",
-                Description = "Train speaker verification biometrics to secure voice activation",
-                Execute = () =>
+                TITLE = $"🎙️ Enroll Voiceprint for '{name}'",
+                DESCRIPTION = "Train speaker verification biometrics to secure voice activation",
+                EXECUTE = () =>
                 {
                     Task.Run(async () => await VoiceActivationManager.EnrollVoiceAsync(name));
                 },
-                Similarity = 8.5
+                SIMILARITY = 8.5
             });
 
             suggestions.Add(new CommandResult
             {
-                Title = "🛡️ Enable Speaker Voice Verification",
-                Description = "GATES voice activations: only runs commands if speaker biometrics match Kyle",
-                Execute = () =>
+                TITLE = "🛡️ Enable Speaker Voice Verification",
+                DESCRIPTION = "GATES voice activations: only runs commands if speaker biometrics match Kyle",
+                EXECUTE = () =>
                 {
-                    SettingsManager.Current.IsSpeakerVerificationEnabled = true;
+                    SettingsManager.Current.IS_SPEAKER_VERIFICATION_ENABLED = true;
                     SettingsManager.Save();
                     TextOverlay.Show("✅ Speaker Verification Enabled!", 3000);
                     TtsManager.Speak("Speaker verification is now active. Only enrolled users may trigger commands.");
                 },
-                Similarity = q.ToLower().Contains("enable") ? 8.0 : 4.0
+                SIMILARITY = q.ToLower().Contains("enable") ? 8.0 : 4.0
             });
 
             suggestions.Add(new CommandResult
             {
-                Title = "🔓 Disable Speaker Voice Verification",
-                Description = "ALLOWS any speaker to trigger voice commands (disabled owner gate)",
-                Execute = () =>
+                TITLE = "🔓 Disable Speaker Voice Verification",
+                DESCRIPTION = "ALLOWS any speaker to trigger voice commands (disabled owner gate)",
+                EXECUTE = () =>
                 {
-                    SettingsManager.Current.IsSpeakerVerificationEnabled = false;
+                    SettingsManager.Current.IS_SPEAKER_VERIFICATION_ENABLED = false;
                     SettingsManager.Save();
                     TextOverlay.Show("🔓 Speaker Verification Disabled", 3000);
                     TtsManager.Speak("Speaker verification has been disabled. Anyone can now control the HUD.");
                 },
-                Similarity = q.ToLower().Contains("disable") ? 8.0 : 4.0
+                SIMILARITY = q.ToLower().Contains("disable") ? 8.0 : 4.0
             });
 
             return suggestions;

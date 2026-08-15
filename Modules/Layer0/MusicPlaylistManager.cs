@@ -37,8 +37,7 @@ namespace JarvisLauncher
     {
         private static string GetFilePath()
         {
-            string dataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
-            if (!Directory.Exists(dataDir)) Directory.CreateDirectory(dataDir);
+            string dataDir = PathHandler.GetDataDirectory();
             return Path.Combine(dataDir, "MusicPlaylists.json");
         }
 
@@ -51,12 +50,20 @@ namespace JarvisLauncher
                 {
                     string json = File.ReadAllText(p);
                     var data = JsonSerializer.Deserialize<MusicLibraryData>(json);
-                    if (data != null && data.Folders.Count > 0) return data;
+                    if (data != null && data.Folders.Count > 0)
+                    {
+                        DebugConsoleOverlay.Log("Music", $"Loaded playlist library from {p} ({data.Folders.Sum(f => f.Tracks.Count)} tracks)");
+                        return data;
+                    }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                DebugConsoleOverlay.Log("Music-Error", $"Failed to load playlist library: {ex.Message}");
+            }
 
             // Default initial setup
+            DebugConsoleOverlay.Log("Music", "Creating new default playlist library.");
             var defaultLibrary = new MusicLibraryData();
             var allSongsFolder = new MusicFolder { FolderName = "🎵 All Songs" };
             var defaultFolder = new MusicFolder { FolderName = "Favorites" };
@@ -102,13 +109,26 @@ namespace JarvisLauncher
 
         public static void SaveLibrary(MusicLibraryData data)
         {
+            if (data == null) return;
             try
             {
                 string p = GetFilePath();
-                string json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(p, json);
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                string json = JsonSerializer.Serialize(data, options);
+
+                // Write to a temporary file first to prevent corruption
+                string tempPath = p + ".tmp";
+                File.WriteAllText(tempPath, json);
+
+                if (File.Exists(p)) File.Delete(p);
+                File.Move(tempPath, p);
+
+                DebugConsoleOverlay.Log("Music-System", $"Playlist library successfully persisted to disk ({data.Folders.Count} folders).");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                DebugConsoleOverlay.Log("Music-Error", $"Failed to save playlist library: {ex.Message}");
+            }
         }
     }
 }

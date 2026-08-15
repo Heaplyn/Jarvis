@@ -27,20 +27,20 @@ namespace JarvisLauncher
             // 1. Toggle Teacher Mode
             if (lower == "teacher toggle" || lower == "teacher")
             {
-                bool nextState = !SettingsManager.Current.IsTeacherModeEnabled;
+                bool nextState = !SettingsManager.Current.IS_TEACHER_MODE_ENABLED;
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🎓 Toggle Teacher Mode (Currently {(SettingsManager.Current.IsTeacherModeEnabled ? "Enabled" : "Disabled")})",
-                    Description = $"Switch teaching assistance to {(nextState ? "Enabled" : "Disabled")}",
-                    Execute = () =>
+                    TITLE = $"🎓 Toggle Teacher Mode (Currently {(SettingsManager.Current.IS_TEACHER_MODE_ENABLED ? "Enabled" : "Disabled")})",
+                    DESCRIPTION = $"Switch teaching assistance to {(nextState ? "Enabled" : "Disabled")}",
+                    EXECUTE = () =>
                     {
-                        SettingsManager.Current.IsTeacherModeEnabled = nextState;
+                        SettingsManager.Current.IS_TEACHER_MODE_ENABLED = nextState;
                         SettingsManager.Save();
                         string msg = $"Teacher Mode is now {(nextState ? "Active" : "Inactive")}.";
                         TtsManager.Speak(msg, isShortSpeech: true);
                         TextOverlay.Show($"🎓 Teacher Mode: {(nextState ? "ON" : "OFF")}", 3000);
                     },
-                    Similarity = 8.5
+                    SIMILARITY = 8.5
                 });
             }
 
@@ -51,9 +51,9 @@ namespace JarvisLauncher
 
                 suggestions.Add(new CommandResult
                 {
-                    Title = string.IsNullOrEmpty(target) ? "🔍 Scan Recently Changed Project Files" : $"🔍 Scan File '{target}' for Anti-Patterns",
-                    Description = "Analyze code files for deprecated classes, bugs, or performance issues",
-                    Execute = () =>
+                    TITLE = string.IsNullOrEmpty(target) ? "🔍 Scan Recently Changed Project Files" : $"🔍 Scan File '{target}' for Anti-Patterns",
+                    DESCRIPTION = "Analyze code files for deprecated classes, bugs, or performance issues",
+                    EXECUTE = () =>
                     {
                         Task.Run(async () =>
                         {
@@ -114,7 +114,7 @@ namespace JarvisLauncher
                             }
                         });
                     },
-                    Similarity = 8.5
+                    SIMILARITY = 8.5
                 });
             }
 

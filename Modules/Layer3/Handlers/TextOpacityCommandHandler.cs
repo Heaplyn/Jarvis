@@ -31,20 +31,20 @@ namespace JarvisLauncher
                 targetOpacity = Math.Clamp(targetOpacity, 10, 100);
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"Set Text Opacity to {targetOpacity}%",
-                    Description = "Adjust the opacity of search box and result lists",
-                    Execute = () => TriggerChange(targetOpacity),
-                    Similarity = similarity
+                    TITLE = $"Set Text Opacity to {targetOpacity}%",
+                    DESCRIPTION = "Adjust the opacity of search box and result lists",
+                    EXECUTE = () => TriggerChange(targetOpacity),
+                    SIMILARITY = similarity
                 });
             }
             else
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "Set Text Opacity...",
-                    Description = "Type a percentage (e.g. 'textopacity 70')",
-                    Execute = null,
-                    Similarity = similarity
+                    TITLE = "Set Text Opacity...",
+                    DESCRIPTION = "Type a percentage (e.g. 'textopacity 70')",
+                    EXECUTE = null,
+                    SIMILARITY = similarity
                 });
             }
 

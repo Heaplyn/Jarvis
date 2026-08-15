@@ -12,73 +12,73 @@ namespace JarvisLauncher
 {
     public class TextOverlay : BaseOverlay
     {
-        private static TextOverlay? _lastOverlay;
-        private static string _lastText = string.Empty;
+        private static TextOverlay? LastOverlay;
+        private static string LastText = string.Empty;
 
         public static void Show(
-            string text, 
-            int durationMs = 1500, 
-            double width = 350, 
-            double height = 120, 
-            double fontSize = 20, 
-            string backgroundColor = "#F2140D24", 
-            string textColor = "#FFFFFF",
-            string borderColor = "#808050E6")
+            string Text,
+            int DurationMs = 1500,
+            double Width = 350,
+            double Height = 120,
+            double FontSize = 20,
+            string BackgroundColor = "#F2140D24",
+            string TextColor = "#FFFFFF",
+            string BorderColor = "#808050E6")
         {
-            if (string.IsNullOrEmpty(text)) return;
+            if (string.IsNullOrEmpty(Text)) return;
 
             // Execute on UI Dispatcher Thread
             Application.Current.Dispatcher.Invoke(() =>
             {
                 // Simple Debounce: Don't show the exact same message if one is already visible
-                if (_lastOverlay != null && _lastOverlay.IsVisible && _lastText == text)
+                if (LastOverlay != null && LastOverlay.IsVisible && LastText == Text)
                 {
                     return;
                 }
 
                 // Close previous toast to prevent stacking if it's the same type of notification
-                if (_lastOverlay != null && _lastOverlay.IsVisible)
+                if (LastOverlay != null && LastOverlay.IsVisible)
                 {
-                    _lastOverlay.FadeOutAndClose();
+                    LastOverlay.FadeOutAndClose();
                 }
 
-                var overlay = new TextOverlay(text, width, height, fontSize, backgroundColor, textColor, borderColor);
-                _lastOverlay = overlay;
-                _lastText = text;
-                overlay.Show();
+                var Overlay = new TextOverlay(Text, Width, Height, FontSize, BackgroundColor, TextColor, BorderColor);
+                LastOverlay = Overlay;
+                LastText = Text;
+                Overlay.Show();
 
-                if (durationMs > 0)
+                if (DurationMs > 0)
                 {
-                    var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(durationMs) };
-                    timer.Tick += (s, e) =>
+                    var Timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(DurationMs) };
+                    Timer.Tick += (S, E) =>
                     {
-                        timer.Stop();
-                        if (_lastOverlay == overlay) _lastOverlay = null;
-                        overlay.FadeOutAndClose();
+                        Timer.Stop();
+                        if (LastOverlay == Overlay) LastOverlay = null;
+                        Overlay.FadeOutAndClose();
                     };
-                    timer.Start();
+                    Timer.Start();
                 }
             });
         }
 
         private TextOverlay(
-            string text, 
-            double width, 
-            double height, 
-            double fontSize, 
-            string bgColor, 
-            string txtColor,
-            string bdrColor)
-            : base("NOTIFICATION", width, height, bgColor, txtColor, bdrColor)
+            string Text,
+            double Width,
+            double Height,
+            double FontSize,
+            string BgColor,
+            string TxtColor,
+            string BdrColor)
+            : base("NOTIFICATION", Width, Height, BgColor, TxtColor, BdrColor)
         {
-            var brushConverter = new BrushConverter();
-            var txtBrush = (Brush)(brushConverter.ConvertFromString(txtColor) ?? Brushes.White);
+            var BrushConverter = new BrushConverter();
+            var TxtBrush = (Brush)(BrushConverter.ConvertFromString(TxtColor) ?? Brushes.White);
 
-            var textBlock = new TextBlock
+            var TextBlock = new TextBlock
             {
-                Text = text,
-                Foreground = txtBrush,
-                FontSize = fontSize,
+                Text = Text,
+                Foreground = TxtBrush,
+                FontSize = FontSize,
                 FontFamily = new FontFamily("Segoe UI Semibold, Arial"),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -86,7 +86,7 @@ namespace JarvisLauncher
                 TextAlignment = TextAlignment.Center
             };
 
-            this.UserContent = textBlock;
+            this.UserContent = TextBlock;
         }
     }
 }

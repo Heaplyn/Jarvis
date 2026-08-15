@@ -32,37 +32,38 @@ namespace JarvisLauncher
             string lower = query.ToLower().Trim();
 
             // Voice Mode Toggle Commands
-            if (lower == "disable voice" || lower == "voicemode off" || lower == "stop voice")
+            if (lower == "disable voice" || lower == "voicemode off" || lower == "stop voice" || lower == "turn off voice mode")
             {
                 results.Add(new CommandResult
                 {
-                    Title = "🔇 Disable Master Voice Mode",
-                    Description = "Stops all microphone speech recognition and background wake word listening",
-                    Similarity = 6.0,
-                    Execute = () =>
+                    TITLE = "🔇 Disable Voice Interaction Mode",
+                    DESCRIPTION = "Stops Jarvis from responding to conversations, but keeps wake-word listening active for reactivation.",
+                    SIMILARITY = 6.0,
+                    EXECUTE = () =>
                     {
-                        SettingsManager.Current.IsVoiceModeActive = false;
+                        SettingsManager.Current.IS_VOICE_MODE_ACTIVE = false;
                         SettingsManager.Save();
-                        LocalWakeWordDetector.Stop();
-                        TextOverlay.Show("🔇 Master Voice Mode DISABLED", 3000);
+                        TtsManager.Speak("Voice mode disabled.");
+                        TextOverlay.Show("🔇 Voice Mode: OFF", 3000);
                     }
                 });
                 return results;
             }
 
-            if (lower == "enable voice" || lower == "voicemode on" || lower == "start voice")
+            if (lower == "enable voice" || lower == "voicemode on" || lower == "start voice" || lower == "turn on voice mode")
             {
                 results.Add(new CommandResult
                 {
-                    Title = "🎙️ Enable Master Voice Mode",
-                    Description = "Starts microphone speech recognition and continuous wake word listening",
-                    Similarity = 6.0,
-                    Execute = () =>
+                    TITLE = "🎙️ Enable Voice Interaction Mode",
+                    DESCRIPTION = "Resumes full voice conversation and system command execution.",
+                    SIMILARITY = 6.0,
+                    EXECUTE = () =>
                     {
-                        SettingsManager.Current.IsVoiceModeActive = true;
+                        SettingsManager.Current.IS_VOICE_MODE_ACTIVE = true;
                         SettingsManager.Save();
-                        LocalWakeWordDetector.Initialize();
-                        TextOverlay.Show("🎙️ Master Voice Mode ENABLED", 3000);
+                        LocalWakeWordDetector.Initialize(); // Ensure initialized
+                        TtsManager.Speak("Voice mode enabled.");
+                        TextOverlay.Show("🎙️ Voice Mode: ON", 3000);
                     }
                 });
                 return results;
@@ -72,10 +73,10 @@ namespace JarvisLauncher
             {
                 results.Add(new CommandResult
                 {
-                    Title = "🏷️ Open Voice Dataset & Classification Studio",
-                    Description = "View, play, tag (Command, AI Chat, Wake Word, Noise), & train acoustic voice dataset",
-                    Similarity = 6.0,
-                    Execute = () => VoiceStudioOverlay.ShowOverlay()
+                    TITLE = "🏷️ Open Voice Dataset & Classification Studio",
+                    DESCRIPTION = "View, play, tag (Command, AI Chat, Wake Word, Noise), & train acoustic voice dataset",
+                    SIMILARITY = 6.0,
+                    EXECUTE = () => VoiceStudioOverlay.ShowOverlay()
                 });
                 return results;
             }
@@ -84,10 +85,10 @@ namespace JarvisLauncher
             {
                 results.Add(new CommandResult
                 {
-                    Title = "📶 Open Offline Mode & Wi-Fi Pre-Caching Studio",
-                    Description = "Pre-download speech models, TTS voices, & local LLM models for 100% offline functionality",
-                    Similarity = 6.0,
-                    Execute = () => OfflineStudioOverlay.ShowOverlay()
+                    TITLE = "📶 Open Offline Mode & Wi-Fi Pre-Caching Studio",
+                    DESCRIPTION = "Pre-download speech models, TTS voices, & local LLM models for 100% offline functionality",
+                    SIMILARITY = 6.0,
+                    EXECUTE = () => OfflineStudioOverlay.ShowOverlay()
                 });
                 return results;
             }
@@ -96,10 +97,10 @@ namespace JarvisLauncher
             {
                 results.Add(new CommandResult
                 {
-                    Title = "🌐 Open GitHub Custom TTS Voice Library (yaph/tts-samples)",
-                    Description = "Browse, preview, & set custom TTS voice MP3 samples directly from GitHub",
-                    Similarity = 6.0,
-                    Execute = () => TtsVoiceLibraryOverlay.ShowOverlay()
+                    TITLE = "🌐 Open GitHub Custom TTS Voice Library (yaph/tts-samples)",
+                    DESCRIPTION = "Browse, preview, & set custom TTS voice MP3 samples directly from GitHub",
+                    SIMILARITY = 6.0,
+                    EXECUTE = () => TtsVoiceLibraryOverlay.ShowOverlay()
                 });
                 return results;
             }
@@ -108,28 +109,28 @@ namespace JarvisLauncher
             {
                 results.Add(new CommandResult
                 {
-                    Title = "📥 Download Official Vosk Neural Speech Model (~40MB)",
-                    Description = "Auto-downloads and installs full offline neural speech recognition model for 99%+ accuracy",
-                    Similarity = 6.0,
-                    Execute = () => Task.Run(async () => await VoskEngine.EnsureModelDownloadedAsync(showToast: true))
+                    TITLE = "📥 Download Official Vosk Neural Speech Model (~40MB)",
+                    DESCRIPTION = "Auto-downloads and installs full offline neural speech recognition model for 99%+ accuracy",
+                    SIMILARITY = 6.0,
+                    EXECUTE = () => Task.Run(async () => await VoskEngine.EnsureModelDownloadedAsync(showToast: true))
                 });
                 return results;
             }
 
             results.Add(new CommandResult
             {
-                Title = "📶 Open Offline Mode & Pre-Caching Studio",
-                Description = "Pre-cache speech, TTS, & local LLM features for 100% offline usage",
-                Similarity = 5.6,
-                Execute = () => OfflineStudioOverlay.ShowOverlay()
+                TITLE = "📶 Open Offline Mode & Pre-Caching Studio",
+                DESCRIPTION = "Pre-cache speech, TTS, & local LLM features for 100% offline usage",
+                SIMILARITY = 5.6,
+                EXECUTE = () => OfflineStudioOverlay.ShowOverlay()
             });
 
             results.Add(new CommandResult
             {
-                Title = "🎙️ Open Voice AI Studio & Audio Recorder",
-                Description = "Train AI voice profiles, record audio memos, calibrate speech sensitivity, & map voice shortcuts",
-                Similarity = 5.5,
-                Execute = () => VoiceStudioOverlay.ShowOverlay()
+                TITLE = "🎙️ Open Voice AI Studio & Audio Recorder",
+                DESCRIPTION = "Train AI voice profiles, record audio memos, calibrate speech sensitivity, & map voice shortcuts",
+                SIMILARITY = 5.5,
+                EXECUTE = () => VoiceStudioOverlay.ShowOverlay()
             });
 
             return results;

@@ -6,6 +6,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Windows;
 
@@ -23,7 +24,7 @@ namespace JarvisLauncher
 
     public static class WindowPositionManager
     {
-        private static readonly string PositionsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "window_positions.json");
+        private static string PositionsFilePath => Path.Combine(PathHandler.GetDataDirectory(), "window_positions.json");
         private static Dictionary<string, WindowPositionState> _cache = new();
         private static readonly object _lock = new();
 
@@ -123,35 +124,56 @@ namespace JarvisLauncher
 
         public static void RestoreOpenOverlays()
         {
+            try
+            {
+                string path = @"C:\Users\Kyle\Downloads\Projects\Jarvis\Data\BOOT_DIAGNOSTICS.log";
+                System.IO.File.AppendAllText(path, $"[{DateTime.Now:HH:mm:ss.fff}] [WPM] RestoreOpenOverlays called\n");
+            } catch { }
+
+            List<string> openWindows;
             lock (_lock)
             {
-                foreach (var pair in _cache)
+                openWindows = _cache.Values
+                    .Where(v => v.IsOpen)
+                    .Select(v => v.WindowName)
+                    .ToList();
+            }
+
+            foreach (var name in openWindows)
+            {
+                try
                 {
-                    if (pair.Value.IsOpen)
+                    string path = @"C:\Users\Kyle\Downloads\Projects\Jarvis\Data\BOOT_DIAGNOSTICS.log";
+                    System.IO.File.AppendAllText(path, $"[{DateTime.Now:HH:mm:ss.fff}] [WPM] Attempting to restore: {name}\n");
+                } catch { }
+
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    try
                     {
-                        string name = pair.Key;
-                        Application.Current.Dispatcher.Invoke(() =>
+                        switch (name)
                         {
-                            try
-                            {
-                                switch (name)
-                                {
-                                    case nameof(VoiceStudioOverlay): VoiceStudioOverlay.ShowOverlay(); break;
-                                    case nameof(LlmSettingsOverlay): LlmSettingsOverlay.ShowOverlay(); break;
-                                    case nameof(HuggingFaceOverlay): HuggingFaceOverlay.ShowOverlay(); break;
-                                    case nameof(TtsVoiceLibraryOverlay): TtsVoiceLibraryOverlay.ShowOverlay(); break;
-                                    case nameof(OfflineStudioOverlay): OfflineStudioOverlay.ShowOverlay(); break;
-                                    case nameof(SystemMonitorOverlay): SystemMonitorOverlay.ShowOverlay(); break;
-                                    case nameof(StickyNotesOverlay): StickyNotesOverlay.ShowOverlay(); break;
-                                    case nameof(MusicPlaylistOverlay): MusicPlaylistOverlay.ShowOverlay(); break;
-                                    case nameof(ChatOverlay): ChatOverlay.ShowOverlay(); break;
-                                    case nameof(SettingsOverlay): SettingsOverlay.ShowOverlay(); break;
-                                }
-                            }
-                            catch { }
-                        });
+                            case nameof(VoiceStudioOverlay): VoiceStudioOverlay.ShowOverlay(); break;
+                            case nameof(LlmSettingsOverlay): LlmSettingsOverlay.ShowOverlay(); break;
+                            case nameof(HuggingFaceOverlay): HuggingFaceOverlay.ShowOverlay(); break;
+                            case nameof(TtsVoiceLibraryOverlay): TtsVoiceLibraryOverlay.ShowOverlay(); break;
+                            case nameof(OfflineStudioOverlay): OfflineStudioOverlay.ShowOverlay(); break;
+                            case nameof(SystemMonitorOverlay): SystemMonitorOverlay.ShowOverlay(); break;
+                            case nameof(StickyNotesOverlay): StickyNotesOverlay.ShowOverlay(); break;
+                            case nameof(MusicPlaylistOverlay): MusicPlaylistOverlay.ShowOverlay(); break;
+                            case nameof(ChatOverlay): ChatOverlay.ShowOverlay(); break;
+                            case nameof(SettingsOverlay): SettingsOverlay.ShowOverlay(); break;
+                        }
                     }
-                }
+                    catch (Exception ex)
+                    {
+                        try
+                        {
+                            string path = @"C:\Users\Kyle\Downloads\Projects\Jarvis\BOOT_DIAGNOSTICS.log";
+                            System.IO.File.AppendAllText(path, $"[{DateTime.Now:HH:mm:ss.fff}] [WPM] Restore Error ({name}): {ex.Message}\n");
+                        } catch { }
+                    }
+                });
             }
         }
     }

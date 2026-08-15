@@ -25,10 +25,10 @@ namespace JarvisLauncher
             // Option 1: AI Screen Vision & Continuous Monitoring Studio
             suggestions.Add(new CommandResult
             {
-                Title = "📹 Open AI Screen Vision & Continuous Monitoring Studio",
-                Description = "Live screen preview, active window tracker, continuous screen watcher, & Gemini Vision AI analysis",
-                Similarity = 6.0,
-                Execute = () => ScreenVisionStudioOverlay.ShowOverlay()
+                TITLE = "📹 Open AI Screen Vision & Continuous Monitoring Studio",
+                DESCRIPTION = "Live screen preview, active window tracker, continuous screen watcher, & Gemini Vision AI analysis",
+                SIMILARITY = 6.0,
+                EXECUTE = () => ScreenVisionStudioOverlay.ShowOverlay()
             });
 
             // Option 2: Direct 1-Click AI Vision Screen Analysis
@@ -36,10 +36,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🧠 Analyze Current Screen with Gemini Vision AI",
-                    Description = "Captures instant screen snapshot and explains visible code, windows, or applications",
-                    Similarity = 6.5,
-                    Execute = () => ScreenVisionStudioOverlay.ShowOverlay()
+                    TITLE = "🧠 Analyze Current Screen with Gemini Vision AI",
+                    DESCRIPTION = "Captures instant screen snapshot and explains visible code, windows, or applications",
+                    SIMILARITY = 6.5,
+                    EXECUTE = () => ScreenVisionStudioOverlay.ShowOverlay()
                 });
             }
 
@@ -48,10 +48,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = ScreenMonitorEngine.IsMonitoring ? "🛑 Stop Continuous Screen Monitoring" : "📹 Start Continuous Screen Monitoring",
-                    Description = "Toggle background automatic screen snapshot tracking (every 5 seconds)",
-                    Similarity = 6.5,
-                    Execute = () =>
+                    TITLE = ScreenMonitorEngine.IsMonitoring ? "🛑 Stop Continuous Screen Monitoring" : "📹 Start Continuous Screen Monitoring",
+                    DESCRIPTION = "Toggle background automatic screen snapshot tracking (every 5 seconds)",
+                    SIMILARITY = 6.5,
+                    EXECUTE = () =>
                     {
                         ScreenMonitorEngine.Toggle();
                         TextOverlay.Show(ScreenMonitorEngine.IsMonitoring ? "📹 Screen Monitoring STARTED" : "🛑 Screen Monitoring STOPPED", 2500);
@@ -62,10 +62,10 @@ namespace JarvisLauncher
             // Option 4: Instantly tile windows
             suggestions.Add(new CommandResult
             {
-                Title = "🧩 Auto-Tile Windows",
-                Description = "Arrange all visible open desktop windows in a clean side-by-side grid layout",
-                Similarity = 4.5,
-                Execute = () => ScreenAnalyzer.TileActiveWindows()
+                TITLE = "🧩 Auto-Tile Windows",
+                DESCRIPTION = "Arrange all visible open desktop windows in a clean side-by-side grid layout",
+                SIMILARITY = 4.5,
+                EXECUTE = () => ScreenAnalyzer.TileActiveWindows()
             });
 
             return suggestions;

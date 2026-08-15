@@ -58,20 +58,20 @@ namespace JarvisLauncher
                     {
                         suggestions.Add(new CommandResult
                         {
-                            Title       = "🪟 Snap Window Left",
-                            Description = "Send Win + LeftArrow keystrokes",
-                            Similarity  = 2.0,
-                            Execute     = () => NativeMethods.SendKeyCombo(0x5B, 0x25) // Win + Left
+                            TITLE       = "🪟 Snap Window Left",
+                            DESCRIPTION = "Send Win + LeftArrow keystrokes",
+                            SIMILARITY  = 2.0,
+                            EXECUTE     = () => NativeMethods.SendKeyCombo(0x5B, 0x25) // Win + Left
                         });
                     }
                     else if (target == "right")
                     {
                         suggestions.Add(new CommandResult
                         {
-                            Title       = "🪟 Snap Window Right",
-                            Description = "Send Win + RightArrow keystrokes",
-                            Similarity  = 2.0,
-                            Execute     = () => NativeMethods.SendKeyCombo(0x5B, 0x27) // Win + Right
+                            TITLE       = "🪟 Snap Window Right",
+                            DESCRIPTION = "Send Win + RightArrow keystrokes",
+                            SIMILARITY  = 2.0,
+                            EXECUTE     = () => NativeMethods.SendKeyCombo(0x5B, 0x27) // Win + Right
                         });
                     }
                 }
@@ -79,17 +79,17 @@ namespace JarvisLauncher
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title       = "🪟 Snap Left",
-                        Description = "Snap foreground window to left half",
-                        Similarity  = 1.5,
-                        Execute     = () => NativeMethods.SendKeyCombo(0x5B, 0x25)
+                        TITLE       = "🪟 Snap Left",
+                        DESCRIPTION = "Snap foreground window to left half",
+                        SIMILARITY  = 1.5,
+                        EXECUTE     = () => NativeMethods.SendKeyCombo(0x5B, 0x25)
                     });
                     suggestions.Add(new CommandResult
                     {
-                        Title       = "🪟 Snap Right",
-                        Description = "Snap foreground window to right half",
-                        Similarity  = 1.0,
-                        Execute     = () => NativeMethods.SendKeyCombo(0x5B, 0x27)
+                        TITLE       = "🪟 Snap Right",
+                        DESCRIPTION = "Snap foreground window to right half",
+                        SIMILARITY  = 1.0,
+                        EXECUTE     = () => NativeMethods.SendKeyCombo(0x5B, 0x27)
                     });
                 }
             }
@@ -109,10 +109,10 @@ namespace JarvisLauncher
                             string mChain = mParts[1].Trim();
                             suggestions.Add(new CommandResult
                             {
-                                Title       = $"Save Macro: '{mName}'",
-                                Description = $"Chain: {mChain}",
-                                Similarity  = 2.0,
-                                Execute     = () => SaveMacro(mName, mChain)
+                                TITLE       = $"Save Macro: '{mName}'",
+                                DESCRIPTION = $"Chain: {mChain}",
+                                SIMILARITY  = 2.0,
+                                EXECUTE     = () => SaveMacro(mName, mChain)
                             });
                         }
                     }
@@ -124,10 +124,10 @@ namespace JarvisLauncher
                         {
                             suggestions.Add(new CommandResult
                             {
-                                Title       = $"⚡ Execute Macro: '{match.Name}'",
-                                Description = $"Run chain: {match.CommandsChain}",
-                                Similarity  = 2.0,
-                                Execute     = () => RunMacroChain(match.CommandsChain)
+                                TITLE       = $"⚡ Execute Macro: '{match.Name}'",
+                                DESCRIPTION = $"Run chain: {match.CommandsChain}",
+                                SIMILARITY  = 2.0,
+                                EXECUTE     = () => RunMacroChain(match.CommandsChain)
                             });
                         }
                     }
@@ -137,19 +137,19 @@ namespace JarvisLauncher
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title       = $"⚡ Macro: {m.Name}",
-                        Description = $"Run: {m.CommandsChain}",
-                        Similarity  = 1.0,
-                        Execute     = () => RunMacroChain(m.CommandsChain)
+                        TITLE       = $"⚡ Macro: {m.Name}",
+                        DESCRIPTION = $"Run: {m.CommandsChain}",
+                        SIMILARITY  = 1.0,
+                        EXECUTE     = () => RunMacroChain(m.CommandsChain)
                     });
                 }
 
                 suggestions.Add(new CommandResult
                 {
-                    Title       = "Add New Macro...",
-                    Description = "Format: macro add <name> -> <cmd1> | <cmd2>",
-                    Similarity  = 0.5,
-                    Execute     = () => InputPromptOverlay.Show("Enter format: <name> -> <cmd1> | <cmd2>", (str) => ParseAndAddMacro(str))
+                    TITLE       = "Add New Macro...",
+                    DESCRIPTION = "Format: macro add <name> -> <cmd1> | <cmd2>",
+                    SIMILARITY  = 0.5,
+                    EXECUTE     = () => InputPromptOverlay.Show("Enter format: <name> -> <cmd1> | <cmd2>", (str) => ParseAndAddMacro(str))
                 });
             }
             // --- 3. PING & SPEEDTEST ---
@@ -158,20 +158,20 @@ namespace JarvisLauncher
                 string host = parts.Length > 1 ? parts[1].Trim() : "8.8.8.8";
                 suggestions.Add(new CommandResult
                 {
-                    Title       = $"📡 Ping Host: {host}",
-                    Description = "Measure roundtrip network latency",
-                    Similarity  = 2.0,
-                    Execute     = () => ExecutePing(host)
+                    TITLE       = $"📡 Ping Host: {host}",
+                    DESCRIPTION = "Measure roundtrip network latency",
+                    SIMILARITY  = 2.0,
+                    EXECUTE     = () => ExecutePing(host)
                 });
             }
             else if (cmd == "speedtest")
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title       = "🚀 Run Speedtest",
-                    Description = "Measure ping and latency via network socket",
-                    Similarity  = 2.0,
-                    Execute     = () => ExecutePing("1.1.1.1")
+                    TITLE       = "🚀 Run Speedtest",
+                    DESCRIPTION = "Measure ping and latency via network socket",
+                    SIMILARITY  = 2.0,
+                    EXECUTE     = () => ExecutePing("1.1.1.1")
                 });
             }
             // --- 4. FOLDER QUICK JUMPS ---
@@ -192,10 +192,10 @@ namespace JarvisLauncher
 
                     suggestions.Add(new CommandResult
                     {
-                        Title       = $"📁 Jump to: {Path.GetFileName(targetDir)}",
-                        Description = targetDir,
-                        Similarity  = 2.0,
-                        Execute     = () => OpenFolder(targetDir)
+                        TITLE       = $"📁 Jump to: {Path.GetFileName(targetDir)}",
+                        DESCRIPTION = targetDir,
+                        SIMILARITY  = 2.0,
+                        EXECUTE     = () => OpenFolder(targetDir)
                     });
                 }
                 else
@@ -206,10 +206,10 @@ namespace JarvisLauncher
                         string p = Path.Combine(userDir, d);
                         suggestions.Add(new CommandResult
                         {
-                            Title       = $"📁 Jump to {d}",
-                            Description = p,
-                            Similarity  = 1.0,
-                            Execute     = () => OpenFolder(p)
+                            TITLE       = $"📁 Jump to {d}",
+                            DESCRIPTION = p,
+                            SIMILARITY  = 1.0,
+                            EXECUTE     = () => OpenFolder(p)
                         });
                     }
                 }
@@ -219,10 +219,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title       = "📊 Open Process Manager GUI",
-                    Description = "Visual task manager listing top CPU/RAM processes with kill controls",
-                    Similarity  = 2.0,
-                    Execute     = () => ProcessManagerOverlay.OpenManager()
+                    TITLE       = "📊 Open Process Manager GUI",
+                    DESCRIPTION = "Visual task manager listing top CPU/RAM processes with kill controls",
+                    SIMILARITY  = 2.0,
+                    EXECUTE     = () => ProcessManagerOverlay.OpenManager()
                 });
             }
             // --- 6. WORLD CLOCK & TIMEZONE ---
@@ -233,20 +233,20 @@ namespace JarvisLauncher
                     string city = parts[1].Trim();
                     suggestions.Add(new CommandResult
                     {
-                        Title       = $"🕒 World Clock: {city}",
-                        Description = "Look up time for city/region",
-                        Similarity  = 2.0,
-                        Execute     = () => ShowCityTime(city)
+                        TITLE       = $"🕒 World Clock: {city}",
+                        DESCRIPTION = "Look up time for city/region",
+                        SIMILARITY  = 2.0,
+                        EXECUTE     = () => ShowCityTime(city)
                     });
                 }
                 else
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title       = "🕒 World Clock...",
-                        Description = "Type city (e.g. 'time Tokyo', 'time London')",
-                        Similarity  = 1.5,
-                        Execute     = () => InputPromptOverlay.Show("Enter city name:", (c) => ShowCityTime(c))
+                        TITLE       = "🕒 World Clock...",
+                        DESCRIPTION = "Type city (e.g. 'time Tokyo', 'time London')",
+                        SIMILARITY  = 1.5,
+                        EXECUTE     = () => InputPromptOverlay.Show("Enter city name:", (c) => ShowCityTime(c))
                     });
                 }
             }
@@ -258,20 +258,20 @@ namespace JarvisLauncher
                     string path = parts[1].Trim();
                     suggestions.Add(new CommandResult
                     {
-                        Title       = $"🔒 Calculate Hash: {Path.GetFileName(path)}",
-                        Description = "Compute SHA-256 checksum",
-                        Similarity  = 2.0,
-                        Execute     = () => CalculateFileHash(path)
+                        TITLE       = $"🔒 Calculate Hash: {Path.GetFileName(path)}",
+                        DESCRIPTION = "Compute SHA-256 checksum",
+                        SIMILARITY  = 2.0,
+                        EXECUTE     = () => CalculateFileHash(path)
                     });
                 }
                 else
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title       = "🔒 Calculate File Hash (Browse)...",
-                        Description = "Pick a file to compute SHA-256 checksum",
-                        Similarity  = 1.5,
-                        Execute     = () => InputPromptOverlay.Show("Enter file path to hash:", (p) => CalculateFileHash(p))
+                        TITLE       = "🔒 Calculate File Hash (Browse)...",
+                        DESCRIPTION = "Pick a file to compute SHA-256 checksum",
+                        SIMILARITY  = 1.5,
+                        EXECUTE     = () => InputPromptOverlay.Show("Enter file path to hash:", (p) => CalculateFileHash(p))
                     });
                 }
             }
@@ -401,9 +401,9 @@ namespace JarvisLauncher
             {
                 string query = c.Trim();
                 var suggestions = CommandParser.GetSuggestions(query);
-                if (suggestions.Count > 0 && suggestions[0].Execute != null)
+                if (suggestions.Count > 0 && suggestions[0].EXECUTE != null)
                 {
-                    suggestions[0].Execute?.Invoke();
+                    suggestions[0].EXECUTE?.Invoke();
                 }
             }
             TextOverlay.Show($"⚡ Executed Macro Chain ({commands.Length} actions)", 2500);

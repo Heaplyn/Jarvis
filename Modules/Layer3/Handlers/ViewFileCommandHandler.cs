@@ -41,20 +41,20 @@ namespace JarvisLauncher
 
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"View File: {Path.GetFileName(filePath)}",
-                    Description = $"Open and read contents of '{filePath}'",
-                    Execute = () => ReadAndDisplayFile(filePath),
-                    Similarity = similarity
+                    TITLE = $"View File: {Path.GetFileName(filePath)}",
+                    DESCRIPTION = $"Open and read contents of '{filePath}'",
+                    EXECUTE = () => ReadAndDisplayFile(filePath),
+                    SIMILARITY = similarity
                 });
             }
             else
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "View File...",
-                    Description = "Type a path (e.g. 'view C:\\temp\\log.txt')",
-                    Execute = null,
-                    Similarity = similarity
+                    TITLE = "View File...",
+                    DESCRIPTION = "Type a path (e.g. 'view C:\\temp\\log.txt')",
+                    EXECUTE = null,
+                    SIMILARITY = similarity
                 });
             }
 

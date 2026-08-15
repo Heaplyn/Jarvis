@@ -11,10 +11,10 @@ namespace JarvisLauncher
 {
     public class NoteItem
     {
-        public string Name { get; set; } = string.Empty;
-        public string RelativePath { get; set; } = string.Empty;
-        public bool IsFolder { get; set; }
-        public List<NoteItem> Children { get; set; } = new List<NoteItem>();
+        public string NAME { get; set; } = string.Empty;
+        public string RELATIVE_PATH { get; set; } = string.Empty;
+        public bool IS_FOLDER { get; set; }
+        public List<NoteItem> CHILDREN { get; set; } = new List<NoteItem>();
     }
 
     public static class NotesManager
@@ -48,10 +48,10 @@ namespace JarvisLauncher
                     string rel = Path.Combine(relative, name);
                     items.Add(new NoteItem
                     {
-                        Name = name,
-                        RelativePath = rel,
-                        IsFolder = true,
-                        Children = GetItemsRecursive(dir, rel)
+                        NAME = name,
+                        RELATIVE_PATH = rel,
+                        IS_FOLDER = true,
+                        CHILDREN = GetItemsRecursive(dir, rel)
                     });
                 }
 
@@ -62,14 +62,14 @@ namespace JarvisLauncher
                     string name = Path.GetFileName(file);
                     items.Add(new NoteItem
                     {
-                        Name = name,
-                        RelativePath = Path.Combine(relative, name),
-                        IsFolder = false
+                        NAME = name,
+                        RELATIVE_PATH = Path.Combine(relative, name),
+                        IS_FOLDER = false
                     });
                 }
             }
             catch { }
-            return items.OrderBy(i => !i.IsFolder).ThenBy(i => i.Name).ToList();
+            return items.OrderBy(i => !i.IS_FOLDER).ThenBy(i => i.NAME).ToList();
         }
 
         public static void CreateCategory(string parentRelativePath, string categoryName)

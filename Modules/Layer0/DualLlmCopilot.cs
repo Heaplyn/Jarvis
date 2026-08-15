@@ -27,28 +27,28 @@ namespace JarvisLauncher
         public static void ProcessQueryParallel(string query)
         {
             var settings = SettingsManager.Current;
-            if (!settings.EnableDualLlmCopilot || string.IsNullOrWhiteSpace(query)) return;
+            if (!settings.ENABLE_DUAL_LLM_COPILOT || string.IsNullOrWhiteSpace(query)) return;
 
             Task.Run(async () =>
             {
                 try
                 {
-                    DebugConsoleOverlay.Log("Dual-LLM Co-Pilot", $"Processing parallel query with {settings.DualLlmBackend} [{settings.DualLlmModel}]: \"{query}\"");
+                    DebugConsoleOverlay.Log("Dual-LLM Co-Pilot", $"Processing parallel query with {settings.DUAL_LLM_BACKEND} [{settings.DUAL_LLM_MODEL}]: \"{query}\"");
 
                     string prompt = $"You are Jarvis Dual-LLM Co-Pilot. Analyze this user query: \"{query}\". Provide a 1-sentence smart recommendation or follow-up suggestion.";
 
-                    string rawModel = ExtractModelName(settings.DualLlmModel);
+                    string rawModel = ExtractModelName(settings.DUAL_LLM_MODEL);
                     string copilotInsight = "";
 
-                    if (settings.DualLlmBackend.Equals("Ollama", StringComparison.OrdinalIgnoreCase))
+                    if (settings.DUAL_LLM_BACKEND.Equals("Ollama", StringComparison.OrdinalIgnoreCase))
                     {
                         copilotInsight = await LlmRouter.AskOllamaAsync(prompt);
                     }
-                    else if (settings.DualLlmBackend.Equals("Gemini", StringComparison.OrdinalIgnoreCase))
+                    else if (settings.DUAL_LLM_BACKEND.Equals("Gemini", StringComparison.OrdinalIgnoreCase))
                     {
                         copilotInsight = await AiAPI.AskGemini(prompt);
                     }
-                    else if (settings.DualLlmBackend.Equals("OpenAI", StringComparison.OrdinalIgnoreCase))
+                    else if (settings.DUAL_LLM_BACKEND.Equals("OpenAI", StringComparison.OrdinalIgnoreCase))
                     {
                         copilotInsight = await LlmRouter.AskOpenAIAsync(prompt);
                     }

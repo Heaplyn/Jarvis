@@ -22,10 +22,10 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
 
             results.Add(new CommandResult
             {
-                Title = "✨ Configure Animations & Visual Effects Options",
-                Description = "Adjust transition speeds, motion effects, window fill opacity, & text transparency",
-                Similarity = 5.5,
-                Execute = () => AnimationOptionsOverlay.ShowOverlay()
+                TITLE = "✨ Configure Animations & Visual Effects Options",
+                DESCRIPTION = "Adjust transition speeds, motion effects, window fill opacity, & text transparency",
+                SIMILARITY = 5.5,
+                EXECUTE = () => AnimationOptionsOverlay.ShowOverlay()
             });
 
             return results;

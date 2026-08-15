@@ -27,20 +27,20 @@ namespace JarvisLauncher
                 string searchTerms = parts[1].Trim();
                 suggestions.Add(new CommandResult
                 {
-                    Title       = $"Google: {searchTerms}",
-                    Description = "Open Google search results in your default browser",
-                    Similarity  = 2.0, // High priority match
-                    Execute     = () => LaunchSearch(searchTerms)
+                    TITLE       = $"Google: {searchTerms}",
+                    DESCRIPTION = "Open Google search results in your default browser",
+                    SIMILARITY  = 2.0, // High priority match
+                    EXECUTE     = () => LaunchSearch(searchTerms)
                 });
             }
             else
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title       = "Google Search...",
-                    Description = "Type a search query (e.g. google WPF window styling)",
-                    Similarity  = 1.0,
-                    Execute     = null
+                    TITLE       = "Google Search...",
+                    DESCRIPTION = "Type a search query (e.g. google WPF window styling)",
+                    SIMILARITY  = 1.0,
+                    EXECUTE     = null
                 });
             }
 

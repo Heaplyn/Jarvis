@@ -26,10 +26,10 @@ namespace JarvisLauncher
                 string targetUrl = raw.Substring(raw.IndexOf(' ') + 1).Trim();
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"📥 Download Media to Playlist: {targetUrl}",
-                    Description = "Downloads URL via DownloadMediaRunner TS engine directly to active playlist folder",
-                    Similarity = 3.0,
-                    Execute = () => MusicPlaylistOverlay.DownloadTrackFromUrl(targetUrl)
+                    TITLE = $"📥 Download Media to Playlist: {targetUrl}",
+                    DESCRIPTION = "Downloads URL via DownloadMediaRunner TS engine directly to active playlist folder",
+                    SIMILARITY = 3.0,
+                    EXECUTE = () => MusicPlaylistOverlay.DownloadTrackFromUrl(targetUrl)
                 });
                 return suggestions;
             }
@@ -37,20 +37,20 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "📥 Download Media to Playlist (Prompt)...",
-                    Description = "Prompt for music/video URL (Spotify, YouTube, Deezer, etc.)",
-                    Similarity = 3.0,
-                    Execute = () => MusicPlaylistOverlay.DownloadTrackFromUrl(string.Empty)
+                    TITLE = "📥 Download Media to Playlist (Prompt)...",
+                    DESCRIPTION = "Prompt for music/video URL (Spotify, YouTube, Deezer, etc.)",
+                    SIMILARITY = 3.0,
+                    EXECUTE = () => MusicPlaylistOverlay.DownloadTrackFromUrl(string.Empty)
                 });
                 return suggestions;
             }
 
             suggestions.Add(new CommandResult
             {
-                Title       = "🎵 Open Music Player & Playlist Manager",
-                Description = "Manage song folders, add audio files/links, and play music",
-                Similarity  = 2.0,
-                Execute     = () => MusicPlaylistOverlay.OpenPlayer()
+                TITLE       = "🎵 Open Music Player & Playlist Manager",
+                DESCRIPTION = "Manage song folders, add audio files/links, and play music",
+                SIMILARITY  = 2.0,
+                EXECUTE     = () => MusicPlaylistOverlay.OpenPlayer()
             });
 
             return suggestions;
