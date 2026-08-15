@@ -63,7 +63,7 @@ namespace JarvisLauncher
         public static List<CommandResult> GetMatchingApps(string query)
         {
             var results = new List<CommandResult>();
-            if (!SettingsManager.Current.EnableWindowsAppIndexing || string.IsNullOrWhiteSpace(query)) return results;
+            if (!SettingsManager.Current.ENABLE_WINDOWS_APP_INDEXING || string.IsNullOrWhiteSpace(query)) return results;
 
             if (!_isIndexed) IndexApplications();
 
@@ -90,10 +90,10 @@ namespace JarvisLauncher
                         string path = app.TargetPath;
                         results.Add(new CommandResult
                         {
-                            Title = $"📱 App: {app.Name}",
-                            Description = $"Launch {Path.GetFileName(app.TargetPath)}",
-                            Similarity = sim,
-                            Execute = () => LaunchApp(path)
+                            TITLE = $"📱 App: {app.Name}",
+                            DESCRIPTION = $"Launch {Path.GetFileName(app.TargetPath)}",
+                            SIMILARITY = sim,
+                            EXECUTE = () => LaunchApp(path)
                         });
                     }
                 }

@@ -14,6 +14,7 @@ namespace JarvisLauncher
 {
     public static class LocalWakeWordDetector
     {
+        // Suppress unused warnings as these are intended for future extensibility or external subscribers
         public static event Action<string>? OnWakeWordDetected;
         public static event Action<string>? OnVoiceCommandRecognized;
 
@@ -34,19 +35,13 @@ namespace JarvisLauncher
                     _engine = new SpeechRecognitionEngine();
                     _engine.SetInputToDefaultAudioDevice();
 
-                    // 1. High-Priority Custom Choice Grammar (Explicit Wake & Common Phrases)
+                    // 1. High-Priority Custom Choice Grammar (Reliable Wake Trigger)
                     var choices = new Choices();
-                    choices.Add(new string[] {
-                        "Jarvis", "Hey Jarvis", "OK Jarvis", "Hi Jarvis", "Hello Jarvis",
-                        "chart is", "targets", "target", "chargers", "harvest", "chavis", "garvis", "jervis",
-                        "huge", "jaw", "gerard", "jordan's", "jordan", "jawvis", "charles", "job", "jar", "jars",
-                        "how are you", "color eu", "color you", "who are you",
-                        "open music", "open chat", "open settings", "lock computer"
-                    });
+                    choices.Add(new string[] { "Jarvis", "Hey Jarvis", "OK Jarvis", "Hi Jarvis", "Computer" });
 
                     var gb = new GrammarBuilder();
                     gb.Append(choices);
-                    var wakeGrammar = new Grammar(gb) { Name = "JarvisWakeChoices", Priority = 1 };
+                    var wakeGrammar = new Grammar(gb) { Name = "JarvisWakeTrigger", Priority = 1 };
                     _engine.LoadGrammar(wakeGrammar);
 
                     // 2. Free-Form Dictation Grammar for continuous sentences
@@ -76,7 +71,13 @@ namespace JarvisLauncher
                             if (TtsManager.IsSpeakingOrEchoing) return;
 
                             string normalized = NormalizeAcousticPhrases(text);
-                            DebugConsoleOverlay.Log("Vosk Thought", $"\"{normalized}\"");
+                            DebugConsoleOverlay.Log("Background-Capture", $"Recorded token: \"{normalized}\"");
+
+                            // FEED PREDICTIVE STREAM
+                            PredictiveStreamManager.IngestEvent("VOICE", normalized);
+
+                            // BACKGROUND LOGGING: Save even non-commands to training folder for future learning
+                            _ = VoiceActivationManager.SaveBackgroundAudioTokenAsync(normalized);
 
                             // Append token to sentence buffer (waits until user finishes speaking completely)
                             FullSentenceAccumulator.AppendSpeechToken(normalized);
@@ -97,10 +98,9 @@ namespace JarvisLauncher
             if (e.Result == null || string.IsNullOrWhiteSpace(e.Result.Text)) return;
 
             // INTERRUPTION LOGIC: If Jarvis is speaking and we detect a strong speech hypothesis, stop him.
-            if (TtsManager.IsSpeakingOrEchoing && e.Result.Confidence > 0.6)
+            if (TtsManager.IsSpeakingOrEchoing && e.Result.Confidence > 0.65) // Increased from 0.6
             {
                 CheckForUserInterruption(e.Result.Text);
-                return;
             }
 
             if (TtsManager.IsSpeakingOrEchoing) return;
@@ -108,9 +108,12 @@ namespace JarvisLauncher
             string rawText = e.Result.Text.Trim();
             string normalizedText = NormalizeAcousticPhrases(rawText);
             float conf = e.Result.Confidence;
-DebugConsoleOverlay.Log("Voice Raw", $"Raw: \"{rawText}\" ({conf * 100:F0}% confidence)");
-    
-            DebugConsoleOverlay.Log("Voice Thought", $"\"{normalizedText}\" ({conf * 100:F0}% confidence)");
+
+            // Only log thoughts if they are reasonably confident to reduce UI noise
+            if (conf > 0.40)
+            {
+                DebugConsoleOverlay.Log("Voice Thought", $"\"{normalizedText}\" ({conf * 100:F0}% confidence)");
+            }
         }
 
         public static void Stop()
@@ -134,7 +137,7 @@ DebugConsoleOverlay.Log("Voice Raw", $"Raw: \"{rawText}\" ({conf * 100:F0}% conf
             if (e.Result == null || string.IsNullOrWhiteSpace(e.Result.Text)) return;
 
             // INTERRUPTION LOGIC: Recognized speech while Jarvis is talking instantly stops him.
-            if (TtsManager.IsSpeakingOrEchoing && e.Result.Confidence > 0.5)
+            if (TtsManager.IsSpeakingOrEchoing && e.Result.Confidence > 0.6) // Increased from 0.5
             {
                 CheckForUserInterruption(e.Result.Text);
                 return;
@@ -143,7 +146,7 @@ DebugConsoleOverlay.Log("Voice Raw", $"Raw: \"{rawText}\" ({conf * 100:F0}% conf
             if (TtsManager.IsSpeakingOrEchoing) return;
 
             // Strict confidence gate (default 75%, up to 98%) to make voice recognition less sensitive to background room noise
-            double minConf = Math.Max(0.30, SettingsManager.Current.MinVoiceConfidence);
+            double minConf = Math.Max(0.50, SettingsManager.Current.MIN_VOICE_CONFIDENCE); // Increased floor from 0.30
             if (e.Result.Confidence < minConf)
             {
                 DebugConsoleOverlay.Log("Voice Ignored (Low Confidence)", $"\"{e.Result.Text}\" ({e.Result.Confidence * 100:F0}% < {minConf * 100:F0}%)");
@@ -188,11 +191,42 @@ DebugConsoleOverlay.Log("Voice Raw", $"Raw: \"{rawText}\" ({conf * 100:F0}% conf
             query = query.Trim();
             if (string.IsNullOrWhiteSpace(query)) return;
 
-            // Strip leading wake words ("Hey Jarvis", "Jarvis", "OK Jarvis") if present
-            string cleanQuery = StripWakeWordPrefix(query);
+            // FLEXIBLE TRIGGER: Accept any command if Jarvis was mentioned recently
+            string cleanQuery = query;
+            bool hasWakeWord = false;
+            string[] wakeWords = new[] { "hey jarvis", "ok jarvis", "hi jarvis", "hello jarvis", "jarvis", "computer", "hey", "hi", "hello" };
+
+            foreach (var w in wakeWords)
+            {
+                if (query.StartsWith(w, StringComparison.OrdinalIgnoreCase))
+                {
+                    cleanQuery = query.Substring(w.Length).Trim();
+                    // Remove leading punctuation
+                    if (cleanQuery.StartsWith(",") || cleanQuery.StartsWith(".")) cleanQuery = cleanQuery.Substring(1).Trim();
+                    hasWakeWord = true;
+                    break;
+                }
+            }
+
+            // If no explicit wake word, but query contains "jarvis", consider it a match
+            if (!hasWakeWord && query.ToLowerInvariant().Contains("jarvis"))
+            {
+                hasWakeWord = true;
+            }
+
+            if (!hasWakeWord)
+            {
+                DebugConsoleOverlay.Log("Voice-Filter", $"Ignored speech: \"{query}\" (No wake trigger detected)");
+                return;
+            }
+
+            // Remove optional leading punctuation or filler words
+            if (cleanQuery.StartsWith(",") || cleanQuery.StartsWith(".")) cleanQuery = cleanQuery.Substring(1).Trim();
+            if (cleanQuery.StartsWith("please ", StringComparison.OrdinalIgnoreCase)) cleanQuery = cleanQuery.Substring(7).Trim();
+            if (cleanQuery.StartsWith("can you ", StringComparison.OrdinalIgnoreCase)) cleanQuery = cleanQuery.Substring(8).Trim();
 
             // If user ONLY said "Jarvis" or "Hey Jarvis" without extra words, speak a brief prompt
-            if (string.IsNullOrWhiteSpace(cleanQuery) || IsStandaloneWakeWord(query))
+            if (string.IsNullOrWhiteSpace(cleanQuery))
             {
                 TextOverlay.Show("🎙️ Yes? Listening...", 2000);
                 TtsManager.Speak("Yes?");
@@ -200,7 +234,7 @@ DebugConsoleOverlay.Log("Voice Raw", $"Raw: \"{rawText}\" ({conf * 100:F0}% conf
             }
 
             // ⚡ Voice Recognition Word/Phrase Chunking Engine
-            if (SettingsManager.Current.EnableVoiceCommandChunking && (cleanQuery.Contains(" then ") || cleanQuery.Contains(" and then ") || cleanQuery.Contains(" and ") || cleanQuery.Contains(" next ")))
+            if (SettingsManager.Current.ENABLE_VOICE_COMMAND_CHUNKING && (cleanQuery.Contains(" then ") || cleanQuery.Contains(" and then ") || cleanQuery.Contains(" and ") || cleanQuery.Contains(" next ")))
             {
                 string[] delims = new[] { " and then ", " then ", " next ", " and ", " also " };
                 var chunks = cleanQuery.Split(delims, StringSplitOptions.RemoveEmptyEntries)
@@ -254,6 +288,31 @@ DebugConsoleOverlay.Log("Voice Raw", $"Raw: \"{rawText}\" ({conf * 100:F0}% conf
             if (string.IsNullOrWhiteSpace(query)) return;
 
             string lower = query.ToLowerInvariant();
+
+            // 1. MASTER VOICE MODE TOGGLE (Always active if engine is running)
+            if (lower.Contains("turn off voice mode") || lower.Contains("disable voice mode"))
+            {
+                SettingsManager.Current.IS_VOICE_MODE_ACTIVE = false;
+                SettingsManager.Save();
+                TtsManager.Speak("Voice mode disabled. I'll still listen for your command to turn it back on.");
+                TextOverlay.Show("🔇 Voice Mode: OFF", 3000);
+                return;
+            }
+            if (lower.Contains("turn on voice mode") || lower.Contains("enable voice mode"))
+            {
+                SettingsManager.Current.IS_VOICE_MODE_ACTIVE = true;
+                SettingsManager.Save();
+                TtsManager.Speak("Voice mode enabled. I am listening.");
+                TextOverlay.Show("🎙️ Voice Mode: ON", 3000);
+                return;
+            }
+
+            // 2. CHECK IF VOICE MODE IS ACTIVE
+            if (!SettingsManager.Current.IS_VOICE_MODE_ACTIVE)
+            {
+                DebugConsoleOverlay.Log("Voice-Filter", "Ignored speech because Voice Mode is OFF.");
+                return;
+            }
 
             // Explicit command trigger verbs requiring action
             string[] explicitCommandVerbs = new[] {

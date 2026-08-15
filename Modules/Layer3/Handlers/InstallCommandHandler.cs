@@ -26,10 +26,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "📥 Install Packages & Tools",
-                    Description = "Syntax: install [winget/npm/python/dotnet/url] [package_name]",
-                    Similarity = 5.0,
-                    Execute = () => TextOverlay.Show("Example: install winget sideloadly", 4000)
+                    TITLE = "📥 Install Packages & Tools",
+                    DESCRIPTION = "Syntax: install [winget/npm/python/dotnet/url] [package_name]",
+                    SIMILARITY = 5.0,
+                    EXECUTE = () => TextOverlay.Show("Example: install winget sideloadly", 4000)
                 });
                 return suggestions;
             }
@@ -39,10 +39,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🌐 Scrape & Install from: {args}",
-                    Description = "Downloads and executes Windows installer binary from this webpage",
-                    Similarity = 7.0,
-                    Execute = () =>
+                    TITLE = $"🌐 Scrape & Install from: {args}",
+                    DESCRIPTION = "Downloads and executes Windows installer binary from this webpage",
+                    SIMILARITY = 7.0,
+                    EXECUTE = () =>
                     {
                         Task.Run(async () =>
                         {
@@ -64,10 +64,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"📦 Install Winget Package: {pkg}",
-                    Description = $"Runs: winget install {pkg} --silent",
-                    Similarity = 6.8,
-                    Execute = () => RunInstallProcess("winget", $"install {pkg} --silent")
+                    TITLE = $"📦 Install Winget Package: {pkg}",
+                    DESCRIPTION = $"Runs: winget install {pkg} --silent",
+                    SIMILARITY = 6.8,
+                    EXECUTE = () => RunInstallProcess("winget", $"install {pkg} --silent")
                 });
             }
             // Route 3: NPM installer
@@ -75,10 +75,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"📦 Install NPM Package: {pkg}",
-                    Description = $"Runs: npm install -g {pkg}",
-                    Similarity = 6.8,
-                    Execute = () => RunInstallProcess("cmd.exe", $"/c npm install -g {pkg}")
+                    TITLE = $"📦 Install NPM Package: {pkg}",
+                    DESCRIPTION = $"Runs: npm install -g {pkg}",
+                    SIMILARITY = 6.8,
+                    EXECUTE = () => RunInstallProcess("cmd.exe", $"/c npm install -g {pkg}")
                 });
             }
             // Route 4: Python installer
@@ -86,10 +86,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🐍 Install Python pip Package: {pkg}",
-                    Description = $"Runs: pip install {pkg}",
-                    Similarity = 6.8,
-                    Execute = () => RunInstallProcess("cmd.exe", $"/c pip install {pkg}")
+                    TITLE = $"🐍 Install Python pip Package: {pkg}",
+                    DESCRIPTION = $"Runs: pip install {pkg}",
+                    SIMILARITY = 6.8,
+                    EXECUTE = () => RunInstallProcess("cmd.exe", $"/c pip install {pkg}")
                 });
             }
             // Route 5: Dotnet workloads installer
@@ -97,10 +97,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🛠️ Install .NET Workload: {pkg}",
-                    Description = $"Runs: dotnet workload install {pkg} --source https://api.nuget.org/v3/index.json",
-                    Similarity = 6.8,
-                    Execute = () => RunInstallProcess("dotnet", $"workload install {pkg} --source https://api.nuget.org/v3/index.json", runAsAdmin: true)
+                    TITLE = $"🛠️ Install .NET Workload: {pkg}",
+                    DESCRIPTION = $"Runs: dotnet workload install {pkg} --source https://api.nuget.org/v3/index.json",
+                    SIMILARITY = 6.8,
+                    EXECUTE = () => RunInstallProcess("dotnet", $"workload install {pkg} --source https://api.nuget.org/v3/index.json", runAsAdmin: true)
                 });
             }
             else
@@ -108,17 +108,17 @@ namespace JarvisLauncher
                 // General fallback: Winget search install
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"📥 Install '{args}' via Winget",
-                    Description = $"Runs: winget install {args}",
-                    Similarity = 6.0,
-                    Execute = () => RunInstallProcess("winget", $"install {args}")
+                    TITLE = $"📥 Install '{args}' via Winget",
+                    DESCRIPTION = $"Runs: winget install {args}",
+                    SIMILARITY = 6.0,
+                    EXECUTE = () => RunInstallProcess("winget", $"install {args}")
                 });
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🌐 Search and download installer for '{args}' from Web",
-                    Description = $"Opens Google search for '{args} download setup'",
-                    Similarity = 5.8,
-                    Execute = () => Process.Start(new ProcessStartInfo
+                    TITLE = $"🌐 Search and download installer for '{args}' from Web",
+                    DESCRIPTION = $"Opens Google search for '{args} download setup'",
+                    SIMILARITY = 5.8,
+                    EXECUTE = () => Process.Start(new ProcessStartInfo
                     {
                         FileName = $"https://www.google.com/search?q={Uri.EscapeDataString(args + " download windows setup msi")}",
                         UseShellExecute = true

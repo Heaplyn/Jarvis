@@ -162,24 +162,30 @@ namespace JarvisLauncher
             installWorkloadBtn.Click += (s, e) =>
             {
                 installWorkloadBtn.IsEnabled = false;
-                _logConsole.AppendText("📥 Initializing .NET iOS & MAUI Workload installation (Requires Admin elevation)...\n");
+                _logConsole.AppendText("🚀 Launching elevated command shell to install .NET iOS workload...\n");
                 Task.Run(() =>
                 {
                     try
                     {
                         var psi = new ProcessStartInfo
                         {
-                            FileName = "dotnet",
-                            Arguments = "workload install ios maui --source https://api.nuget.org/v3/index.json",
+                            FileName = "cmd.exe",
+                            Arguments = "/c echo Installing .NET iOS Workload (Requires Admin)... & dotnet workload install ios & echo. & echo Workload installation complete. Press any key to close. & pause > null",
                             Verb = "runas",
                             UseShellExecute = true
                         };
-                        Process.Start(psi);
+                        using var proc = Process.Start(psi);
+                        if (proc != null)
+                        {
+                            proc.WaitForExit();
+                            Application.Current.Dispatcher.Invoke(() =>
+                                _logConsole.AppendText("✅ Done! If the installer shell ran successfully, your iOS workload is ready.\n"));
+                        }
                     }
                     catch (Exception ex)
                     {
                         Application.Current.Dispatcher.Invoke(() =>
-                            _logConsole.AppendText($"⚠️ Workload install launch failed: {ex.Message}\n"));
+                            _logConsole.AppendText($"⚠️ Elevated install failed or cancelled: {ex.Message}\n"));
                     }
                     Application.Current.Dispatcher.Invoke(() => installWorkloadBtn.IsEnabled = true);
                 });
@@ -210,6 +216,10 @@ namespace JarvisLauncher
                 {
                     SideloadlyIntegrator.TriggerDownload();
                 }
+            };
+            this.Activated += (s, e) =>
+            {
+                sideloadBtn.Content = SideloadlyIntegrator.IsInstalled ? "📲 Sideloadly Sideload" : "📥 Install Sideloadly";
             };
             btnStack.Children.Add(sideloadBtn);
 

@@ -144,7 +144,12 @@ namespace JarvisLauncher
 
             this.Closed += (s, e) =>
             {
-                // This fires only on a true/force close, not on Hide()
+                // Ensure library state is persisted on close
+                if (_library != null)
+                {
+                    MusicPlaylistManager.SaveLibrary(_library);
+                }
+
                 _playTimer.Stop();
                 _mediaPlayer.Close();
                 try
@@ -527,7 +532,8 @@ namespace JarvisLauncher
             };
             _volumeSlider.ValueChanged += (s, e) =>
             {
-                _mediaPlayer.Volume = _volumeSlider.Value;
+                if (_mediaPlayer != null)
+                    _mediaPlayer.Volume = _volumeSlider.Value;
             };
             volStack.Children.Add(_volumeSlider);
             controlsPanel.Children.Add(volStack);
@@ -1370,7 +1376,13 @@ private void CopyTrackToFolder(MusicTrack track, MusicFolder destinationFolder)
                 PathOrUrl = filePath,
                 IsStreamUrl = false
             };
-            MusicPlaylistManager.AddTrackToFolderAndAllSongs(_library, _activeFolder!, track);
+
+            if (_activeFolder != null)
+            {
+                MusicPlaylistManager.AddTrackToFolderAndAllSongs(_library, _activeFolder, track);
+                // Force an immediate save to be safe
+                MusicPlaylistManager.SaveLibrary(_library);
+            }
         }
 
         private void BrowseAndAddFile()
@@ -1584,7 +1596,10 @@ private void CopyTrackToFolder(MusicTrack track, MusicFolder destinationFolder)
 
                 if (ct.IsCancellationRequested) return;
                 UpdateQueueItemStatus(queueItem, "Downloading...", "Downloading media...");
-                string musicDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Music", _activeFolder.FolderName);
+
+                // Use robust Downloads directory instead of AppDomain base
+                string baseDownloads = PathHandler.GetDownloadsDirectory();
+                string musicDir = Path.Combine(baseDownloads, "Music", _activeFolder.FolderName);
                 if (!Directory.Exists(musicDir)) Directory.CreateDirectory(musicDir);
 
                 DateTime startTime = DateTime.Now.AddSeconds(-2);

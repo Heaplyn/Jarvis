@@ -22,9 +22,9 @@ namespace JarvisLauncher
 
             suggestions.Add(new CommandResult
             {
-                Title = "🔄 Restart Jarvis HUD (Fresh Boot)",
-                Description = "Purge caches, clean build, and cold-start the application",
-                Execute = () =>
+                TITLE = "🔄 Restart Jarvis HUD (Fresh Boot)",
+                DESCRIPTION = "Purge caches, clean build, and cold-start the application",
+                EXECUTE = () =>
                 {
                     TextOverlay.Show("Initiating Fresh Restart...", 1000);
                     var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -35,7 +35,7 @@ namespace JarvisLauncher
                     };
                     timer.Start();
                 },
-                Similarity = 8.0
+                SIMILARITY = 8.0
             });
 
             return suggestions;

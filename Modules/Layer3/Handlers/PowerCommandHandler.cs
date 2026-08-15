@@ -30,30 +30,30 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "💤 Put PC to Sleep (Requires Confirmation)",
-                    Description = "Enter standby/sleep mode (asks for confirmation first)",
-                    Execute = () => TriggerPowerState("sleep"),
-                    Similarity = SearchUtil.GetSimilarity(query, "sleep")
+                    TITLE = "💤 Put PC to Sleep (Requires Confirmation)",
+                    DESCRIPTION = "Enter standby/sleep mode (asks for confirmation first)",
+                    EXECUTE = () => TriggerPowerState("sleep"),
+                    SIMILARITY = SearchUtil.GetSimilarity(query, "sleep")
                 });
             }
             else if (SearchUtil.IsClose(query, "shutdown") || query == "turn off computer" || query == "power off" || query == "shut down pc")
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🔌 Shut Down Computer (Requires Confirmation)",
-                    Description = "Close all apps & turn off the PC (asks for confirmation first)",
-                    Execute = () => TriggerPowerState("shutdown"),
-                    Similarity = 6.0
+                    TITLE = "🔌 Shut Down Computer (Requires Confirmation)",
+                    DESCRIPTION = "Close all apps & turn off the PC (asks for confirmation first)",
+                    EXECUTE = () => TriggerPowerState("shutdown"),
+                    SIMILARITY = 6.0
                 });
             }
             else if (SearchUtil.IsClose(query, "rebootpc") || SearchUtil.IsClose(query, "restartpc") || query == "restart")
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🔄 Restart Computer (Requires Confirmation)",
-                    Description = "Reboot operating system (asks for confirmation first)",
-                    Execute = () => TriggerPowerState("restart"),
-                    Similarity = 6.0
+                    TITLE = "🔄 Restart Computer (Requires Confirmation)",
+                    DESCRIPTION = "Reboot operating system (asks for confirmation first)",
+                    EXECUTE = () => TriggerPowerState("restart"),
+                    SIMILARITY = 6.0
                 });
             }
 

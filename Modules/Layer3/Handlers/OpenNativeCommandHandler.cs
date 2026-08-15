@@ -30,28 +30,28 @@ namespace JarvisLauncher
                 string targetPath = parts[1].Trim();
                 suggestions.Add(new CommandResult
                 {
-                    Title       = $"Open Natively: {Path.GetFileName(targetPath)}",
-                    Description = $"Open \"{targetPath}\" with its default associated Windows application",
-                    Similarity  = 2.0, // High priority match
-                    Execute     = () => OpenNatively(targetPath)
+                    TITLE       = $"Open Natively: {Path.GetFileName(targetPath)}",
+                    DESCRIPTION = $"Open \"{targetPath}\" with its default associated Windows application",
+                    SIMILARITY  = 2.0, // High priority match
+                    EXECUTE     = () => OpenNatively(targetPath)
                 });
             }
             else
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title       = "Browse File to Open...",
-                    Description = "Open Windows file explorer to select a file to run natively",
-                    Similarity  = similarity + 0.6,
-                    Execute     = () => PromptAndOpenNatively()
+                    TITLE       = "Browse File to Open...",
+                    DESCRIPTION = "Open Windows file explorer to select a file to run natively",
+                    SIMILARITY  = similarity + 0.6,
+                    EXECUTE     = () => PromptAndOpenNatively()
                 });
 
                 suggestions.Add(new CommandResult
                 {
-                    Title       = "Open File (Prompt)...",
-                    Description = "Enter a file path to launch natively using Windows Shell",
-                    Similarity  = similarity + 0.3,
-                    Execute     = () => InputPromptOverlay.Show("Enter file path to open natively:", (path) => OpenNatively(path))
+                    TITLE       = "Open File (Prompt)...",
+                    DESCRIPTION = "Enter a file path to launch natively using Windows Shell",
+                    SIMILARITY  = similarity + 0.3,
+                    EXECUTE     = () => InputPromptOverlay.Show("Enter file path to open natively:", (path) => OpenNatively(path))
                 });
             }
 

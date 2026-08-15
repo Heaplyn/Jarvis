@@ -33,8 +33,8 @@ namespace JarvisLauncher
         public static async Task<bool> EnsureGoogleAuthenticatedAsync(Action<string>? statusCallback = null)
         {
             // Case 1: No local session footprints exist at all -> Prompt full login
-            if (string.IsNullOrWhiteSpace(SettingsManager.Current.GoogleOAuthAccessToken) &&
-                string.IsNullOrWhiteSpace(SettingsManager.Current.GoogleOAuthRefreshToken))
+            if (string.IsNullOrWhiteSpace(SettingsManager.Current.GOOGLE_OAUTH_ACCESS_TOKEN) &&
+                string.IsNullOrWhiteSpace(SettingsManager.Current.GOOGLE_OAUTH_REFRESH_TOKEN))
             {
                 return await LoginGoogleOAuth2Async(statusCallback);
             }
@@ -42,21 +42,21 @@ namespace JarvisLauncher
             statusCallback?.Invoke("🔍 Verifying current login session...");
 
             // Case 2: Access token exists, check with Google endpoint to see if it is still valid
-            bool tokenIsValid = await VerifyGoogleTokenValidityAsync(SettingsManager.Current.GoogleOAuthAccessToken);
+            bool tokenIsValid = await VerifyGoogleTokenValidityAsync(SettingsManager.Current.GOOGLE_OAUTH_ACCESS_TOKEN);
             if (tokenIsValid)
             {
-                statusCallback?.Invoke($"🟢 Active: {SettingsManager.Current.GoogleOAuthUserEmail}");
+                statusCallback?.Invoke($"🟢 Active: {SettingsManager.Current.GOOGLE_OAUTH_USER_EMAIL}");
                 return true;
             }
 
             // Case 3: Access token is dead but a refresh token is present -> Attempt background renewal
-            if (!string.IsNullOrWhiteSpace(SettingsManager.Current.GoogleOAuthRefreshToken))
+            if (!string.IsNullOrWhiteSpace(SettingsManager.Current.GOOGLE_OAUTH_REFRESH_TOKEN))
             {
                 statusCallback?.Invoke("🔄 Session expired. Renewing credentials...");
                 bool refreshSuccess = await RefreshGoogleTokenAsync();
                 if (refreshSuccess)
                 {
-                    statusCallback?.Invoke($"🟢 Session Restored: {SettingsManager.Current.GoogleOAuthUserEmail}");
+                    statusCallback?.Invoke($"🟢 Session Restored: {SettingsManager.Current.GOOGLE_OAUTH_USER_EMAIL}");
                     return true;
                 }
             }
@@ -71,9 +71,9 @@ namespace JarvisLauncher
         /// </summary>
         public static async Task<bool> LoginGoogleOAuth2Async(Action<string>? statusCallback = null)
         {
-            string clientId = string.IsNullOrWhiteSpace(SettingsManager.Current.GoogleOAuthClientId)
+            string clientId = string.IsNullOrWhiteSpace(SettingsManager.Current.GOOGLE_OAUTH_CLIENT_ID)
                 ? DefaultGoogleClientId
-                : SettingsManager.Current.GoogleOAuthClientId;
+                : SettingsManager.Current.GOOGLE_OAUTH_CLIENT_ID;
 
             int port = GetRandomUnusedPort();
             string redirectUri = $"http://127.0.0.1:{port}/oauth/callback/";
@@ -103,7 +103,7 @@ namespace JarvisLauncher
 
             statusCallback?.Invoke("⏳ Exchanging code for access token...");
             bool ok = await ExchangeGoogleCodeAsync(code, clientId, redirectUri, codeVerifier);
-            statusCallback?.Invoke(ok ? $"🟢 Connected: {SettingsManager.Current.GoogleOAuthUserEmail}" : "❌ Google token exchange failed.");
+            statusCallback?.Invoke(ok ? $"🟢 Connected: {SettingsManager.Current.GOOGLE_OAUTH_USER_EMAIL}" : "❌ Google token exchange failed.");
             return ok;
         }
 
@@ -112,9 +112,9 @@ namespace JarvisLauncher
         /// </summary>
         public static async Task<bool> LoginGithubOAuth2Async(Action<string>? statusCallback = null)
         {
-            string clientId = string.IsNullOrWhiteSpace(SettingsManager.Current.GithubOAuthClientId)
+            string clientId = string.IsNullOrWhiteSpace(SettingsManager.Current.GITHUB_OAUTH_CLIENT_ID)
                 ? DefaultGithubClientId
-                : SettingsManager.Current.GithubOAuthClientId;
+                : SettingsManager.Current.GITHUB_OAUTH_CLIENT_ID;
 
             int port = GetRandomUnusedPort();
             string redirectUri = $"http://127.0.0.1:{port}/oauth/callback/";
@@ -135,7 +135,7 @@ namespace JarvisLauncher
 
             statusCallback?.Invoke("⏳ Exchanging code for access token...");
             bool ok = await ExchangeGithubCodeAsync(code, clientId, redirectUri);
-            statusCallback?.Invoke(ok ? $"🟢 Connected: @{SettingsManager.Current.GithubOAuthUserLogin}" : "❌ GitHub token exchange failed.");
+            statusCallback?.Invoke(ok ? $"🟢 Connected: @{SettingsManager.Current.GITHUB_OAUTH_USER_LOGIN}" : "❌ GitHub token exchange failed.");
             return ok;
         }
 
@@ -199,7 +199,7 @@ namespace JarvisLauncher
         {
             try
             {
-                string clientSecret = SettingsManager.Current.GoogleOAuthClientSecret;
+                string clientSecret = SettingsManager.Current.GOOGLE_OAUTH_CLIENT_SECRET;
 
                 var values = new Dictionary<string, string>
                 {
@@ -223,11 +223,11 @@ namespace JarvisLauncher
                 if (doc.RootElement.TryGetProperty("access_token", out var tok))
                 {
                     string accessToken = tok.GetString() ?? "";
-                    SettingsManager.Current.GoogleOAuthAccessToken = accessToken;
+                    SettingsManager.Current.GOOGLE_OAUTH_ACCESS_TOKEN = accessToken;
 
                     if (doc.RootElement.TryGetProperty("refresh_token", out var refTok))
                     {
-                        SettingsManager.Current.GoogleOAuthRefreshToken = refTok.GetString() ?? "";
+                        SettingsManager.Current.GOOGLE_OAUTH_REFRESH_TOKEN = refTok.GetString() ?? "";
                     }
 
                     await FetchGoogleUserInfoAsync(accessToken);
@@ -249,20 +249,20 @@ namespace JarvisLauncher
         {
             try
             {
-                string clientId = string.IsNullOrWhiteSpace(SettingsManager.Current.GoogleOAuthClientId)
+                string clientId = string.IsNullOrWhiteSpace(SettingsManager.Current.GOOGLE_OAUTH_CLIENT_ID)
                     ? DefaultGoogleClientId
-                    : SettingsManager.Current.GoogleOAuthClientId;
+                    : SettingsManager.Current.GOOGLE_OAUTH_CLIENT_ID;
 
                 var values = new Dictionary<string, string>
                 {
                     ["client_id"] = clientId,
-                    ["refresh_token"] = SettingsManager.Current.GoogleOAuthRefreshToken,
+                    ["refresh_token"] = SettingsManager.Current.GOOGLE_OAUTH_REFRESH_TOKEN,
                     ["grant_type"] = "refresh_token"
                 };
 
-                if (!string.IsNullOrWhiteSpace(SettingsManager.Current.GoogleOAuthClientSecret))
+                if (!string.IsNullOrWhiteSpace(SettingsManager.Current.GOOGLE_OAUTH_CLIENT_SECRET))
                 {
-                    values["client_secret"] = SettingsManager.Current.GoogleOAuthClientSecret;
+                    values["client_secret"] = SettingsManager.Current.GOOGLE_OAUTH_CLIENT_SECRET;
                 }
 
                 var content = new FormUrlEncodedContent(values);
@@ -274,7 +274,7 @@ namespace JarvisLauncher
                 if (doc.RootElement.TryGetProperty("access_token", out var tok))
                 {
                     string accessToken = tok.GetString() ?? "";
-                    SettingsManager.Current.GoogleOAuthAccessToken = accessToken;
+                    SettingsManager.Current.GOOGLE_OAUTH_ACCESS_TOKEN = accessToken;
 
                     await FetchGoogleUserInfoAsync(accessToken);
                     SettingsManager.Save();
@@ -315,7 +315,7 @@ namespace JarvisLauncher
                     using var doc = JsonDocument.Parse(json);
                     if (doc.RootElement.TryGetProperty("email", out var email))
                     {
-                        SettingsManager.Current.GoogleOAuthUserEmail = email.GetString() ?? "";
+                        SettingsManager.Current.GOOGLE_OAUTH_USER_EMAIL = email.GetString() ?? "";
                     }
                 }
             }
@@ -326,7 +326,7 @@ namespace JarvisLauncher
         {
             try
             {
-                string clientSecret = SettingsManager.Current.GithubOAuthClientSecret;
+                string clientSecret = SettingsManager.Current.GITHUB_OAUTH_CLIENT_SECRET;
                 var values = new Dictionary<string, string>
                 {
                     ["client_id"] = clientId,
@@ -352,7 +352,7 @@ namespace JarvisLauncher
                 if (doc.RootElement.TryGetProperty("access_token", out var tok))
                 {
                     string accessToken = tok.GetString() ?? "";
-                    SettingsManager.Current.GithubToken = accessToken;
+                    SettingsManager.Current.GITHUB_TOKEN = accessToken;
 
                     await FetchGithubUserInfoAsync(accessToken);
                     SettingsManager.Save();
@@ -380,7 +380,7 @@ namespace JarvisLauncher
                     using var doc = JsonDocument.Parse(json);
                     if (doc.RootElement.TryGetProperty("login", out var login))
                     {
-                        SettingsManager.Current.GithubOAuthUserLogin = login.GetString() ?? "";
+                        SettingsManager.Current.GITHUB_OAUTH_USER_LOGIN = login.GetString() ?? "";
                     }
                 }
             }
@@ -422,16 +422,16 @@ namespace JarvisLauncher
 
         public static void SignOutGoogle()
         {
-            SettingsManager.Current.GoogleOAuthAccessToken = string.Empty;
-            SettingsManager.Current.GoogleOAuthRefreshToken = string.Empty;
-            SettingsManager.Current.GoogleOAuthUserEmail = string.Empty;
+            SettingsManager.Current.GOOGLE_OAUTH_ACCESS_TOKEN = string.Empty;
+            SettingsManager.Current.GOOGLE_OAUTH_REFRESH_TOKEN = string.Empty;
+            SettingsManager.Current.GOOGLE_OAUTH_USER_EMAIL = string.Empty;
             SettingsManager.Save();
         }
 
         public static void SignOutGithub()
         {
-            SettingsManager.Current.GithubToken = string.Empty;
-            SettingsManager.Current.GithubOAuthUserLogin = string.Empty;
+            SettingsManager.Current.GITHUB_TOKEN = string.Empty;
+            SettingsManager.Current.GITHUB_OAUTH_USER_LOGIN = string.Empty;
             SettingsManager.Save();
         }
     }

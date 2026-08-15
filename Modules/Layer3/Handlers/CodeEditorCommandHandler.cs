@@ -28,9 +28,9 @@ namespace JarvisLauncher
                 var editors = CodeEditorManager.GetInstalledEditors();
                 suggestions.Add(new CommandResult
                 {
-                    Title = "Installed Code Editors",
-                    Description = editors.Count > 0 ? string.Join(", ", editors) : "No major IDEs detected in PATH",
-                    Similarity = 5.0
+                    TITLE = "Installed Code Editors",
+                    DESCRIPTION = editors.Count > 0 ? string.Join(", ", editors) : "No major IDEs detected in PATH",
+                    SIMILARITY = 5.0
                 });
                 return suggestions;
             }
@@ -39,30 +39,30 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"Open in VS Code: {Path.GetFileName(path)}",
-                    Description = $"Launch Visual Studio Code for {path}",
-                    Similarity = 4.5,
-                    Execute = () => CodeEditorManager.OpenInVSCode(path)
+                    TITLE = $"Open in VS Code: {Path.GetFileName(path)}",
+                    DESCRIPTION = $"Launch Visual Studio Code for {path}",
+                    SIMILARITY = 4.5,
+                    EXECUTE = () => CodeEditorManager.OpenInVSCode(path)
                 });
             }
             else if (cmd == "cursor")
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"Open in Cursor: {Path.GetFileName(path)}",
-                    Description = $"Launch Cursor IDE for {path}",
-                    Similarity = 4.5,
-                    Execute = () => CodeEditorManager.OpenInCursor(path)
+                    TITLE = $"Open in Cursor: {Path.GetFileName(path)}",
+                    DESCRIPTION = $"Launch Cursor IDE for {path}",
+                    SIMILARITY = 4.5,
+                    EXECUTE = () => CodeEditorManager.OpenInCursor(path)
                 });
             }
             else if (cmd == "vs")
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"Open in Visual Studio: {Path.GetFileName(path)}",
-                    Description = $"Launch MS Visual Studio for {path}",
-                    Similarity = 4.5,
-                    Execute = () => CodeEditorManager.OpenInVisualStudio(path)
+                    TITLE = $"Open in Visual Studio: {Path.GetFileName(path)}",
+                    DESCRIPTION = $"Launch MS Visual Studio for {path}",
+                    SIMILARITY = 4.5,
+                    EXECUTE = () => CodeEditorManager.OpenInVisualStudio(path)
                 });
             }
 

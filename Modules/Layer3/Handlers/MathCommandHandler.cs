@@ -33,10 +33,10 @@ namespace JarvisLauncher
                     var resultStr = result.ToString() ?? "";
                     suggestions.Add(new CommandResult
                     {
-                        Title = resultStr,
-                        Description = $"Math expression: {query} (Press Enter to copy)",
-                        Execute = () => System.Windows.Clipboard.SetText(resultStr),
-                        Similarity = 1.5
+                        TITLE = resultStr,
+                        DESCRIPTION = $"Math expression: {query} (Press Enter to copy)",
+                        EXECUTE = () => System.Windows.Clipboard.SetText(resultStr),
+                        SIMILARITY = 1.5
                     });
                 }
             }

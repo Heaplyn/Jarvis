@@ -90,12 +90,12 @@ namespace JarvisLauncher
     {
         public static event Action<double>? OnTextOpacityChanged;
 
-        public static void TriggerTextOpacityChange(double opacity)
+        public static void TriggerTextOpacityChange(double Opacity)
         {
-            OnTextOpacityChanged?.Invoke(opacity);
+            OnTextOpacityChanged?.Invoke(Opacity);
         }
 
-        public static Dictionary<CommandType, CommandDictType> Handlers = new Dictionary<CommandType, CommandDictType>();
+        public static Dictionary<CommandType, CommandDictType> HANDLERS = new Dictionary<CommandType, CommandDictType>();
 
         static CommandParser()
         {
@@ -172,29 +172,29 @@ namespace JarvisLauncher
             RegisterHandler(CommandType.WEB_OP, "Download, scrape, or search the web", () => new WebOperationCommandHandler());
         }
 
-        private static void RegisterHandler(CommandType type, string description, Func<ICommandHandler> factory)
+        private static void RegisterHandler(CommandType Type, string Description, Func<ICommandHandler> Factory)
         {
             try
             {
-                var handler = factory();
-                Handlers[type] = new CommandDictType(description, handler);
+                var Handler = Factory();
+                HANDLERS[Type] = new CommandDictType(Description, Handler);
             }
-            catch (Exception ex)
+            catch (Exception Ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Failed to load command handler {type}: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Failed to load command handler {Type}: {Ex.Message}");
             }
         }
 
-        public static bool IsKnownLocalCommand(string query)
+        public static bool IsKnownLocalCommand(string Query)
         {
-            if (string.IsNullOrWhiteSpace(query)) return false;
-            string q = query.Trim().ToLower();
+            if (string.IsNullOrWhiteSpace(Query)) return false;
+            string Q = Query.Trim().ToLower();
 
-            foreach (var pair in Handlers.Values)
+            foreach (var Pair in HANDLERS.Values)
             {
                 try
                 {
-                    if (pair.Item2.CanHandle(q))
+                    if (Pair.Item2.CanHandle(Q))
                     {
                         return true;
                     }
@@ -204,88 +204,88 @@ namespace JarvisLauncher
 
             try
             {
-                var matchingApps = WindowsAppScanner.GetMatchingApps(q);
-                if (matchingApps != null && matchingApps.Count > 0) return true;
+                var MatchingApps = WindowsAppScanner.GetMatchingApps(Q);
+                if (MatchingApps != null && MatchingApps.Count > 0) return true;
             }
             catch { }
 
             return false;
         }
 
-        public static List<CommandResult> GetSuggestions(string query)
+        public static List<CommandResult> GetSuggestions(string Query)
         {
-            var suggestions = new List<CommandResult>();
+            var Suggestions = new List<CommandResult>();
 
-            if (string.IsNullOrWhiteSpace(query))
+            if (string.IsNullOrWhiteSpace(Query))
             {
-                return suggestions;
+                return Suggestions;
             }
 
-            query = query.Trim();
+            Query = Query.Trim();
 
             // Handle inline command chaining via '|' or '&&'
-            if (query.Contains(" | ") || query.Contains(" && "))
+            if (Query.Contains(" | ") || Query.Contains(" && "))
             {
-                string[] chainParts = query.Split(new[] { " | ", " && " }, StringSplitOptions.RemoveEmptyEntries);
-                if (chainParts.Length > 1)
+                string[] ChainParts = Query.Split(new[] { " | ", " && " }, StringSplitOptions.RemoveEmptyEntries);
+                if (ChainParts.Length > 1)
                 {
-                    suggestions.Add(new CommandResult
+                    Suggestions.Add(new CommandResult
                     {
-                        Title       = $"⚡ Execute Chained Pipeline ({chainParts.Length} Commands)",
-                        Description = $"Run: {query}",
-                        Similarity  = 5.0,
-                        Execute     = () => ExecuteChainedPipeline(chainParts)
+                        TITLE       = $"⚡ Execute Chained Pipeline ({ChainParts.Length} Commands)",
+                        DESCRIPTION = $"Run: {Query}",
+                        SIMILARITY  = 5.0,
+                        EXECUTE     = () => ExecuteChainedPipeline(ChainParts)
                     });
                 }
             }
 
             // 1. Expand aliases before evaluation
-            string expandedQuery = query;
-            var parts = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length > 0)
+            string ExpandedQuery = Query;
+            var Parts = Query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (Parts.Length > 0)
             {
-                string firstWord = parts[0].ToLower();
-                var currentAliases = SettingsManager.Current.Aliases;
-                if (currentAliases.TryGetValue(firstWord, out string? expansion))
+                string FirstWord = Parts[0].ToLower();
+                var CurrentAliases = SettingsManager.Current.ALIASES;
+                if (CurrentAliases.TryGetValue(FirstWord, out string? Expansion))
                 {
-                    string remainder = query.Substring(parts[0].Length).Trim();
-                    expandedQuery = string.IsNullOrEmpty(remainder) ? expansion : $"{expansion} {remainder}";
+                    string Remainder = Query.Substring(Parts[0].Length).Trim();
+                    ExpandedQuery = string.IsNullOrEmpty(Remainder) ? Expansion : $"{Expansion} {Remainder}";
                 }
             }
 
             // 2. Inject ML-learned history suggestions for short queries (fast recall)
-            if (expandedQuery.Length <= 4)
+            if (ExpandedQuery.Length <= 4)
             {
-                var topResults = QueryLearner.GetTopResults(expandedQuery, topN: 3);
-                foreach (var (title, origQuery, count) in topResults)
+                var TopResults = QueryLearner.GetTopResults(ExpandedQuery, topN: 3);
+                foreach (var (Title, OrigQuery, Count) in TopResults)
                 {
-                    string targetQuery = origQuery;
-                    suggestions.Add(new CommandResult
+                    string TargetQuery = OrigQuery;
+                    Suggestions.Add(new CommandResult
                     {
-                        Title       = title.StartsWith("⭐ ") ? title : $"⭐ {title}",
-                        Description = $"Recently used ({count}×) — click or press Enter to run",
-                        Similarity  = 7.0 + Math.Min(3.0, Math.Sqrt(count) * 0.5), // Always at top
-                        Execute     = () => ExecuteFirstSuggestion(targetQuery)
+                        TITLE       = Title.StartsWith("⭐ ") ? Title : $"⭐ {Title}",
+                        DESCRIPTION = $"Recently used ({Count}×) — click or press Enter to run",
+                        SIMILARITY  = 7.0 + Math.Min(3.0, Math.Sqrt(Count) * 0.5), // Always at top
+                        EXECUTE     = () => ExecuteFirstSuggestion(TargetQuery)
                     });
                 }
             }
 
             // 3. Handler suggestions (check both raw query and space-stripped query e.g. "pre cache" -> "precache")
-            string noSpacesQuery = expandedQuery.Replace(" ", "").Replace("-", "");
-            foreach (var (type, handler) in Handlers)
+            string NoSpacesQuery = ExpandedQuery.Replace(" ", "").Replace("-", "");
+            foreach (var (Type, Handler) in HANDLERS)
             {
                 try
                 {
-                    if (handler.Item2.CanHandle(expandedQuery) || handler.Item2.CanHandle(noSpacesQuery))
+                    if (Handler.Item2.CanHandle(ExpandedQuery) || Handler.Item2.CanHandle(NoSpacesQuery))
                     {
-                        var results = handler.Item2.GetSuggestions(expandedQuery);
-                        if (results == null || results.Count == 0)
+                        var Results = Handler.Item2.GetSuggestions(ExpandedQuery);
+                        if (Results == null || Results.Count == 0)
                         {
-                            results = handler.Item2.GetSuggestions(noSpacesQuery);
+                            Results = Handler.Item2.GetSuggestions(NoSpacesQuery);
                         }
-                        if (results != null && results.Count > 0)
+                        if (Results != null && Results.Count > 0)
                         {
-                            suggestions.AddRange(results);
+                            Suggestions.AddRange(Results);
                         }
                     }
                 }
@@ -298,10 +298,10 @@ namespace JarvisLauncher
             // 3b. Windows Installed Apps autocomplete
             try
             {
-                var appMatches = WindowsAppScanner.GetMatchingApps(expandedQuery);
-                if (appMatches.Count > 0)
+                var AppMatches = WindowsAppScanner.GetMatchingApps(ExpandedQuery);
+                if (AppMatches.Count > 0)
                 {
-                    suggestions.AddRange(appMatches);
+                    Suggestions.AddRange(AppMatches);
                 }
             }
             catch { }
@@ -309,44 +309,44 @@ namespace JarvisLauncher
             // 4. Global fuzzy & partial prefix matching against ALL registered Jarvis command definitions
             try
             {
-                var allDescs = GetAllCommandDescriptions();
-                string lowerQuery = expandedQuery.ToLower().Trim();
-                string lowerNoSpaces = lowerQuery.Replace(" ", "").Replace("-", "");
+                var AllDescs = GetAllCommandDescriptions();
+                string LowerQuery = ExpandedQuery.ToLower().Trim();
+                string LowerNoSpaces = LowerQuery.Replace(" ", "").Replace("-", "");
 
-                foreach (var cd in allDescs)
+                foreach (var Cd in AllDescs)
                 {
-                    if (cd == null || string.IsNullOrWhiteSpace(cd.CommandName)) continue;
+                    if (Cd == null || string.IsNullOrWhiteSpace(Cd.COMMAND_NAME)) continue;
 
-                    string cmdName = cd.CommandName.ToLower();
-                    string cmdNameNoSpaces = cmdName.Replace(" ", "").Replace("-", "");
-                    string example = (cd.CommandExample ?? "").ToLower();
-                    string exampleNoSpaces = example.Replace(" ", "").Replace("-", "");
-                    string desc    = (cd.CommandDescription ?? "").ToLower();
+                    string CmdName = Cd.COMMAND_NAME.ToLower();
+                    string CmdNameNoSpaces = CmdName.Replace(" ", "").Replace("-", "");
+                    string Example = (Cd.COMMAND_EXAMPLE ?? "").ToLower();
+                    string ExampleNoSpaces = Example.Replace(" ", "").Replace("-", "");
+                    string Desc    = (Cd.COMMAND_DESCRIPTION ?? "").ToLower();
 
                     // Enhanced matching: prefix, substring, acronym, word-boundary, description, & space-insensitive
-                    bool isMatch = cmdName.StartsWith(lowerQuery)      || cmdNameNoSpaces.StartsWith(lowerNoSpaces) ||
-                                   example.StartsWith(lowerQuery)      || exampleNoSpaces.StartsWith(lowerNoSpaces) ||
-                                   cmdName.Contains(lowerQuery)        || cmdNameNoSpaces.Contains(lowerNoSpaces) ||
-                                   desc.Contains(lowerQuery)           || desc.Contains(lowerNoSpaces) ||
-                                   SearchUtil.IsAcronymMatch(lowerQuery, cmdName) ||
-                                   SearchUtil.IsClose(lowerQuery, cmdName) ||
-                                   SearchUtil.IsClose(lowerNoSpaces, cmdNameNoSpaces);
+                    bool IsMatch = CmdName.StartsWith(LowerQuery)      || CmdNameNoSpaces.StartsWith(LowerNoSpaces) ||
+                                   Example.StartsWith(LowerQuery)      || ExampleNoSpaces.StartsWith(LowerNoSpaces) ||
+                                   CmdName.Contains(LowerQuery)        || CmdNameNoSpaces.Contains(LowerNoSpaces) ||
+                                   Desc.Contains(LowerQuery)           || Desc.Contains(LowerNoSpaces) ||
+                                   SearchUtil.IsAcronymMatch(LowerQuery, CmdName) ||
+                                   SearchUtil.IsClose(LowerQuery, CmdName) ||
+                                   SearchUtil.IsClose(LowerNoSpaces, CmdNameNoSpaces);
 
-                    if (isMatch)
+                    if (IsMatch)
                     {
-                        double sim = SearchUtil.GetSimilarity(lowerQuery, cmdName);
-                        if (sim < 1.0) sim = (cmdName.StartsWith(lowerQuery) || cmdNameNoSpaces.StartsWith(lowerNoSpaces)) ? 4.5 : (example.StartsWith(lowerQuery) ? 4.0 : 2.5);
+                        double Sim = SearchUtil.GetSimilarity(LowerQuery, CmdName);
+                        if (Sim < 1.0) Sim = (CmdName.StartsWith(LowerQuery) || CmdNameNoSpaces.StartsWith(LowerNoSpaces)) ? 4.5 : (Example.StartsWith(LowerQuery) ? 4.0 : 2.5);
 
                         // Avoid duplicates if specific handler already produced exact card
-                        if (!suggestions.Any(s => s.Title.IndexOf(cd.CommandName, StringComparison.OrdinalIgnoreCase) >= 0 || (!string.IsNullOrEmpty(cd.CommandExample) && s.Title.IndexOf(cd.CommandExample, StringComparison.OrdinalIgnoreCase) >= 0)))
+                        if (!Suggestions.Any(s => s.TITLE.IndexOf(Cd.COMMAND_NAME, StringComparison.OrdinalIgnoreCase) >= 0 || (!string.IsNullOrEmpty(Cd.COMMAND_EXAMPLE) && s.TITLE.IndexOf(Cd.COMMAND_EXAMPLE, StringComparison.OrdinalIgnoreCase) >= 0)))
                         {
-                            string runTarget = !string.IsNullOrWhiteSpace(cd.CommandExample) ? cd.CommandExample : cd.CommandName;
-                            suggestions.Add(new CommandResult
+                            string RunTarget = !string.IsNullOrWhiteSpace(Cd.COMMAND_EXAMPLE) ? Cd.COMMAND_EXAMPLE : Cd.COMMAND_NAME;
+                            Suggestions.Add(new CommandResult
                             {
-                                Title       = $"⚡ Command: {cd.CommandName}",
-                                Description = $"{cd.CommandDescription} (Example: {cd.CommandExample})",
-                                Similarity  = sim,
-                                Execute     = () => ExecuteFirstSuggestion(runTarget)
+                                TITLE       = $"⚡ Command: {Cd.COMMAND_NAME}",
+                                DESCRIPTION = $"{Cd.COMMAND_DESCRIPTION} (Example: {Cd.COMMAND_EXAMPLE})",
+                                SIMILARITY  = Sim,
+                                EXECUTE     = () => ExecuteFirstSuggestion(RunTarget)
                             });
                         }
                     }
@@ -355,54 +355,54 @@ namespace JarvisLauncher
             catch { }
 
             // 5. Apply ML learned boost on top of every suggestion's raw similarity
-            foreach (var s in suggestions)
+            foreach (var S in Suggestions)
             {
-                double boost = QueryLearner.GetBoost(expandedQuery, s.Title);
-                if (boost > 0) s.Similarity += boost;
+                double Boost = QueryLearner.GetBoost(ExpandedQuery, S.TITLE);
+                if (Boost > 0) S.SIMILARITY += Boost;
             }
 
             // 6. Deduplicate by title (keep highest scoring) then sort descending
-            var deduped = suggestions
-                .GroupBy(s => s.Title, StringComparer.OrdinalIgnoreCase)
-                .Select(g => g.OrderByDescending(s => s.Similarity).First())
-                .OrderByDescending(s => s.Similarity)
+            var Deduped = Suggestions
+                .GroupBy(s => s.TITLE, StringComparer.OrdinalIgnoreCase)
+                .Select(g => g.OrderByDescending(s => s.SIMILARITY).First())
+                .OrderByDescending(s => s.SIMILARITY)
                 .ToList();
 
             // 7. Last Resort: If no high-confidence command or app exists, suggest AI Chat
-            if (!string.IsNullOrWhiteSpace(expandedQuery) && !deduped.Any(s => s.Similarity >= 8.0))
+            if (!string.IsNullOrWhiteSpace(ExpandedQuery) && !Deduped.Any(s => s.SIMILARITY >= 8.0))
             {
-                deduped.Add(new CommandResult
+                Deduped.Add(new CommandResult
                 {
-                    Title = $"🧠 Ask Assistant: \"{expandedQuery}\"",
-                    Description = "No exact command match found. Route this query to Jarvis AI Chat.",
-                    Similarity = 1.0, // Low but present
-                    Execute = () => ChatOverlay.SubmitTextMessage(expandedQuery)
+                    TITLE = $"🧠 Ask Assistant: \"{ExpandedQuery}\"",
+                    DESCRIPTION = "No exact command match found. Route this query to Jarvis AI Chat.",
+                    SIMILARITY = 1.0, // Low but present
+                    EXECUTE = () => _ = ChatOverlay.SubmitTextMessage(ExpandedQuery)
                 });
             }
 
-            return deduped.Take(12).ToList();
+            return Deduped.Take(12).ToList();
         }
 
-        public static void ExecuteFirstSuggestion(string query)
+        public static void ExecuteFirstSuggestion(string Query)
         {
-            if (string.IsNullOrWhiteSpace(query)) return;
+            if (string.IsNullOrWhiteSpace(Query)) return;
 
-            string cleanQuery = CleanTitlePrefixes(query);
-            string lowerClean = cleanQuery.ToLower().Trim();
+            string CleanQuery = CleanTitlePrefixes(Query);
+            string LowerClean = CleanQuery.ToLower().Trim();
 
             // CRITICAL POWER SAFETY SHIELD: NEVER auto-execute power-state operations from fuzzy or star queries!
-            if (lowerClean.Contains("shutdown") || lowerClean.Contains("sleep") || 
-                lowerClean.Contains("reboot") || lowerClean.Contains("restart") || 
-                lowerClean.Contains("power off") || lowerClean.Contains("turn off"))
+            if (LowerClean.Contains("shutdown") || LowerClean.Contains("sleep") ||
+                LowerClean.Contains("reboot") || LowerClean.Contains("restart") ||
+                LowerClean.Contains("power off") || LowerClean.Contains("turn off"))
             {
                 // Instead of executing, paste it into the HUD search box so the user can explicitly trigger it
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
-                    if (System.Windows.Application.Current.MainWindow is MainWindow mw)
+                    if (System.Windows.Application.Current.MainWindow is MainWindow Mw)
                     {
-                        mw.SearchInput.Text = cleanQuery;
-                        mw.SearchInput.CaretIndex = cleanQuery.Length;
-                        mw.SearchInput.Focus();
+                        Mw.SearchInput.Text = CleanQuery;
+                        Mw.SearchInput.CaretIndex = CleanQuery.Length;
+                        Mw.SearchInput.Focus();
                     }
                 });
                 TextOverlay.Show("⚠️ Power action requires manual execution.", 3000);
@@ -410,21 +410,21 @@ namespace JarvisLauncher
             }
 
             // Trigger parallel Dual-LLM Co-Pilot analysis if enabled (default disabled)
-            DualLlmCopilot.ProcessQueryParallel(query);
+            DualLlmCopilot.ProcessQueryParallel(Query);
 
             // Get all suggestions sorted by Similarity score descending
-            var suggestions = GetSuggestions(cleanQuery);
-            foreach (var s in suggestions)
+            var Suggestions = GetSuggestions(CleanQuery);
+            foreach (var S in Suggestions)
             {
-                if (s.Title.StartsWith("⭐ ")) continue; // Skip circular star items
+                if (S.TITLE.StartsWith("⭐ ")) continue; // Skip circular star items
 
                 // Only invoke if it is a highly similar or exact match to prevent executing random commands
-                string cleanSuggestionTitle = CleanTitlePrefixes(s.Title).ToLower();
-                if (cleanSuggestionTitle.Contains(lowerClean) || lowerClean.Contains(cleanSuggestionTitle) || s.Similarity >= 7.5)
+                string CleanSuggestionTitle = CleanTitlePrefixes(S.TITLE).ToLower();
+                if (CleanSuggestionTitle.Contains(LowerClean) || LowerClean.Contains(CleanSuggestionTitle) || S.SIMILARITY >= 7.5)
                 {
-                    if (s.Execute != null)
+                    if (S.EXECUTE != null)
                     {
-                        s.Execute.Invoke();
+                        S.EXECUTE.Invoke();
                         return;
                     }
                 }
@@ -435,32 +435,32 @@ namespace JarvisLauncher
             {
                 try
                 {
-                    await ChatOverlay.SubmitVoiceCommand(cleanQuery, showUi: true);
+                    await ChatOverlay.SubmitVoiceCommand(CleanQuery, showUi: true);
                 }
-                catch (Exception ex)
+                catch (Exception Ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"AI Fallback error: {ex.Message}");
+                    System.Diagnostics.Debug.WriteLine($"AI Fallback error: {Ex.Message}");
                 }
             });
         }
 
-        public static void ExecuteSuggestionByTitle(string title)
+        public static void ExecuteSuggestionByTitle(string Title)
         {
-            if (string.IsNullOrWhiteSpace(title)) return;
-            string targetTitleClean = CleanTitlePrefixes(title).ToLower().Trim();
+            if (string.IsNullOrWhiteSpace(Title)) return;
+            string TargetTitleClean = CleanTitlePrefixes(Title).ToLower().Trim();
 
             // CRITICAL POWER SAFETY SHIELD: NEVER auto-execute power-state operations from fuzzy or star queries!
-            if (targetTitleClean.Contains("shutdown") || targetTitleClean.Contains("sleep") || 
-                targetTitleClean.Contains("reboot") || targetTitleClean.Contains("restart pc") ||
-                targetTitleClean.Contains("power off") || targetTitleClean.Contains("turn off"))
+            if (TargetTitleClean.Contains("shutdown") || TargetTitleClean.Contains("sleep") ||
+                TargetTitleClean.Contains("reboot") || TargetTitleClean.Contains("restart pc") ||
+                TargetTitleClean.Contains("power off") || TargetTitleClean.Contains("turn off"))
             {
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>
                 {
-                    if (System.Windows.Application.Current.MainWindow is MainWindow mw)
+                    if (System.Windows.Application.Current.MainWindow is MainWindow Mw)
                     {
-                        mw.SearchInput.Text = title;
-                        mw.SearchInput.CaretIndex = title.Length;
-                        mw.SearchInput.Focus();
+                        Mw.SearchInput.Text = Title;
+                        Mw.SearchInput.CaretIndex = Title.Length;
+                        Mw.SearchInput.Focus();
                     }
                 });
                 TextOverlay.Show("⚠️ Power action requires manual execution.", 3000);
@@ -468,24 +468,24 @@ namespace JarvisLauncher
             }
 
             // Look up exact suggestion by iterating through all registered handlers
-            foreach (var (type, handler) in Handlers)
+            foreach (var (Type, Handler) in HANDLERS)
             {
                 try
                 {
-                    var descs = handler.Item2.GetCommandDescriptions();
-                    foreach (var desc in descs)
+                    var Descs = Handler.Item2.GetCommandDescriptions();
+                    foreach (var Desc in Descs)
                     {
-                        var results = handler.Item2.GetSuggestions(desc.CommandName);
-                        if (results != null)
+                        var Results = Handler.Item2.GetSuggestions(Desc.COMMAND_NAME);
+                        if (Results != null)
                         {
-                            foreach (var s in results)
+                            foreach (var S in Results)
                             {
-                                string cleanS = CleanTitlePrefixes(s.Title).ToLower().Trim();
-                                if (cleanS == targetTitleClean || targetTitleClean.Contains(cleanS) || cleanS.Contains(targetTitleClean))
+                                string CleanS = CleanTitlePrefixes(S.TITLE).ToLower().Trim();
+                                if (CleanS == TargetTitleClean || TargetTitleClean.Contains(CleanS) || CleanS.Contains(TargetTitleClean))
                                 {
-                                    if (s.Execute != null)
+                                    if (S.EXECUTE != null)
                                     {
-                                        s.Execute.Invoke();
+                                        S.EXECUTE.Invoke();
                                         return;
                                     }
                                 }
@@ -497,95 +497,95 @@ namespace JarvisLauncher
             }
 
             // Fallback: search for it using ExecuteFirstSuggestion
-            ExecuteFirstSuggestion(title);
+            ExecuteFirstSuggestion(Title);
         }
 
-        public static string CleanTitlePrefixes(string title)
+        public static string CleanTitlePrefixes(string Title)
         {
-            if (string.IsNullOrWhiteSpace(title)) return string.Empty;
+            if (string.IsNullOrWhiteSpace(Title)) return string.Empty;
 
-            string clean = title.Trim();
-            string[] prefixes = new[] { "⭐ ", "⚡ Command: ", "⚡ ", "🎙️ ", "🤖 ", "🌐 ", "📥 ", "⚙️ ", "🎵 ", "🔲 ", "🏷️ ", "📶 ", "🎨 ", "🧠 ", "🦙 ", "💻 ", "🔬 ", "📐 ", "🚀 " };
-            foreach (var p in prefixes)
+            string Clean = Title.Trim();
+            string[] Prefixes = new[] { "⭐ ", "⚡ Command: ", "⚡ ", "🎙️ ", "🤖 ", "🌐 ", "📥 ", "⚙️ ", "🎵 ", "🔲 ", "🏷️ ", "📶 ", "🎨 ", "🧠 ", "🦙 ", "💻 ", "🔬 ", "📐 ", "🚀 " };
+            foreach (var P in Prefixes)
             {
-                if (clean.StartsWith(p, StringComparison.OrdinalIgnoreCase))
+                if (Clean.StartsWith(P, StringComparison.OrdinalIgnoreCase))
                 {
-                    clean = clean.Substring(p.Length).Trim();
+                    Clean = Clean.Substring(P.Length).Trim();
                 }
             }
 
             // Strip action verbs from queries like "open settings & options gui" -> "settings & options gui"
-            string[] verbPrefixes = new[] { "open ", "launch ", "run ", "start " };
-            foreach (var vp in verbPrefixes)
+            string[] VerbPrefixes = new[] { "open ", "launch ", "run ", "start " };
+            foreach (var Vp in VerbPrefixes)
             {
-                if (clean.StartsWith(vp, StringComparison.OrdinalIgnoreCase))
+                if (Clean.StartsWith(Vp, StringComparison.OrdinalIgnoreCase))
                 {
-                    clean = clean.Substring(vp.Length).Trim();
+                    Clean = Clean.Substring(Vp.Length).Trim();
                     break;
                 }
             }
 
-            return clean;
+            return Clean;
         }
 
-        private static void ExecuteChainedPipeline(string[] chainParts)
+        private static void ExecuteChainedPipeline(string[] ChainParts)
         {
             System.Threading.Tasks.Task.Run(async () =>
             {
-                int count = 0;
-                foreach (var cmd in chainParts)
+                int Count = 0;
+                foreach (var Cmd in ChainParts)
                 {
-                    string trimmedCmd = cmd.Trim();
-                    if (string.IsNullOrEmpty(trimmedCmd)) continue;
+                    string TrimmedCmd = Cmd.Trim();
+                    if (string.IsNullOrEmpty(TrimmedCmd)) continue;
 
-                    var subSuggestions = GetSuggestions(trimmedCmd);
-                    if (subSuggestions.Count > 0 && subSuggestions[0].Execute != null)
+                    var SubSuggestions = GetSuggestions(TrimmedCmd);
+                    if (SubSuggestions.Count > 0 && SubSuggestions[0].EXECUTE != null)
                     {
                         System.Windows.Application.Current.Dispatcher.Invoke(() =>
                         {
-                            subSuggestions[0].Execute?.Invoke();
+                            SubSuggestions[0].EXECUTE?.Invoke();
                         });
-                        count++;
+                        Count++;
                         await System.Threading.Tasks.Task.Delay(300); // Brief delay between actions
                     }
                 }
-                TextOverlay.Show($"⚡ Chained Pipeline Executed ({count} actions completed)", 3000);
+                TextOverlay.Show($"⚡ Chained Pipeline Executed ({Count} actions completed)", 3000);
             });
         }
 
         public static List<CommandDesc> GetAllCommandDescriptions()
         {
-            var descs = new List<CommandDesc>();
-            var seenCommands = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var Descs = new List<CommandDesc>();
+            var SeenCommands = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var kvp in Handlers)
+            foreach (var Kvp in HANDLERS)
             {
                 try
                 {
-                    var handler = kvp.Value.Item2;
-                    var handlerDescs = handler.GetCommandDescriptions();
-                    if (handlerDescs != null && handlerDescs.Count > 0)
+                    var Handler = Kvp.Value.Item2;
+                    var HandlerDescs = Handler.GetCommandDescriptions();
+                    if (HandlerDescs != null && HandlerDescs.Count > 0)
                     {
-                        foreach (var cd in handlerDescs)
+                        foreach (var Cd in HandlerDescs)
                         {
-                            if (cd != null && cd.Show && !string.IsNullOrWhiteSpace(cd.CommandName))
+                            if (Cd != null && Cd.SHOW && !string.IsNullOrWhiteSpace(Cd.COMMAND_NAME))
                             {
-                                if (seenCommands.Add(cd.CommandName))
+                                if (SeenCommands.Add(Cd.COMMAND_NAME))
                                 {
-                                    descs.Add(cd);
+                                    Descs.Add(Cd);
                                 }
                             }
                         }
                     }
                     else
                     {
-                        string regDesc = kvp.Value.Item1;
-                        if (!string.IsNullOrWhiteSpace(regDesc))
+                        string RegDesc = Kvp.Value.Item1;
+                        if (!string.IsNullOrWhiteSpace(RegDesc))
                         {
-                            string name = kvp.Key.ToString().ToLower().Replace("_", " ");
-                            if (seenCommands.Add(name))
+                            string Name = Kvp.Key.ToString().ToLower().Replace("_", " ");
+                            if (SeenCommands.Add(Name))
                             {
-                                descs.Add(new CommandDesc(name, regDesc, name));
+                                Descs.Add(new CommandDesc(Name, RegDesc, Name));
                             }
                         }
                     }
@@ -596,11 +596,11 @@ namespace JarvisLauncher
                 }
             }
 
-            return descs;
+            return Descs;
         }
 
         // Groups each handler's commands under a display category for the categorized command browser overlay.
-        public static readonly Dictionary<CommandType, string> Categories = new Dictionary<CommandType, string>
+        public static readonly Dictionary<CommandType, string> CATEGORIES = new Dictionary<CommandType, string>
         {
             { CommandType.MATH, "Utilities" },
             { CommandType.VOLUME, "Audio & Media" },
@@ -661,37 +661,39 @@ namespace JarvisLauncher
         };
 
         // Preferred display order for categories in the browser overlay.
-        public static readonly List<string> CategoryOrder = new List<string>
+        public static readonly List<string> CATEGORY_ORDER = new List<string>
         {
             "AI & Automation", "System & Power", "Files & Editing", "Apps & Launcher",
             "Network & Mobile", "Web Scraping", "Audio & Media", "Media Processing", "Productivity",
             "Developer Tools", "Diagnostics", "Customization", "Utilities", "Other"
         };
 
+        public static List<string> CategoryOrder => CATEGORY_ORDER;
+
         public static Dictionary<string, List<CommandDesc>> GetCommandDescriptionsByCategory()
         {
-            var result = new Dictionary<string, List<CommandDesc>>();
-            var seenCommands = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var Result = new Dictionary<string, List<CommandDesc>>();
+            var SeenCommands = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (var kvp in Handlers)
+            foreach (var Kvp in HANDLERS)
             {
-                string category = Categories.TryGetValue(kvp.Key, out string? cat) ? cat : "Other";
+                string Category = CATEGORIES.TryGetValue(Kvp.Key, out string? Cat) ? Cat : "Other";
                 try
                 {
-                    var handlerDescs = kvp.Value.Item2.GetCommandDescriptions();
-                    if (handlerDescs == null) continue;
+                    var HandlerDescs = Kvp.Value.Item2.GetCommandDescriptions();
+                    if (HandlerDescs == null) continue;
 
-                    foreach (var cd in handlerDescs)
+                    foreach (var Cd in HandlerDescs)
                     {
-                        if (cd == null || !cd.Show || string.IsNullOrWhiteSpace(cd.CommandName)) continue;
-                        if (!seenCommands.Add(cd.CommandName)) continue;
+                        if (Cd == null || !Cd.SHOW || string.IsNullOrWhiteSpace(Cd.COMMAND_NAME)) continue;
+                        if (!SeenCommands.Add(Cd.COMMAND_NAME)) continue;
 
-                        if (!result.TryGetValue(category, out var list))
+                        if (!Result.TryGetValue(Category, out var List))
                         {
-                            list = new List<CommandDesc>();
-                            result[category] = list;
+                            List = new List<CommandDesc>();
+                            Result[Category] = List;
                         }
-                        list.Add(cd);
+                        List.Add(Cd);
                     }
                 }
                 catch
@@ -700,16 +702,16 @@ namespace JarvisLauncher
                 }
             }
 
-            return result;
+            return Result;
         }
 
         public static void Initialize()
         {
-            foreach (var (type, handler) in Handlers)
+            foreach (var (Type, Handler) in HANDLERS)
             {
                 try
                 {
-                    handler.Item2.OnStart();
+                    Handler.Item2.OnStart();
                 }
                 catch
                 {

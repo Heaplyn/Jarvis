@@ -15,29 +15,29 @@ namespace JarvisLauncher
 {
     public class CommandDesc
     {
-        public string CommandName { get; set; } = string.Empty;
-        public string CommandDescription { get; set; } = string.Empty;
-        public string CommandExample { get; set; } = string.Empty;
-        public bool Show { get; set; } = true;
+        public string COMMAND_NAME { get; set; } = string.Empty;
+        public string COMMAND_DESCRIPTION { get; set; } = string.Empty;
+        public string COMMAND_EXAMPLE { get; set; } = string.Empty;
+        public bool SHOW { get; set; } = true;
 
-        public CommandDesc(string name, string description, string example) 
+        public CommandDesc(string Name, string Description, string Example)
         {
-            CommandName = name;
-            CommandDescription = description;
-            CommandExample = example;
+            COMMAND_NAME = Name;
+            COMMAND_DESCRIPTION = Description;
+            COMMAND_EXAMPLE = Example;
         }
 
-        public CommandDesc(string name, string description, string example, bool show) 
+        public CommandDesc(string Name, string Description, string Example, bool ShowParam)
         {
-            CommandName = name;
-            CommandDescription = description;
-            CommandExample = example;
-            Show = show;
+            COMMAND_NAME = Name;
+            COMMAND_DESCRIPTION = Description;
+            COMMAND_EXAMPLE = Example;
+            SHOW = ShowParam;
         }
 
-        public CommandDesc(bool show)
+        public CommandDesc(bool ShowParam)
         {
-            Show = show;
+            SHOW = ShowParam;
         }
     }
 }

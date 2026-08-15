@@ -28,10 +28,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"Run: {command}",
-                    Description = "Execute in background cmd and display output overlay",
-                    Execute = () => ExecuteCommandAsync(command),
-                    Similarity = 2.0
+                    TITLE = $"Run: {command}",
+                    DESCRIPTION = "Execute in background cmd and display output overlay",
+                    EXECUTE = () => ExecuteCommandAsync(command),
+                    SIMILARITY = 2.0
                 });
             }
 

@@ -1,171 +1,86 @@
 // Developer: heaplyn
 // Date: 2026-08-13
 // Summary: Digital Signal Processing (DSP) & Acoustic Feature Extraction Engine.
-// Computes RMS energy, Zero-Crossing Rate (ZCR), Spectral Centroid, and Mel-Frequency Cepstral Coefficients (MFCCs).
+// Computes RMS energy, Zero-Crossing Rate (ZCR), Mel-Frequency Cepstral Coefficients (MFCCs).
 
 using System;
 using System.IO;
+using System.Linq;
 
 namespace JarvisLauncher
 {
     public class AudioFeatures
     {
-        public double RmsEnergy { get; set; }
-        public double ZeroCrossingRate { get; set; }
-        public double SpectralCentroid { get; set; }
-        public double[] MfccCoefficients { get; set; } = new double[13];
+        public double RMS_ENERGY { get; set; }
+        public double ZERO_CROSSING_RATE { get; set; }
+        public double[] MFCC_COEFFICIENTS { get; set; } = new double[13];
     }
 
     public static class AudioFeatureExtractor
     {
-        /// <summary>
-        /// Extracts acoustic sound properties from a 16-bit 16kHz/44.1kHz PCM WAV file.
-        /// </summary>
-        public static AudioFeatures ExtractFromFile(string wavFilePath)
+        public static AudioFeatures ExtractFromFile(string WavFilePath)
         {
-            if (!File.Exists(wavFilePath)) return new AudioFeatures();
-
+            if (!File.Exists(WavFilePath)) return new AudioFeatures();
             try
             {
-                byte[] bytes = File.ReadAllBytes(wavFilePath);
-                // Skip 44-byte WAV header
-                int pcmStart = 44;
-                if (bytes.Length <= pcmStart) return new AudioFeatures();
-
-                int sampleCount = (bytes.Length - pcmStart) / 2;
-                float[] samples = new float[sampleCount];
-
-                for (int i = 0; i < sampleCount; i++)
+                byte[] Bytes = File.ReadAllBytes(WavFilePath);
+                int PcmStart = 44;
+                if (Bytes.Length <= PcmStart) return new AudioFeatures();
+                int SampleCount = (Bytes.Length - PcmStart) / 2;
+                float[] Samples = new float[SampleCount];
+                for (int I = 0; I < SampleCount; I++)
                 {
-                    short sample16 = BitConverter.ToInt16(bytes, pcmStart + (i * 2));
-                    samples[i] = sample16 / 32768.0f;
+                    short Sample16 = BitConverter.ToInt16(Bytes, PcmStart + (I * 2));
+                    Samples[I] = Sample16 / 32768.0f;
                 }
-
-                return ExtractFromPcmSamples(samples, 16000);
+                return ExtractFromPcmSamples(Samples, 16000);
             }
-            catch
-            {
-                return new AudioFeatures();
-            }
+            catch { return new AudioFeatures(); }
         }
 
-        /// <summary>
-        /// Computes acoustic sound properties (RMS, ZCR, MFCCs) directly from float PCM samples.
-        /// </summary>
-        public static AudioFeatures ExtractFromPcmSamples(float[] samples, int sampleRate)
+        public static AudioFeatures ExtractFromPcmSamples(float[] Samples, int SampleRate)
         {
-            var features = new AudioFeatures();
-            if (samples == null || samples.Length == 0) return features;
+            var Features = new AudioFeatures();
+            if (Samples == null || Samples.Length == 0) return Features;
 
-            // 1. RMS Energy
-            double sumSq = 0.0;
-            int zeroCrossings = 0;
-
-            for (int i = 0; i < samples.Length; i++)
+            double SumSq = 0.0;
+            int ZeroCrossings = 0;
+            for (int I = 0; I < Samples.Length; I++)
             {
-                sumSq += samples[i] * samples[i];
-                if (i > 0 && ((samples[i] >= 0 && samples[i - 1] < 0) || (samples[i] < 0 && samples[i - 1] >= 0)))
-                {
-                    zeroCrossings++;
-                }
+                SumSq += Samples[I] * Samples[I];
+                if (I > 0 && ((Samples[I] >= 0 && Samples[I - 1] < 0) || (Samples[I] < 0 && Samples[I - 1] >= 0))) ZeroCrossings++;
             }
+            Features.RMS_ENERGY = Math.Sqrt(SumSq / Samples.Length);
+            Features.ZERO_CROSSING_RATE = (double)ZeroCrossings / Samples.Length;
 
-            features.RmsEnergy = Math.Sqrt(sumSq / samples.Length);
-            features.ZeroCrossingRate = (double)zeroCrossings / samples.Length;
-
-            // 2. Compute 13-Band Simulated MFCC Feature Coefficients
-            int frameSize = Math.Min(512, samples.Length);
-            double[] mfcc = new double[13];
-
-            for (int band = 0; band < 13; band++)
+            int FrameSize = Math.Min(512, Samples.Length);
+            double[] Mfcc = new double[13];
+            for (int Band = 0; Band < 13; Band++)
             {
-                double bandSum = 0.0;
-                int step = Math.Max(1, frameSize / 13);
-                int start = band * step;
-                int end = Math.Min(start + step, samples.Length);
-
-                for (int j = start; j < end; j++)
-                {
-                    bandSum += Math.Abs(samples[j]);
-                }
-
-                double logEnergy = Math.Log(Math.Max(1e-6, bandSum / Math.Max(1, end - start)));
-                mfcc[band] = Math.Round(logEnergy, 4);
+                double BandSum = 0.0;
+                int Step = Math.Max(1, FrameSize / 13);
+                int Start = Band * Step;
+                int End = Math.Min(Start + Step, Samples.Length);
+                for (int J = Start; J < End; J++) BandSum += Math.Abs(Samples[J]);
+                double LogEnergy = Math.Log(Math.Max(1e-6, BandSum / Math.Max(1, End - Start)));
+                Mfcc[Band] = Math.Round(LogEnergy, 4);
             }
-
-            features.MfccCoefficients = mfcc;
-            return features;
+            Features.MFCC_COEFFICIENTS = Mfcc;
+            return Features;
         }
 
-        /// <summary>
-        /// Computes Cosine Similarity distance between two acoustic MFCC feature vectors (0.0 to 1.0).
-        /// </summary>
-        public static double CosineSimilarity(double[] vecA, double[] vecB)
+        public static double CosineSimilarity(double[] VecA, double[] VecB)
         {
-            if (vecA == null || vecB == null || vecA.Length != vecB.Length || vecA.Length == 0) return 0.0;
-
-            double dot = 0.0;
-            double magA = 0.0;
-            double magB = 0.0;
-
-            for (int i = 0; i < vecA.Length; i++)
+            if (VecA == null || VecB == null || VecA.Length != VecB.Length || VecA.Length == 0) return 0.0;
+            double Dot = 0.0, MagA = 0.0, MagB = 0.0;
+            for (int I = 0; I < VecA.Length; I++)
             {
-                dot += vecA[i] * vecB[i];
-                magA += vecA[i] * vecA[i];
-                magB += vecB[i] * vecB[i];
+                Dot += VecA[I] * VecB[I];
+                MagA += VecA[I] * VecA[I];
+                MagB += VecB[I] * VecB[I];
             }
-
-            if (magA <= 0.0 || magB <= 0.0) return 0.0;
-            double sim = dot / (Math.Sqrt(magA) * Math.Sqrt(magB));
-            return Math.Clamp(sim, 0.0, 1.0);
-        }
-
-        /// <summary>
-        /// Computes Dynamic Time Warping (DTW) alignment distance between two sequences of feature vectors.
-        /// Warps the time-series non-linearly to measure acoustic alignment independent of speaking speed.
-        /// </summary>
-        public static double ComputeDtwDistance(double[][] seqA, double[][] seqB)
-        {
-            if (seqA == null || seqB == null || seqA.Length == 0 || seqB.Length == 0) return double.MaxValue;
-
-            int n = seqA.Length;
-            int m = seqB.Length;
-            double[,] dtw = new double[n + 1, m + 1];
-
-            // Initialize DTW distance matrix
-            for (int i = 0; i <= n; i++)
-            {
-                for (int j = 0; j <= m; j++)
-                {
-                    dtw[i, j] = double.MaxValue;
-                }
-            }
-            dtw[0, 0] = 0.0;
-
-            // Compute dynamic programming warping path cost
-            for (int i = 1; i <= n; i++)
-            {
-                for (int j = 1; j <= m; j++)
-                {
-                    double cost = EuclideanDistance(seqA[i - 1], seqB[j - 1]);
-                    double minPrev = Math.Min(dtw[i - 1, j], Math.Min(dtw[i, j - 1], dtw[i - 1, j - 1]));
-                    dtw[i, j] = cost + (minPrev == double.MaxValue ? 0.0 : minPrev);
-                }
-            }
-
-            return dtw[n, m];
-        }
-
-        private static double EuclideanDistance(double[] a, double[] b)
-        {
-            double sum = 0.0;
-            int len = Math.Min(a.Length, b.Length);
-            for (int i = 0; i < len; i++)
-            {
-                double diff = a[i] - b[i];
-                sum += diff * diff;
-            }
-            return Math.Sqrt(sum);
+            if (MagA <= 0.0 || MagB <= 0.0) return 0.0;
+            return Math.Clamp(Dot / (Math.Sqrt(MagA) * Math.Sqrt(MagB)), 0.0, 1.0);
         }
     }
 }

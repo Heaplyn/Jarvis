@@ -14,21 +14,21 @@ namespace JarvisLauncher
 {
     public class VoiceSample
     {
-        public string Id { get; set; } = Guid.NewGuid().ToString("N");
-        public string Phrase { get; set; } = string.Empty;
-        public string AudioFilePath { get; set; } = string.Empty;
-        public DateTime RecordedAt { get; set; } = DateTime.Now;
-        public double DurationSeconds { get; set; } = 0.0;
-        public double AverageVolumeDb { get; set; } = -20.0;
-        public string AssociatedCommand { get; set; } = string.Empty;
+        public string ID { get; set; } = Guid.NewGuid().ToString("N");
+        public string PHRASE { get; set; } = string.Empty;
+        public string AUDIO_FILE_PATH { get; set; } = string.Empty;
+        public DateTime RECORDED_AT { get; set; } = DateTime.Now;
+        public double DURATION_SECONDS { get; set; } = 0.0;
+        public double AVERAGE_VOLUME_DB { get; set; } = -20.0;
+        public string ASSOCIATED_COMMAND { get; set; } = string.Empty;
     }
 
     public class VoiceProfile
     {
-        public string ProfileName { get; set; } = "Default User";
-        public double SensitivityThreshold { get; set; } = 0.65;
-        public List<VoiceSample> Samples { get; set; } = new List<VoiceSample>();
-        public Dictionary<string, string> CustomVoiceShortcuts { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        public string PROFILE_NAME { get; set; } = "Default User";
+        public double SENSITIVITY_THRESHOLD { get; set; } = 0.65;
+        public List<VoiceSample> SAMPLES { get; set; } = new List<VoiceSample>();
+        public Dictionary<string, string> CUSTOM_VOICE_SHORTCUTS { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     }
 
     public static class VoiceTrainerManager
@@ -49,7 +49,11 @@ namespace JarvisLauncher
         static VoiceTrainerManager()
         {
             EnsureDirectory();
-            LoadProfile();
+        }
+
+        public static async Task InitializeAsync()
+        {
+            await Task.Run(() => LoadProfile());
         }
 
         private static void EnsureDirectory()
@@ -149,14 +153,14 @@ namespace JarvisLauncher
 
                     var sample = new VoiceSample
                     {
-                        Phrase = string.IsNullOrWhiteSpace(phrase) || phrase == "Voice Sample" ? (string.IsNullOrWhiteSpace(voskTranscribed) ? "Voice Sample" : voskTranscribed) : phrase,
-                        AudioFilePath = targetWav,
-                        DurationSeconds = Math.Round(duration, 2),
-                        AssociatedCommand = command,
-                        AverageVolumeDb = -18.5 + (new Random().NextDouble() * 5.0)
+                        PHRASE = string.IsNullOrWhiteSpace(phrase) || phrase == "Voice Sample" ? (string.IsNullOrWhiteSpace(voskTranscribed) ? "Voice Sample" : voskTranscribed) : phrase,
+                        AUDIO_FILE_PATH = targetWav,
+                        DURATION_SECONDS = Math.Round(duration, 2),
+                        ASSOCIATED_COMMAND = command,
+                        AVERAGE_VOLUME_DB = -18.5 + (new Random().NextDouble() * 5.0)
                     };
 
-                    _currentProfile.Samples.Add(sample);
+                    _currentProfile.SAMPLES.Add(sample);
                     SaveProfile();
 
                     // 3. Rebuild Acoustic ML Classifier index with 20-band MFCC & Log-Mel feature vectors
@@ -179,7 +183,7 @@ namespace JarvisLauncher
             if (!_isRecording || string.IsNullOrWhiteSpace(multiWordText)) return createdSamples;
 
             var fullSample = StopRecording(multiWordText);
-            if (fullSample == null || !File.Exists(fullSample.AudioFilePath)) return createdSamples;
+            if (fullSample == null || !File.Exists(fullSample.AUDIO_FILE_PATH)) return createdSamples;
 
             // Split into clean word tokens
             var words = multiWordText.Split(new[] { ' ', ',', '.', ';', '!', '?' }, StringSplitOptions.RemoveEmptyEntries)
@@ -190,20 +194,20 @@ namespace JarvisLauncher
 
             if (words.Count == 0) return createdSamples;
 
-            double chunkDuration = Math.Max(0.5, Math.Round(fullSample.DurationSeconds / words.Count, 2));
+            double chunkDuration = Math.Max(0.5, Math.Round(fullSample.DURATION_SECONDS / words.Count, 2));
 
             foreach (var word in words)
             {
                 var wordSample = new VoiceSample
                 {
-                    Phrase = word,
-                    AudioFilePath = fullSample.AudioFilePath, // Associated with continuous master WAV
-                    DurationSeconds = chunkDuration,
-                    AssociatedCommand = string.Empty,
-                    AverageVolumeDb = fullSample.AverageVolumeDb
+                    PHRASE = word,
+                    AUDIO_FILE_PATH = fullSample.AUDIO_FILE_PATH, // Associated with continuous master WAV
+                    DURATION_SECONDS = chunkDuration,
+                    ASSOCIATED_COMMAND = string.Empty,
+                    AVERAGE_VOLUME_DB = fullSample.AVERAGE_VOLUME_DB
                 };
 
-                _currentProfile.Samples.Add(wordSample);
+                _currentProfile.SAMPLES.Add(wordSample);
                 createdSamples.Add(wordSample);
             }
 
@@ -214,16 +218,16 @@ namespace JarvisLauncher
         public static void SaveVoiceSample(VoiceSample sample)
         {
             if (sample == null) return;
-            if (!_currentProfile.Samples.Contains(sample))
+            if (!_currentProfile.SAMPLES.Contains(sample))
             {
-                _currentProfile.Samples.Add(sample);
+                _currentProfile.SAMPLES.Add(sample);
             }
             SaveProfile();
         }
 
         public static void PlaySample(VoiceSample sample)
         {
-            if (sample != null) PlaySample(sample.AudioFilePath);
+            if (sample != null) PlaySample(sample.AUDIO_FILE_PATH);
         }
 
         public static void PlaySample(string filePath)
@@ -245,7 +249,7 @@ namespace JarvisLauncher
 
         public static bool DeleteSample(string id)
         {
-            var sample = _currentProfile.Samples.Find(s => s.Id == id);
+            var sample = _currentProfile.SAMPLES.Find(s => s.ID == id);
             if (sample != null) return DeleteSample(sample);
             return false;
         }
@@ -254,11 +258,11 @@ namespace JarvisLauncher
         {
             try
             {
-                if (File.Exists(sample.AudioFilePath))
+                if (File.Exists(sample.AUDIO_FILE_PATH))
                 {
-                    File.Delete(sample.AudioFilePath);
+                    File.Delete(sample.AUDIO_FILE_PATH);
                 }
-                _currentProfile.Samples.Remove(sample);
+                _currentProfile.SAMPLES.Remove(sample);
                 SaveProfile();
                 return true;
             }
@@ -270,14 +274,14 @@ namespace JarvisLauncher
         public static void AddVoiceShortcut(string phrase, string command)
         {
             if (string.IsNullOrWhiteSpace(phrase) || string.IsNullOrWhiteSpace(command)) return;
-            _currentProfile.CustomVoiceShortcuts[phrase.Trim().ToLower()] = command.Trim();
+            _currentProfile.CUSTOM_VOICE_SHORTCUTS[phrase.Trim().ToLower()] = command.Trim();
             SaveProfile();
         }
 
         public static void RemoveCustomVoiceShortcut(string phrase)
         {
             if (string.IsNullOrWhiteSpace(phrase)) return;
-            _currentProfile.CustomVoiceShortcuts.Remove(phrase.Trim().ToLower());
+            _currentProfile.CUSTOM_VOICE_SHORTCUTS.Remove(phrase.Trim().ToLower());
             SaveProfile();
         }
 

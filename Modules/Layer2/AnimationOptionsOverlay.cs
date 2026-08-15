@@ -54,14 +54,14 @@ namespace JarvisLauncher
             _enableAnimCheck = new CheckBox
             {
                 Content = "Enable Motion Animations (Slide-in / Fade-out transitions)",
-                IsChecked = SettingsManager.Current.EnableAnimations,
+                IsChecked = SettingsManager.Current.ENABLE_ANIMATIONS,
                 FontSize = 12,
                 Foreground = Brushes.White,
                 Margin = new Thickness(0, 0, 0, 14)
             };
             _enableAnimCheck.Click += (s, e) =>
             {
-                SettingsManager.Current.EnableAnimations = _enableAnimCheck.IsChecked == true;
+                SettingsManager.Current.ENABLE_ANIMATIONS = _enableAnimCheck.IsChecked == true;
                 SettingsManager.Save();
                 UpdateStatus("Saved animation state preference.");
             };
@@ -102,23 +102,23 @@ namespace JarvisLauncher
             {
                 Minimum = 0.3,
                 Maximum = 1.0,
-                Value = SettingsManager.Current.WindowOpacity,
+                Value = SettingsManager.Current.WINDOW_OPACITY,
                 TickFrequency = 0.05,
                 IsSnapToTickEnabled = true
             };
             _opacitySlider.ValueChanged += (s, e) =>
             {
-                SettingsManager.Current.WindowOpacity = Math.Round(_opacitySlider.Value, 2);
-                if (_opacityValText != null) _opacityValText.Text = $"{Math.Round(SettingsManager.Current.WindowOpacity * 100)}%";
+                SettingsManager.Current.WINDOW_OPACITY = Math.Round(_opacitySlider.Value, 2);
+                if (_opacityValText != null) _opacityValText.Text = $"{Math.Round(SettingsManager.Current.WINDOW_OPACITY * 100)}%";
                 SettingsManager.Save();
-                UpdateStatus($"Updated window opacity to {Math.Round(SettingsManager.Current.WindowOpacity * 100)}%");
+                UpdateStatus($"Updated window opacity to {Math.Round(SettingsManager.Current.WINDOW_OPACITY * 100)}%");
             };
             Grid.SetColumn(_opacitySlider, 0);
             opGrid.Children.Add(_opacitySlider);
 
             _opacityValText = new TextBlock
             {
-                Text = $"{Math.Round(SettingsManager.Current.WindowOpacity * 100)}%",
+                Text = $"{Math.Round(SettingsManager.Current.WINDOW_OPACITY * 100)}%",
                 FontSize = 12,
                 FontWeight = FontWeights.Bold,
                 Foreground = Brushes.Cyan,

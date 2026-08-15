@@ -51,20 +51,20 @@ namespace JarvisLauncher
             };
             foreach (var b in new[] { "Gemini", "OpenAI", "Ollama", "Custom", "P2P" })
                 _backendCombo.Items.Add(b);
-            _backendCombo.SelectedItem = SettingsManager.Current.LlmBackend;
+            _backendCombo.SelectedItem = SettingsManager.Current.LLM_BACKEND;
             _backendCombo.SelectionChanged += (s, e) => UpdatePanelVisibility();
             root.Children.Add(_backendCombo);
 
             // ── Gemini Panel ──────────────────────────────────────────────────────────
             _geminiPanel = new StackPanel();
             _geminiPanel.Children.Add(CreateLabel("Google Gemini API Key:"));
-            var geminiKey = CreateTextBox(SettingsManager.Current.GoogleAIKey);
-            geminiKey.TextChanged += (s, e) => SettingsManager.Current.GoogleAIKey = geminiKey.Text.Trim();
+            var geminiKey = CreateTextBox(SettingsManager.Current.GOOGLE_AI_KEY);
+            geminiKey.TextChanged += (s, e) => SettingsManager.Current.GOOGLE_AI_KEY = geminiKey.Text.Trim();
             _geminiPanel.Children.Add(geminiKey);
 
             _geminiPanel.Children.Add(CreateLabel("Gemini Model (e.g. gemini-2.0-flash, gemini-1.5-pro):"));
-            var geminiModel = CreateTextBox(SettingsManager.Current.GeminiModel);
-            geminiModel.TextChanged += (s, e) => SettingsManager.Current.GeminiModel = geminiModel.Text.Trim();
+            var geminiModel = CreateTextBox(SettingsManager.Current.GEMINI_MODEL);
+            geminiModel.TextChanged += (s, e) => SettingsManager.Current.GEMINI_MODEL = geminiModel.Text.Trim();
             _geminiPanel.Children.Add(geminiModel);
 
             root.Children.Add(_geminiPanel);
@@ -72,28 +72,28 @@ namespace JarvisLauncher
             // ── OpenAI Panel ──────────────────────────────────────────────────────────
             _openAiPanel = new StackPanel();
             _openAiPanel.Children.Add(CreateLabel("OpenAI API Key (or LM Studio key):"));
-            var oaiKey = CreateTextBox(SettingsManager.Current.OpenAIKey);
-            oaiKey.TextChanged += (s, e) => SettingsManager.Current.OpenAIKey = oaiKey.Text.Trim();
+            var oaiKey = CreateTextBox(SettingsManager.Current.OPENAI_KEY);
+            oaiKey.TextChanged += (s, e) => SettingsManager.Current.OPENAI_KEY = oaiKey.Text.Trim();
             _openAiPanel.Children.Add(oaiKey);
             _openAiPanel.Children.Add(CreateLabel("Base URL (default: https://api.openai.com/v1):"));
-            var oaiBase = CreateTextBox(SettingsManager.Current.OpenAIBaseUrl);
-            oaiBase.TextChanged += (s, e) => SettingsManager.Current.OpenAIBaseUrl = oaiBase.Text.Trim();
+            var oaiBase = CreateTextBox(SettingsManager.Current.OPENAI_BASE_URL);
+            oaiBase.TextChanged += (s, e) => SettingsManager.Current.OPENAI_BASE_URL = oaiBase.Text.Trim();
             _openAiPanel.Children.Add(oaiBase);
             _openAiPanel.Children.Add(CreateLabel("Model (e.g. gpt-4o-mini, gpt-4o):"));
-            var oaiModel = CreateTextBox(SettingsManager.Current.OpenAIModel);
-            oaiModel.TextChanged += (s, e) => SettingsManager.Current.OpenAIModel = oaiModel.Text.Trim();
+            var oaiModel = CreateTextBox(SettingsManager.Current.OPENAI_MODEL);
+            oaiModel.TextChanged += (s, e) => SettingsManager.Current.OPENAI_MODEL = oaiModel.Text.Trim();
             _openAiPanel.Children.Add(oaiModel);
             root.Children.Add(_openAiPanel);
 
             // ── Ollama & Local LLM Panel ──────────────────────────────────────────────
             _ollamaPanel = new StackPanel();
             _ollamaPanel.Children.Add(CreateLabel("Ollama Endpoint (default: http://localhost:11434):"));
-            var ollamaEndpoint = CreateTextBox(SettingsManager.Current.OllamaEndpoint);
-            ollamaEndpoint.TextChanged += (s, e) => SettingsManager.Current.OllamaEndpoint = ollamaEndpoint.Text.Trim();
+            var ollamaEndpoint = CreateTextBox(SettingsManager.Current.OLLAMA_ENDPOINT);
+            ollamaEndpoint.TextChanged += (s, e) => SettingsManager.Current.OLLAMA_ENDPOINT = ollamaEndpoint.Text.Trim();
             _ollamaPanel.Children.Add(ollamaEndpoint);
             _ollamaPanel.Children.Add(CreateLabel("Model (e.g. llama3, mistral, deepseek-r1):"));
-            var ollamaModel = CreateTextBox(SettingsManager.Current.OllamaModel);
-            ollamaModel.TextChanged += (s, e) => SettingsManager.Current.OllamaModel = ollamaModel.Text.Trim();
+            var ollamaModel = CreateTextBox(SettingsManager.Current.OLLAMA_MODEL);
+            ollamaModel.TextChanged += (s, e) => SettingsManager.Current.OLLAMA_MODEL = ollamaModel.Text.Trim();
             _ollamaPanel.Children.Add(ollamaModel);
 
             var detectBtn = CreateButton("🔍 Auto-Detect Installed Local Models");
@@ -171,16 +171,16 @@ namespace JarvisLauncher
             // ── Custom Panel ──────────────────────────────────────────────────────────
             _customPanel = new StackPanel();
             _customPanel.Children.Add(CreateLabel("Custom Endpoint URL (OpenAI-compatible /chat/completions):"));
-            var customUrl = CreateTextBox(SettingsManager.Current.CustomLlmEndpoint);
-            customUrl.TextChanged += (s, e) => SettingsManager.Current.CustomLlmEndpoint = customUrl.Text.Trim();
+            var customUrl = CreateTextBox(SettingsManager.Current.CUSTOM_LLM_ENDPOINT);
+            customUrl.TextChanged += (s, e) => SettingsManager.Current.CUSTOM_LLM_ENDPOINT = customUrl.Text.Trim();
             _customPanel.Children.Add(customUrl);
             _customPanel.Children.Add(CreateLabel("API Key (optional):"));
-            var customKey = CreateTextBox(SettingsManager.Current.CustomLlmKey);
-            customKey.TextChanged += (s, e) => SettingsManager.Current.CustomLlmKey = customKey.Text.Trim();
+            var customKey = CreateTextBox(SettingsManager.Current.CUSTOM_LLM_KEY);
+            customKey.TextChanged += (s, e) => SettingsManager.Current.CUSTOM_LLM_KEY = customKey.Text.Trim();
             _customPanel.Children.Add(customKey);
             _customPanel.Children.Add(CreateLabel("Model name:"));
-            var customModel = CreateTextBox(SettingsManager.Current.CustomLlmModel);
-            customModel.TextChanged += (s, e) => SettingsManager.Current.CustomLlmModel = customModel.Text.Trim();
+            var customModel = CreateTextBox(SettingsManager.Current.CUSTOM_LLM_MODEL);
+            customModel.TextChanged += (s, e) => SettingsManager.Current.CUSTOM_LLM_MODEL = customModel.Text.Trim();
             _customPanel.Children.Add(customModel);
             root.Children.Add(_customPanel);
 
@@ -191,19 +191,19 @@ namespace JarvisLauncher
             var serverToggle = new CheckBox
             {
                 Content = "📡 Enable P2P Server on This PC (let peers offload to me)",
-                IsChecked = SettingsManager.Current.P2PServerEnabled,
+                IsChecked = SettingsManager.Current.P2P_SERVER_ENABLED,
                 FontSize = 12,
                 Margin = new Thickness(0, 0, 0, 6),
                 Cursor = Cursors.Hand
             };
             serverToggle.SetResourceReference(CheckBox.ForegroundProperty, "TextPrimaryBrush");
-            serverToggle.Checked += (s, e) => { SettingsManager.Current.P2PServerEnabled = true; SettingsManager.Save(); };
-            serverToggle.Unchecked += (s, e) => { SettingsManager.Current.P2PServerEnabled = false; SettingsManager.Save(); };
+            serverToggle.Checked += (s, e) => { SettingsManager.Current.P2P_SERVER_ENABLED = true; SettingsManager.Save(); };
+            serverToggle.Unchecked += (s, e) => { SettingsManager.Current.P2P_SERVER_ENABLED = false; SettingsManager.Save(); };
             _p2pPanel.Children.Add(serverToggle);
 
             _p2pPanel.Children.Add(CreateLabel("Shared Secret (optional, protects /p2p/ask from strangers):"));
-            var secretBox = CreateTextBox(SettingsManager.Current.P2PServerSecret);
-            secretBox.TextChanged += (s, e) => { SettingsManager.Current.P2PServerSecret = secretBox.Text.Trim(); SettingsManager.Save(); };
+            var secretBox = CreateTextBox(SettingsManager.Current.P2P_SERVER_SECRET);
+            secretBox.TextChanged += (s, e) => { SettingsManager.Current.P2P_SERVER_SECRET = secretBox.Text.Trim(); SettingsManager.Save(); };
             _p2pPanel.Children.Add(secretBox);
 
             _p2pPanel.Children.Add(CreateHeader("🖥️ Registered Peer PCs"));
@@ -254,7 +254,7 @@ namespace JarvisLauncher
             testBtn.Click += async (s, e) =>
             {
                 string sel = (_backendCombo.SelectedItem as string) ?? "Gemini";
-                SettingsManager.Current.LlmBackend = sel;
+                SettingsManager.Current.LLM_BACKEND = sel;
                 testBtn.Content = "⏳ Testing...";
                 _statusText.Text = "";
                 try
@@ -287,9 +287,9 @@ namespace JarvisLauncher
             saveBtn.Margin = new Thickness(0, 12, 0, 0);
             saveBtn.Click += (s, e) =>
             {
-                SettingsManager.Current.LlmBackend = (_backendCombo.SelectedItem as string) ?? "Gemini";
+                SettingsManager.Current.LLM_BACKEND = (_backendCombo.SelectedItem as string) ?? "Gemini";
                 SettingsManager.Save();
-                TextOverlay.Show($"✅ LLM Backend set to: {SettingsManager.Current.LlmBackend}", 2500);
+                TextOverlay.Show($"✅ LLM Backend set to: {SettingsManager.Current.LLM_BACKEND}", 2500);
                 this.FadeOutAndClose();
             };
             root.Children.Add(saveBtn);

@@ -30,10 +30,10 @@ namespace JarvisLauncher
 
             suggestions.Add(new CommandResult
             {
-                Title       = "System Specifications",
-                Description = "Display detailed OS, CPU, GPU, and RAM specifications",
-                Similarity  = similarity + 0.5,
-                Execute     = () => ShowSpecs()
+                TITLE       = "System Specifications",
+                DESCRIPTION = "Display detailed OS, CPU, GPU, and RAM specifications",
+                SIMILARITY  = similarity + 0.5,
+                EXECUTE     = () => ShowSpecs()
             });
 
             return suggestions;

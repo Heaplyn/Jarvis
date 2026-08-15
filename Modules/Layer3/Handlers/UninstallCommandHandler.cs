@@ -29,10 +29,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🗑️ Uninstall Packages or Jarvis",
-                    Description = "Syntax: uninstall [winget/npm/python/self] [package_name]",
-                    Similarity = 5.0,
-                    Execute = () => TextOverlay.Show("Example: uninstall winget sideloadly", 4000)
+                    TITLE = "🗑️ Uninstall Packages or Jarvis",
+                    DESCRIPTION = "Syntax: uninstall [winget/npm/python/self] [package_name]",
+                    SIMILARITY = 5.0,
+                    EXECUTE = () => TextOverlay.Show("Example: uninstall winget sideloadly", 4000)
                 });
                 return suggestions;
             }
@@ -42,10 +42,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "⚠️ Completely Uninstall Jarvis Launcher",
-                    Description = "Purges all local configurations, templates, voice models, and files",
-                    Similarity = 9.0,
-                    Execute = () =>
+                    TITLE = "⚠️ Completely Uninstall Jarvis Launcher",
+                    DESCRIPTION = "Purges all local configurations, templates, voice models, and files",
+                    SIMILARITY = 9.0,
+                    EXECUTE = () =>
                     {
                         var confirm = MessageBox.Show(
                             "This action will completely remove Jarvis, delete all local configuration profiles, voiceprints, reminders, and close the application. Proceed with uninstallation?",
@@ -81,10 +81,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🗑️ Uninstall Winget Package: {pkg}",
-                    Description = $"Runs: winget uninstall {pkg} --silent",
-                    Similarity = 6.8,
-                    Execute = () => RunUninstallProcess("winget", $"uninstall {pkg} --silent")
+                    TITLE = $"🗑️ Uninstall Winget Package: {pkg}",
+                    DESCRIPTION = $"Runs: winget uninstall {pkg} --silent",
+                    SIMILARITY = 6.8,
+                    EXECUTE = () => RunUninstallProcess("winget", $"uninstall {pkg} --silent")
                 });
             }
             // NPM uninstaller
@@ -92,10 +92,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🗑️ Uninstall NPM Package: {pkg}",
-                    Description = $"Runs: npm uninstall -g {pkg}",
-                    Similarity = 6.8,
-                    Execute = () => RunUninstallProcess("cmd.exe", $"/c npm uninstall -g {pkg}")
+                    TITLE = $"🗑️ Uninstall NPM Package: {pkg}",
+                    DESCRIPTION = $"Runs: npm uninstall -g {pkg}",
+                    SIMILARITY = 6.8,
+                    EXECUTE = () => RunUninstallProcess("cmd.exe", $"/c npm uninstall -g {pkg}")
                 });
             }
             // Python/Pip uninstaller
@@ -103,10 +103,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🗑️ Uninstall Python pip Package: {pkg}",
-                    Description = $"Runs: pip uninstall -y {pkg}",
-                    Similarity = 6.8,
-                    Execute = () => RunUninstallProcess("cmd.exe", $"/c pip uninstall -y {pkg}")
+                    TITLE = $"🗑️ Uninstall Python pip Package: {pkg}",
+                    DESCRIPTION = $"Runs: pip uninstall -y {pkg}",
+                    SIMILARITY = 6.8,
+                    EXECUTE = () => RunUninstallProcess("cmd.exe", $"/c pip uninstall -y {pkg}")
                 });
             }
 

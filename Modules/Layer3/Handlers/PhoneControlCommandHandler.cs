@@ -39,13 +39,13 @@ namespace JarvisLauncher
             
             suggestions.Add(new CommandResult
             {
-                Title = "📱 Mobile Companion Hub",
-                Description = "Open connection links and remote control settings",
-                Execute = () =>
+                TITLE = "📱 Mobile Companion Hub",
+                DESCRIPTION = "Open connection links and remote control settings",
+                EXECUTE = () =>
                 {
                     MobileOverlay.ShowOverlay();
                 },
-                Similarity = similarity + 0.5 // Boost it slightly
+                SIMILARITY = similarity + 0.5 // Boost it slightly
             });
 
             return suggestions;

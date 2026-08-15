@@ -28,10 +28,10 @@ namespace JarvisLauncher
 
             suggestions.Add(new CommandResult
             {
-                Title       = "Toggle Audio Mute",
-                Description = "Fast toggle mute/unmute state of system sound device",
-                Similarity  = similarity + 0.5,
-                Execute     = () => ToggleMute()
+                TITLE       = "Toggle Audio Mute",
+                DESCRIPTION = "Fast toggle mute/unmute state of system sound device",
+                SIMILARITY  = similarity + 0.5,
+                EXECUTE     = () => ToggleMute()
             });
 
             return suggestions;

@@ -26,10 +26,10 @@ namespace JarvisLauncher
 
             suggestions.Add(new CommandResult
             {
-                Title = "📂 Open File Organizer",
-                Description = "Run file categorization, duplicate audits, and empty directory purges",
-                Similarity = similarity + 0.5,
-                Execute = () => FileOrganizerOverlay.Open()
+                TITLE = "📂 Open File Organizer",
+                DESCRIPTION = "Run file categorization, duplicate audits, and empty directory purges",
+                SIMILARITY = similarity + 0.5,
+                EXECUTE = () => FileOrganizerOverlay.Open()
             });
 
             return suggestions;

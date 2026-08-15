@@ -33,10 +33,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title       = "⚙️ Open Settings & Options GUI",
-                    Description = "Visually configure API keys, download folders, and color themes",
-                    Similarity  = similarity + 3.0,
-                    Execute     = () => SettingsOverlay.OpenSettings()
+                    TITLE       = "⚙️ Open Settings & Options GUI",
+                    DESCRIPTION = "Visually configure API keys, download folders, and color themes",
+                    SIMILARITY  = similarity + 3.0,
+                    EXECUTE     = () => SettingsOverlay.OpenSettings()
                 });
             }
             else if (cmd == "setkey")
@@ -50,20 +50,20 @@ namespace JarvisLauncher
                     {
                         suggestions.Add(new CommandResult
                         {
-                            Title = $"Set Google AI Key",
-                            Description = $"Configure the key to: {MaskKey(value)}",
-                            Execute = () => SetKey("google", value),
-                            Similarity = similarity
+                            TITLE = $"Set Google AI Key",
+                            DESCRIPTION = $"Configure the key to: {MaskKey(value)}",
+                            EXECUTE = () => SetKey("google", value),
+                            SIMILARITY = similarity
                         });
                     }
                     else if (service == "github" || service == "git")
                     {
                         suggestions.Add(new CommandResult
                         {
-                            Title = $"Set GitHub Token",
-                            Description = $"Configure the token to: {MaskKey(value)}",
-                            Execute = () => SetKey("github", value),
-                            Similarity = similarity
+                            TITLE = $"Set GitHub Token",
+                            DESCRIPTION = $"Configure the token to: {MaskKey(value)}",
+                            EXECUTE = () => SetKey("github", value),
+                            SIMILARITY = similarity
                         });
                     }
                 }
@@ -72,20 +72,20 @@ namespace JarvisLauncher
                     string service = parts[1].ToLower();
                     suggestions.Add(new CommandResult
                     {
-                        Title = $"Set Key for {service}...",
-                        Description = $"Type the key (e.g. 'setkey {service} <your_key>')",
-                        Execute = null,
-                        Similarity = similarity
+                        TITLE = $"Set Key for {service}...",
+                        DESCRIPTION = $"Type the key (e.g. 'setkey {service} <your_key>')",
+                        EXECUTE = null,
+                        SIMILARITY = similarity
                     });
                 }
                 else
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title = "Set Key...",
-                        Description = "Type service name (e.g. 'setkey google' or 'setkey github')",
-                        Execute = null,
-                        Similarity = similarity
+                        TITLE = "Set Key...",
+                        DESCRIPTION = "Type service name (e.g. 'setkey google' or 'setkey github')",
+                        EXECUTE = null,
+                        SIMILARITY = similarity
                     });
                 }
             }
@@ -96,24 +96,24 @@ namespace JarvisLauncher
                     string service = parts[1].ToLower();
                     if (service == "google" || service == "googleai" || service == "gemini")
                     {
-                        string current = SettingsManager.Current.GoogleAIKey;
+                        string current = SettingsManager.Current.GOOGLE_AI_KEY;
                         suggestions.Add(new CommandResult
                         {
-                            Title = $"Google AI Key: {MaskKey(current)}",
-                            Description = "Displays configured Google API Key",
-                            Execute = null,
-                            Similarity = similarity
+                            TITLE = $"Google AI Key: {MaskKey(current)}",
+                            DESCRIPTION = "Displays configured Google API Key",
+                            EXECUTE = null,
+                            SIMILARITY = similarity
                         });
                     }
                     else if (service == "github" || service == "git")
                     {
-                        string current = SettingsManager.Current.GithubToken;
+                        string current = SettingsManager.Current.GITHUB_TOKEN;
                         suggestions.Add(new CommandResult
                         {
-                            Title = $"GitHub Token: {MaskKey(current)}",
-                            Description = "Displays configured GitHub Token",
-                            Execute = null,
-                            Similarity = similarity
+                            TITLE = $"GitHub Token: {MaskKey(current)}",
+                            DESCRIPTION = "Displays configured GitHub Token",
+                            EXECUTE = null,
+                            SIMILARITY = similarity
                         });
                     }
                 }
@@ -121,17 +121,17 @@ namespace JarvisLauncher
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title = "Get Key...",
-                        Description = "Type service name (e.g. 'getkey google' or 'getkey github')",
-                        Execute = null,
-                        Similarity = similarity
+                        TITLE = "Get Key...",
+                        DESCRIPTION = "Type service name (e.g. 'getkey google' or 'getkey github')",
+                        EXECUTE = null,
+                        SIMILARITY = similarity
                     });
                 }
             }
 
             if (cmd == "ontop" || cmd == "topmost" || cmd == "alwaysontop")
             {
-                bool current = SettingsManager.Current.AlwaysOnTop;
+                bool current = SettingsManager.Current.ALWAYS_ON_TOP;
                 if (parts.Length > 1)
                 {
                     string arg = parts[1].ToLower();
@@ -139,30 +139,30 @@ namespace JarvisLauncher
                     {
                         suggestions.Add(new CommandResult
                         {
-                            Title = "📌 Enable Always On Top",
-                            Description = "Keep all Jarvis HUD windows persistently on top of other windows",
-                            Execute = () => SetAlwaysOnTop(true),
-                            Similarity = similarity + 1.0
+                            TITLE = "📌 Enable Always On Top",
+                            DESCRIPTION = "Keep all Jarvis HUD windows persistently on top of other windows",
+                            EXECUTE = () => SetAlwaysOnTop(true),
+                            SIMILARITY = similarity + 1.0
                         });
                     }
                     else if (arg == "off" || arg == "false" || arg == "0")
                     {
                         suggestions.Add(new CommandResult
                         {
-                            Title = "📌 Disable Always On Top",
-                            Description = "Allow Jarvis HUD windows to be placed behind other windows",
-                            Execute = () => SetAlwaysOnTop(false),
-                            Similarity = similarity + 1.0
+                            TITLE = "📌 Disable Always On Top",
+                            DESCRIPTION = "Allow Jarvis HUD windows to be placed behind other windows",
+                            EXECUTE = () => SetAlwaysOnTop(false),
+                            SIMILARITY = similarity + 1.0
                         });
                     }
                     else if (arg == "toggle")
                     {
                         suggestions.Add(new CommandResult
                         {
-                            Title = $"📌 Toggle Always On Top (Currently: {(current ? "On" : "Off")})",
-                            Description = $"Switch Always On Top to {!current}",
-                            Execute = () => SetAlwaysOnTop(!current),
-                            Similarity = similarity + 1.0
+                            TITLE = $"📌 Toggle Always On Top (Currently: {(current ? "On" : "Off")})",
+                            DESCRIPTION = $"Switch Always On Top to {!current}",
+                            EXECUTE = () => SetAlwaysOnTop(!current),
+                            SIMILARITY = similarity + 1.0
                         });
                     }
                 }
@@ -170,17 +170,17 @@ namespace JarvisLauncher
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title = $"📌 Always On Top is {(current ? "Enabled" : "Disabled")}",
-                        Description = "Type 'ontop on', 'ontop off', or 'ontop toggle' to configure",
-                        Execute = null,
-                        Similarity = similarity + 0.5
+                        TITLE = $"📌 Always On Top is {(current ? "Enabled" : "Disabled")}",
+                        DESCRIPTION = "Type 'ontop on', 'ontop off', or 'ontop toggle' to configure",
+                        EXECUTE = null,
+                        SIMILARITY = similarity + 0.5
                     });
                     suggestions.Add(new CommandResult
                     {
-                        Title = "📌 Toggle Always On Top",
-                        Description = $"Switch Always On Top to {!current}",
-                        Execute = () => SetAlwaysOnTop(!current),
-                        Similarity = similarity
+                        TITLE = "📌 Toggle Always On Top",
+                        DESCRIPTION = $"Switch Always On Top to {!current}",
+                        EXECUTE = () => SetAlwaysOnTop(!current),
+                        SIMILARITY = similarity
                     });
                 }
             }
@@ -191,10 +191,10 @@ namespace JarvisLauncher
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title = "🔇 Disable Jarvis (Sleep Mode)",
-                        Description = "Pause voice activation, tracking, and background analysis",
-                        Execute = () => SetJarvisEnabled(false),
-                        Similarity = similarity + 1.0
+                        TITLE = "🔇 Disable Jarvis (Sleep Mode)",
+                        DESCRIPTION = "Pause voice activation, tracking, and background analysis",
+                        EXECUTE = () => SetJarvisEnabled(false),
+                        SIMILARITY = similarity + 1.0
                     });
                 }
             }
@@ -204,10 +204,10 @@ namespace JarvisLauncher
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title = "🔋 Enable Jarvis (Wake Up)",
-                        Description = "Resume all Jarvis background services and listeners",
-                        Execute = () => SetJarvisEnabled(true),
-                        Similarity = similarity + 1.0
+                        TITLE = "🔋 Enable Jarvis (Wake Up)",
+                        DESCRIPTION = "Resume all Jarvis background services and listeners",
+                        EXECUTE = () => SetJarvisEnabled(true),
+                        SIMILARITY = similarity + 1.0
                     });
                 }
             }
@@ -219,7 +219,7 @@ namespace JarvisLauncher
         {
             try
             {
-                SettingsManager.Current.IsJarvisEnabled = value;
+                SettingsManager.Current.IS_JARVIS_ENABLED = value;
                 SettingsManager.Save();
 
                 if (value)
@@ -243,7 +243,7 @@ namespace JarvisLauncher
         {
             try
             {
-                SettingsManager.Current.AlwaysOnTop = value;
+                SettingsManager.Current.ALWAYS_ON_TOP = value;
                 SettingsManager.Save();
 
                 System.Windows.Application.Current.Dispatcher.Invoke(() =>
@@ -278,11 +278,11 @@ namespace JarvisLauncher
             {
                 if (service == "google")
                 {
-                    SettingsManager.Current.GoogleAIKey = key;
+                    SettingsManager.Current.GOOGLE_AI_KEY = key;
                 }
                 else if (service == "github")
                 {
-                    SettingsManager.Current.GithubToken = key;
+                    SettingsManager.Current.GITHUB_TOKEN = key;
                 }
 
                 SettingsManager.Save();

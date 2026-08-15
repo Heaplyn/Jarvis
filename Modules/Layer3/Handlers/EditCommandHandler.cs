@@ -28,36 +28,36 @@ namespace JarvisLauncher
                 string targetFile = parts[1].Trim();
                 suggestions.Add(new CommandResult
                 {
-                    Title       = $"Edit: {targetFile}",
-                    Description = $"Open \"{targetFile}\" inside the built-in Jarvis Text Editor",
-                    Similarity  = 2.0, // High priority match
-                    Execute     = () => TextEditorOverlay.OpenFile(targetFile)
+                    TITLE       = $"Edit: {targetFile}",
+                    DESCRIPTION = $"Open \"{targetFile}\" inside the built-in Jarvis Text Editor",
+                    SIMILARITY  = 2.0, // High priority match
+                    EXECUTE     = () => TextEditorOverlay.OpenFile(targetFile)
                 });
             }
             else
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title       = "Edit File (Prompt)...",
-                    Description = "Type a custom file name to open in the Text Editor",
-                    Similarity  = similarity + 0.8,
-                    Execute     = () => InputPromptOverlay.Show("Enter file name to edit:", (fileName) => TextEditorOverlay.OpenFile(fileName))
+                    TITLE       = "Edit File (Prompt)...",
+                    DESCRIPTION = "Type a custom file name to open in the Text Editor",
+                    SIMILARITY  = similarity + 0.8,
+                    EXECUTE     = () => InputPromptOverlay.Show("Enter file name to edit:", (fileName) => TextEditorOverlay.OpenFile(fileName))
                 });
 
                 suggestions.Add(new CommandResult
                 {
-                    Title       = "Browse Files...",
-                    Description = "Open a Windows file explorer dialog to select any file to edit",
-                    Similarity  = similarity + 0.6,
-                    Execute     = () => TextEditorOverlay.PromptAndOpenFile()
+                    TITLE       = "Browse Files...",
+                    DESCRIPTION = "Open a Windows file explorer dialog to select any file to edit",
+                    SIMILARITY  = similarity + 0.6,
+                    EXECUTE     = () => TextEditorOverlay.PromptAndOpenFile()
                 });
 
                 suggestions.Add(new CommandResult
                 {
-                    Title       = "Open Scratch Note",
-                    Description = "Open a blank scratch.txt notepad inside the Jarvis Text Editor",
-                    Similarity  = similarity + 0.3,
-                    Execute     = () => TextEditorOverlay.OpenFile("scratch.txt")
+                    TITLE       = "Open Scratch Note",
+                    DESCRIPTION = "Open a blank scratch.txt notepad inside the Jarvis Text Editor",
+                    SIMILARITY  = similarity + 0.3,
+                    EXECUTE     = () => TextEditorOverlay.OpenFile("scratch.txt")
                 });
             }
 

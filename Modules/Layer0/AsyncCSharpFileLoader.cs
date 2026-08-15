@@ -1,145 +1,108 @@
-// Developer: GitHub Copilot
-// Date: 2026-08-11
-// Summary: Lazily loads C# file structure and optionally compiles methods on demand using Roslyn.
+// Developer: heaplyn
+// Date: 2026-08-15
+// Summary: Lightweight C# file structure parser using Regex to avoid heavy Roslyn dependencies.
+//          Provides a basic method and type outline for the built-in Text Editor.
 
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace JarvisLauncher
 {
     public sealed class AsyncCSharpFileLoader
     {
-        private readonly Dictionary<string, Assembly> _assemblyCache = new();
-
-        public async Task<FileOutline> LoadFileOutlineAsync(string filePath, CancellationToken cancellationToken = default)
+        public async Task<FileOutline> LoadFileOutlineAsync(string FilePath, CancellationToken CancellationToken = default)
         {
-            string text = await File.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
-            var tree = CSharpSyntaxTree.ParseText(text, path: filePath);
-            return ParseOutline(tree, filePath);
-        }
+            if (!File.Exists(FilePath)) return new FileOutline(FilePath, new List<TypeOutline>());
 
-        public async Task<Assembly> CompileFileAsync(string filePath, CancellationToken cancellationToken = default)
-        {
-            if (_assemblyCache.TryGetValue(filePath, out var cached))
-            {
-                return cached;
-            }
+            string text = await File.ReadAllTextAsync(FilePath, CancellationToken).ConfigureAwait(false);
 
-            string sourceText = await File.ReadAllTextAsync(filePath, cancellationToken).ConfigureAwait(false);
-            var syntaxTree = CSharpSyntaxTree.ParseText(sourceText, path: filePath);
-
-            var compilation = CSharpCompilation.Create(
-                assemblyName: Path.GetFileNameWithoutExtension(filePath) + "_" + Guid.NewGuid(),
-                syntaxTrees: new[] { syntaxTree },
-                references: GetMetadataReferences(),
-                options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release));
-
-            using var ms = new MemoryStream();
-            var result = compilation.Emit(ms);
-            if (!result.Success)
-            {
-                var errors = string.Join(Environment.NewLine, result.Diagnostics
-                    .Where(d => d.Severity == DiagnosticSeverity.Error)
-                    .Select(d => d.ToString()));
-                throw new InvalidOperationException($"Compilation failed for {filePath}:\n{errors}");
-            }
-
-            ms.Seek(0, SeekOrigin.Begin);
-            var assembly = Assembly.Load(ms.ToArray());
-            _assemblyCache[filePath] = assembly;
-            return assembly;
-        }
-
-        public async Task<object?> InvokeMethodAsync(
-            string filePath,
-            string typeName,
-            string methodName,
-            object?[]? arguments = null,
-            CancellationToken cancellationToken = default)
-        {
-            var assembly = await CompileFileAsync(filePath, cancellationToken).ConfigureAwait(false);
-            var type = assembly.GetType(typeName) ?? throw new InvalidOperationException($"Type '{typeName}' not found.");
-            var method = type.GetMethod(methodName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance)
-                ?? throw new InvalidOperationException($"Method '{methodName}' not found on '{typeName}'.");
-
-            object? instance = method.IsStatic ? null : Activator.CreateInstance(type);
-            return method.Invoke(instance, arguments);
-        }
-
-        private static FileOutline ParseOutline(SyntaxTree syntaxTree, string filePath)
-        {
-            var root = syntaxTree.GetCompilationUnitRoot();
-            var typeNodes = root.DescendantNodes().OfType<TypeDeclarationSyntax>();
             var types = new List<TypeOutline>();
+            var lines = text.Split('\n');
 
-            foreach (var typeNode in typeNodes)
+            // Simple Regex patterns for classes and methods
+            var classRegex = new Regex(@"\b(?:public|private|internal|protected)?\s+(?:static|partial)?\s*(?:class|struct|interface|enum)\s+([a-zA-Z0-9_]+)", RegexOptions.Compiled);
+            var methodRegex = new Regex(@"\b(?:public|private|internal|protected)?\s+(?:static|async|virtual|override|abstract)?\s*([a-zA-Z0-9_<>]+)\s+([a-zA-Z0-9_]+)\s*\((.*?)\)", RegexOptions.Compiled);
+
+            TypeOutline? currentType = null;
+
+            for (int i = 0; i < lines.Length; i++)
             {
-                var typeName = typeNode.Identifier.Text;
-                var kind = typeNode.Kind().ToString().Replace("Declaration", string.Empty);
-                var members = new List<MethodOutline>();
+                string line = lines[i].Trim();
+                if (string.IsNullOrWhiteSpace(line) || line.StartsWith("//") || line.StartsWith("/*")) continue;
 
-                foreach (var methodNode in typeNode.Members.OfType<BaseMethodDeclarationSyntax>())
+                var classMatch = classRegex.Match(line);
+                if (classMatch.Success)
                 {
-                    string methodName = methodNode switch
-                    {
-                        MethodDeclarationSyntax m => m.Identifier.Text,
-                        ConstructorDeclarationSyntax c => c.Identifier.Text,
-                        _ => methodNode.Kind().ToString()
-                    };
+                    string className = classMatch.Groups[1].Value;
+                    string kind = line.Contains("class") ? "class" : line.Contains("struct") ? "struct" : "interface";
+                    currentType = new TypeOutline(className, kind, new List<MethodOutline>());
+                    types.Add(currentType);
+                    continue;
+                }
 
-                    string returnType = methodNode switch
-                    {
-                        MethodDeclarationSyntax m => m.ReturnType.ToString(),
-                        ConstructorDeclarationSyntax _ => "void",
-                        _ => "unknown"
-                    };
+                var methodMatch = methodRegex.Match(line);
+                if (methodMatch.Success && currentType != null)
+                {
+                    string returnType = methodMatch.Groups[1].Value;
+                    string methodName = methodMatch.Groups[2].Value;
+                    string paramStr = methodMatch.Groups[3].Value;
+
+                    // Filter out common false positives like 'if', 'while', 'using'
+                    if (new[] { "if", "while", "for", "foreach", "using", "lock", "switch", "catch" }.Contains(methodName)) continue;
 
                     var parameters = new List<ParameterOutline>();
-                    if (methodNode is BaseMethodDeclarationSyntax method)
+                    if (!string.IsNullOrWhiteSpace(paramStr))
                     {
-                        foreach (var parameter in method.ParameterList.Parameters)
+                        var parts = paramStr.Split(',');
+                        foreach (var p in parts)
                         {
-                            parameters.Add(new ParameterOutline(parameter.Identifier.Text, parameter.Type?.ToString() ?? "var"));
+                            var pParts = p.Trim().Split(' ');
+                            if (pParts.Length >= 2)
+                                parameters.Add(new ParameterOutline(pParts.Last(), pParts[0]));
                         }
                     }
 
-                    int lineNumber = methodNode.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
-                    members.Add(new MethodOutline(methodName, returnType, parameters, lineNumber));
+                    currentType.Methods.Add(new MethodOutline(methodName, returnType, parameters, i + 1));
                 }
-
-                types.Add(new TypeOutline(typeName, kind, members));
             }
 
-            return new FileOutline(Path.GetFullPath(filePath), types);
+            return new FileOutline(Path.GetFullPath(FilePath), types);
         }
 
-        private static IEnumerable<MetadataReference> GetMetadataReferences()
-        {
-            var allAssemblies = AppDomain.CurrentDomain.GetAssemblies()
-                .Where(a => !a.IsDynamic && !string.IsNullOrWhiteSpace(a.Location))
-                .Select(a => MetadataReference.CreateFromFile(a.Location))
-                .ToList();
-
-            var objectAssemblyPath = typeof(object).Assembly.Location;
-            if (!allAssemblies.Any(r => ((PortableExecutableReference)r).FilePath == objectAssemblyPath))
-            {
-                allAssemblies.Add(MetadataReference.CreateFromFile(objectAssemblyPath));
-            }
-
-            return allAssemblies;
-        }
+        // Removed heavy Roslyn compilation and invocation logic to keep EXE size small.
+        public Task<object?> InvokeMethodAsync(string p1, string p2, string p3, object?[]? p4, CancellationToken ct)
+            => Task.FromResult<object?>(null);
     }
 
-    public sealed record FileOutline(string FilePath, IReadOnlyList<TypeOutline> Types);
-    public sealed record TypeOutline(string Name, string Kind, IReadOnlyList<MethodOutline> Methods);
-    public sealed record MethodOutline(string Name, string ReturnType, IReadOnlyList<ParameterOutline> Parameters, int LineNumber);
-    public sealed record ParameterOutline(string Name, string Type);
+    public sealed record FileOutline(string FILE_PATH, List<TypeOutline> TYPES)
+    {
+        public string FilePath => FILE_PATH;
+        public List<TypeOutline> Types => TYPES;
+    }
+
+    public sealed record TypeOutline(string NAME, string KIND, List<MethodOutline> METHODS)
+    {
+        public string Name => NAME;
+        public string Kind => KIND;
+        public List<MethodOutline> Methods => METHODS;
+    }
+
+    public sealed record MethodOutline(string NAME, string RETURN_TYPE, List<ParameterOutline> PARAMETERS, int LINE_NUMBER)
+    {
+        public string Name => NAME;
+        public string ReturnType => RETURN_TYPE;
+        public List<ParameterOutline> Parameters => PARAMETERS;
+        public int LineNumber => LINE_NUMBER;
+    }
+
+    public sealed record ParameterOutline(string NAME, string TYPE)
+    {
+        public string Name => NAME;
+        public string Type => TYPE;
+    }
 }

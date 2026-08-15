@@ -27,10 +27,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🚀 Turn On Real-Time Code Assist",
-                    Description = "Launches 8s Vision + Workspace File scanning loop with sidebar advisor panel",
-                    Similarity = 6.8,
-                    Execute = () =>
+                    TITLE = "🚀 Turn On Real-Time Code Assist",
+                    DESCRIPTION = "Launches 8s Vision + Workspace File scanning loop with sidebar advisor panel",
+                    SIMILARITY = 6.8,
+                    EXECUTE = () =>
                     {
                         CodeAssistManager.Start();
                         CodeAssistOverlay.ShowOverlay();
@@ -44,10 +44,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🛑 Turn Off Real-Time Code Assist",
-                    Description = "Stops background project scanning and queries",
-                    Similarity = 6.8,
-                    Execute = () =>
+                    TITLE = "🛑 Turn Off Real-Time Code Assist",
+                    DESCRIPTION = "Stops background project scanning and queries",
+                    SIMILARITY = 6.8,
+                    EXECUTE = () =>
                     {
                         CodeAssistManager.Stop();
                         CodeAssistOverlay.HideOverlay();
@@ -59,10 +59,10 @@ namespace JarvisLauncher
             // Option 3: Show Sidebar
             suggestions.Add(new CommandResult
             {
-                Title = "🤖 Show AI Code Assist Sidebar",
-                Description = "Dock Code Assist sidebar layout on your desktop",
-                Similarity = 6.0,
-                Execute = () => CodeAssistOverlay.ShowOverlay()
+                TITLE = "🤖 Show AI Code Assist Sidebar",
+                DESCRIPTION = "Dock Code Assist sidebar layout on your desktop",
+                SIMILARITY = 6.0,
+                EXECUTE = () => CodeAssistOverlay.ShowOverlay()
             });
 
             return suggestions;

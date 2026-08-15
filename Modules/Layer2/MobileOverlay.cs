@@ -61,7 +61,7 @@ namespace JarvisLauncher
 
             RefreshAll();
 
-            if (SettingsManager.Current.MobileAutoStartTunnel)
+            if (SettingsManager.Current.MOBILE_AUTO_START_TUNNEL)
             {
                 _ = AutoStartPreferredTunnelAsync();
             }
@@ -101,7 +101,7 @@ namespace JarvisLauncher
             restartBtn.Click += (s, e) =>
             {
                 MobileBridgeServer.Stop();
-                MobileBridgeServer.Start(SettingsManager.Current.MobilePort);
+                MobileBridgeServer.Start(SettingsManager.Current.MOBILE_PORT);
                 RefreshAll();
             };
             stack.Children.Add(restartBtn);
@@ -225,31 +225,31 @@ namespace JarvisLauncher
             _providerCombo.Items.Add("None");
             _providerCombo.Items.Add("Cloudflare");
             _providerCombo.Items.Add("Ngrok");
-            _providerCombo.SelectedItem = SettingsManager.Current.MobilePreferredTunnel;
+            _providerCombo.SelectedItem = SettingsManager.Current.MOBILE_PREFERRED_TUNNEL;
             if (_providerCombo.SelectedItem == null) _providerCombo.SelectedIndex = 0;
             _providerCombo.SelectionChanged += (s, e) =>
             {
-                SettingsManager.Current.MobilePreferredTunnel = _providerCombo.SelectedItem?.ToString() ?? "None";
+                SettingsManager.Current.MOBILE_PREFERRED_TUNNEL = _providerCombo.SelectedItem?.ToString() ?? "None";
                 SettingsManager.Save();
             };
             providerRow.Children.Add(_providerCombo);
             stack.Children.Add(providerRow);
 
-            _autoStartCheck = new CheckBox { Content = "Auto-start preferred tunnel when this hub opens", FontSize = 11, IsChecked = SettingsManager.Current.MobileAutoStartTunnel, Margin = new Thickness(0, 0, 0, 8) };
-            _autoStartCheck.Checked += (s, e) => { SettingsManager.Current.MobileAutoStartTunnel = true; SettingsManager.Save(); };
-            _autoStartCheck.Unchecked += (s, e) => { SettingsManager.Current.MobileAutoStartTunnel = false; SettingsManager.Save(); };
+            _autoStartCheck = new CheckBox { Content = "Auto-start preferred tunnel when this hub opens", FontSize = 11, IsChecked = SettingsManager.Current.MOBILE_AUTO_START_TUNNEL, Margin = new Thickness(0, 0, 0, 8) };
+            _autoStartCheck.Checked += (s, e) => { SettingsManager.Current.MOBILE_AUTO_START_TUNNEL = true; SettingsManager.Save(); };
+            _autoStartCheck.Unchecked += (s, e) => { SettingsManager.Current.MOBILE_AUTO_START_TUNNEL = false; SettingsManager.Save(); };
             stack.Children.Add(_autoStartCheck);
 
             // Port
             var portRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
             portRow.Children.Add(new TextBlock { Text = "Bridge Port:", FontSize = 11, Width = 120, VerticalAlignment = VerticalAlignment.Center });
-            _portBox = new TextBox { Width = 80, Text = SettingsManager.Current.MobilePort.ToString() };
+            _portBox = new TextBox { Width = 80, Text = SettingsManager.Current.MOBILE_PORT.ToString() };
             var applyPortBtn = new Button { Content = "Apply & Restart", Padding = new Thickness(6, 4, 6, 4), Margin = new Thickness(8, 0, 0, 0) };
             applyPortBtn.Click += (s, e) =>
             {
                 if (int.TryParse(_portBox.Text.Trim(), out int newPort) && newPort > 0 && newPort < 65536)
                 {
-                    SettingsManager.Current.MobilePort = newPort;
+                    SettingsManager.Current.MOBILE_PORT = newPort;
                     SettingsManager.Save();
                     MobileBridgeServer.Stop();
                     MobileBridgeServer.Start(newPort);
@@ -266,18 +266,18 @@ namespace JarvisLauncher
             stack.Children.Add(portRow);
 
             // Capability toggles
-            AddCapabilityToggle(stack, "Allow Remote PowerShell Terminal", () => SettingsManager.Current.MobileAllowTerminal, v => SettingsManager.Current.MobileAllowTerminal = v);
-            AddCapabilityToggle(stack, "Allow Remote File Browsing", () => SettingsManager.Current.MobileAllowFiles, v => SettingsManager.Current.MobileAllowFiles = v);
-            AddCapabilityToggle(stack, "Allow Remote Screen Mirroring", () => SettingsManager.Current.MobileAllowScreenMirror, v => SettingsManager.Current.MobileAllowScreenMirror = v);
-            AddCapabilityToggle(stack, "Allow Remote Clipboard Sync", () => SettingsManager.Current.MobileAllowClipboard, v => SettingsManager.Current.MobileAllowClipboard = v);
+            AddCapabilityToggle(stack, "Allow Remote PowerShell Terminal", () => SettingsManager.Current.MOBILE_ALLOW_TERMINAL, v => SettingsManager.Current.MOBILE_ALLOW_TERMINAL = v);
+            AddCapabilityToggle(stack, "Allow Remote File Browsing", () => SettingsManager.Current.MOBILE_ALLOW_FILES, v => SettingsManager.Current.MOBILE_ALLOW_FILES = v);
+            AddCapabilityToggle(stack, "Allow Remote Screen Mirroring", () => SettingsManager.Current.MOBILE_ALLOW_SCREEN_MIRROR, v => SettingsManager.Current.MOBILE_ALLOW_SCREEN_MIRROR = v);
+            AddCapabilityToggle(stack, "Allow Remote Clipboard Sync", () => SettingsManager.Current.MOBILE_ALLOW_CLIPBOARD, v => SettingsManager.Current.MOBILE_ALLOW_CLIPBOARD = v);
 
             var lockdownBtn = new Button { Content = "🔒 Privacy Lockdown (Disable All)", Padding = new Thickness(8), Margin = new Thickness(0, 8, 0, 0) };
             lockdownBtn.Click += (s, e) =>
             {
-                SettingsManager.Current.MobileAllowTerminal = false;
-                SettingsManager.Current.MobileAllowFiles = false;
-                SettingsManager.Current.MobileAllowScreenMirror = false;
-                SettingsManager.Current.MobileAllowClipboard = false;
+                SettingsManager.Current.MOBILE_ALLOW_TERMINAL = false;
+                SettingsManager.Current.MOBILE_ALLOW_FILES = false;
+                SettingsManager.Current.MOBILE_ALLOW_SCREEN_MIRROR = false;
+                SettingsManager.Current.MOBILE_ALLOW_CLIPBOARD = false;
                 SettingsManager.Save();
                 RefreshAll();
                 TextOverlay.Show("🔒 All remote phone capabilities disabled.", 2000);
@@ -351,7 +351,7 @@ namespace JarvisLauncher
                 _cfBtn.IsEnabled = false;
                 try
                 {
-                    string url = await CloudflareTunnelManager.StartTunnelAsync(SettingsManager.Current.MobilePort);
+                    string url = await CloudflareTunnelManager.StartTunnelAsync(SettingsManager.Current.MOBILE_PORT);
                     TextOverlay.Show($"🌐 Cloudflare live: {url}", 3000);
                 }
                 catch (Exception ex)
@@ -376,7 +376,7 @@ namespace JarvisLauncher
                 _ngrokBtn.IsEnabled = false;
                 try
                 {
-                    string url = await NgrokTunnelManager.StartTunnelAsync(SettingsManager.Current.MobilePort);
+                    string url = await NgrokTunnelManager.StartTunnelAsync(SettingsManager.Current.MOBILE_PORT);
                     TextOverlay.Show($"🌐 ngrok live: {url}", 3000);
                 }
                 catch (Exception ex)
@@ -412,13 +412,13 @@ namespace JarvisLauncher
         {
             try
             {
-                switch (SettingsManager.Current.MobilePreferredTunnel)
+                switch (SettingsManager.Current.MOBILE_PREFERRED_TUNNEL)
                 {
                     case "Cloudflare" when !CloudflareTunnelManager.IsRunning:
-                        await CloudflareTunnelManager.StartTunnelAsync(SettingsManager.Current.MobilePort);
+                        await CloudflareTunnelManager.StartTunnelAsync(SettingsManager.Current.MOBILE_PORT);
                         break;
                     case "Ngrok" when !NgrokTunnelManager.IsRunning:
-                        await NgrokTunnelManager.StartTunnelAsync(SettingsManager.Current.MobilePort);
+                        await NgrokTunnelManager.StartTunnelAsync(SettingsManager.Current.MOBILE_PORT);
                         break;
                 }
             }
@@ -447,7 +447,7 @@ namespace JarvisLauncher
             Application.Current.Dispatcher.Invoke(() =>
             {
                 // Ensure the mobile bridge server is running before showing the overlay
-                MobileBridgeServer.Start(SettingsManager.Current.MobilePort);
+                MobileBridgeServer.Start(SettingsManager.Current.MOBILE_PORT);
 
                 if (_instance == null || !_instance.IsLoaded)
                 {
@@ -494,7 +494,7 @@ namespace JarvisLauncher
             Application.Current.Dispatcher.Invoke(() =>
             {
                 // Ensure the mobile bridge server is running before showing the QR code
-                MobileBridgeServer.Start(SettingsManager.Current.MobilePort);
+                MobileBridgeServer.Start(SettingsManager.Current.MOBILE_PORT);
 
                 // Priority: Explicit Target > Public Cloudflare Tunnel > Public Ngrok Tunnel > Real LAN IP Address
                 string lanIpUrl = MobileBridgeServer.ServerUrl; // e.g. http://192.168.1.50:9000/

@@ -15,39 +15,39 @@ namespace JarvisLauncher
 {
     public static class AutonomousAgentEngine
     {
-        private static bool _isRunning = false;
-        private static string _lastWindow = string.Empty;
-        private static int _distractionMinutes = 0;
-        private static readonly string[] DistractionKeywords = new[]
+        private static bool IsRunning = false;
+        private static string LastWindow = string.Empty;
+        private static int DistractionMinutes = 0;
+        private static readonly string[] DISTRACTION_KEYWORDS = new[]
         {
             "youtube", "netflix", "facebook", "twitter", "reddit", "instagram", "tiktok", "steam", "gaming", "discord", "spotify"
         };
 
         public static void Start()
         {
-            if (_isRunning) return;
-            _isRunning = true;
+            if (IsRunning) return;
+            IsRunning = true;
 
             Task.Run(async () =>
             {
-                while (_isRunning)
+                while (IsRunning)
                 {
                     try
                     {
-                        var settings = SettingsManager.Current;
-                        if (settings.IsAutonomousModeEnabled && settings.IsJarvisEnabled)
+                        var Settings = SettingsManager.Current;
+                        if (Settings.IS_AUTONOMOUS_MODE_ENABLED && Settings.IS_JARVIS_ENABLED)
                         {
                             await RunAutonomousAudit();
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception Ex)
                     {
-                        DebugConsoleOverlay.Log("Autonomous Error", ex.Message);
+                        DebugConsoleOverlay.Log("Autonomous Error", Ex.Message);
                     }
 
                     // Sleep for interval (default: 2 minutes)
-                    int sleepMinutes = Math.Max(1, SettingsManager.Current.AutonomousIntervalMinutes);
-                    await Task.Delay(sleepMinutes * 60 * 1000);
+                    int SleepMinutes = Math.Max(1, SettingsManager.Current.AUTONOMOUS_INTERVAL_MINUTES);
+                    await Task.Delay(SleepMinutes * 60 * 1000);
                 }
             });
 
@@ -56,7 +56,7 @@ namespace JarvisLauncher
 
         public static void Stop()
         {
-            _isRunning = false;
+            IsRunning = false;
         }
 
         private static async Task RunAutonomousAudit()
@@ -78,28 +78,28 @@ namespace JarvisLauncher
         {
             try
             {
-                string activeWin = MemoryManager.GetCurrentWindowTitle().ToLower().Trim();
-                if (string.IsNullOrEmpty(activeWin)) return;
+                string ActiveWin = MemoryManager.GetCurrentWindowTitle().ToLower().Trim();
+                if (string.IsNullOrEmpty(ActiveWin)) return;
 
-                bool isDistracting = DistractionKeywords.Any(k => activeWin.Contains(k));
-                if (isDistracting)
+                bool IsDistracting = DISTRACTION_KEYWORDS.Any(k => ActiveWin.Contains(k));
+                if (IsDistracting)
                 {
-                    _distractionMinutes += SettingsManager.Current.AutonomousIntervalMinutes;
+                    DistractionMinutes += SettingsManager.Current.AUTONOMOUS_INTERVAL_MINUTES;
 
                     // If user has been distracted for 15+ minutes, trigger a nudge
-                    if (_distractionMinutes >= 15)
+                    if (DistractionMinutes >= 15)
                     {
-                        _distractionMinutes = 0; // Reset counter
-                        string msg = "Excuse me, I noticed you've been focused on distracting media for a while. Perhaps a quick focus sprint?";
-                        TtsManager.Speak(msg, isShortSpeech: true);
+                        DistractionMinutes = 0; // Reset counter
+                        string Msg = "Excuse me, I noticed you've been focused on distracting media for a while. Perhaps a quick focus sprint?";
+                        TtsManager.Speak(Msg, isShortSpeech: true);
                         TextOverlay.Show("⚠️ Focus Alert: Time for a micro-break?", 5000);
-                        DebugConsoleOverlay.Log("Autonomous Focus", $"ADHD Nudge sent: user active in '{activeWin}' for 15+ mins.");
+                        DebugConsoleOverlay.Log("Autonomous Focus", $"ADHD Nudge sent: user active in '{ActiveWin}' for 15+ mins.");
                     }
                 }
                 else
                 {
                     // User is focused on work (e.g. VS Code, Roblox, terminal)
-                    _distractionMinutes = 0;
+                    DistractionMinutes = 0;
                 }
             }
             catch { }
@@ -107,6 +107,7 @@ namespace JarvisLauncher
 
         private static void AuditSystemResources()
         {
+            /*
             try
             {
                 using (var cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total"))
@@ -124,31 +125,32 @@ namespace JarvisLauncher
                 }
             }
             catch { }
+            */
         }
 
         private static void AuditUpcomingReminders()
         {
             try
             {
-                var active = ReminderManager.GetActiveReminders();
-                var now = DateTime.Now;
+                var Active = ReminderManager.GetActiveReminders();
+                var Now = DateTime.Now;
 
-                foreach (var reminder in active)
+                foreach (var Reminder in Active)
                 {
-                    double minsLeft = (reminder.TargetTime - now).TotalMinutes;
+                    double MinsLeft = (Reminder.TargetTime - Now).TotalMinutes;
                     
                     // Alert user if a reminder is due in exactly 2-5 minutes
-                    if (minsLeft > 0 && minsLeft <= 5.0)
+                    if (MinsLeft > 0 && MinsLeft <= 5.0)
                     {
                         // We use a custom key to make sure we don't spam the alert multiple times
-                        string cacheKey = $"UpcomingAlert_{reminder.Id}";
-                        if (AppDomain.CurrentDomain.GetData(cacheKey) == null)
+                        string CacheKey = $"UpcomingAlert_{Reminder.Id}";
+                        if (AppDomain.CurrentDomain.GetData(CacheKey) == null)
                         {
-                            AppDomain.CurrentDomain.SetData(cacheKey, true);
-                            string msg = $"Heads up: You have a scheduled reminder in {Math.Round(minsLeft)} minutes: '{reminder.Message}'.";
-                            TtsManager.Speak(msg, isShortSpeech: true);
-                            TextOverlay.Show($"🔔 Upcoming: {reminder.Message} (in {Math.Round(minsLeft)}m)", 5000);
-                            DebugConsoleOverlay.Log("Autonomous Reminders", $"Proactive upcoming reminder alert: '{reminder.Message}'");
+                            AppDomain.CurrentDomain.SetData(CacheKey, true);
+                            string Msg = $"Heads up: You have a scheduled reminder in {Math.Round(MinsLeft)} minutes: '{Reminder.Message}'.";
+                            TtsManager.Speak(Msg, isShortSpeech: true);
+                            TextOverlay.Show($"🔔 Upcoming: {Reminder.Message} (in {Math.Round(MinsLeft)}m)", 5000);
+                            DebugConsoleOverlay.Log("Autonomous Reminders", $"Proactive upcoming reminder alert: '{Reminder.Message}'");
                         }
                     }
                 }
@@ -160,35 +162,35 @@ namespace JarvisLauncher
         {
             try
             {
-                var settings = SettingsManager.Current;
-                if (!settings.IsTeacherModeEnabled) return;
+                var Settings = SettingsManager.Current;
+                if (!Settings.IS_TEACHER_MODE_ENABLED) return;
 
-                string activeWin = MemoryManager.GetCurrentWindowTitle().ToLower().Trim();
-                if (string.IsNullOrEmpty(activeWin)) return;
+                string ActiveWin = MemoryManager.GetCurrentWindowTitle().ToLower().Trim();
+                if (string.IsNullOrEmpty(ActiveWin)) return;
 
                 // Only capture screen if focused on common code editors / IDEs
-                bool isCoding = activeWin.Contains("visual studio") || 
-                                activeWin.Contains("vs code") || 
-                                activeWin.Contains("roblox studio") || 
-                                activeWin.Contains("rider") || 
-                                activeWin.Contains("notepad++") ||
-                                activeWin.Contains("sublime");
+                bool IsCoding = ActiveWin.Contains("visual studio") ||
+                                ActiveWin.Contains("vs code") ||
+                                ActiveWin.Contains("roblox studio") ||
+                                ActiveWin.Contains("rider") ||
+                                ActiveWin.Contains("notepad++") ||
+                                ActiveWin.Contains("sublime");
 
-                if (!isCoding) return;
+                if (!IsCoding) return;
 
                 // Take a screenshot of the primary monitor
-                string? base64Image = ScreenCaptureUtil.CapturePrimaryScreenToBase64();
-                if (string.IsNullOrEmpty(base64Image)) return;
+                string? Base64Image = ScreenCaptureUtil.CapturePrimaryScreenToBase64();
+                if (string.IsNullOrEmpty(Base64Image)) return;
 
-                string prompt = "You are the Jarvis Code Teacher. Surveil this screenshot of the user's screen. If the user is editing code (in Visual Studio, VS Code, Roblox Studio, etc.), inspect the visible code, compilation squiggles, or error messages.\n\n" +
+                string Prompt = "You are the Jarvis Code Teacher. Surveil this screenshot of the user's screen. If the user is editing code (in Visual Studio, VS Code, Roblox Studio, etc.), inspect the visible code, compilation squiggles, or error messages.\n\n" +
                                 "CRITICAL RULES:\n" +
                                 "1. If there are no clear syntax errors, compilation bugs, or deprecated API usages visible, respond with EXACTLY the word 'CLEAR'.\n" +
                                 "2. If you spot a bug, error, deprecated route, or bad practice, write a short, high-impact educational lesson explaining the issue, why it happens, and showing the 'better method'.\n" +
                                 "3. Keep your advice brief, constructive, and educational.";
 
-                string response = await AiAPI.AnalyzeImageAsync(prompt, base64Image);
+                string Response = await AiAPI.AnalyzeImageAsync(Prompt, Base64Image);
 
-                if (!string.IsNullOrWhiteSpace(response) && response.Trim().ToUpper() != "CLEAR")
+                if (!string.IsNullOrWhiteSpace(Response) && Response.Trim().ToUpper() != "CLEAR")
                 {
                     // Alert the user via overlay and speech
                     TextOverlay.Show("🎓 Code Teacher: Visible coding warning spotted on screen!", 5000);
@@ -198,12 +200,12 @@ namespace JarvisLauncher
                     ChatOverlay.LogConsoleAction("Screen Surveillance Nudge", "Observed potential programming anti-pattern.");
                     
                     // Post the detailed tutorial block to companion chat history
-                    await ChatOverlay.SubmitTextMessage("educational advice:\n" + response);
+                    await ChatOverlay.SubmitTextMessage("educational advice:\n" + Response);
                 }
             }
-            catch (Exception ex)
+            catch (Exception Ex)
             {
-                DebugConsoleOverlay.Log("Surveillance Error", ex.Message);
+                DebugConsoleOverlay.Log("Surveillance Error", Ex.Message);
             }
         }
     }

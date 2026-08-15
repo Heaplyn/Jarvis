@@ -25,10 +25,10 @@ namespace JarvisLauncher
 
             suggestions.Add(new CommandResult
             {
-                Title       = "Setup GitHub Workspace",
-                Description = "Configure Git user identity, link remote repositories, and authenticate with GitHub",
-                Similarity  = similarity,
-                Execute     = RunGitSetup
+                TITLE       = "Setup GitHub Workspace",
+                DESCRIPTION = "Configure Git user identity, link remote repositories, and authenticate with GitHub",
+                SIMILARITY  = similarity,
+                EXECUTE     = RunGitSetup
             });
 
             return suggestions;

@@ -22,10 +22,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🗣️ TTS Voice Studio",
-                    Description = "Manage system voices and custom audio files",
-                    Execute = () => TtsVoiceLibraryOverlay.ShowOverlay(),
-                    Similarity = 5.0
+                    TITLE = "🗣️ TTS Voice Studio",
+                    DESCRIPTION = "Manage system voices and custom audio files",
+                    EXECUTE = () => TtsVoiceLibraryOverlay.ShowOverlay(),
+                    SIMILARITY = 5.0
                 });
                 return suggestions;
             }
@@ -40,10 +40,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "🔇 Stop Jarvis Speech",
-                    Description = "Instantly cancel all active TTS output",
-                    Execute = () => TtsManager.Stop(),
-                    Similarity = 5.0
+                    TITLE = "🔇 Stop Jarvis Speech",
+                    DESCRIPTION = "Instantly cancel all active TTS output",
+                    EXECUTE = () => TtsManager.Stop(),
+                    SIMILARITY = 5.0
                 });
                 return suggestions;
             }
@@ -52,10 +52,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🔊 Read File: {Path.GetFileName(arg)}",
-                    Description = $"Convert text in {arg} to speech",
-                    Execute = () => TtsManager.SpeakFile(arg),
-                    Similarity = 4.5
+                    TITLE = $"🔊 Read File: {Path.GetFileName(arg)}",
+                    DESCRIPTION = $"Convert text in {arg} to speech",
+                    EXECUTE = () => TtsManager.SpeakFile(arg),
+                    SIMILARITY = 4.5
                 });
             }
 
@@ -63,10 +63,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"🗣️ Say: \"{arg}\"",
-                    Description = "Play text through the active TTS engine",
-                    Execute = () => TtsManager.Speak(arg, isShortSpeech: false),
-                    Similarity = 4.0
+                    TITLE = $"🗣️ Say: \"{arg}\"",
+                    DESCRIPTION = "Play text through the active TTS engine",
+                    EXECUTE = () => TtsManager.Speak(arg, isShortSpeech: false),
+                    SIMILARITY = 4.0
                 });
             }
 

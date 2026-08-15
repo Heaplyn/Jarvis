@@ -21,17 +21,17 @@ namespace JarvisLauncher
             query = query.Trim().ToLower();
             var parts = query.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
 
-            string currentTheme = SettingsManager.Current.Theme;
+            string currentTheme = SettingsManager.Current.THEME;
 
             if (parts.Length > 1)
             {
                 string targetTheme = parts[1].Trim().ToLower();
                 suggestions.Add(new CommandResult
                 {
-                    Title       = $"Apply Theme: {targetTheme}",
-                    Description = $"Switch visual layout style to {targetTheme} accents",
-                    Similarity  = 2.0, // High priority match
-                    Execute     = () => ChangeTheme(targetTheme)
+                    TITLE       = $"Apply Theme: {targetTheme}",
+                    DESCRIPTION = $"Switch visual layout style to {targetTheme} accents",
+                    SIMILARITY  = 2.0, // High priority match
+                    EXECUTE     = () => ChangeTheme(targetTheme)
                 });
             }
             else
@@ -46,10 +46,10 @@ namespace JarvisLauncher
                     bool isCurrent = th.Equals(currentTheme, StringComparison.OrdinalIgnoreCase);
                     suggestions.Add(new CommandResult
                     {
-                        Title       = $"Theme: {th}" + (isCurrent ? " (active)" : ""),
-                        Description = $"Switch HUD appearance to {th} theme style",
-                        Similarity  = 1.0,
-                        Execute     = () => ChangeTheme(th)
+                        TITLE       = $"Theme: {th}" + (isCurrent ? " (active)" : ""),
+                        DESCRIPTION = $"Switch HUD appearance to {th} theme style",
+                        SIMILARITY  = 1.0,
+                        EXECUTE     = () => ChangeTheme(th)
                     });
                 }
             }
@@ -64,7 +64,7 @@ namespace JarvisLauncher
                 ThemeManager.ApplyTheme(themeName);
                 
                 // Save persistently in Settings JSON
-                SettingsManager.Current.Theme = themeName;
+                SettingsManager.Current.THEME = themeName;
                 SettingsManager.Save();
 
                 TextOverlay.Show($"🎨 Theme Switched to {themeName.ToUpper()}", 2500);

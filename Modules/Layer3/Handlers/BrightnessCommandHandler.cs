@@ -35,20 +35,20 @@ namespace JarvisLauncher
                 brightnessValue = Math.Clamp(brightnessValue, 0, 100);
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"Set Screen Brightness to {brightnessValue}%",
-                    Description = "Adjust monitor backlight level",
-                    Execute = () => SetScreenBrightness(brightnessValue),
-                    Similarity = similarity
+                    TITLE = $"Set Screen Brightness to {brightnessValue}%",
+                    DESCRIPTION = "Adjust monitor backlight level",
+                    EXECUTE = () => SetScreenBrightness(brightnessValue),
+                    SIMILARITY = similarity
                 });
             }
             else
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "Set Brightness...",
-                    Description = "Type a percentage (e.g. 'brightness 75')",
-                    Execute = null,
-                    Similarity = similarity
+                    TITLE = "Set Brightness...",
+                    DESCRIPTION = "Type a percentage (e.g. 'brightness 75')",
+                    EXECUTE = null,
+                    SIMILARITY = similarity
                 });
             }
 

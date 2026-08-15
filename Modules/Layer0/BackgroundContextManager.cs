@@ -15,33 +15,33 @@ namespace JarvisLauncher
 {
     public static class BackgroundContextManager
     {
-        private static bool _isRunning = false;
-        private static string _cachedContextSummary = "User is coding in their workspace.";
-        private static DateTime _lastUpdateTime = DateTime.MinValue;
-        private static readonly object _lock = new object();
+        private static bool IsRunning = false;
+        private static string CachedContextSummary = "User is coding in their workspace.";
+        private static DateTime LastUpdateTime = DateTime.MinValue;
+        private static readonly object Lock = new object();
 
         public static void Start()
         {
-            if (_isRunning) return;
-            _isRunning = true;
+            if (IsRunning) return;
+            IsRunning = true;
 
             Task.Run(async () =>
             {
                 // Give the system some time to fully initialize on boot
                 await Task.Delay(10000);
 
-                while (_isRunning)
+                while (IsRunning)
                 {
                     try
                     {
-                        if (SettingsManager.Current.IsJarvisEnabled)
+                        if (SettingsManager.Current.IS_JARVIS_ENABLED)
                         {
                             await RefreshContextSnapshotAsync();
                         }
                     }
-                    catch (Exception ex)
+                    catch (Exception Ex)
                     {
-                        DebugConsoleOverlay.Log("Prefetch Error", ex.Message);
+                        DebugConsoleOverlay.Log("Prefetch Error", Ex.Message);
                     }
 
                     // Run prefetch analysis every 45 seconds
@@ -54,69 +54,69 @@ namespace JarvisLauncher
 
         public static void Stop()
         {
-            _isRunning = false;
+            IsRunning = false;
         }
 
         public static string GetActiveContextSummary()
         {
-            lock (_lock)
+            lock (Lock)
             {
                 // If summary is older than 5 minutes, return fallback to prevent stale data usage
-                if ((DateTime.Now - _lastUpdateTime).TotalMinutes > 5.0)
+                if ((DateTime.Now - LastUpdateTime).TotalMinutes > 5.0)
                 {
                     return string.Empty;
                 }
-                return _cachedContextSummary;
+                return CachedContextSummary;
             }
         }
 
         private static async Task RefreshContextSnapshotAsync()
         {
             // Gather telemetry components
-            string activeWin = MemoryManager.GetCurrentWindowTitle();
-            string clipboardText = string.Empty;
+            string ActiveWin = MemoryManager.GetCurrentWindowTitle();
+            string ClipboardText = string.Empty;
             try
             {
                 Application.Current.Dispatcher.Invoke(() =>
                 {
-                    if (Clipboard.ContainsText()) clipboardText = Clipboard.GetText();
+                    if (Clipboard.ContainsText()) ClipboardText = Clipboard.GetText();
                 });
             }
             catch { }
 
-            var wsMemory = WorkspaceMemoryManager.GetCurrent();
-            string activeFile = wsMemory.ActiveFileName;
-            string activeLang = wsMemory.ActiveProgrammingLanguage;
-            string codeSnippet = wsMemory.ActiveCodeSnippet;
+            var WsMemory = WorkspaceMemoryManager.GetCurrent();
+            string ActiveFile = WsMemory.ActiveFileName;
+            string ActiveLang = WsMemory.ActiveProgrammingLanguage;
+            string CodeSnippet = WsMemory.ActiveCodeSnippet;
 
             // Combine telemetry data into a structured prompt
-            string telemetryData = $"[TELEMETRY SNAPSHOT]\n" +
-                                   $"Focused Window: {activeWin}\n" +
-                                   $"Workspace Active File: {activeFile} ({activeLang})\n" +
-                                   $"Recent Code snippet:\n{codeSnippet}\n" +
-                                   $"Clipboard text:\n{clipboardText}\n";
+            string TelemetryData = $"[TELEMETRY SNAPSHOT]\n" +
+                                   $"Focused Window: {ActiveWin}\n" +
+                                   $"Workspace Active File: {ActiveFile} ({ActiveLang})\n" +
+                                   $"Recent Code snippet:\n{CodeSnippet}\n" +
+                                   $"Clipboard text:\n{ClipboardText}\n";
 
-            string prefetchPrompt = $"You are a telemetry pre-analyzer. Summarize this user environment snapshot in 2-3 concise sentences. " +
+            string PrefetchPrompt = $"You are a telemetry pre-analyzer. Summarize this user environment snapshot in 2-3 concise sentences. " +
                                     $"Identify the active programming language, active files, visible developer topics, and user focus. " +
-                                    $"Be extremely compact. Here is the telemetry:\n\n{telemetryData}";
+                                    $"Be extremely compact. Here is the telemetry:\n\n{TelemetryData}";
 
             // Query LLM in background (use the fast route)
             try
             {
-                string summary = await LlmRouter.AskAsync(prefetchPrompt, null);
-                if (!string.IsNullOrWhiteSpace(summary) && !summary.StartsWith("⚠️"))
+                string Summary = await LlmRouter.AskAsync(PrefetchPrompt, null);
+                if (!string.IsNullOrWhiteSpace(Summary) && !Summary.StartsWith("⚠️"))
                 {
-                    lock (_lock)
+                    lock (Lock)
                     {
-                        _cachedContextSummary = summary.Trim();
-                        _lastUpdateTime = DateTime.Now;
+                        CachedContextSummary = Summary.Trim();
+                        LastUpdateTime = DateTime.Now;
                     }
-                    DebugConsoleOverlay.Log("ContextPrefetch", $"Pre-analyzed context updated (Length: {_cachedContextSummary.Length} chars).");
+                    DebugConsoleOverlay.Log("ContextPrefetch", $"Pre-analyzed context updated (Length: {CachedContextSummary.Length} chars).");
                 }
             }
-            catch (Exception ex)
+            catch (Exception Ex)
             {
-                DebugConsoleOverlay.Log("ContextPrefetch Note", $"Prefetch pass skipped: {ex.Message}");
+                DebugConsoleOverlay.Log("ContextPrefetch Note", $"Prefetch pass skipped: {Ex.Message}");
             }
         }
     }

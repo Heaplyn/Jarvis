@@ -22,21 +22,21 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
             {
                 results.Add(new CommandResult
                 {
-                    Title = "🖼️ Background Mode: Gradient",
-                    Description = "Switch to animated liquid gradient background",
-                    Execute = () => SetBackgroundMode("Gradient")
+                    TITLE = "🖼️ Background Mode: Gradient",
+                    DESCRIPTION = "Switch to animated liquid gradient background",
+                    EXECUTE = () => SetBackgroundMode("Gradient")
                 });
                 results.Add(new CommandResult
                 {
-                    Title = "🖼️ Background Mode: Solid",
-                    Description = "Switch to solid theme color background",
-                    Execute = () => SetBackgroundMode("Solid")
+                    TITLE = "🖼️ Background Mode: Solid",
+                    DESCRIPTION = "Switch to solid theme color background",
+                    EXECUTE = () => SetBackgroundMode("Solid")
                 });
                 results.Add(new CommandResult
                 {
-                    Title = "🖼️ Background Mode: Media (GIF)",
-                    Description = "Switch to GIF/Media background mode",
-                    Execute = () => SetBackgroundMode("Media")
+                    TITLE = "🖼️ Background Mode: Media (GIF)",
+                    DESCRIPTION = "Switch to GIF/Media background mode",
+                    EXECUTE = () => SetBackgroundMode("Media")
                 });
             }
             else if (parts.Length >= 2)
@@ -47,9 +47,9 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
                     string path = query.Substring(query.IndexOf(parts[2])).Trim();
                     results.Add(new CommandResult
                     {
-                        Title = $"🖼️ Set Background GIF: {Path.GetFileName(path)}",
-                        Description = $"Use this file as your media background: {path}",
-                        Execute = () => SetBackgroundMedia(path)
+                        TITLE = $"🖼️ Set Background GIF: {Path.GetFileName(path)}",
+                        DESCRIPTION = $"Use this file as your media background: {path}",
+                        EXECUTE = () => SetBackgroundMedia(path)
                     });
                 }
             }
@@ -59,9 +59,9 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
 
         private void SetBackgroundMode(string mode)
         {
-            SettingsManager.Current.BackgroundMode = mode;
+            SettingsManager.Current.BACKGROUND_MODE = mode;
             SettingsManager.Save();
-            ThemeManager.ApplyTheme(SettingsManager.Current.Theme);
+            ThemeManager.ApplyTheme(SettingsManager.Current.THEME);
             TextOverlay.Show($"🖼️ Background Mode: {mode}", 2000);
         }
 
@@ -69,10 +69,10 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
         {
             if (File.Exists(path))
             {
-                SettingsManager.Current.BackgroundMode = "Media";
-                SettingsManager.Current.BackgroundMediaSource = path;
+                SettingsManager.Current.BACKGROUND_MODE = "Media";
+                SettingsManager.Current.BACKGROUND_MEDIA_SOURCE = path;
                 SettingsManager.Save();
-                ThemeManager.ApplyTheme(SettingsManager.Current.Theme);
+                ThemeManager.ApplyTheme(SettingsManager.Current.THEME);
                 TextOverlay.Show($"🖼️ Background GIF Set!", 2000);
             }
             else

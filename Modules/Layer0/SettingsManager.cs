@@ -5,114 +5,109 @@
 using System;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace JarvisLauncher
 {
     public class SystemSettings
     {
-        public string GoogleAIKey { get; set; } = string.Empty;
-        public string GithubToken { get; set; } = string.Empty;
-        public string DownloadDirectory { get; set; } = string.Empty;
-        public string Theme { get; set; } = "purple";
-        public bool StartWithWindows { get; set; } = false;
-        public bool PlaySounds { get; set; } = true;
-        public bool AutoHideOnExecute { get; set; } = true;
-        public bool AlwaysOnTop { get; set; } = true;
-        public double WindowOpacity { get; set; } = 1.0;
-        public string DefaultSearchEngine { get; set; } = "Google";
-        public int WindowMargin { get; set; } = 10;
-        public bool UseGradientBackground { get; set; } = true;
-        public string BackgroundMode { get; set; } = "Gradient"; // Solid | Gradient | Media
-        public string BackgroundMediaSource { get; set; } = string.Empty; // Path to GIF or Video
-        public bool EnableAnimations { get; set; } = true;
-        public bool UseRoundedCorners { get; set; } = true;
-        public string CustomFontFamily { get; set; } = "Segoe UI";
-        public bool IsJarvisEnabled { get; set; } = true;
-        public bool IsVoiceModeActive { get; set; } = true;
-        public bool EnableWindowsAppIndexing { get; set; } = true;
-        public int MaxSearchSuggestions { get; set; } = 10;
-        public bool AutoFocusSearchOnLaunch { get; set; } = true;
-        public bool IsSpeakerVerificationEnabled { get; set; } = false;
-        public string EnrolledSpeakerName { get; set; } = "Kyle";
-        public double SpeakerVerificationThreshold { get; set; } = 0.70;
-        public bool IsTeacherModeEnabled { get; set; } = true;
-        public bool IsAutonomousModeEnabled { get; set; } = true;
-        public int AutonomousIntervalMinutes { get; set; } = 2;
+        public string GOOGLE_AI_KEY { get; set; } = string.Empty;
+        public string GITHUB_TOKEN { get; set; } = string.Empty;
+        public string DOWNLOAD_DIRECTORY { get; set; } = string.Empty;
+        public string THEME { get; set; } = "purple";
+        public bool START_WITH_WINDOWS { get; set; } = false;
+        public bool PLAY_SOUNDS { get; set; } = true;
+        public bool AUTO_HIDE_ON_EXECUTE { get; set; } = true;
+        public bool ALWAYS_ON_TOP { get; set; } = true;
+        public double WINDOW_OPACITY { get; set; } = 1.0;
+        public string DEFAULT_SEARCH_ENGINE { get; set; } = "Google";
+        public int WINDOW_MARGIN { get; set; } = 10;
+        public bool USE_GRADIENT_BACKGROUND { get; set; } = true;
+        public string BACKGROUND_MODE { get; set; } = "Gradient"; // Solid | Gradient | Media
+        public string BACKGROUND_MEDIA_SOURCE { get; set; } = string.Empty; // Path to GIF or Video
+        public bool ENABLE_ANIMATIONS { get; set; } = true;
+        public bool USE_ROUNDED_CORNERS { get; set; } = true;
+        public string CUSTOM_FONT_FAMILY { get; set; } = "Segoe UI";
+        public bool IS_JARVIS_ENABLED { get; set; } = true;
+        public bool IS_VOICE_MODE_ACTIVE { get; set; } = true;
+        public bool ENABLE_WINDOWS_APP_INDEXING { get; set; } = true;
+        public int MAX_SEARCH_SUGGESTIONS { get; set; } = 10;
+        public bool AUTO_FOCUS_SEARCH_ON_LAUNCH { get; set; } = true;
+        public bool IS_SPEAKER_VERIFICATION_ENABLED { get; set; } = false;
+        public string ENROLLED_SPEAKER_NAME { get; set; } = "Kyle";
+        public double SPEAKER_VERIFICATION_THRESHOLD { get; set; } = 0.50;
+        public bool IS_TEACHER_MODE_ENABLED { get; set; } = true;
+        public bool IS_AUTONOMOUS_MODE_ENABLED { get; set; } = true;
+        public int AUTONOMOUS_INTERVAL_MINUTES { get; set; } = 2;
 
-        public bool EnableVoiceCommandChunking { get; set; } = true;
-        public int VoiceChunkingSilenceMs { get; set; } = 6000; // 6 seconds silence pause before processing voice
-        public double MinVoiceConfidence { get; set; } = 0.75; // 75% strict confidence threshold (range: 0.30 - 0.98)
-        public float MicAudioEnergyFloor { get; set; } = 0.12f; // 12% audio volume energy floor required
-        public double MicNoiseGateDb { get; set; } = -35.0; // -35 dB noise gate floor threshold
-        public int TtsSpeechRate { get; set; } = 0;
-        public int TtsSpeechVolume { get; set; } = 100;
-        public string SelectedTtsVoice { get; set; } = string.Empty;
-        public string CustomTtsSamplePath { get; set; } = string.Empty;
-        public string CustomTtsVoiceName { get; set; } = string.Empty;
-        public bool UseCustomTtsSoundFile { get; set; } = false;
-        public bool CustomSoundOnly { get; set; } = false;
-        public string GeminiVoiceDetailLevel { get; set; } = "Concise"; // Concise | Detailed | Bullet Points
-        public bool PhoneticFuzzyMatching { get; set; } = true;
+        public bool ENABLE_VOICE_COMMAND_CHUNKING { get; set; } = true;
+        public int VOICE_CHUNKING_SILENCE_MS { get; set; } = 1200; // Snappier sentence detection
+        public double MIN_VOICE_CONFIDENCE { get; set; } = 0.65;
+        public float MIC_AUDIO_ENERGY_FLOOR { get; set; } = 0.12f;
+        public double MIC_NOISE_GATE_DB { get; set; } = -35.0;
+        public int TTS_SPEECH_RATE { get; set; } = 0;
+        public int TTS_SPEECH_VOLUME { get; set; } = 100;
+        public string SELECTED_TTS_VOICE { get; set; } = string.Empty;
+        public string CUSTOM_TTS_SAMPLE_PATH { get; set; } = string.Empty;
+        public string CUSTOM_TTS_VOICE_NAME { get; set; } = string.Empty;
+        public bool USE_CUSTOM_TTS_SOUND_FILE { get; set; } = false;
+        public bool CUSTOM_SOUND_ONLY { get; set; } = false;
+        public string GEMINI_VOICE_DETAIL_LEVEL { get; set; } = "Concise";
+        public bool PHONETIC_FUZZY_MATCHING { get; set; } = true;
 
-        public System.Collections.Generic.Dictionary<string, string> Aliases { get; set; } = new System.Collections.Generic.Dictionary<string, string>();
+        public System.Collections.Generic.Dictionary<string, string> ALIASES { get; set; } = new System.Collections.Generic.Dictionary<string, string>();
 
-        // LLM Backend Selection
-        public string LlmBackend { get; set; } = "Gemini"; // Gemini | OpenAI | Ollama | Custom | P2P
-        public string GeminiModel { get; set; } = "gemini-2.0-flash";
-        public string OpenAIKey { get; set; } = string.Empty;
-        public string OpenAIBaseUrl { get; set; } = "https://api.openai.com/v1";
-        public string OpenAIModel { get; set; } = "gpt-4o-mini";
-        public string OllamaEndpoint { get; set; } = "http://localhost:11434";
-        public string OllamaModel { get; set; } = "llama3";
-        public string CustomLlmEndpoint { get; set; } = string.Empty;
-        public string CustomLlmKey { get; set; } = string.Empty;
-        public string CustomLlmModel { get; set; } = string.Empty;
+        public string LLM_BACKEND { get; set; } = "Gemini";
+        public string GEMINI_MODEL { get; set; } = "gemini-2.0-flash";
+        public string OPENAI_KEY { get; set; } = string.Empty;
+        public string OPENAI_BASE_URL { get; set; } = "https://api.openai.com/v1";
+        public string OPENAI_MODEL { get; set; } = "gpt-4o-mini";
+        public string OLLAMA_ENDPOINT { get; set; } = "http://localhost:11434";
+        public string OLLAMA_MODEL { get; set; } = "llama3";
+        public string CUSTOM_LLM_ENDPOINT { get; set; } = string.Empty;
+        public string CUSTOM_LLM_KEY { get; set; } = string.Empty;
+        public string CUSTOM_LLM_MODEL { get; set; } = string.Empty;
 
-        // Dual LLM Co-Pilot Query Processor (Optional - Default Disabled)
-        public bool EnableDualLlmCopilot { get; set; } = false;
-        public string DualLlmBackend { get; set; } = "Ollama";
-        public string DualLlmModel { get; set; } = "deepseek-r1:7b";
+        public bool ENABLE_DUAL_LLM_COPILOT { get; set; } = false;
+        public string DUAL_LLM_BACKEND { get; set; } = "Ollama";
+        public string DUAL_LLM_MODEL { get; set; } = "deepseek-r1:7b";
 
-        // OAuth2 Credentials & Account Tokens
-        public string GoogleOAuthClientId { get; set; } = string.Empty;
-        public string GoogleOAuthClientSecret { get; set; } = string.Empty;
-        public string GoogleOAuthAccessToken { get; set; } = string.Empty;
-        public string GoogleOAuthRefreshToken { get; set; } = string.Empty;
-        public string GoogleOAuthUserEmail { get; set; } = string.Empty;
+        public string GOOGLE_OAUTH_CLIENT_ID { get; set; } = string.Empty;
+        public string GOOGLE_OAUTH_CLIENT_SECRET { get; set; } = string.Empty;
+        public string GOOGLE_OAUTH_ACCESS_TOKEN { get; set; } = string.Empty;
+        public string GOOGLE_OAUTH_REFRESH_TOKEN { get; set; } = string.Empty;
+        public string GOOGLE_OAUTH_USER_EMAIL { get; set; } = string.Empty;
 
-        public string GithubOAuthClientId { get; set; } = string.Empty;
-        public string GithubOAuthClientSecret { get; set; } = string.Empty;
-        public string GithubOAuthUserLogin { get; set; } = string.Empty;
+        public string GITHUB_OAUTH_CLIENT_ID { get; set; } = string.Empty;
+        public string GITHUB_OAUTH_CLIENT_SECRET { get; set; } = string.Empty;
+        public string GITHUB_OAUTH_USER_LOGIN { get; set; } = string.Empty;
 
-        // P2P Compute Node Settings
-        public bool P2PServerEnabled { get; set; } = false;
-        public string P2PServerSecret { get; set; } = string.Empty;
+        public bool P2P_SERVER_ENABLED { get; set; } = false;
+        public string P2P_SERVER_SECRET { get; set; } = string.Empty;
 
-        // Mobile Companion & Tunnel Settings
-        public int MobilePort { get; set; } = 9000;
-        public string MobilePreferredTunnel { get; set; } = "None"; // None | Cloudflare | Ngrok
-        public bool MobileAutoStartTunnel { get; set; } = false;
-        public bool MobileAllowTerminal { get; set; } = true;
-        public bool MobileAllowFiles { get; set; } = true;
-        public bool MobileAllowScreenMirror { get; set; } = true;
-        public bool MobileAllowClipboard { get; set; } = true;
+        public int MOBILE_PORT { get; set; } = 9000;
+        public string MOBILE_PREFERRED_TUNNEL { get; set; } = "None";
+        public bool MOBILE_AUTO_START_TUNNEL { get; set; } = false;
+        public bool MOBILE_ALLOW_TERMINAL { get; set; } = true;
+        public bool MOBILE_ALLOW_FILES { get; set; } = true;
+        public bool MOBILE_ALLOW_SCREEN_MIRROR { get; set; } = true;
+        public bool MOBILE_ALLOW_CLIPBOARD { get; set; } = true;
 
-        // Discord Bot API (official Bot token — used for legitimate, ToS-compliant server reading)
-        public string DiscordBotToken { get; set; } = string.Empty;
+        public string DISCORD_BOT_TOKEN { get; set; } = string.Empty;
     }
 
     public static class SettingsManager
     {
         private static string DataDir => PathHandler.GetDataDirectory();
         private static string SettingsPath => Path.Combine(DataDir, "SystemSettings.json");
-        private static SystemSettings _currentSettings = new SystemSettings();
+        private static SystemSettings CurrentSettings = new SystemSettings();
 
         static SettingsManager()
         {
             Load();
         }
 
-        public static SystemSettings Current => _currentSettings;
+        public static SystemSettings Current => CurrentSettings;
 
         public static void Load()
         {
@@ -120,18 +115,18 @@ namespace JarvisLauncher
             {
                 if (File.Exists(SettingsPath))
                 {
-                    string json = File.ReadAllText(SettingsPath);
-                    _currentSettings = JsonSerializer.Deserialize<SystemSettings>(json) ?? new SystemSettings();
+                    string Json = File.ReadAllText(SettingsPath);
+                    CurrentSettings = JsonSerializer.Deserialize<SystemSettings>(Json) ?? new SystemSettings();
                 }
                 else
                 {
-                    _currentSettings = new SystemSettings();
+                    CurrentSettings = new SystemSettings();
                     Save(); // Initialize empty file
                 }
             }
             catch
             {
-                _currentSettings = new SystemSettings();
+                CurrentSettings = new SystemSettings();
             }
         }
 
@@ -143,12 +138,12 @@ namespace JarvisLauncher
                 {
                     Directory.CreateDirectory(DataDir);
                 }
-                string json = JsonSerializer.Serialize(_currentSettings, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(SettingsPath, json);
+                string Json = JsonSerializer.Serialize(CurrentSettings, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(SettingsPath, Json);
             }
-            catch (Exception ex)
+            catch (Exception Ex)
             {
-                Console.WriteLine($"Failed to save settings: {ex.Message}");
+                Console.WriteLine($"Failed to save settings: {Ex.Message}");
             }
         }
     }

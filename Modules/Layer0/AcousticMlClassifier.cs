@@ -10,106 +10,112 @@ namespace JarvisLauncher
 {
     public class AcousticMatchResult
     {
-        public bool IsMatched { get; set; } = false;
-        public string MatchedPhrase { get; set; } = string.Empty;
-        public double Confidence { get; set; } = 0.0; // 0.0 to 1.0 (0% to 100%)
-        public VoiceSample? BestSample { get; set; }
+        public bool IS_MATCHED { get; set; } = false;
+        public string MATCHED_PHRASE { get; set; } = string.Empty;
+        public double CONFIDENCE { get; set; } = 0.0; // 0.0 to 1.0 (0% to 100%)
+        public VoiceSample? BEST_SAMPLE { get; set; }
     }
 
     public static class AcousticMlClassifier
     {
-        private static readonly Dictionary<string, double[]> _cachedProfileMfccs = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, double[]> CachedProfileMfccs = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Re-builds in-memory MFCC acoustic feature vectors from all recorded samples in Voice Profile.
         /// </summary>
         public static void RebuildAcousticIndex()
         {
-            _cachedProfileMfccs.Clear();
+            CachedProfileMfccs.Clear();
 
             // 1. Load official samples from VoiceTrainerManager (Golden Set)
-            var profileSamples = VoiceTrainerManager.Profile.Samples;
-            foreach (var sample in profileSamples)
+            var ProfileSamples = VoiceTrainerManager.Profile.SAMPLES;
+            foreach (var Sample in ProfileSamples)
             {
-                if (File.Exists(sample.AudioFilePath))
+                if (File.Exists(Sample.AUDIO_FILE_PATH))
                 {
-                    var features = AudioFeatureExtractor.ExtractFromFile(sample.AudioFilePath);
-                    if (features != null && features.MfccCoefficients != null)
+                    var Features = AudioFeatureExtractor.ExtractFromFile(Sample.AUDIO_FILE_PATH);
+                    if (Features != null && Features.MFCC_COEFFICIENTS != null)
                     {
-                        string key = $"TRAINER:{sample.Id}:{sample.Phrase}";
-                        _cachedProfileMfccs[key] = features.MfccCoefficients;
+                        string Key = $"TRAINER:{Sample.ID}:{Sample.PHRASE}";
+                        CachedProfileMfccs[Key] = Features.MFCC_COEFFICIENTS;
                     }
                 }
             }
 
             // 2. Load historical logs from VoiceDatasetManager (Self-Learning Set)
-            var datasetRecords = VoiceDatasetManager.DatasetRecords;
-            foreach (var rec in datasetRecords)
+            var DatasetRecords = VoiceDatasetManager.DatasetRecords;
+            foreach (var Rec in DatasetRecords)
             {
-                if (File.Exists(rec.FilePath) && !string.IsNullOrWhiteSpace(rec.Transcript) && rec.Transcript != "...")
+                // ONLY index very short snippets (1-2 words) that are likely to be wake words
+                if (File.Exists(Rec.FilePath) && !string.IsNullOrWhiteSpace(Rec.Transcript) &&
+                    Rec.Transcript != "..." && Rec.Transcript.Split(' ').Length <= 2)
                 {
-                    // Only index successfully captured audio
-                    var features = AudioFeatureExtractor.ExtractFromFile(rec.FilePath);
-                    if (features != null && features.MfccCoefficients != null)
+                    // Use filename hash as a pseudo-id for uniqueness in the index
+                    var Features = AudioFeatureExtractor.ExtractFromFile(Rec.FilePath);
+                    if (Features != null && Features.MFCC_COEFFICIENTS != null)
                     {
-                        // Use filename hash as a pseudo-id for uniqueness in the index
-                        string pseudoId = rec.FileName.GetHashCode().ToString("X");
-                        string key = $"DATASET:{pseudoId}:{rec.Transcript}";
-                        _cachedProfileMfccs[key] = features.MfccCoefficients;
+                        string PseudoId = Rec.FileName.GetHashCode().ToString("X");
+                        string Key = $"DATASET:{PseudoId}:{Rec.Transcript}";
+                        CachedProfileMfccs[Key] = Features.MFCC_COEFFICIENTS;
                     }
                 }
             }
 
-            System.Diagnostics.Debug.WriteLine($"🧠 Rebuilt Acoustic ML Index with {_cachedProfileMfccs.Count} feature vectors (Golden + Historical).");
+            System.Diagnostics.Debug.WriteLine($"🧠 Rebuilt Acoustic ML Index with {CachedProfileMfccs.Count} feature vectors (Golden + Historical).");
         }
 
         /// <summary>
         /// Classifies an incoming WAV audio file against the trained acoustic voice profile using MFCC Cosine Distance.
         /// </summary>
-        public static AcousticMatchResult MatchWavFile(string wavFilePath, double threshold = 0.70)
+        public static AcousticMatchResult MatchWavFile(string WavFilePath, double Threshold = 0.70)
         {
-            var result = new AcousticMatchResult();
-            if (!File.Exists(wavFilePath)) return result;
+            var Result = new AcousticMatchResult();
+            if (!File.Exists(WavFilePath)) return Result;
 
-            if (_cachedProfileMfccs.Count == 0)
+            if (CachedProfileMfccs.Count == 0)
             {
                 RebuildAcousticIndex();
             }
 
-            if (_cachedProfileMfccs.Count == 0) return result;
+            if (CachedProfileMfccs.Count == 0) return Result;
 
-            var inputFeatures = AudioFeatureExtractor.ExtractFromFile(wavFilePath);
-            if (inputFeatures == null || inputFeatures.MfccCoefficients == null) return result;
+            var InputFeatures = AudioFeatureExtractor.ExtractFromFile(WavFilePath);
+            if (InputFeatures == null || InputFeatures.MFCC_COEFFICIENTS == null) return Result;
 
-            double maxSimilarity = 0.0;
-            string bestPhrase = string.Empty;
-            VoiceSample? bestSample = null;
+            double MaxSimilarity = 0.0;
+            string BestPhrase = string.Empty;
+            VoiceSample? BestSample = null;
 
-            foreach (var kvp in _cachedProfileMfccs)
+            foreach (var Kvp in CachedProfileMfccs)
             {
-                double similarity = AudioFeatureExtractor.CosineSimilarity(inputFeatures.MfccCoefficients, kvp.Value);
-                if (similarity > maxSimilarity)
+                double Similarity = AudioFeatureExtractor.CosineSimilarity(InputFeatures.MFCC_COEFFICIENTS, Kvp.Value);
+                if (Similarity > MaxSimilarity)
                 {
-                    maxSimilarity = similarity;
-                    string[] parts = kvp.Key.Split(':');
+                    MaxSimilarity = Similarity;
+                    string[] Parts = Kvp.Key.Split(':');
                     // Key format: SOURCE:ID:PHRASE
-                    bestPhrase = parts.Length > 2 ? parts[2] : (parts.Length > 1 ? parts[1] : string.Empty);
+                    BestPhrase = Parts.Length > 2 ? Parts[2] : (Parts.Length > 1 ? Parts[1] : string.Empty);
 
-                    if (parts[0] == "TRAINER")
+                    if (Parts[0] == "TRAINER")
                     {
-                        string sampleId = parts[1];
-                        bestSample = VoiceTrainerManager.Profile.Samples.Find(s => s.Id == sampleId);
+                        string SampleId = Parts[1];
+                        BestSample = VoiceTrainerManager.Profile.SAMPLES.Find(s => s.ID == SampleId);
                     }
                 }
             }
 
-            result.Confidence = Math.Round(maxSimilarity, 3);
-            result.MatchedPhrase = bestPhrase;
-            result.BestSample = bestSample;
-            result.IsMatched = maxSimilarity >= threshold;
+            Result.CONFIDENCE = Math.Round(MaxSimilarity, 3);
+            Result.MATCHED_PHRASE = BestPhrase;
+            Result.BEST_SAMPLE = BestSample;
 
-            DebugConsoleOverlay.Log("Acoustic ML Match", $"Match: \"{bestPhrase}\" ({result.Confidence * 100:F1}% similarity)");
-            return result;
+            // STRICT GATE: Only consider it a match if it's actually Jarvis
+            bool isWakeWordMatch = BestPhrase.ToLowerInvariant().Contains("jarvis");
+            Result.IS_MATCHED = MaxSimilarity >= Threshold && isWakeWordMatch;
+
+            if (Result.IS_MATCHED)
+                DebugConsoleOverlay.Log("Acoustic ML Match", $"Verified Wake Word: \"{BestPhrase}\" ({Result.CONFIDENCE * 100:F1}%)");
+
+            return Result;
         }
     }
 }

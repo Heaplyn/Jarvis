@@ -35,6 +35,9 @@ namespace JarvisLauncher
             }
             catch { }
 
+            // Start memory syncer for external AI coding apps
+            MemorySyncer.Start();
+
             // Loop for window tracking and occasional screen analysis
             Task.Run(() => MainMemoryLoop(_cts.Token));
 
@@ -43,6 +46,7 @@ namespace JarvisLauncher
 
         public static void Stop()
         {
+            MemorySyncer.Stop();
             _cts?.Cancel();
             _cts = null;
         }
@@ -82,7 +86,7 @@ namespace JarvisLauncher
             {
                 try
                 {
-                    if (!SettingsManager.Current.IsJarvisEnabled)
+                    if (!SettingsManager.Current.IS_JARVIS_ENABLED)
                     {
                         await Task.Delay(5000, token);
                         continue;

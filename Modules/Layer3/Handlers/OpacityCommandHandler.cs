@@ -35,10 +35,10 @@ namespace JarvisLauncher
                 targetOpacity = Math.Clamp(targetOpacity, 10, 100); // Keep it visible (min 10%)
                 suggestions.Add(new CommandResult
                 {
-                    Title = $"Set HUD Opacity to {targetOpacity}%",
-                    Description = $"Adjust the launcher transparency",
-                    Execute = () => SetWindowOpacity(targetOpacity),
-                    Similarity = similarity
+                    TITLE = $"Set HUD Opacity to {targetOpacity}%",
+                    DESCRIPTION = $"Adjust the launcher transparency",
+                    EXECUTE = () => SetWindowOpacity(targetOpacity),
+                    SIMILARITY = similarity
                 });
             }
             else
@@ -46,10 +46,10 @@ namespace JarvisLauncher
                 // Default suggestion if no number is typed yet
                 suggestions.Add(new CommandResult
                 {
-                    Title = "Set HUD Opacity...",
-                    Description = "Type a percentage (e.g. 'opacity 80')",
-                    Execute = null,
-                    Similarity = similarity
+                    TITLE = "Set HUD Opacity...",
+                    DESCRIPTION = "Type a percentage (e.g. 'opacity 80')",
+                    EXECUTE = null,
+                    SIMILARITY = similarity
                 });
             }
 

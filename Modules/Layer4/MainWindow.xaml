@@ -16,7 +16,7 @@
         AllowsTransparency="True" 
         Background="Transparent"
         ResizeMode="NoResize" 
-        ShowInTaskbar="False" 
+        ShowInTaskbar="True"
         Topmost="True"
         Loaded="Window_Loaded">
     
@@ -126,12 +126,12 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Vertical">
-                                    <TextBlock Text="{Binding Title}"
+                                    <TextBlock Text="{Binding TITLE}"
                                                Foreground="{DynamicResource TextPrimaryBrush}"
                                                FontSize="15"
                                                FontWeight="SemiBold"
                                                FontFamily="{DynamicResource ActiveFontFamily}"/>
-                                    <TextBlock Text="{Binding Description}"
+                                    <TextBlock Text="{Binding DESCRIPTION}"
                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                FontSize="12"
                                                Margin="0,2,0,0"

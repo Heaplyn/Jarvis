@@ -154,7 +154,7 @@ namespace JarvisLauncher
 
             if (!_grouped.TryGetValue(category, out var commands)) return;
 
-            foreach (var cd in commands.OrderBy(c => c.CommandName))
+            foreach (var cd in commands.OrderBy(c => c.COMMAND_NAME))
             {
                 _commandStack.Children.Add(BuildCommandCard(cd));
             }
@@ -175,17 +175,17 @@ namespace JarvisLauncher
 
             var stack = new StackPanel();
 
-            var nameText = new TextBlock { Text = cd.CommandName, FontWeight = FontWeights.Bold, FontSize = 12.5 };
+            var nameText = new TextBlock { Text = cd.COMMAND_NAME, FontWeight = FontWeights.Bold, FontSize = 12.5 };
             nameText.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
             stack.Children.Add(nameText);
 
-            var descText = new TextBlock { Text = cd.CommandDescription, FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 0, 3), Opacity = 0.85 };
+            var descText = new TextBlock { Text = cd.COMMAND_DESCRIPTION, FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 0, 3), Opacity = 0.85 };
             descText.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
             stack.Children.Add(descText);
 
-            if (!string.IsNullOrWhiteSpace(cd.CommandExample))
+            if (!string.IsNullOrWhiteSpace(cd.COMMAND_EXAMPLE))
             {
-                var exampleText = new TextBlock { Text = $"e.g. {cd.CommandExample}", FontSize = 10.5, FontStyle = FontStyles.Italic };
+                var exampleText = new TextBlock { Text = $"e.g. {cd.COMMAND_EXAMPLE}", FontSize = 10.5, FontStyle = FontStyles.Italic };
                 exampleText.SetResourceReference(TextBlock.ForegroundProperty, "AccentCaretBrush");
                 stack.Children.Add(exampleText);
             }
@@ -193,7 +193,7 @@ namespace JarvisLauncher
             card.Child = stack;
             card.MouseLeftButtonUp += (s, e) =>
             {
-                string target = !string.IsNullOrWhiteSpace(cd.CommandExample) ? cd.CommandExample : cd.CommandName;
+                string target = !string.IsNullOrWhiteSpace(cd.COMMAND_EXAMPLE) ? cd.COMMAND_EXAMPLE : cd.COMMAND_NAME;
                 CommandParser.ExecuteFirstSuggestion(target);
             };
             card.MouseEnter += (s, e) => card.SetResourceReference(Border.BorderBrushProperty, "AccentCaretBrush");

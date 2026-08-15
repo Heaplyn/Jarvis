@@ -85,11 +85,11 @@ namespace JarvisLauncher
             root.Children.Add(googleBtnGrid);
 
             root.Children.Add(CreateLabel("Custom Google OAuth2 Client ID (Optional):"));
-            _googleClientIdBox = new TextBox { Text = SettingsManager.Current.GoogleOAuthClientId, Padding = new Thickness(4), Margin = new Thickness(0, 0, 0, 4) };
+            _googleClientIdBox = new TextBox { Text = SettingsManager.Current.GOOGLE_OAUTH_CLIENT_ID, Padding = new Thickness(4), Margin = new Thickness(0, 0, 0, 4) };
             root.Children.Add(_googleClientIdBox);
 
             root.Children.Add(CreateLabel("Custom Google OAuth2 Client Secret (Optional):"));
-            _googleClientSecretBox = new TextBox { Text = SettingsManager.Current.GoogleOAuthClientSecret, Padding = new Thickness(4), Margin = new Thickness(0, 0, 0, 12) };
+            _googleClientSecretBox = new TextBox { Text = SettingsManager.Current.GOOGLE_OAUTH_CLIENT_SECRET, Padding = new Thickness(4), Margin = new Thickness(0, 0, 0, 12) };
             root.Children.Add(_googleClientSecretBox);
 
             // ── Section 2: GitHub OAuth2 ──────────────────────────────────────────────
@@ -127,11 +127,11 @@ namespace JarvisLauncher
             root.Children.Add(githubBtnGrid);
 
             root.Children.Add(CreateLabel("Custom GitHub OAuth2 Client ID (Optional):"));
-            _githubClientIdBox = new TextBox { Text = SettingsManager.Current.GithubOAuthClientId, Padding = new Thickness(4), Margin = new Thickness(0, 0, 0, 4) };
+            _githubClientIdBox = new TextBox { Text = SettingsManager.Current.GITHUB_OAUTH_CLIENT_ID, Padding = new Thickness(4), Margin = new Thickness(0, 0, 0, 4) };
             root.Children.Add(_githubClientIdBox);
 
             root.Children.Add(CreateLabel("Custom GitHub OAuth2 Client Secret (Optional):"));
-            _githubClientSecretBox = new TextBox { Text = SettingsManager.Current.GithubOAuthClientSecret, Padding = new Thickness(4), Margin = new Thickness(0, 0, 0, 12) };
+            _githubClientSecretBox = new TextBox { Text = SettingsManager.Current.GITHUB_OAUTH_CLIENT_SECRET, Padding = new Thickness(4), Margin = new Thickness(0, 0, 0, 12) };
             root.Children.Add(_githubClientSecretBox);
 
             var saveBtn = CreateButton("💾 Save OAuth2 Credentials");
@@ -150,25 +150,25 @@ namespace JarvisLauncher
 
         private void SaveCredentials()
         {
-            SettingsManager.Current.GoogleOAuthClientId = _googleClientIdBox.Text.Trim();
-            SettingsManager.Current.GoogleOAuthClientSecret = _googleClientSecretBox.Text.Trim();
-            SettingsManager.Current.GithubOAuthClientId = _githubClientIdBox.Text.Trim();
-            SettingsManager.Current.GithubOAuthClientSecret = _githubClientSecretBox.Text.Trim();
+            SettingsManager.Current.GOOGLE_OAUTH_CLIENT_ID = _googleClientIdBox.Text.Trim();
+            SettingsManager.Current.GOOGLE_OAUTH_CLIENT_SECRET = _googleClientSecretBox.Text.Trim();
+            SettingsManager.Current.GITHUB_OAUTH_CLIENT_ID = _githubClientIdBox.Text.Trim();
+            SettingsManager.Current.GITHUB_OAUTH_CLIENT_SECRET = _githubClientSecretBox.Text.Trim();
             SettingsManager.Save();
         }
 
         private void RefreshStatuses()
         {
-            string googleEmail = SettingsManager.Current.GoogleOAuthUserEmail;
-            bool googleAuth = !string.IsNullOrEmpty(SettingsManager.Current.GoogleOAuthAccessToken);
+            string googleEmail = SettingsManager.Current.GOOGLE_OAUTH_USER_EMAIL;
+            bool googleAuth = !string.IsNullOrEmpty(SettingsManager.Current.GOOGLE_OAUTH_ACCESS_TOKEN);
 
             _googleStatusText.Text = googleAuth
                 ? $"🟢 Connected: {googleEmail}"
                 : "🔴 Google OAuth2: Not Authenticated";
             _googleStatusText.Foreground = googleAuth ? Brushes.LimeGreen : Brushes.OrangeRed;
 
-            string githubUser = SettingsManager.Current.GithubOAuthUserLogin;
-            bool githubAuth = !string.IsNullOrEmpty(SettingsManager.Current.GithubToken);
+            string githubUser = SettingsManager.Current.GITHUB_OAUTH_USER_LOGIN;
+            bool githubAuth = !string.IsNullOrEmpty(SettingsManager.Current.GITHUB_TOKEN);
 
             _githubStatusText.Text = githubAuth
                 ? $"🟢 Connected: @{githubUser}"

@@ -28,7 +28,7 @@ namespace JarvisLauncher
         public static bool IsInitialized => _isInitialized;
         public static bool IsDownloading => _isDownloading;
 
-        public static readonly string ModelDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Models", "vosk-model-en-us");
+        public static readonly string ModelDirectory = Path.Combine(PathHandler.GetDataDirectory(), "Models", "vosk-model-en-us");
         private const string ModelZipUrl = "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip";
 
         public static bool Initialize()
@@ -53,12 +53,12 @@ namespace JarvisLauncher
                         _recognizer.SetMaxAlternatives(0);
                         _recognizer.SetWords(true);
                         _isInitialized = true;
-                        System.Diagnostics.Debug.WriteLine("✅ Vosk Speech-to-Text Engine initialized successfully!");
+                        DebugConsoleOverlay.Log("Vosk", "Speech-to-Text Engine initialized successfully!");
                         return true;
                     }
                     else
                     {
-                        System.Diagnostics.Debug.WriteLine($"⚠️ Vosk model files not found in '{ModelDirectory}'. Auto-downloader available.");
+                        DebugConsoleOverlay.Log("Vosk", $"Model files not found in '{ModelDirectory}'. Background downloader triggered.");
                         // Trigger background downloader on launch if missing
                         Task.Run(async () => await EnsureModelDownloadedAsync(showToast: false));
                         return false;
@@ -66,7 +66,7 @@ namespace JarvisLauncher
                 }
                 catch (Exception ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Vosk init note: {ex.Message}");
+                    DebugConsoleOverlay.Log("Vosk-Error", $"Init failed: {ex.Message}");
                     _isInitialized = false;
                     return false;
                 }
@@ -98,7 +98,7 @@ namespace JarvisLauncher
             _isDownloading = true;
             if (showToast) TextOverlay.Show("📥 Downloading Vosk Neural Speech Model (~40MB)...", 4000);
 
-            string zipPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Models", "vosk_model.zip");
+            string zipPath = Path.Combine(PathHandler.GetDataDirectory(), "Models", "vosk_model.zip");
 
             try
             {
@@ -111,7 +111,7 @@ namespace JarvisLauncher
 
                 if (showToast) TextOverlay.Show("📦 Extracting Vosk Speech Model...", 3000);
 
-                string tempExtractDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Models", "temp_vosk");
+                string tempExtractDir = Path.Combine(PathHandler.GetDataDirectory(), "Models", "temp_vosk");
                 if (Directory.Exists(tempExtractDir)) Directory.Delete(tempExtractDir, true);
 
                 ZipFile.ExtractToDirectory(zipPath, tempExtractDir);

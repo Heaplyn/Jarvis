@@ -30,10 +30,10 @@ namespace JarvisLauncher
 
             suggestions.Add(new CommandResult
             {
-                Title = "Empty Recycle Bin",
-                Description = "Permanently delete all items in the Recycle Bin",
-                Execute = () => EmptyBin(),
-                Similarity = similarity
+                TITLE = "Empty Recycle Bin",
+                DESCRIPTION = "Permanently delete all items in the Recycle Bin",
+                EXECUTE = () => EmptyBin(),
+                SIMILARITY = similarity
             });
 
             return suggestions;

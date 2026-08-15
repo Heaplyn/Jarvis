@@ -30,7 +30,7 @@ namespace JarvisLauncher
                 {
                     try
                     {
-                        if (SettingsManager.Current.IsVoiceModeActive && SettingsManager.Current.IsJarvisEnabled)
+                        if (SettingsManager.Current.IS_VOICE_MODE_ACTIVE && SettingsManager.Current.IS_JARVIS_ENABLED)
                         {
                             await RunAutoImproverAuditAsync();
                         }

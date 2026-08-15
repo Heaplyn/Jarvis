@@ -40,14 +40,29 @@ namespace JarvisLauncher
 
         static VoiceDatasetManager()
         {
+            // Minimal setup in static constructor to prevent UI blocking
             try
             {
                 if (!Directory.Exists(DatasetDir)) Directory.CreateDirectory(DatasetDir);
                 if (!Directory.Exists(ClipsDir)) Directory.CreateDirectory(ClipsDir);
-                LoadDataset();
-                LoadMetadata();
             }
             catch { }
+        }
+
+        public static async Task InitializeAsync()
+        {
+            // Move heavy disk I/O to a background task
+            await Task.Run(() => {
+                try
+                {
+                    LoadDataset();
+                    LoadMetadata();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"VoiceDataset init error: {ex.Message}");
+                }
+            });
         }
 
         public static void LoadMetadata()
@@ -119,11 +134,11 @@ namespace JarvisLauncher
             LoadMetadata();
             VoiceTrainerManager.LoadProfile(); // Ensure official samples are up to date
 
-            int officialCount = VoiceTrainerManager.Profile.Samples.Count;
+            int officialCount = VoiceTrainerManager.Profile.SAMPLES.Count;
             int historicalCount = DatasetRecords.Count;
 
-            int cmds = DatasetRecords.Count(r => r.Classification == "Command") + VoiceTrainerManager.Profile.Samples.Count(s => !string.IsNullOrEmpty(s.AssociatedCommand));
-            int chats = DatasetRecords.Count(r => r.Classification == "AI Chat") + VoiceTrainerManager.Profile.Samples.Count(s => string.IsNullOrEmpty(s.AssociatedCommand));
+            int cmds = DatasetRecords.Count(r => r.Classification == "Command") + VoiceTrainerManager.Profile.SAMPLES.Count(s => !string.IsNullOrEmpty(s.ASSOCIATED_COMMAND));
+            int chats = DatasetRecords.Count(r => r.Classification == "AI Chat") + VoiceTrainerManager.Profile.SAMPLES.Count(s => string.IsNullOrEmpty(s.ASSOCIATED_COMMAND));
             int wakes = DatasetRecords.Count(r => r.Classification == "Wake Word");
 
             // Trigger acoustic ML re-indexing to include the new historical data

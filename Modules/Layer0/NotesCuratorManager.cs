@@ -82,10 +82,10 @@ namespace JarvisLauncher
 
             foreach (var item in items)
             {
-                sb.AppendLine($"{space}- {(item.IsFolder ? "[DIR] " : "[FILE] ")}{item.Name} (Path: {item.RelativePath})");
-                if (item.IsFolder && item.Children.Any())
+                sb.AppendLine($"{space}- {(item.IS_FOLDER ? "[DIR] " : "[FILE] ")}{item.NAME} (Path: {item.RELATIVE_PATH})");
+                if (item.IS_FOLDER && item.CHILDREN.Any())
                 {
-                    sb.Append(FormatHierarchyForAi(item.Children, indent + 1));
+                    sb.Append(FormatHierarchyForAi(item.CHILDREN, indent + 1));
                 }
             }
 

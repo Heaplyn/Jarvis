@@ -28,10 +28,10 @@ namespace JarvisLauncher
 
             suggestions.Add(new CommandResult
             {
-                Title       = "Exit Jarvis Launcher",
-                Description = "Close and terminate the Jarvis HUD application completely (Ctrl+Shift+C)",
-                Similarity  = similarity + 0.5, // High similarity boost for direct commands
-                Execute     = () => System.Environment.Exit(0)
+                TITLE       = "Exit Jarvis Launcher",
+                DESCRIPTION = "Close and terminate the Jarvis HUD application completely (Ctrl+Shift+C)",
+                SIMILARITY  = similarity + 0.5, // High similarity boost for direct commands
+                EXECUTE     = () => System.Environment.Exit(0)
             });
 
             return suggestions;

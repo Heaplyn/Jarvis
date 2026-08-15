@@ -1,12 +1,13 @@
 // Developer: heaplyn
 // Date: 2026-08-09
-// Summary: Persistent singleton console terminal output window styled in retro green and monospaced font. Resizable & minimizable. Writes logs to disk.
+// Summary: Persistent singleton console terminal output window. Upgraded with RichText support for high-visibility system logging.
 
 using System;
 using System.IO;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Media;
 
 namespace JarvisLauncher
@@ -14,7 +15,7 @@ namespace JarvisLauncher
     public class CliOutputOverlay : BaseOverlay
     {
         private static CliOutputOverlay? _instance;
-        private TextBox _textBox;
+        private readonly RichTextBox _richTextBox;
 
         public static void Show(string commandTitle, string outputContent)
         {
@@ -35,49 +36,59 @@ namespace JarvisLauncher
         }
 
         private CliOutputOverlay()
-            : base("JARVIS SYSTEM TERMINAL", width: 650, height: 420)
+            : base("JARVIS SYSTEM TERMINAL", width: 750, height: 480)
         {
             this.Closed += (s, e) => { _instance = null; };
 
-            _textBox = new TextBox
+            _richTextBox = new RichTextBox
             {
-                Text = "",
                 IsReadOnly = true,
-                AcceptsReturn = true,
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
                 FontFamily = new FontFamily("Consolas, Courier New"),
                 FontSize = 13,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
-                TextWrapping = TextWrapping.Wrap,
-                Padding = new Thickness(4)
+                Document = new FlowDocument()
             };
-            _textBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
-            _textBox.SetResourceReference(TextBox.CaretBrushProperty, "AccentCaretBrush");
+            _richTextBox.Document.PagePadding = new Thickness(6);
+            _richTextBox.SetResourceReference(RichTextBox.ForegroundProperty, "TextPrimaryBrush");
 
-            this.UserContent = _textBox;
+            this.UserContent = _richTextBox;
         }
 
         private void AppendOutput(string commandTitle, string outputContent)
         {
-            var sb = new StringBuilder(_textBox.Text);
-            
-            if (sb.Length > 0)
+            var paragraph = new Paragraph();
+
+            // 1. Command Header (High Visibility)
+            paragraph.Inlines.Add(new Run($"\n>>> [{DateTime.Now:HH:mm:ss}] EXEC: {commandTitle.ToUpper()}\n")
             {
-                sb.AppendLine();
-                sb.AppendLine();
-            }
-
-            sb.AppendLine($">>> [{DateTime.Now:HH:mm:ss}] EXEC: {commandTitle.ToUpper()}");
-            sb.AppendLine("--------------------------------------------------------------------------------");
-            sb.AppendLine(string.IsNullOrEmpty(outputContent) ? "[No Output Returned]" : outputContent);
-            sb.AppendLine("--------------------------------------------------------------------------------");
-
-            _textBox.Text = sb.ToString();
+                Foreground = Brushes.Lime,
+                FontWeight = FontWeights.Bold
+            });
             
-            // Auto-scroll to the bottom to display the latest execution logs
-            _textBox.ScrollToEnd();
+            paragraph.Inlines.Add(new Run(new string('-', 80) + "\n") { Foreground = Brushes.DimGray });
+
+            // 2. Output Body
+            string cleanOutput = string.IsNullOrEmpty(outputContent) ? "[No Output Returned]" : outputContent;
+
+            // Heuristic coloring: if output looks like an error, make it red-ish
+            Brush outputColor = Brushes.White;
+            string lowerOutput = cleanOutput.ToLowerInvariant();
+            if (lowerOutput.Contains("error") || lowerOutput.Contains("fail") || lowerOutput.Contains("exception"))
+                outputColor = Brushes.Tomato;
+            else if (lowerOutput.Contains("warning"))
+                outputColor = Brushes.Gold;
+
+            paragraph.Inlines.Add(new Run(cleanOutput + "\n") { Foreground = outputColor });
+            
+            paragraph.Inlines.Add(new Run(new string('-', 80) + "\n") { Foreground = Brushes.DimGray });
+
+            _richTextBox.Document.Blocks.Add(paragraph);
+
+            // Auto-scroll to the bottom
+            _richTextBox.ScrollToEnd();
         }
 
         private static void WriteLogToDisk(string commandTitle, string outputContent)
@@ -85,18 +96,7 @@ namespace JarvisLauncher
             try
             {
                 string dataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
-                if (!Directory.Exists(dataDir))
-                {
-                    string devPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\Data"));
-                    if (Directory.Exists(devPath))
-                    {
-                        dataDir = devPath;
-                    }
-                    else
-                    {
-                        Directory.CreateDirectory(dataDir);
-                    }
-                }
+                if (!Directory.Exists(dataDir)) Directory.CreateDirectory(dataDir);
 
                 string logPath = Path.Combine(dataDir, "Jarvis.log");
                 string logEntry = $"\n>>> [{DateTime.Now:yyyy-MM-dd HH:mm:ss}] EXEC: {commandTitle.ToUpper()}\n" +
@@ -107,11 +107,5 @@ namespace JarvisLauncher
             }
             catch { }
         }
-
-        internal static void GetWindow()
-        {
-            throw new NotImplementedException();
-        }
-
     }
 }

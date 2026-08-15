@@ -108,7 +108,7 @@ namespace JarvisLauncher
                 {
                     EnrolledName = speakerName,
                     VoiceEmbeddings = new List<double[]>(),
-                    VerificationThreshold = SettingsManager.Current.SpeakerVerificationThreshold,
+                    VerificationThreshold = SettingsManager.Current.SPEAKER_VERIFICATION_THRESHOLD,
                     EnrollmentDate = DateTime.Now
                 };
             }
@@ -162,9 +162,9 @@ namespace JarvisLauncher
             }
 
             double similarity = MatchAgainstCluster(inputEmbedding);
-            bool isVerified = similarity >= SettingsManager.Current.SpeakerVerificationThreshold;
+            bool isVerified = similarity >= SettingsManager.Current.SPEAKER_VERIFICATION_THRESHOLD;
 
-            DebugConsoleOverlay.Log("Biometrics", $"Cluster match verification: {isVerified} (Score: {similarity:F3} vs Threshold: {SettingsManager.Current.SpeakerVerificationThreshold:F2})");
+            DebugConsoleOverlay.Log("Biometrics", $"Cluster match verification: {isVerified} (Score: {similarity:F3} vs Threshold: {SettingsManager.Current.SPEAKER_VERIFICATION_THRESHOLD:F2})");
             return (isVerified, similarity);
         }
 

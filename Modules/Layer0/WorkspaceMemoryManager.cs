@@ -47,6 +47,24 @@ namespace JarvisLauncher
                     {
                         string json = File.ReadAllText(path);
                         _currentMemory = JsonSerializer.Deserialize<WorkspaceMemory>(json) ?? new WorkspaceMemory();
+
+                        // Auto-refresh the code snippet from the physical file on disk if it still exists
+                        if (!string.IsNullOrEmpty(_currentMemory.ActiveFilePath) && File.Exists(_currentMemory.ActiveFilePath))
+                        {
+                            try
+                            {
+                                string content = File.ReadAllText(_currentMemory.ActiveFilePath);
+                                _currentMemory.ActiveCodeSnippet = content.Length > 4000 ? content.Substring(0, 4000) + "\n// [Truncated...]" : content;
+                                _currentMemory.LastUpdated = DateTime.Now;
+                                // Save the refreshed memory to WorkspaceMemory.json
+                                string refreshedJson = JsonSerializer.Serialize(_currentMemory, new JsonSerializerOptions { WriteIndented = true });
+                                File.WriteAllText(path, refreshedJson);
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Failed to auto-refresh workspace file: {ex.Message}");
+                            }
+                        }
                     }
                     else
                     {

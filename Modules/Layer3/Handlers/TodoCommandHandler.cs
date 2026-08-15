@@ -13,9 +13,9 @@ namespace JarvisLauncher
 {
     public class TodoItem
     {
-        public string Task { get; set; } = string.Empty;
-        public bool IsCompleted { get; set; } = false;
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public string TASK { get; set; } = string.Empty;
+        public bool IS_COMPLETED { get; set; } = false;
+        public DateTime CREATED_AT { get; set; } = DateTime.Now;
     }
 
     public class TodoCommandHandler : ICommandHandler
@@ -44,10 +44,10 @@ namespace JarvisLauncher
                     string task = parts[2].Trim();
                     suggestions.Add(new CommandResult
                     {
-                        Title       = $"Add Task: \"{task}\"",
-                        Description = "Add a new active task to your Todo list database",
-                        Similarity  = similarity,
-                        Execute     = () => AddTask(task)
+                        TITLE       = $"Add Task: \"{task}\"",
+                        DESCRIPTION = "Add a new active task to your Todo list database",
+                        SIMILARITY  = similarity,
+                        EXECUTE     = () => AddTask(task)
                     });
                 }
                 else if (action == "done" && parts.Length > 2)
@@ -56,10 +56,10 @@ namespace JarvisLauncher
                     {
                         suggestions.Add(new CommandResult
                         {
-                            Title       = $"Complete Task #{idx}",
-                            Description = "Mark the selected task as completed",
-                            Similarity  = similarity,
-                            Execute     = () => CompleteTask(idx)
+                            TITLE       = $"Complete Task #{idx}",
+                            DESCRIPTION = "Mark the selected task as completed",
+                            SIMILARITY  = similarity,
+                            EXECUTE     = () => CompleteTask(idx)
                         });
                     }
                 }
@@ -69,10 +69,10 @@ namespace JarvisLauncher
                     {
                         suggestions.Add(new CommandResult
                         {
-                            Title       = $"Delete Task #{idx}",
-                            Description = "Remove the selected task from your list permanently",
-                            Similarity  = similarity,
-                            Execute     = () => DeleteTask(idx)
+                            TITLE       = $"Delete Task #{idx}",
+                            DESCRIPTION = "Remove the selected task from your list permanently",
+                            SIMILARITY  = similarity,
+                            EXECUTE     = () => DeleteTask(idx)
                         });
                     }
                 }
@@ -80,20 +80,20 @@ namespace JarvisLauncher
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title       = "Clear Completed Tasks",
-                        Description = "Purge all completed items from the list database",
-                        Similarity  = similarity,
-                        Execute     = () => ClearCompletedTasks()
+                        TITLE       = "Clear Completed Tasks",
+                        DESCRIPTION = "Purge all completed items from the list database",
+                        SIMILARITY  = similarity,
+                        EXECUTE     = () => ClearCompletedTasks()
                     });
                 }
                 else if (action == "list")
                 {
                     suggestions.Add(new CommandResult
                     {
-                        Title       = "Display Tasks List",
-                        Description = "Print all active and completed tasks in the terminal",
-                        Similarity  = similarity,
-                        Execute     = () => ListTasks()
+                        TITLE       = "Display Tasks List",
+                        DESCRIPTION = "Print all active and completed tasks in the terminal",
+                        SIMILARITY  = similarity,
+                        EXECUTE     = () => ListTasks()
                     });
                 }
             }
@@ -102,18 +102,18 @@ namespace JarvisLauncher
                 // No action specified, default suggestions
                 suggestions.Add(new CommandResult
                 {
-                    Title       = "List Todo Tasks",
-                    Description = "Display all currently tracked tasks in the system terminal",
-                    Similarity  = similarity,
-                    Execute     = () => ListTasks()
+                    TITLE       = "List Todo Tasks",
+                    DESCRIPTION = "Display all currently tracked tasks in the system terminal",
+                    SIMILARITY  = similarity,
+                    EXECUTE     = () => ListTasks()
                 });
 
                 suggestions.Add(new CommandResult
                 {
-                    Title       = "Add Task...",
-                    Description = "Type task content (e.g. todo add buy groceries)",
-                    Similarity  = similarity - 0.5,
-                    Execute     = null
+                    TITLE       = "Add Task...",
+                    DESCRIPTION = "Type task content (e.g. todo add buy groceries)",
+                    SIMILARITY  = similarity - 0.5,
+                    EXECUTE     = null
                 });
             }
 
@@ -170,7 +170,7 @@ namespace JarvisLauncher
         private static void AddTask(string task)
         {
             var tasks = LoadTasks();
-            tasks.Add(new TodoItem { Task = task });
+            tasks.Add(new TodoItem { TASK = task });
             SaveTasks(tasks);
             TextOverlay.Show($"✅ Task Added:\n\"{task}\"", 2500);
         }
@@ -182,9 +182,9 @@ namespace JarvisLauncher
 
             if (idx >= 0 && idx < tasks.Count)
             {
-                tasks[idx].IsCompleted = true;
+                tasks[idx].IS_COMPLETED = true;
                 SaveTasks(tasks);
-                TextOverlay.Show($"✓ Completed: \"{tasks[idx].Task}\"", 2500);
+                TextOverlay.Show($"✓ Completed: \"{tasks[idx].TASK}\"", 2500);
             }
             else
             {
@@ -199,7 +199,7 @@ namespace JarvisLauncher
 
             if (idx >= 0 && idx < tasks.Count)
             {
-                string name = tasks[idx].Task;
+                string name = tasks[idx].TASK;
                 tasks.RemoveAt(idx);
                 SaveTasks(tasks);
                 TextOverlay.Show($"🗑️ Deleted: \"{name}\"", 2500);
@@ -214,7 +214,7 @@ namespace JarvisLauncher
         {
             var tasks = LoadTasks();
             int countBefore = tasks.Count;
-            tasks.RemoveAll(t => t.IsCompleted);
+            tasks.RemoveAll(t => t.IS_COMPLETED);
             int deleted = countBefore - tasks.Count;
             SaveTasks(tasks);
             TextOverlay.Show($"🧹 Purged {deleted} completed tasks!", 2500);
@@ -239,8 +239,8 @@ namespace JarvisLauncher
                 for (int i = 0; i < tasks.Count; i++)
                 {
                     var item = tasks[i];
-                    string status = item.IsCompleted ? "[✓] DONE" : "[ ] TODO";
-                    sb.AppendLine($"{i + 1}. {status,-8} - {item.Task}  (added {item.CreatedAt:yyyy-MM-dd HH:mm})");
+                    string status = item.IS_COMPLETED ? "[✓] DONE" : "[ ] TODO";
+                    sb.AppendLine($"{i + 1}. {status,-8} - {item.TASK}  (added {item.CREATED_AT:yyyy-MM-dd HH:mm})");
                 }
             }
             sb.AppendLine();

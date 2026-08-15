@@ -32,10 +32,10 @@ namespace JarvisLauncher
                     string ipAddress = item.Item2;
                     suggestions.Add(new CommandResult
                     {
-                        Title = $"{item.Item1}: {ipAddress}",
-                        Description = "Click to copy IP address to clipboard",
-                        Execute = () => CopyToClipboard(ipAddress),
-                        Similarity = similarity
+                        TITLE = $"{item.Item1}: {ipAddress}",
+                        DESCRIPTION = "Click to copy IP address to clipboard",
+                        EXECUTE = () => CopyToClipboard(ipAddress),
+                        SIMILARITY = similarity
                     });
                 }
             }
@@ -43,10 +43,10 @@ namespace JarvisLauncher
             {
                 suggestions.Add(new CommandResult
                 {
-                    Title = "IP: Disconnected",
-                    Description = "No active IPv4 interfaces found",
-                    Execute = null,
-                    Similarity = similarity
+                    TITLE = "IP: Disconnected",
+                    DESCRIPTION = "No active IPv4 interfaces found",
+                    EXECUTE = null,
+                    SIMILARITY = similarity
                 });
             }
 

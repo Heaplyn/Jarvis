@@ -21,7 +21,7 @@ namespace JarvisLauncher
         private static DateTime _lastSpeechTime = DateTime.MinValue;
 
         // 3.0 seconds (3000ms) of audio silence required for regular speech to ensure user is fully finished.
-        private static int SilencePauseMs => Math.Max(1000, SettingsManager.Current.VoiceChunkingSilenceMs > 0 ? SettingsManager.Current.VoiceChunkingSilenceMs : 3000);
+        private static int SilencePauseMs => Math.Max(1000, SettingsManager.Current.VOICE_CHUNKING_SILENCE_MS > 0 ? SettingsManager.Current.VOICE_CHUNKING_SILENCE_MS : 3000);
 
         static FullSentenceAccumulator()
         {

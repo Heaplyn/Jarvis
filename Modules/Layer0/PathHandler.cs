@@ -6,7 +6,7 @@ namespace JarvisLauncher
 {
     public static class PathHandler
     {
-        private static string? _cachedDataDir;
+        private static string? CachedDataDir;
 
         /// <summary>
         /// Returns a persistent Data directory. In development, points to the project root.
@@ -14,36 +14,47 @@ namespace JarvisLauncher
         /// </summary>
         public static string GetDataDirectory()
         {
-            if (_cachedDataDir != null) return _cachedDataDir;
+            if (CachedDataDir != null) return CachedDataDir;
 
-            // 1. Check if we are in a source code project directory
-            string checkDir = AppDomain.CurrentDomain.BaseDirectory;
-            for (int i = 0; i < 6; i++)
-            {
-                if (File.Exists(Path.Combine(checkDir, "JarvisLauncher.csproj")) ||
-                    Directory.Exists(Path.Combine(checkDir, "Modules")))
-                {
-                    string sourceData = Path.Combine(checkDir, "Data");
-                    if (!Directory.Exists(sourceData)) Directory.CreateDirectory(sourceData);
-                    _cachedDataDir = sourceData;
-                    return _cachedDataDir;
-                }
-                var parent = Directory.GetParent(checkDir);
-                if (parent == null) break;
-                checkDir = parent.FullName;
-            }
+            string root = GetProjectRoot();
+            string dataDir = Path.Combine(root, "Data");
+            if (!Directory.Exists(dataDir)) Directory.CreateDirectory(dataDir);
 
-            // 2. Fallback to LocalAppData for persistent storage outside of the installation folder
-            string localApp = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JarvisHUD", "Data");
-            if (!Directory.Exists(localApp)) Directory.CreateDirectory(localApp);
-            _cachedDataDir = localApp;
-
-            return _cachedDataDir;
+            CachedDataDir = dataDir;
+            return CachedDataDir;
         }
 
-        public static string GetCurrentSourceDirectory([CallerFilePath] string callerPath = "")
+        public static string GetDownloadsDirectory()
         {
-            return Path.GetDirectoryName(callerPath) ?? string.Empty;
+            string root = GetProjectRoot();
+            string downloadsDir = Path.Combine(root, "Downloads");
+            if (!Directory.Exists(downloadsDir))
+            {
+                Directory.CreateDirectory(downloadsDir);
+            }
+            return downloadsDir;
+        }
+
+        public static string GetProjectRoot()
+        {
+            string CheckDir = AppDomain.CurrentDomain.BaseDirectory;
+            for (int I = 0; I < 6; I++)
+            {
+                if (File.Exists(Path.Combine(CheckDir, "JarvisLauncher.csproj")) ||
+                    Directory.Exists(Path.Combine(CheckDir, "Modules")))
+                {
+                    return CheckDir;
+                }
+                var Parent = Directory.GetParent(CheckDir);
+                if (Parent == null) break;
+                CheckDir = Parent.FullName;
+            }
+            return AppDomain.CurrentDomain.BaseDirectory;
+        }
+
+        public static string GetCurrentSourceDirectory([CallerFilePath] string CallerPath = "")
+        {
+            return Path.GetDirectoryName(CallerPath) ?? string.Empty;
         }
     }
 }
