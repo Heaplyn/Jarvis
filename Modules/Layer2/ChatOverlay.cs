@@ -347,6 +347,20 @@ namespace JarvisLauncher
             });
         }
 
+        private static void CancelActiveTurn()
+        {
+            lock (_ctsLock)
+            {
+                if (_activeMessageCts != null)
+                {
+                    try { _activeMessageCts.Cancel(); } catch { }
+                    _activeMessageCts.Dispose();
+                    _activeMessageCts = null;
+                }
+            }
+            TtsManager.Stop();
+        }
+
         private async Task SendUserMessage(string Message, string source, CancellationToken ct)
         {
             string DisplayMessage = Message;
