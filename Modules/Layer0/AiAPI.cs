@@ -570,6 +570,81 @@ namespace JarvisLauncher
                     }
                 }
 
+                // 14. Check for [USER_AUTH_REQUIRED: prompt] tags
+                var AuthRegex = new Regex(@"\[USER_AUTH_REQUIRED:\s*(.+?)\]", RegexOptions.IgnoreCase);
+                var AuthMatches = AuthRegex.Matches(Response);
+                foreach (Match Match in AuthMatches)
+                {
+                    string AuthPrompt = Match.Groups[1].Value.Trim().Trim('"', '\'');
+                    string TagKey = $"AUTH:{AuthPrompt}";
+                    if (ExecutedTags.Contains(TagKey)) continue;
+                    ExecutedTags.Add(TagKey);
+                    NewExecutionsCount++;
+
+                    // Special case for known OAuth pipelines
+                    if (AuthPrompt.ToLower().Contains("google login") || AuthPrompt.ToLower().Contains("google auth"))
+                    {
+                        bool ok = await OAuth2Manager.EnsureGoogleAuthenticatedAsync();
+                        ExecutionFeedBuilder.AppendLine($"[USER_AUTH_RESULT: Google]\nSuccess: {ok}\n[END_USER_AUTH_RESULT]");
+                    }
+                    else if (AuthPrompt.ToLower().Contains("discord login") || AuthPrompt.ToLower().Contains("discord auth"))
+                    {
+                        bool ok = await OAuth2Manager.LoginDiscordOAuth2Async();
+                        ExecutionFeedBuilder.AppendLine($"[USER_AUTH_RESULT: Discord]\nSuccess: {ok}\n[END_USER_AUTH_RESULT]");
+                    }
+                    else if (AuthPrompt.ToLower().Contains("spotify login") || AuthPrompt.ToLower().Contains("spotify auth"))
+                    {
+                        bool ok = await OAuth2Manager.LoginSpotifyOAuth2Async();
+                        ExecutionFeedBuilder.AppendLine($"[USER_AUTH_RESULT: Spotify]\nSuccess: {ok}\n[END_USER_AUTH_RESULT]");
+                    }
+                    else if (AuthPrompt.ToLower().Contains("twitch login") || AuthPrompt.ToLower().Contains("twitch auth"))
+                    {
+                        bool ok = await OAuth2Manager.LoginTwitchOAuth2Async();
+                        ExecutionFeedBuilder.AppendLine($"[USER_AUTH_RESULT: Twitch]\nSuccess: {ok}\n[END_USER_AUTH_RESULT]");
+                    }
+                    else if (AuthPrompt.ToLower().Contains("github login") || AuthPrompt.ToLower().Contains("github auth"))
+                    {
+                        bool ok = await OAuth2Manager.LoginGithubOAuth2Async();
+                        ExecutionFeedBuilder.AppendLine($"[USER_AUTH_RESULT: GitHub]\nSuccess: {ok}\n[END_USER_AUTH_RESULT]");
+                    }
+                    else
+                    {
+                        var tcs = new TaskCompletionSource<string>();
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            InputPromptOverlay.Show(AuthPrompt, (input) => tcs.TrySetResult(input));
+                        });
+
+                        string UserInput = await tcs.Task;
+                        ExecutionFeedBuilder.AppendLine($"[USER_AUTH_RESULT: {AuthPrompt}]\nUser provided: {UserInput}\n[END_USER_AUTH_RESULT]");
+                    }
+                    LastToolOutput = "🔑 **User provided authentication info.**";
+                }
+
+                // 15. Check for [SOLVE_CAPTCHA: url] tags
+                var CaptchaRegex = new Regex(@"\[SOLVE_CAPTCHA:\s*(.+?)\]", RegexOptions.IgnoreCase);
+                var CaptchaMatches = CaptchaRegex.Matches(Response);
+                foreach (Match Match in CaptchaMatches)
+                {
+                    string CaptchaUrl = Match.Groups[1].Value.Trim().Trim('"', '\'');
+                    string TagKey = $"CAPTCHA:{CaptchaUrl}";
+                    if (ExecutedTags.Contains(TagKey)) continue;
+                    ExecutedTags.Add(TagKey);
+                    NewExecutionsCount++;
+
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = CaptchaUrl, UseShellExecute = true });
+
+                    var tcs = new TaskCompletionSource<bool>();
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        InputPromptOverlay.Show($"Please solve the captcha at {CaptchaUrl} and type 'OK' when done.", (input) => tcs.TrySetResult(true));
+                    });
+
+                    await tcs.Task;
+                    ExecutionFeedBuilder.AppendLine($"[CAPTCHA_SOLVED: {CaptchaUrl}]\nUser confirmed captcha is solved.\n[END_CAPTCHA_SOLVED]");
+                    LastToolOutput = "🧩 **User confirmed captcha solution.**";
+                }
+
                 // If no new execution tags were run, we are finished!
                 if (NewExecutionsCount == 0)
                 {
@@ -657,6 +732,37 @@ namespace JarvisLauncher
         {
             if (string.IsNullOrWhiteSpace(Text)) return string.Empty;
 
+            // 1. Detect and remove the entire "Bulleted Reasoning" block (Chain of Thought leak)
+            // This pattern typically starts with "* Current User Query" or "* Identity"
+            if (Text.Trim().StartsWith("*") && (Text.Contains("Current User Query") || Text.Contains("Identity:") || Text.Contains("Draft 1:")))
+            {
+                // Try to find the actual response which usually follows the reasoning block
+                // Often indicated by a line that doesn't start with * or is a direct quote
+                var lines = Text.Split('\n');
+                var actualResponse = new StringBuilder();
+                bool reasoningFinished = false;
+
+                foreach (var line in lines)
+                {
+                    string trimmed = line.Trim();
+                    if (reasoningFinished)
+                    {
+                        actualResponse.AppendLine(line);
+                    }
+                    else if (!trimmed.StartsWith("*") && !string.IsNullOrWhiteSpace(trimmed) && !trimmed.StartsWith("Draft") && !trimmed.Contains("Final check"))
+                    {
+                        // Found first non-reasoning line
+                        reasoningFinished = true;
+                        actualResponse.AppendLine(line);
+                    }
+                }
+
+                if (actualResponse.Length > 0)
+                {
+                    Text = actualResponse.ToString().Trim();
+                }
+            }
+
             // HARD FILTER: If response is just dots or non-alphanumeric noise, kill it.
             if (Regex.IsMatch(Text, @"^[\.\s\?\!]+$")) return string.Empty;
 
@@ -667,19 +773,23 @@ namespace JarvisLauncher
             {
                 string Trimmed = Line.Trim();
 
-                // ONLY filter out explicit inner-monologue meta-reasoning lines
+                // 2. Filter out specific inner-monologue meta-reasoning lines
                 if (Trimmed.StartsWith("*") && (
                     Trimmed.Contains("User is providing") ||
                     Trimmed.Contains("User is demanding") ||
-                    Trimmed.Contains("I am Jarvis. I need to be") ||
-                    Trimmed.Contains("Keep it short and natural") ||
-                    Trimmed.Contains("Don't explain why") ||
-                    Trimmed.Contains("Just ask for the instruction") ||
-                    Trimmed.Contains("Wait, looking at the persona") ||
-                    Trimmed.Contains("The user's prompt is a bit chaotic") ||
-                    Trimmed.Contains("Actually, let's see if there's any hidden intent") ||
+                    Trimmed.Contains("I am Jarvis") ||
+                    Trimmed.Contains("Keep it short") ||
+                    Trimmed.Contains("Don't explain") ||
+                    Trimmed.Contains("Just ask for") ||
+                    Trimmed.Contains("Wait, looking at") ||
+                    Trimmed.Contains("The user's prompt") ||
+                    Trimmed.Contains("hidden intent") ||
                     Trimmed.Contains("no \"next step\"") ||
-                    Trimmed.Contains("failed output")))
+                    Trimmed.Contains("failed output") ||
+                    Trimmed.Contains("Current User Query") ||
+                    Trimmed.Contains("Context:") ||
+                    Trimmed.Contains("Identity:") ||
+                    Trimmed.Contains("Constraint:")))
                 {
                     continue;
                 }
@@ -699,13 +809,26 @@ namespace JarvisLauncher
             }
 
             string Result = string.Join("\n", CleanedLines).Trim();
+
+            // Final check: if the AI quoted its answer inside its reasoning and we have duplicates, deduplicate
+            if (Result.Length > 20)
+            {
+                int half = Result.Length / 2;
+                string firstHalf = Result.Substring(0, half).Trim();
+                string secondHalf = Result.Substring(half).Trim();
+                if (firstHalf.Equals(secondHalf, StringComparison.OrdinalIgnoreCase))
+                {
+                    Result = firstHalf;
+                }
+            }
+
             return string.IsNullOrWhiteSpace(Result) ? Text.Trim() : Result;
         }
 
         private static async Task<string> QueryGeminiRaw(string Prompt, string ApiKey, string? Base64Image = null, string? Base64Audio = null, List<ChatTurn>? History = null, CancellationToken ct = default)
         {
-            // Prioritize fastest models for HUD responsiveness
-            var Models = new List<string> { "gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-flash-lite-latest", "gemini-3.5-flash", "gemini-2.5-pro", "gemini-pro-latest" };
+            // Use current standard model names to avoid NotFound errors
+            var Models = new List<string> { "gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro", "gemini-1.0-pro" };
 
             // If user has a specific model preference, put it at the very front of the list
             string Preferred = SettingsManager.Current.GEMINI_MODEL;
@@ -715,11 +838,14 @@ namespace JarvisLauncher
                 Models.Insert(0, Preferred);
             }
 
-            // Integrate discovered models if available
+            // Integrate discovered models if available (but only if they are generateContent compatible)
             if (CachedDiscoveredModels.Count > 0)
             {
-                foreach(var M in CachedDiscoveredModels)
-                    if(!Models.Contains(M)) Models.Add(M);
+                foreach (var M in CachedDiscoveredModels)
+                {
+                    string cleanM = M.StartsWith("models/") ? M.Substring(7) : M;
+                    if (!Models.Contains(cleanM)) Models.Add(cleanM);
+                }
             }
             else
             {
@@ -728,9 +854,10 @@ namespace JarvisLauncher
             }
 
             string[] ApiVersions = new[] { "v1beta", "v1" };
-            int retryCount = 0;
+            int globalRetryCount = 0;
+            int maxGlobalRetries = 5;
 
-            while (true)
+            while (globalRetryCount < maxGlobalRetries)
             {
                 string LastError = "";
                 foreach (var ApiVer in ApiVersions)
@@ -803,10 +930,12 @@ namespace JarvisLauncher
                             };
 
                             string JsonBody = JsonSerializer.Serialize(Payload);
+                            DebugConsoleOverlay.LogVerbose("Gemini-Request", $"URL: {Url}\nBody: {JsonBody}");
                             var Content = new StringContent(JsonBody, Encoding.UTF8, "application/json");
 
                             var Response = await Client.PostAsync(Url, Content, ct);
                             string ResponseBody = await Response.Content.ReadAsStringAsync(ct);
+                            DebugConsoleOverlay.LogVerbose("Gemini-Response", $"Status: {Response.StatusCode}\nBody: {ResponseBody}");
 
                             if (!Response.IsSuccessStatusCode)
                             {
@@ -882,10 +1011,13 @@ namespace JarvisLauncher
                     return $"Error: All candidate Gemini models failed to respond.\nLast error details:\n{LastError}";
                 }
 
-                retryCount++;
-                DebugConsoleOverlay.Log("Gemini-Retry", $"All models failed to respond. Retry #{retryCount} in 2 seconds... Last error: {LastError.Split('\n')[0]}");
+                globalRetryCount++;
+                DebugConsoleOverlay.Log("Gemini-Retry", $"All models failed to respond. Retry #{globalRetryCount} in 2 seconds... Last error: {LastError.Split('\n')[0]}");
                 await Task.Delay(2000);
             }
+
+            return "Error: Maximum retry limit reached. The AI service is currently unavailable.";
+        }
         }
 
         private static List<string> CachedDiscoveredModels = new List<string>();
@@ -961,7 +1093,9 @@ namespace JarvisLauncher
                    "- If you have nothing to say, say 'Ready.' or nothing at all.\n\n" +
                    "## ACTIONS\n" +
                    "[READ_FILE: path] [WRITE_FILE: path] [EXEC_PS: cmd] [RUN_COMMAND: cmd]\n" +
-                   "[TAKE_SCREENSHOT] [SPEECH: text] [SET_CLIPBOARD: text]\n";
+                   "[TAKE_SCREENSHOT] [SPEECH: text] [SET_CLIPBOARD: text]\n" +
+                   "[USER_AUTH_REQUIRED: prompt] [SOLVE_CAPTCHA: url]\n" +
+                   "Note: You can request auth for: Google, GitHub, Discord, Spotify, Twitch.\n";
 
             return ContextOptimizer.PruneAndOptimize(rawPrompt);
         }

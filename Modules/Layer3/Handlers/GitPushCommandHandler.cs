@@ -64,10 +64,18 @@ namespace JarvisLauncher
             }
             else if (lower == "push" || lower == "git push")
             {
+                suggestions.Add(new CommandResult
+                {
+                    TITLE = "🚀 AI-Generated Push",
+                    DESCRIPTION = "Compare changes and use AI to write the commit message",
+                    SIMILARITY = similarity + 5.5,
+                    EXECUTE = () => ExecuteAiGitPush()
+                });
+
                 string autoMsg = $"Update: {DateTime.Now:yyyy-MM-dd HH:mm}";
                 suggestions.Add(new CommandResult
                 {
-                    TITLE = "🚀 Push: Auto-commit & Push",
+                    TITLE = "🚀 Quick Push (Auto-msg)",
                     DESCRIPTION = $"Message: \"{autoMsg}\"",
                     SIMILARITY = similarity + 5.0,
                     EXECUTE = () => ExecuteGitPush(autoMsg)
@@ -92,6 +100,55 @@ namespace JarvisLauncher
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     CliOutputOverlay.Show($"git {gitArgs}", result);
+                });
+            });
+        }
+
+        private static void ExecuteAiGitPush()
+        {
+            TextOverlay.Show("🧠 Jarvis is analyzing changes...", 3000);
+            Task.Run(async () =>
+            {
+                string projectRoot = GetProjectRoot();
+
+                // 1. Get high-level diff stats
+                string diffStat = await RunCommandAsync("git", "diff HEAD --stat", projectRoot);
+
+                // 2. Get content diff (truncated to avoid token limit)
+                string diffContent = await RunCommandAsync("git", "diff HEAD", projectRoot);
+                if (diffContent.Length > 8000) diffContent = diffContent.Substring(0, 8000) + "\n... (diff truncated)";
+
+                if (string.IsNullOrWhiteSpace(diffStat) || diffStat.Contains("Error"))
+                {
+                    Application.Current.Dispatcher.Invoke(() => TextOverlay.Show("⚠️ No changes detected to push.", 3000));
+                    return;
+                }
+
+                // 3. Ask AI to summarize
+                string prompt = "Task: Write a concise, professional Git commit message based on these changes.\n" +
+                               "Format: A single line summary (max 72 chars), followed by bullet points if complex.\n" +
+                               "RULES:\n" +
+                               "1. Be specific (e.g., 'Fix: Null check in UI' not 'Updated files').\n" +
+                               "2. Do not use markdown backticks around the message.\n" +
+                               "3. Output ONLY the commit message text.\n\n" +
+                               $"## FILE STATS:\n{diffStat}\n\n" +
+                               $"## DIFF CONTENT:\n{diffContent}";
+
+                string aiMessage = await LlmRouter.AskAsync(prompt);
+                aiMessage = aiMessage.Trim().Trim('"', '\'');
+
+                if (string.IsNullOrWhiteSpace(aiMessage) || aiMessage.Contains("Error"))
+                {
+                    aiMessage = $"Update: {DateTime.Now:yyyy-MM-dd HH:mm} (AI generation failed)";
+                }
+
+                DebugConsoleOverlay.Log("Git-AI", $"Generated Message: {aiMessage}");
+
+                // 4. Proceed with push
+                string result = await RunGitPushAsync(aiMessage);
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    CliOutputOverlay.Show($"AI Push: {aiMessage}", result);
                 });
             });
         }

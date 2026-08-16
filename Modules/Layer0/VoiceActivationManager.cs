@@ -216,8 +216,8 @@ namespace JarvisLauncher
 
             if (rms > 0.015 && !_isInConversation && !_isProcessingWakeWord)
             {
-                // Silence periodic mic peak logs
-                // DebugConsoleOverlay.Log("Audio-Input", $"Mic Peak: {rms:F3} (Target: {SpeechThreshold:F3})");
+                // Silence periodic mic peak logs unless verbose
+                DebugConsoleOverlay.LogVerbose("Audio-Metrics", $"Peak: {rms:F3} | ZCR: {CalculateZeroCrossingRate(e.Buffer, e.BytesRecorded):F2} | HFE: {CalculateHighFrequencyEnergy(e.Buffer, e.BytesRecorded):F3}");
             }
 
             if (!_isRecordingCommand && !_isInConversation && !_isProcessingWakeWord)

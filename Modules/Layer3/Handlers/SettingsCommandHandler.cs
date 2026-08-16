@@ -15,7 +15,8 @@ namespace JarvisLauncher
             return q.Contains("setting") || q.Contains("option") || q.Contains("config") || q.Contains("pref")
                 || q.StartsWith("setkey") || q.StartsWith("getkey")
                 || q.StartsWith("ontop") || q.StartsWith("topmost") || q.StartsWith("alwaysontop")
-                || q.StartsWith("disable") || q.StartsWith("enable") || q == "sleep jarvis" || q == "wake jarvis";
+                || q.StartsWith("disable") || q.StartsWith("enable") || q == "sleep jarvis" || q == "wake jarvis"
+                || q.StartsWith("debug") || q.StartsWith("verbose");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -212,7 +213,61 @@ namespace JarvisLauncher
                 }
             }
 
+            if (cmd == "debug" || cmd == "verbose")
+            {
+                bool current = SettingsManager.Current.VERBOSE_LOGGING;
+                if (parts.Length > 1)
+                {
+                    string arg = parts[1].ToLower();
+                    if (arg == "on" || arg == "true" || arg == "1")
+                    {
+                        suggestions.Add(new CommandResult
+                        {
+                            TITLE = "🛠️ Enable Verbose Debugging",
+                            DESCRIPTION = "Log detailed internal states, network packets, and AI payloads",
+                            EXECUTE = () => SetVerboseLogging(true),
+                            SIMILARITY = similarity + 1.0
+                        });
+                    }
+                    else if (arg == "off" || arg == "false" || arg == "0")
+                    {
+                        suggestions.Add(new CommandResult
+                        {
+                            TITLE = "🛠️ Disable Verbose Debugging",
+                            DESCRIPTION = "Return to standard system event logging",
+                            EXECUTE = () => SetVerboseLogging(false),
+                            SIMILARITY = similarity + 1.0
+                        });
+                    }
+                }
+                else
+                {
+                    suggestions.Add(new CommandResult
+                    {
+                        TITLE = $"🛠️ Verbose Logging: {(current ? "Enabled" : "Disabled")}",
+                        DESCRIPTION = "Type 'debug on' or 'debug off' to toggle internal diagnostics",
+                        EXECUTE = () => SetVerboseLogging(!current),
+                        SIMILARITY = similarity + 0.5
+                    });
+                }
+            }
+
             return suggestions;
+        }
+
+        private static void SetVerboseLogging(bool value)
+        {
+            try
+            {
+                SettingsManager.Current.VERBOSE_LOGGING = value;
+                SettingsManager.Save();
+                TextOverlay.Show($"🛠️ Verbose Logging {(value ? "ON" : "OFF")}", 2500);
+                DebugConsoleOverlay.Log("System", $"Verbose logging mode changed to: {value}");
+            }
+            catch (Exception ex)
+            {
+                TextOverlay.Show($"⚠️ Error: {ex.Message}", 3000);
+            }
         }
 
         private static void SetJarvisEnabled(bool value)

@@ -132,7 +132,10 @@ namespace JarvisLauncher
                     }
 
                     if (!PathString.Contains("screenshot"))
+                    {
                         LogToFile($"Request: {Method} {PathString} from {RemoteEp}");
+                        DebugConsoleOverlay.LogVerbose("Bridge-Packet", $"Raw Request From {RemoteEp}:\n{Request.Substring(0, Math.Min(Request.Length, 500))}");
+                    }
 
                     if (Method == "OPTIONS")
                     {

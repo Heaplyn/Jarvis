@@ -278,15 +278,27 @@ namespace JarvisLauncher
             InputTextBox.SetResourceReference(TextBox.CaretBrushProperty, "AccentCaretBrush");
             InputTextBox.SetResourceReference(TextBox.BorderBrushProperty, "WindowBorderBrush");
 
-            PlaceholderTextBlock = new TextBlock { Text = "Ask Jarvis... (Press Enter to send, Shift+Enter for new line)", FontSize = 13, FontFamily = new FontFamily("Segoe UI"), IsHitTestVisible = false, Margin = new Thickness(10, 8, 10, 8), VerticalAlignment = VerticalAlignment.Top };
+            PlaceholderTextBlock = new TextBlock { Text = "Ask Jarvis... (Enter to send, Ctrl+Enter or Shift+Enter for new line)", FontSize = 13, FontFamily = new FontFamily("Segoe UI"), IsHitTestVisible = false, Margin = new Thickness(10, 8, 10, 8), VerticalAlignment = VerticalAlignment.Top };
             PlaceholderTextBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextPlaceholderBrush");
 
             InputTextBox.TextChanged += (S, E) => { PlaceholderTextBlock.Visibility = string.IsNullOrEmpty(InputTextBox.Text) ? Visibility.Visible : Visibility.Collapsed; };
             InputTextBox.PreviewKeyDown += (S, E) =>
             {
-                // Enter sends the message, Shift+Enter creates a new line
-                if (E.Key == Key.Enter && !Keyboard.IsKeyDown(Key.LeftShift))
+                // Enter sends the message (unless Shift or Ctrl is held)
+                if (E.Key == Key.Enter && !Keyboard.IsKeyDown(Key.LeftShift) && !Keyboard.IsKeyDown(Key.LeftCtrl))
                 {
+                    E.Handled = true;
+                    string M = InputTextBox.Text.Trim();
+                    if (!string.IsNullOrEmpty(M) || AttachedFilePath != null)
+                    {
+                        InputTextBox.Text = "";
+                        _ = SubmitTextMessage(M);
+                    }
+                }
+                // Support Ctrl+Enter for sending explicitly if preferred by some users
+                else if (E.Key == Key.Enter && Keyboard.IsKeyDown(Key.LeftCtrl))
+                {
+                    // If they use Ctrl+Enter, treat it as a hard send
                     E.Handled = true;
                     string M = InputTextBox.Text.Trim();
                     if (!string.IsNullOrEmpty(M) || AttachedFilePath != null)
@@ -621,8 +633,12 @@ namespace JarvisLauncher
             VoiceActivationManager.LastAiSpokenText = sanitizedResult;
 
             // 3. Reject if the AI just echoed the user exactly, or if it's just noise/dots
+            double echoSimilarity = SearchUtil.GetSimilarity(sanitizedResult.ToLower(), Message.ToLower());
             if (string.IsNullOrWhiteSpace(sanitizedResult) ||
                 sanitizedResult.Equals(Message, StringComparison.OrdinalIgnoreCase) ||
+                sanitizedResult.StartsWith(Message, StringComparison.OrdinalIgnoreCase) ||
+                (Message.Length > 25 && sanitizedResult.Contains(Message)) ||
+                (echoSimilarity > 0.9) ||
                 Regex.IsMatch(sanitizedResult, @"^[\.\s\?\!]+$"))
             {
                 Application.Current.Dispatcher.Invoke(() => ChatHistoryPanel.Children.Remove(AiBorder));

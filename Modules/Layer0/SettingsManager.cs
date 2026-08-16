@@ -82,6 +82,23 @@ namespace JarvisLauncher
         public string GITHUB_OAUTH_CLIENT_SECRET { get; set; } = string.Empty;
         public string GITHUB_OAUTH_USER_LOGIN { get; set; } = string.Empty;
 
+        public string DISCORD_OAUTH_CLIENT_ID { get; set; } = string.Empty;
+        public string DISCORD_OAUTH_CLIENT_SECRET { get; set; } = string.Empty;
+        public string DISCORD_OAUTH_ACCESS_TOKEN { get; set; } = string.Empty;
+        public string DISCORD_OAUTH_REFRESH_TOKEN { get; set; } = string.Empty;
+        public string DISCORD_USER_TAG { get; set; } = string.Empty;
+
+        public string SPOTIFY_OAUTH_CLIENT_ID { get; set; } = string.Empty;
+        public string SPOTIFY_OAUTH_CLIENT_SECRET { get; set; } = string.Empty;
+        public string SPOTIFY_OAUTH_ACCESS_TOKEN { get; set; } = string.Empty;
+        public string SPOTIFY_OAUTH_REFRESH_TOKEN { get; set; } = string.Empty;
+        public string SPOTIFY_USER_NAME { get; set; } = string.Empty;
+
+        public string TWITCH_OAUTH_CLIENT_ID { get; set; } = string.Empty;
+        public string TWITCH_OAUTH_CLIENT_SECRET { get; set; } = string.Empty;
+        public string TWITCH_OAUTH_ACCESS_TOKEN { get; set; } = string.Empty;
+        public string TWITCH_USER_NAME { get; set; } = string.Empty;
+
         public bool P2P_SERVER_ENABLED { get; set; } = false;
         public string P2P_SERVER_SECRET { get; set; } = string.Empty;
 
@@ -98,6 +115,7 @@ namespace JarvisLauncher
         public string HUGGINGFACE_API_KEY { get; set; } = string.Empty;
         public bool ENABLE_HF_AUTO_TRAINING { get; set; } = false;
         public string HF_TRAINING_DATASET_ID { get; set; } = string.Empty;
+        public bool VERBOSE_LOGGING { get; set; } = false;
     }
 
     public static class SettingsManager

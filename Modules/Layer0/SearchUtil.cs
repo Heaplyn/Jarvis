@@ -11,6 +11,28 @@ namespace JarvisLauncher
 {
     public static class SearchUtil
     {
+        // ── Synonym Map ─────────────────────────────────────────────────────────
+        private static readonly Dictionary<string, string[]> SynonymMap = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "kill",     new[] { "stop", "terminate", "close", "end", "exit", "quit" } },
+            { "stop",     new[] { "kill", "terminate", "close", "end", "pause", "halt" } },
+            { "start",    new[] { "launch", "open", "run", "execute", "begin" } },
+            { "open",     new[] { "launch", "run", "start", "view", "show" } },
+            { "search",   new[] { "find", "lookup", "query", "google", "browser" } },
+            { "find",     new[] { "search", "lookup", "locate", "where" } },
+            { "view",     new[] { "show", "display", "open", "read" } },
+            { "show",     new[] { "view", "display", "open", "list" } },
+            { "sound",    new[] { "volume", "audio", "speaker", "mute" } },
+            { "music",    new[] { "audio", "song", "playlist", "spotify", "track" } },
+            { "network",  new[] { "ip", "connection", "wifi", "internet", "bridge" } },
+            { "pc",       new[] { "system", "computer", "machine", "power" } },
+            { "memory",   new[] { "ram", "storage", "space" } },
+            { "text",     new[] { "edit", "write", "note", "type" } },
+            { "capture",  new[] { "screenshot", "screen", "snip", "image" } },
+            { "lock",     new[] { "secure", "logout", "protect" } },
+            { "shutdown", new[] { "power off", "turn off", "exit" } }
+        };
+
         // ── Primary Relevance Gate ───────────────────────────────────────────────
 
         /// <summary>
@@ -81,10 +103,15 @@ namespace JarvisLauncher
             if (bigramScore > 0)
                 score = Math.Max(score, bigramScore);
 
-            // 7. Fuzzy Levenshtein with Jaro-Winkler prefix boost
+            // 6b. Synonym expansion boost
+            double synonymBoost = GetSynonymMatchScore(query, target);
+            if (synonymBoost > 0)
+                score = Math.Max(score, synonymBoost);
+
+            // 7. Fuzzy Damerau-Levenshtein with Jaro-Winkler prefix boost
             if (score < 1.0)
             {
-                int distance   = LevenshteinDistance(query, target);
+                int distance   = DamerauLevenshteinDistance(query, target);
                 int maxLength  = Math.Max(query.Length, target.Length);
                 double fuzzy   = 1.0 - ((double)distance / maxLength);
 
@@ -94,11 +121,33 @@ namespace JarvisLauncher
                     if (query[i] == target[i]) commonPrefix++;
                     else break;
                 }
-                fuzzy += commonPrefix * 0.12;
+                fuzzy += commonPrefix * 0.15; // Increased boost
                 score  = Math.Max(score, fuzzy);
             }
 
             return score;
+        }
+
+        private static double GetSynonymMatchScore(string query, string target)
+        {
+            var qTokens = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var tWords = target.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var qt in qTokens)
+            {
+                if (SynonymMap.TryGetValue(qt, out var synonyms))
+                {
+                    foreach (var syn in synonyms)
+                    {
+                        if (tWords.Any(tw => tw.Equals(syn, StringComparison.OrdinalIgnoreCase) || tw.StartsWith(syn, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            // Partial match for synonym found
+                            return 3.5;
+                        }
+                    }
+                }
+            }
+            return 0;
         }
 
         // ── Autocomplete Inline Suggestion ───────────────────────────────────────
@@ -206,9 +255,9 @@ namespace JarvisLauncher
             return bigrams;
         }
 
-        // ── Levenshtein ──────────────────────────────────────────────────────────
+        // ── Damerau-Levenshtein ──────────────────────────────────────────────────
 
-        private static int LevenshteinDistance(string s, string t)
+        private static int DamerauLevenshteinDistance(string s, string t)
         {
             int n = s.Length, m = t.Length;
             if (n == 0) return m;
@@ -226,6 +275,12 @@ namespace JarvisLauncher
                     d[i, j] = Math.Min(
                         Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1),
                         d[i - 1, j - 1] + cost);
+
+                    // Transposition check
+                    if (i > 1 && j > 1 && s[i - 1] == t[j - 2] && s[i - 2] == t[j - 1])
+                    {
+                        d[i, j] = Math.Min(d[i, j], d[i - 2, j - 2] + cost);
+                    }
                 }
             }
             return d[n, m];

@@ -56,11 +56,26 @@ namespace JarvisLauncher
 
         public static void Log(string category, string message)
         {
+            LogInternal(category, message, false);
+        }
+
+        public static void LogVerbose(string category, string message)
+        {
+            if (SettingsManager.Current.VERBOSE_LOGGING)
+            {
+                LogInternal(category, message, true);
+            }
+        }
+
+        private static void LogInternal(string category, string message, bool isVerbose)
+        {
             string timestamp = DateTime.Now.ToString("HH:mm:ss");
             string upperCat = category.ToUpper();
             Brush color = Brushes.White;
 
-            if (upperCat.Contains("ERROR") || upperCat.Contains("FATAL") || upperCat.Contains("FAIL"))
+            if (isVerbose)
+                color = Brushes.Gray;
+            else if (upperCat.Contains("ERROR") || upperCat.Contains("FATAL") || upperCat.Contains("FAIL"))
                 color = Brushes.Tomato;
             else if (upperCat.Contains("WARN"))
                 color = Brushes.Gold;
@@ -75,7 +90,7 @@ namespace JarvisLauncher
 
             var entry = new LogEntry
             {
-                Category = category,
+                Category = isVerbose ? $"DEBUG-{category}" : category,
                 Message = message,
                 Timestamp = timestamp,
                 Color = color
@@ -91,7 +106,8 @@ namespace JarvisLauncher
             try
             {
                 string logFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "jarvis_debug.log");
-                string fileLine = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{upperCat}] {message}{Environment.NewLine}";
+                string prefix = isVerbose ? "[VERBOSE] " : "";
+                string fileLine = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {prefix}[{upperCat}] {message}{Environment.NewLine}";
                 File.AppendAllText(logFile, fileLine);
             }
             catch { }

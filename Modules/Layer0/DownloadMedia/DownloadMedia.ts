@@ -1,6 +1,6 @@
 // Developer: heaplyn
-// Date: 2026-08-09
-// Summary: Standalone Command Line Interface (CLI) script to download media via Lucida (Deezer/Tidal/etc.) or YT-DLP (YouTube) inside Jarvis Layer 0.
+// Date: 2026-08-15
+// Summary: Standalone Command Line Interface (CLI) script to download media via Lucida (Deezer/Tidal/etc.) or YT-DLP (YouTube/SoundCloud).
 
 import { LucidaClient } from './lucida.js';
 import { YtDlp } from 'ytdlp-nodejs';
@@ -15,22 +15,28 @@ let downloadDir = path.resolve(__dirname, 'downloads');
 let targetFormat = 'mp3';
 
 async function download_yt(url: string) {
-    console.log(`[INFO] Route: YouTube URL detected. Initializing extraction via yt-dlp (${targetFormat})...`);
+    console.log(`[INFO] Route: Native Extraction (yt-dlp) detected. Target: ${targetFormat}`);
     try {
         const isVideo = targetFormat === 'mp4' || targetFormat === 'mkv' || targetFormat === 'webm';
         const ytdlp = new YtDlp();
-        const result = await ytdlp
-            .download(url, {
-                output: path.join(downloadDir, '%(title)s.%(ext)s'),
-                extractAudio: !isVideo,
-                audioFormat: isVideo ? undefined : targetFormat,
-                format: isVideo ? `bestvideo[ext=${targetFormat}]+bestaudio/best` : undefined,
-                audioQuality: '0',
-                noPlaylist: true,
-                cookiesFromBrowser: 'chrome'
-            })
-            .run();
 
+        // Configuration for high-quality extraction
+        const options: any = {
+            output: path.join(downloadDir, '%(title)s.%(ext)s'),
+            noPlaylist: true,
+            addMetadata: true,
+            embedThumbnail: true,
+        };
+
+        if (isVideo) {
+            options.format = `bestvideo[ext=${targetFormat}]+bestaudio/best`;
+        } else {
+            options.extractAudio = true;
+            options.audioFormat = targetFormat;
+            options.audioQuality = '0'; // Best
+        }
+
+        const result = await ytdlp.download(url, options).run();
         const filepath = result.filePaths[0];
         
         if (filepath && fs.existsSync(filepath)) {
@@ -43,7 +49,7 @@ async function download_yt(url: string) {
         } else {
             return {
                 success: false,
-                error: 'Download finished, but output file could not be found on disk.'
+                error: 'yt-dlp finished but output file was not found.'
             };
         }
     } catch (err: any) {
@@ -55,48 +61,49 @@ async function download_yt(url: string) {
 }
 
 async function download_lucida(url: string) {
-    console.log('[INFO] Route: Non-YouTube URL detected. Initializing browser automation via Lucida...');
+    console.log('[INFO] Route: Browser Automation (Lucida) detected.');
     const client = new LucidaClient();
     return client.downloadTrack(url, downloadDir);
 }
 
 async function main() {
-    // Ensure all required system dependencies (like FlareSolverr) are pre-installed
+    // Ensure FlareSolverr and binaries are ready
     ensureAllDependencies();
 
     const args = process.argv.slice(2);
     if (args.length === 0) {
-        console.log('❌ Error: Missing URL parameter.');
-        console.log('Usage: npx tsx DownloadMedia.ts <url> [download_directory]');
-        console.log('Example: npx tsx DownloadMedia.ts "https://www.deezer.com/track/1435235"');
+        console.log('❌ Error: Missing URL.');
+        console.log('Usage: npx tsx DownloadMedia.ts <url> [directory] [format]');
         process.exit(1);
     }
 
     const url = args[0].trim();
+    if (args[1]) downloadDir = path.resolve(args[1].trim());
+    if (args[2]) targetFormat = args[2].trim().toLowerCase();
 
-    // Check if a custom download folder path was passed as the second argument
-    if (args[1]) {
-        downloadDir = path.resolve(args[1].trim());
-    }
-
-    // Check for target format (e.g. mp4, webm)
-    if (args[2]) {
-        targetFormat = args[2].trim().toLowerCase();
-    }
-
-    // Ensure the resolved downloads folder exists on disk
     if (!fs.existsSync(downloadDir)) {
         fs.mkdirSync(downloadDir, { recursive: true });
     }
 
-    console.log(`[INFO] Starting download task for target: "${url}"`);
-    console.log(`[INFO] Output folder: "${downloadDir}"`);
+    console.log(`[START] Task: "${url}"`);
+    console.log(`[INFO] Output Folder: "${downloadDir}"`);
 
     try {
         const cleanUrl = url.toLowerCase();
         let result;
 
-        if (cleanUrl.includes('youtube.com') || cleanUrl.includes('youtu.be') || cleanUrl.includes('youtube-nocookie.com')) {
+        // Routing logic
+        const useYtDlp = cleanUrl.includes('youtube.com') ||
+                         cleanUrl.includes('youtu.be') ||
+                         cleanUrl.includes('youtube-nocookie.com') ||
+                         cleanUrl.includes('soundcloud.com') ||
+                         cleanUrl.includes('on.soundcloud.com') ||
+                         cleanUrl.includes('snd.sc') ||
+                         cleanUrl.includes('bandcamp.com') ||
+                         cleanUrl.includes('vimeo.com') ||
+                         cleanUrl.includes('twitch.tv');
+
+        if (useYtDlp) {
             result = await download_yt(url);
         } else {
             result = await download_lucida(url);
@@ -113,13 +120,12 @@ async function main() {
             console.log('==================================================\n');
         } else {
             console.error('\n❌ DOWNLOAD FAILED!');
-            console.error(`Reason: ${result.error || 'Unknown extraction error.'}\n`);
+            console.error(`Reason: ${result.error || 'Unknown Error.'}\n`);
             process.exit(1);
         }
     } catch (err: any) {
-        console.error('\n❌ CRITICAL PROCESS EXCEPTION:');
+        console.error('\n❌ CRITICAL ERROR:');
         console.error(err.message || err);
-        console.error('\n');
         process.exit(1);
     }
 }
