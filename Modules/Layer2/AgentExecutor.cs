@@ -65,6 +65,54 @@ namespace JarvisLauncher
                 hasPsActions = true;
             }
 
+            // 5. Process SPEECH tags (Immediate TTS)
+            var speechRegex = new Regex(@"\[SPEECH:\s*(.+?)\]", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            foreach (Match m in speechRegex.Matches(aiResponse))
+            {
+                string text = m.Groups[1].Value.Trim().Trim('"', '\'');
+                TtsManager.Speak(text);
+            }
+
+            // 6. Process SET_CLIPBOARD tags
+            var clipRegex = new Regex(@"\[SET_CLIPBOARD:\s*(.+?)\]", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            foreach (Match m in clipRegex.Matches(aiResponse))
+            {
+                string text = m.Groups[1].Value.Trim().Trim('"', '\'');
+                Application.Current.Dispatcher.Invoke(() => Clipboard.SetText(text));
+            }
+
+            // 7. Process OPEN_IN_IDE / VSCODE tags
+            var ideRegex = new Regex(@"\[(?:OPEN_IN_IDE|OPEN_IN_VSCODE|OPEN_EDITOR):\s*(.+?)\]", RegexOptions.IgnoreCase);
+            foreach (Match m in ideRegex.Matches(aiResponse))
+            {
+                string path = m.Groups[1].Value.Trim().Trim('"', '\'');
+                psScript.AppendLine($"if (Test-Path '{path}') {{ code '{path}' }} else {{ Start-Process '{path}' }}");
+                hasPsActions = true;
+            }
+
+            // 8. Process REBUILD_PROJECT tags
+            if (aiResponse.Contains("[REBUILD_PROJECT]", StringComparison.OrdinalIgnoreCase))
+            {
+                Application.Current.Dispatcher.Invoke(() => NativeMethods.Restart(freshBoot: true));
+            }
+
+            // 9. Process GIT_PUSH tags
+            var pushRegex = new Regex(@"\[GIT_PUSH:\s*(.+?)\]", RegexOptions.IgnoreCase);
+            foreach (Match m in pushRegex.Matches(aiResponse))
+            {
+                string msg = m.Groups[1].Value.Trim().Trim('"', '\'');
+                Application.Current.Dispatcher.Invoke(() => CommandParser.ExecuteFirstSuggestion($"push {msg}"));
+            }
+
+            // 10. Process DOWNLOAD_MEDIA tags
+            var dlMediaRegex = new Regex(@"\[DOWNLOAD_MEDIA:\s*(.+?),\s*(.+?)\]", RegexOptions.IgnoreCase);
+            foreach (Match m in dlMediaRegex.Matches(aiResponse))
+            {
+                string url = m.Groups[1].Value.Trim().Trim('"', '\'');
+                string format = m.Groups[2].Value.Trim().Trim('"', '\'');
+                _ = Task.Run(async () => await WebOperationManager.DiscoverAndDownloadMediaAsync(url, format == "mp4" ? "video" : "audio"));
+            }
+
             string executionSummary = "";
 
             if (hasPsActions)
@@ -74,7 +122,7 @@ namespace JarvisLauncher
                 ChatOverlay.LogConsoleAction("Script Executed", $"Actions offloaded to PowerShell.\nOutput:\n{output}");
             }
 
-            // 5. Handling non-scriptable UI actions (Open windows, volume, etc.)
+            // 7. Handling non-scriptable UI actions (Open windows, volume, etc.)
             var cmdRegex = new Regex(@"\[RUN_COMMAND:\s*(.+?)\]", RegexOptions.IgnoreCase);
             var cmdMatches = cmdRegex.Matches(aiResponse);
             foreach (Match m in cmdMatches)
@@ -91,7 +139,30 @@ namespace JarvisLauncher
                 }
             }
 
-            return aiResponse;
+            return StripAllInternalTags(aiResponse);
+        }
+
+        public static string StripAllInternalTags(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+
+            string cleaned = text;
+
+            // 1. Remove multi-line code-like action blocks
+            cleaned = Regex.Replace(cleaned, @"\[WRITE_FILE:\s*.+?\][\s\S]*?\[END_WRITE\]", "", RegexOptions.IgnoreCase);
+            cleaned = Regex.Replace(cleaned, @"\[APPEND_FILE:\s*.+?\][\s\S]*?\[END_APPEND\]", "", RegexOptions.IgnoreCase);
+
+            // 2. Remove all standard square-bracket tags (Actions & Context)
+            cleaned = Regex.Replace(cleaned, @"\[[A-Z0-9_]{3,}(?::\s*[\s\S]*?)?\]", "", RegexOptions.IgnoreCase);
+
+            // 3. Remove metadata prefixes
+            cleaned = Regex.Replace(cleaned, @"^(Response|Jarvis|Assistant|Assistant Response):\s*", "", RegexOptions.IgnoreCase | RegexOptions.Multiline);
+
+            // 4. Filter for any line that is just punctuation or dots
+            var lines = cleaned.Split('\n').Where(l => !string.IsNullOrWhiteSpace(l) && !Regex.IsMatch(l, @"^[\.\s\?\!]+$"));
+            cleaned = string.Join("\n", lines);
+
+            return cleaned.Trim();
         }
 
         public static string ExecutePowerShellDirect(string cmd)

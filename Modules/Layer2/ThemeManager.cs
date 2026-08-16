@@ -343,7 +343,61 @@ namespace JarvisLauncher
             try
             {
                 Brush brush;
-                if (SettingsManager.Current.BACKGROUND_MODE == "Gradient" || SettingsManager.Current.USE_GRADIENT_BACKGROUND)
+                if (SettingsManager.Current.BACKGROUND_MODE == "RGB")
+                {
+                    var gradient = new LinearGradientBrush();
+                    gradient.StartPoint = new Point(0, 0);
+                    gradient.EndPoint = new Point(1, 1);
+
+                    // Using semi-transparent colors for the RGB effect to ensure text readability
+                    byte alpha = 0x33; // ~20% opacity for a subtle glow effect
+                    var stop1 = new GradientStop(Color.FromArgb(alpha, 255, 0, 0), 0.0);
+                    var stop2 = new GradientStop(Color.FromArgb(alpha, 0, 255, 0), 0.5);
+                    var stop3 = new GradientStop(Color.FromArgb(alpha, 0, 0, 255), 1.0);
+
+                    gradient.GradientStops.Add(stop1);
+                    gradient.GradientStops.Add(stop2);
+                    gradient.GradientStops.Add(stop3);
+
+                    if (SettingsManager.Current.ENABLE_ANIMATIONS)
+                    {
+                        var duration = TimeSpan.FromSeconds(8);
+
+                        var anim1 = new ColorAnimationUsingKeyFrames();
+                        anim1.KeyFrames.Add(new LinearColorKeyFrame(Color.FromArgb(alpha, 255, 0, 0), KeyTime.FromPercent(0)));
+                        anim1.KeyFrames.Add(new LinearColorKeyFrame(Color.FromArgb(alpha, 0, 255, 0), KeyTime.FromPercent(0.33)));
+                        anim1.KeyFrames.Add(new LinearColorKeyFrame(Color.FromArgb(alpha, 0, 0, 255), KeyTime.FromPercent(0.66)));
+                        anim1.KeyFrames.Add(new LinearColorKeyFrame(Color.FromArgb(alpha, 255, 0, 0), KeyTime.FromPercent(1.0)));
+                        anim1.RepeatBehavior = RepeatBehavior.Forever;
+                        anim1.Duration = duration;
+
+                        var anim2 = new ColorAnimationUsingKeyFrames();
+                        anim2.KeyFrames.Add(new LinearColorKeyFrame(Color.FromArgb(alpha, 0, 255, 0), KeyTime.FromPercent(0)));
+                        anim2.KeyFrames.Add(new LinearColorKeyFrame(Color.FromArgb(alpha, 0, 0, 255), KeyTime.FromPercent(0.33)));
+                        anim2.KeyFrames.Add(new LinearColorKeyFrame(Color.FromArgb(alpha, 255, 0, 0), KeyTime.FromPercent(0.66)));
+                        anim2.KeyFrames.Add(new LinearColorKeyFrame(Color.FromArgb(alpha, 0, 255, 0), KeyTime.FromPercent(1.0)));
+                        anim2.RepeatBehavior = RepeatBehavior.Forever;
+                        anim2.Duration = duration;
+
+                        var anim3 = new ColorAnimationUsingKeyFrames();
+                        anim3.KeyFrames.Add(new LinearColorKeyFrame(Color.FromArgb(alpha, 0, 0, 255), KeyTime.FromPercent(0)));
+                        anim3.KeyFrames.Add(new LinearColorKeyFrame(Color.FromArgb(alpha, 255, 0, 0), KeyTime.FromPercent(0.33)));
+                        anim3.KeyFrames.Add(new LinearColorKeyFrame(Color.FromArgb(alpha, 0, 255, 0), KeyTime.FromPercent(0.66)));
+                        anim3.KeyFrames.Add(new LinearColorKeyFrame(Color.FromArgb(alpha, 0, 0, 255), KeyTime.FromPercent(1.0)));
+                        anim3.RepeatBehavior = RepeatBehavior.Forever;
+                        anim3.Duration = duration;
+
+                        stop1.BeginAnimation(GradientStop.ColorProperty, anim1);
+                        stop2.BeginAnimation(GradientStop.ColorProperty, anim2);
+                        stop3.BeginAnimation(GradientStop.ColorProperty, anim3);
+                        brush = gradient;
+                    }
+                    else
+                    {
+                        brush = gradient;
+                    }
+                }
+                else if (SettingsManager.Current.BACKGROUND_MODE == "Gradient" || SettingsManager.Current.USE_GRADIENT_BACKGROUND)
                 {
                     var colorStart = (Color)ColorConverter.ConvertFromString(startHex);
                     var colorEnd = (Color)ColorConverter.ConvertFromString(endHex);

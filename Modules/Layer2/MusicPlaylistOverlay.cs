@@ -121,9 +121,21 @@ namespace JarvisLauncher
 
         private System.Diagnostics.Process? _streamProcess = null;
 
+        public class MusicPlayerState
+        {
+            public double Volume { get; set; } = 0.5;
+            public bool IsShuffle { get; set; } = false;
+            public string LoopMode { get; set; } = "Folder";
+        }
+
         private MusicPlaylistOverlay()
             : base("🎵 JARVIS MUSIC PLAYER & PLAYLIST ORGANIZER", width: 680, height: 520)
         {
+            // Load persistent state
+            var state = PersistentStateManager.LoadState<MusicPlayerState>("MusicPlayer");
+            _isShuffle = state?.IsShuffle ?? false;
+            _loopMode = Enum.TryParse<LoopMode>(state?.LoopMode, out var lm) ? lm : LoopMode.Folder;
+
             this.AllowDrop = true;
             this.DragOver += (s, e) => {
                 if (e.Data.GetDataPresent(DataFormats.FileDrop)) e.Effects = DragDropEffects.Copy;
@@ -144,6 +156,13 @@ namespace JarvisLauncher
 
             this.Closed += (s, e) =>
             {
+                // Save state
+                PersistentStateManager.SaveState("MusicPlayer", new MusicPlayerState {
+                    Volume = _mediaPlayer.Volume,
+                    IsShuffle = _isShuffle,
+                    LoopMode = _loopMode.ToString()
+                });
+
                 // Ensure library state is persisted on close
                 if (_library != null)
                 {

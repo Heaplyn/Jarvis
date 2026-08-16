@@ -23,7 +23,7 @@ namespace JarvisLauncher
         public string DEFAULT_SEARCH_ENGINE { get; set; } = "Google";
         public int WINDOW_MARGIN { get; set; } = 10;
         public bool USE_GRADIENT_BACKGROUND { get; set; } = true;
-        public string BACKGROUND_MODE { get; set; } = "Gradient"; // Solid | Gradient | Media
+        public string BACKGROUND_MODE { get; set; } = "Gradient"; // Solid | Gradient | Media | RGB
         public string BACKGROUND_MEDIA_SOURCE { get; set; } = string.Empty; // Path to GIF or Video
         public bool ENABLE_ANIMATIONS { get; set; } = true;
         public bool USE_ROUNDED_CORNERS { get; set; } = true;
@@ -94,6 +94,10 @@ namespace JarvisLauncher
         public bool MOBILE_ALLOW_CLIPBOARD { get; set; } = true;
 
         public string DISCORD_BOT_TOKEN { get; set; } = string.Empty;
+        public string ROBLOX_COOKIE { get; set; } = string.Empty;
+        public string HUGGINGFACE_API_KEY { get; set; } = string.Empty;
+        public bool ENABLE_HF_AUTO_TRAINING { get; set; } = false;
+        public string HF_TRAINING_DATASET_ID { get; set; } = string.Empty;
     }
 
     public static class SettingsManager

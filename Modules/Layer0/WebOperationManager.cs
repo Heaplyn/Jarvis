@@ -11,6 +11,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Diagnostics;
+using System.Linq;
 
 namespace JarvisLauncher
 {
@@ -110,6 +111,8 @@ namespace JarvisLauncher
                             else if (mediaType.Contains("sqlite") || mediaType.Contains("database")) ext = ".db";
                             else if (mediaType.Contains("audio/wav") || mediaType.Contains("x-wav")) ext = ".wav";
                             else if (mediaType.Contains("audio/mpeg") || mediaType.Contains("mp3")) ext = ".mp3";
+                            else if (mediaType.Contains("video/mp4")) ext = ".mp4";
+                            else if (mediaType.Contains("video/webm")) ext = ".webm";
                             else if (mediaType.Contains("pdf")) ext = ".pdf";
                             else if (mediaType.Contains("text/html")) ext = ".html";
                             else if (mediaType.Contains("text/plain")) ext = ".txt";
@@ -421,6 +424,50 @@ namespace JarvisLauncher
             catch (Exception ex)
             {
                 return $"Error searching the web: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// Smart Media Scraper: Uses AI to discover direct video/audio links on a page and downloads them.
+        /// </summary>
+        public static async Task<string> DiscoverAndDownloadMediaAsync(string url, string type = "video")
+        {
+            try
+            {
+                TextOverlay.Show($"🔍 Scraping {type} links from page...", 3000);
+                string html = await _httpClient.GetStringAsync(url);
+
+                // Extract all potential links
+                var matches = Regex.Matches(html, @"href=""(?<link>.*?)""|src=""(?<link>.*?)""", RegexOptions.IgnoreCase);
+                var links = new List<string>();
+                foreach (Match m in matches)
+                {
+                    string l = m.Groups["link"].Value;
+                    if (!string.IsNullOrEmpty(l)) links.Add(l);
+                }
+                links = links.Distinct().ToList();
+
+                string prompt = $"You are a media discovery agent. From the list of links below, identify the one that is most likely a direct download link for a {type} (MP4, MKV, MP3, etc.). " +
+                                $"If you find multiple, return the highest quality one. Return ONLY the raw URL string. If none are found, return 'NONE'.\n\n" +
+                                $"[SOURCE PAGE]: {url}\n" +
+                                $"[LINKS]:\n{string.Join("\n", links.Take(100))}";
+
+                string discoveredUrl = await LlmRouter.AskAsync(prompt);
+                discoveredUrl = discoveredUrl.Trim();
+
+                if (discoveredUrl == "NONE" || !discoveredUrl.StartsWith("http"))
+                {
+                    // Fallback to yt-dlp via DownloadMediaRunner
+                    TextOverlay.Show("⚡ Direct link not found, attempting extraction via engine...", 3000);
+                    return await DownloadMediaRunner.DownloadAsync(url);
+                }
+
+                TextOverlay.Show($"🚀 Discovered {type} link! Downloading...", 3000);
+                return await DownloadFileAsync(discoveredUrl);
+            }
+            catch (Exception ex)
+            {
+                return $"Error in smart media scraper: {ex.Message}";
             }
         }
     }

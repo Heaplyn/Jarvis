@@ -292,5 +292,28 @@ namespace JarvisLauncher
             double level = (Math.Sin(t * 0.8) * 0.4 + Math.Cos(t * 1.5) * 0.3 + 0.5) * 100.0;
             return Math.Clamp(level, 10.0, 95.0);
         }
+
+        public static void ResetProfile()
+        {
+            try
+            {
+                if (Directory.Exists(VoiceDir))
+                {
+                    var files = Directory.GetFiles(VoiceDir, "*.wav");
+                    foreach (var f in files) { try { File.Delete(f); } catch { } }
+                }
+                if (File.Exists(ProfilePath)) File.Delete(ProfilePath);
+
+                _currentProfile = new VoiceProfile();
+                SaveProfile();
+
+                Task.Run(() => AcousticMlClassifier.RebuildAcousticIndex());
+                DebugConsoleOverlay.Log("Voice-System", "Official voice profile has been reset.");
+            }
+            catch (Exception ex)
+            {
+                DebugConsoleOverlay.Log("Error", $"Failed to reset voice profile: {ex.Message}");
+            }
+        }
     }
 }

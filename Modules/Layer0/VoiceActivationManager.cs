@@ -8,6 +8,7 @@ using System.Windows;
 using System.Collections.Generic;
 using System.Speech.Recognition;
 using System.Threading;
+using System.Text.RegularExpressions;
 
 namespace JarvisLauncher
 {
@@ -27,9 +28,10 @@ namespace JarvisLauncher
         private static readonly List<byte> _circularBuffer = new List<byte>();
         private static readonly List<double> _ambientHistory = new List<double>();
         private const int BufferSeconds = 3;
-        private static float SpeechThreshold => Math.Max(0.010f, SettingsManager.Current.MIC_AUDIO_ENERGY_FLOOR);
-        private static int SilenceTimeoutMs = 1800;
+        private static float SpeechThreshold => Math.Max(0.020f, SettingsManager.Current.MIC_AUDIO_ENERGY_FLOOR);
+        private static int SilenceTimeoutMs = 1200; // Increased timeout for more natural pauses (800 -> 1200)
 
+        public static string LastAiSpokenText { get; set; } = string.Empty;
         private static DateTime _lastInteractionTime = DateTime.MinValue;
         private static bool _isInConversation = false;
         private static DateTime _lastSpeechTime = DateTime.MinValue;
@@ -90,7 +92,7 @@ namespace JarvisLauncher
                                 lower.Contains("hey") || lower.Contains("hi") || lower.Contains("hello"))
                             {
                                 DebugConsoleOverlay.Log("Voice-ML (Vosk)", $"Trigger Match: '{text}'");
-                                TriggerJarvis("Vosk-ML");
+                                TriggerJarvis("Vosk-ML", text);
                             }
                         };
                         DebugConsoleOverlay.Log("Voice", "Vosk Neural Engine Integrated into Pipeline.");
@@ -132,7 +134,7 @@ namespace JarvisLauncher
 
                             if (confidence >= Math.Max(0.70, SettingsManager.Current.MIN_VOICE_CONFIDENCE)) {
                                 DebugConsoleOverlay.Log("Voice-ML (SAPI)", $"High Confidence Match: '{e.Result.Text}' ({confidence:P0})");
-                                TriggerJarvis("SAPI-ML");
+                                TriggerJarvis("SAPI-ML", e.Result.Text);
                             }
                         };
 
@@ -188,16 +190,9 @@ namespace JarvisLauncher
 
             double rms = CalculateRMS(e.Buffer, e.BytesRecorded);
 
-            // 1. COMMAND RECORDING (Self-Voice Cutout)
+            // 1. COMMAND RECORDING
             if (_isRecordingCommand)
             {
-                // If Jarvis is currently speaking (e.g. saying "Yes?" or a long sass response),
-                // we COMPLETELY block recording to stop him from hearing himself.
-                if (TtsManager.IsSpeakingOrEchoing)
-                {
-                    return;
-                }
-
                 _commandAudioStream.Write(e.Buffer, 0, e.BytesRecorded);
                 if (rms > SpeechThreshold)
                 {
@@ -210,7 +205,7 @@ namespace JarvisLauncher
 
             if (TtsManager.IsSpeaking && (DateTime.Now - _speechStartedTime).TotalMilliseconds > 800)
             {
-                if (rms > 0.25)
+                if (rms > 0.35)
                 {
                     DebugConsoleOverlay.Log("Interruption", $"User detected while Jarvis was speaking (RMS: {rms:F2}). Silencing...");
                     TtsManager.Stop();
@@ -221,7 +216,8 @@ namespace JarvisLauncher
 
             if (rms > 0.015 && !_isInConversation && !_isProcessingWakeWord)
             {
-                DebugConsoleOverlay.Log("Audio-Input", $"Mic Peak: {rms:F3} (Target: {SpeechThreshold:F3})");
+                // Silence periodic mic peak logs
+                // DebugConsoleOverlay.Log("Audio-Input", $"Mic Peak: {rms:F3} (Target: {SpeechThreshold:F3})");
             }
 
             if (!_isRecordingCommand && !_isInConversation && !_isProcessingWakeWord)
@@ -237,6 +233,15 @@ namespace JarvisLauncher
                 if (_circularBuffer.Count > maxSize) _circularBuffer.RemoveRange(0, _circularBuffer.Count - maxSize);
             }
 
+            // FEED ENVIRONMENTAL ANALYZER (Vector Sound Classification)
+            EnvironmentalAudioAnalyzer.ProcessBuffer(e.Buffer, e.BytesRecorded);
+
+            // FEED VOSK ENGINE FOR LOCAL STT (Fix: Was not being called)
+            if (_useVoskAsPrimary && VoskEngine.IsInitialized)
+            {
+                VoskEngine.ProcessAudioBuffer(e.Buffer, e.BytesRecorded);
+            }
+
             if (_isInConversation || _isProcessingWakeWord) return;
 
             double highFreqEnergy = CalculateHighFrequencyEnergy(e.Buffer, e.BytesRecorded);
@@ -247,9 +252,13 @@ namespace JarvisLauncher
 
             if (DetectNeuralPhoneticPattern(rms, zcr, highFreqEnergy))
             {
-                DebugConsoleOverlay.Log("Voice-Algo", "Neural Pulse Match! Syllable cadence and spectral profile match 'Jarvis'.");
-                TriggerJarvis("Algorithm-V2");
-                return;
+                // Only trigger if energy is actually significant
+                if (rms > 0.08)
+                {
+                    DebugConsoleOverlay.Log("Voice-Algo", "Neural Pulse Match! Syllable cadence and spectral profile match 'Jarvis'.");
+                    TriggerJarvis("Algorithm-V2");
+                    return;
+                }
             }
 
             if (rms > 0.15 && (DateTime.Now - _lastFallbackTime).TotalSeconds > 6)
@@ -270,8 +279,11 @@ namespace JarvisLauncher
 
             for (int i = 0; i < _rmsHistory.Count; i++)
             {
-                if (_rmsHistory[i] > 0.09) hasJarSyllable = true;
-                if (hasJarSyllable && i > 5 && _rmsHistory[i] > 0.06 && (zcr > 0.20 || highEnergy > 0.03))
+                // Raised threshold for 'Jar' syllable (0.09 -> 0.15)
+                if (_rmsHistory[i] > 0.15) hasJarSyllable = true;
+
+                // Raised threshold and stricter ZCR/Spectral requirements for 'vis' (sibilant)
+                if (hasJarSyllable && i > 5 && _rmsHistory[i] > 0.08 && (zcr > 0.25 || highEnergy > 0.04))
                 {
                     hasVisSyllable = true;
                 }
@@ -314,9 +326,12 @@ namespace JarvisLauncher
 
                 string activeWin = MemoryManager.GetCurrentWindowTitle();
                 string base64 = ConvertToBase64Wav(clip);
-                string prompt = $"Context: User is currently using \"{activeWin}\".\n" +
-                               $"Historical Successes:\n{VoiceDatasetManager.GetFewShotExamples()}\n\n" +
-                               "Is the name 'Jarvis' clearly spoken in this audio? Answer ONLY 'YES' or 'NO'.";
+                string prompt = "Task: Decide if 'Jarvis' is clearly being addressed in this clip.\n" +
+                               "1. Listen for 'Jarvis', 'Jar', or 'Vis'.\n" +
+                               "2. IGNORE background noise, music, or non-English chatter.\n" +
+                               "3. If it sounds like a human intentionally calling for an AI, answer 'YES'.\n" +
+                               "4. If it's just ambient sound or random words like 'Mala' or 'Alo', answer 'NO'.\n\n" +
+                               "Answer ONLY 'YES' or 'NO'.";
 
                 string response = await AiAPI.AnalyzeAudioAsync(prompt, base64);
 
@@ -337,22 +352,16 @@ namespace JarvisLauncher
 
         private static DateTime _lastTriggerTime = DateTime.MinValue;
 
-        private static void TriggerJarvis(string source)
+        private static void TriggerJarvis(string source, string detectedText = "")
         {
             if (_isRecordingCommand) return;
 
-            // DEBOUNCE: Prevent multiple engines (Algo + Vosk + SAPI) from triggering simultaneously
-            if ((DateTime.Now - _lastTriggerTime).TotalMilliseconds < 1500) return;
-            _lastTriggerTime = DateTime.Now;
+            // Block new wake-word triggers if we are already in the middle of a conversation turn
+            if (_isInConversation && source != "Gemini-Fallback") return;
 
-            // If it's an unverified algorithmic match, run verification in the background.
-            if (source == "Algorithm-V2")
-            {
-                if (_isProcessingWakeWord) return;
-                _isProcessingWakeWord = true;
-                _ = Task.Run(async () => { await VerifyWithAi(); });
-                return;
-            }
+            // DEBOUNCE: Prevent multiple triggers
+            if ((DateTime.Now - _lastTriggerTime).TotalMilliseconds < 2000) return;
+            _lastTriggerTime = DateTime.Now;
 
             // Ensure we are in conversation mode
             _isInConversation = true;
@@ -360,19 +369,33 @@ namespace JarvisLauncher
             _speechStartedTime = DateTime.Now;
             DebugConsoleOverlay.Log("Voice", $"Wake word TRIGGERED via {source}.");
 
+            // One-Shot Check: If the user provided a command with the wake word (e.g., "Jarvis what time is it")
+            string cleanOneShot = StripWakeWordLocal(detectedText);
+            if (!string.IsNullOrWhiteSpace(cleanOneShot) && cleanOneShot.Length > 3)
+            {
+                DebugConsoleOverlay.Log("Voice", "One-Shot Command Detected. Executing immediately.");
+                _isInConversation = true; // Ensure state is correct for response handling
+                _lastInteractionTime = DateTime.Now;
+                _ = Task.Run(async () => {
+                    await ChatOverlay.SubmitVoiceCommand(cleanOneShot, false);
+                });
+                return;
+            }
+
             // Visual feedback
             Application.Current.Dispatcher.Invoke(() => {
                 ChatOverlay.ShowChat();
                 TextOverlay.Show("🎙️ Listening...", 2500);
             });
 
-            // If Jarvis is already talking or we just finished talking,
-            // the OnSpeechStopped event will trigger the capture.
-            // If he is silent, we prompt him with "Yes?".
+            // If Jarvis is silent, say "Yes?".
             if (!TtsManager.IsSpeakingOrEchoing)
             {
                 TtsManager.Speak("Yes?");
             }
+
+            // CRITICAL: Trigger capture immediately to catch fast speech/one-shots
+            _ = Task.Run(async () => await TriggerCommandCapture(isFollowUp: false));
         }
 
         private static async Task VerifyWakeWordAcousticallyAsync()
@@ -460,81 +483,110 @@ namespace JarvisLauncher
 
         private static async Task TriggerCommandCapture(bool isFollowUp)
         {
-            // Block if already recording or if Jarvis is still talking (feedback protection)
-            if (_isRecordingCommand || TtsManager.IsSpeakingOrEchoing) return;
+            // Hard block if already recording
+            if (_isRecordingCommand) return;
+
+            // Wait for existing speech to clear before starting capture
+            int echoWait = 0;
+            while (TtsManager.IsSpeakingOrEchoing && echoWait < 1500)
+            {
+                await Task.Delay(100);
+                echoWait += 100;
+            }
 
             _isRecordingCommand = true;
             _commandAudioStream = new MemoryStream();
 
-            _lastSpeechTime = DateTime.Now;
+            // CRITICAL: Reset last speech time to far in the past so the timeout doesn't trigger immediately
+            _lastSpeechTime = DateTime.MinValue;
             bool userStartedSpeaking = false;
             int elapsed = 0;
-            const int MAX_WAIT_TO_START = 4000; // Give them 4s to start talking
+            const int MAX_WAIT_TO_START = 5000;
 
             DebugConsoleOverlay.Log("Voice", isFollowUp ? "Listening for follow-up..." : "Listening for command...");
 
-            while (elapsed < 20000) // Total capture limit 20s
+            while (elapsed < 20000)
             {
-                await Task.Delay(100);
-                elapsed += 100;
+                await Task.Delay(50); // Faster polling for snappier response
+                elapsed += 50;
 
                 double timeSinceLastSpeech = (DateTime.Now - _lastSpeechTime).TotalMilliseconds;
 
-                if (timeSinceLastSpeech < 250) userStartedSpeaking = true;
-
+                // Detect if user IS currently speaking
                 if (userStartedSpeaking)
                 {
                     if (timeSinceLastSpeech > SilenceTimeoutMs) break;
                 }
                 else
                 {
-                    if (elapsed > MAX_WAIT_TO_START) break;
+                    // If we haven't seen speech yet, but just started recording, check if user is already talking
+                    if (_lastSpeechTime != DateTime.MinValue && timeSinceLastSpeech < 200) userStartedSpeaking = true;
+
+                    if (elapsed > MAX_WAIT_TO_START)
+                    {
+                        DebugConsoleOverlay.Log("Voice", "Capture timed out: user did not speak.");
+                        break;
+                    }
                 }
             }
 
             _isRecordingCommand = false;
-            _cooldownUntil = DateTime.Now.AddSeconds(1.0);
+            _cooldownUntil = DateTime.Now.AddSeconds(0.5); // Faster cooldown
 
             byte[] data = _commandAudioStream.ToArray();
-            if (data.Length > 8000) // Lowered slightly so normal short commands aren't chopped
+            if (data.Length > 4000) // Lowered to catch short words like "yes/no/hi" (8000 -> 4000)
             {
-                string tempWav = Path.Combine(Path.GetTempPath(), "jarvis_command_temp.wav");
-                try
+                string text = "";
+                if (VoskEngine.IsInitialized)
                 {
-                    using (var fs = File.Create(tempWav))
-                    using (var writer = new WaveFileWriter(fs, new WaveFormat(16000, 1)))
-                    {
-                        writer.Write(data, 0, data.Length);
-                    }
+                    DebugConsoleOverlay.Log("Voice-STT", "Transcribing command locally via Vosk...");
+                    text = VoskEngine.RecognizePcmData(data); // USE DIRECT PCM RECOGNITION
                 }
-                catch (Exception ex)
+                else
                 {
-                    DebugConsoleOverlay.Log("Biometrics Error", $"Failed to save temp WAV: {ex.Message}");
+                    DebugConsoleOverlay.Log("Voice-STT", "Vosk not ready. Falling back to Gemini Cloud STT...");
+                    string base64 = ConvertToBase64Wav(data);
+                    string transcribePrompt = "Task: Transcribe the spoken human speech in this audio clip EXACTLY as heard.\n" +
+                                             "RULES:\n" +
+                                             "1. Only output the transcribed text. Do not add explanations or notes.\n" +
+                                             "2. If no clear human speech is present, output exactly '...'.\n" +
+                                             "3. Do NOT use past conversation history to 'guess' what was said. Be literal.";
+                    text = (await AiAPI.AnalyzeAudioAsync(transcribePrompt, base64) ?? "").Trim();
                 }
-
-                if (SettingsManager.Current.IS_SPEAKER_VERIFICATION_ENABLED && SpeakerBiometricsManager.IsEnrolled)
-                {
-                    var (isVerified, score) = SpeakerBiometricsManager.VerifySpeakerFromWav(tempWav);
-                    DebugConsoleOverlay.Log("Biometrics Security", $"Command speaker similarity: {score:F3} (Bypassed block, wake word verified).");
-                }
-
-                try { if (File.Exists(tempWav)) File.Delete(tempWav); } catch { }
 
                 string activeWin = MemoryManager.GetCurrentWindowTitle();
-                string base64 = ConvertToBase64Wav(data);
-                string transcribePrompt = "Task: Transcribe the spoken human speech in this audio clip EXACTLY as heard.\n" +
-                                         "RULES:\n" +
-                                         "1. Only output the transcribed text. Do not add explanations or notes.\n" +
-                                         "2. If no clear human speech is present, output exactly '...'.\n" +
-                                         "3. Do NOT use past conversation history to 'guess' what was said. Be literal.";
 
-                string text = (await AiAPI.AnalyzeAudioAsync(transcribePrompt, base64) ?? "").Trim();
+                // --- ECHO REJECTION ---
+                // If the transcription is too similar to Jarvis's last spoken sentence, it's likely an echo.
+                if (!string.IsNullOrEmpty(LastAiSpokenText))
+                {
+                    double similarity = SearchUtil.GetSimilarity(text.ToLower(), LastAiSpokenText.ToLower());
+                    if (similarity > 0.80)
+                    {
+                        DebugConsoleOverlay.Log("Voice-Echo", $"Rejected capture: transcription too similar to last AI speech ({similarity:P0}).");
+                        _isInConversation = false;
+                        return;
+                    }
+                }
+
+                // ANTI-DOT SPAM: Filter out silence/noise results from AI
+                if (string.IsNullOrWhiteSpace(text) || Regex.IsMatch(text, @"^[\.\s]+$"))
+                {
+                    _isInConversation = false;
+                    return;
+                }
 
                 // STRIP WAKE WORD & ECHO: Local pass to remove redundant triggers
                 string cleanText = StripWakeWordLocal(text.Trim());
 
                 if (string.IsNullOrWhiteSpace(cleanText))
                 {
+                    if (isFollowUp)
+                    {
+                        DebugConsoleOverlay.Log("Voice", "Transcription empty during follow-up. Waiting one more cycle...");
+                        // Don't kill conversation yet, might be a long pause
+                        return;
+                    }
                     _isInConversation = false;
                     return;
                 }
@@ -571,7 +623,7 @@ namespace JarvisLauncher
 
                 string lowerText = cleanText.ToLower();
                 
-                bool isNoiseText = lowerText == "..." || 
+                bool isNoiseText = Regex.IsMatch(lowerText, @"^[\.\s\?\!]+$") ||
                                    lowerText.Contains("breathing") || 
                                    lowerText.Contains("sighing") || 
                                    lowerText.Contains("coughing") || 
@@ -608,10 +660,11 @@ namespace JarvisLauncher
             if (string.IsNullOrWhiteSpace(text)) return string.Empty;
             string lower = text.ToLowerInvariant();
 
-            // If the AI just transcribed Jarvis's own name and nothing else, ignore it
-            if (lower == "jarvis" || lower == "hey jarvis" || lower == "yes" || lower == "...") return string.Empty;
+            // If the AI just transcribed Jarvis's own name or acknowledgement, ignore it
+            string[] noiseOnly = new[] { "jarvis", "hey jarvis", "yes", "yes?", "yeah", "yep", "...", "ready" };
+            if (noiseOnly.Contains(lower)) return string.Empty;
 
-            string[] prefixes = new[] { "hey jarvis", "ok jarvis", "hi jarvis", "hello jarvis", "jarvis", "computer" };
+            string[] prefixes = new[] { "hey jarvis", "ok jarvis", "hi jarvis", "hello jarvis", "jarvis", "computer", "yes", "yeah", "yep" };
             foreach (var p in prefixes)
             {
                 if (lower.StartsWith(p))
@@ -638,7 +691,7 @@ namespace JarvisLauncher
                 string txtPath = Path.Combine(trainDir, $"{timestamp}_{id}.txt");
 
                 using (var fs = File.Create(wavPath))
-                using (var writer = new WaveFileWriter(fs, new WaveFormat(16000, 1)))
+                using (var writer = new NAudio.Wave.WaveFileWriter(fs, new NAudio.Wave.WaveFormat(16000, 1)))
                 {
                     writer.Write(data, 0, data.Length);
                 }
@@ -693,7 +746,7 @@ namespace JarvisLauncher
         {
             using (var ms = new MemoryStream())
             {
-                using (var writer = new WaveFileWriter(ms, new WaveFormat(16000, 1))) writer.Write(pcmData, 0, pcmData.Length);
+                using (var writer = new NAudio.Wave.WaveFileWriter(ms, new NAudio.Wave.WaveFormat(16000, 1))) writer.Write(pcmData, 0, pcmData.Length);
                 return Convert.ToBase64String(ms.ToArray());
             }
         }
@@ -707,7 +760,8 @@ namespace JarvisLauncher
                 if (_ambientHistory.Count > 100) _ambientHistory.RemoveAt(0);
 
                 double avg = _ambientHistory.Average();
-                float newFloor = (float)Math.Clamp(avg * 1.5, 0.015, 0.25);
+                // More aggressive noise floor: 2.5x the average ambient noise
+                float newFloor = (float)Math.Clamp(avg * 2.5, 0.025, 0.40);
                 SettingsManager.Current.MIC_AUDIO_ENERGY_FLOOR = newFloor;
             }
         }
@@ -744,7 +798,7 @@ namespace JarvisLauncher
                 try
                 {
                     using (var fs = File.Create(tempWav))
-                    using (var writer = new WaveFileWriter(fs, new WaveFormat(16000, 1)))
+                    using (var writer = new NAudio.Wave.WaveFileWriter(fs, new NAudio.Wave.WaveFormat(16000, 1)))
                     {
                         writer.Write(data, 0, data.Length);
                     }
@@ -771,6 +825,35 @@ namespace JarvisLauncher
             else
             {
                 TtsManager.Speak("No audio captured. Voice enrollment aborted.");
+            }
+        }
+
+        public static async Task LearnEnvironmentalSoundAsync(string categoryName)
+        {
+            if (_isRecordingCommand) return;
+
+            TtsManager.Speak($"Ready to learn sound: {categoryName}. Please make the sound after the chime.");
+            await Task.Delay(2500);
+
+            _isRecordingCommand = true;
+            _commandAudioStream = new MemoryStream();
+            _lastSpeechTime = DateTime.Now;
+
+            TextOverlay.Show($"🎙️ Learning sound: {categoryName}...", 3000);
+            await Task.Delay(2000); // Record for 2 seconds
+
+            _isRecordingCommand = false;
+            byte[] data = _commandAudioStream.ToArray();
+
+            if (data.Length > 1000)
+            {
+                EnvironmentalAudioAnalyzer.LearnCurrentSound(categoryName, data, data.Length);
+                TtsManager.Speak($"Got it. Fingerprint for {categoryName} has been stored in my sound library.");
+                TextOverlay.Show($"✅ Learned sound: {categoryName}", 3000);
+            }
+            else
+            {
+                TtsManager.Speak("I didn't catch any significant sound. Please try again.");
             }
         }
 

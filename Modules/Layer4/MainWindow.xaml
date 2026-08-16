@@ -75,6 +75,11 @@
                                  CaretBrush="{DynamicResource AccentCaretBrush}"
                                  Padding="6,4"
                                  VerticalAlignment="Center"
+                                 AcceptsReturn="True"
+                                 AcceptsTab="True"
+                                 TextWrapping="Wrap"
+                                 MaxHeight="120"
+                                 VerticalScrollBarVisibility="Auto"
                                  TextChanged="SearchInput_TextChanged"
                                  PreviewKeyDown="SearchInput_PreviewKeyDown"/>
 
@@ -85,7 +90,7 @@
                                    FontFamily="{DynamicResource ActiveFontFamily}"
                                    IsHitTestVisible="False"
                                    Margin="12,4"
-                                   VerticalAlignment="Center"/>
+                                   VerticalAlignment="Top"/>
 
                         <!-- Autocomplete ghost suffix (Tab to accept) -->
                         <TextBlock x:Name="AutocompleteGhost"

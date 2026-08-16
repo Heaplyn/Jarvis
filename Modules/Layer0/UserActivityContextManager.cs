@@ -11,9 +11,15 @@ using System.Windows;
 
 namespace JarvisLauncher
 {
+    public class ActivityItem
+    {
+        public DateTime Timestamp { get; set; } = DateTime.Now;
+        public string Text { get; set; } = string.Empty;
+    }
+
     public static class UserActivityContextManager
     {
-        private static readonly List<string> _recentQueries = new List<string>();
+        private static readonly List<ActivityItem> _recentQueries = new List<ActivityItem>();
         private static readonly object _lock = new object();
 
         public static void TrackUserQuery(string query)
@@ -21,10 +27,14 @@ namespace JarvisLauncher
             if (string.IsNullOrWhiteSpace(query)) return;
             lock (_lock)
             {
-                _recentQueries.Add($"[{DateTime.Now:HH:mm:ss}] \"{query.Trim()}\"");
+                _recentQueries.Add(new ActivityItem { Text = query.Trim() });
                 if (_recentQueries.Count > 20) _recentQueries.RemoveAt(0);
+
+                // ANTI-ROT: Prune items older than 30 minutes
+                _recentQueries.RemoveAll(q => (DateTime.Now - q.Timestamp).TotalMinutes > 30);
             }
             PredictiveStreamManager.IngestEvent("COMMAND", query);
+            ActionJournalManager.LogAction("USER_QUERY", query, ScreenMonitorEngine.ActiveWindowTitle);
         }
 
         public static string BuildFullActivityContext()
@@ -49,12 +59,15 @@ namespace JarvisLauncher
             // 2. Recent Search & Command Queries
             lock (_lock)
             {
+                // Prune rot before building string
+                _recentQueries.RemoveAll(q => (DateTime.Now - q.Timestamp).TotalMinutes > 30);
+
                 if (_recentQueries.Count > 0)
                 {
-                    sb.AppendLine($"• Recent HUD Queries & Commands:");
+                    sb.AppendLine($"• Recent HUD Queries & Commands (Active Session):");
                     foreach (var q in _recentQueries.TakeLast(5))
                     {
-                        sb.AppendLine($"  - {q}");
+                        sb.AppendLine($"  - [{q.Timestamp:HH:mm:ss}] {q.Text}");
                     }
                 }
             }

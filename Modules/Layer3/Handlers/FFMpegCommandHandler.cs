@@ -21,7 +21,8 @@ namespace JarvisLauncher
 
             return q.StartsWith("ffmpeg") || q.StartsWith("convert") || q.Contains("to")
                 || q == "webp2png" || q == "gif2mp4" || q == "png2webp" || q == "mp42gif" || q == "mp32wav"
-                || q == "mediaconvert" || q == "convertmedia";
+                || q == "mediaconvert" || q == "convertmedia"
+                || q == "cr" || q == "roblox" || q == "analyze";
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -103,6 +104,42 @@ namespace JarvisLauncher
                     DESCRIPTION = "Convert MP3 files into 16-bit 44.1kHz PCM WAV audio",
                     SIMILARITY = 4.5,
                     EXECUTE = () => MediaConverterOverlay.ShowOverlay(defaultTargetFormat: "wav")
+                });
+            }
+
+            // Roblox Compression Sim
+            if (lower == "roblox" || lower.Contains("roblox audio") || lower.Contains("roblox sim"))
+            {
+                suggestions.Add(new CommandResult
+                {
+                    TITLE = "🎮 Roblox Audio Compression Sim",
+                    DESCRIPTION = "Simulate dual-pass OGG compression for Roblox assets",
+                    SIMILARITY = 5.0,
+                    EXECUTE = InteractiveRobloxSim
+                });
+            }
+
+            // CR Equalizer Hole
+            if (lower == "cr" || lower.Contains("spectrogram hole") || lower.Contains("cr process"))
+            {
+                suggestions.Add(new CommandResult
+                {
+                    TITLE = "🕳️ CR Audio Process (Spectrogram Hole)",
+                    DESCRIPTION = "Apply 1450Hz-3500Hz equalizer notch and speed adjustment",
+                    SIMILARITY = 5.0,
+                    EXECUTE = InteractiveCrProcess
+                });
+            }
+
+            // Analyze
+            if (lower == "analyze" || lower == "audio info" || lower == "loudness")
+            {
+                suggestions.Add(new CommandResult
+                {
+                    TITLE = "📊 Analyze Audio (Loudness & Waveform)",
+                    DESCRIPTION = "Get Integrated LUFS, Peak dBFS, and generate waveform",
+                    SIMILARITY = 5.0,
+                    EXECUTE = InteractiveAnalyzeAudio
                 });
             }
 
@@ -377,6 +414,62 @@ namespace JarvisLauncher
             _ = RunFFmpegCommandAsync($"-i \"{input}\" -an -vcodec copy \"{output}\" -y", $"Mute Video: {Path.GetFileName(input)}");
         }
 
+        private static void InteractiveCrProcess()
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog { Title = "Select Audio for CR Process", Filter = "Audio Files|*.mp3;*.wav;*.ogg;*.m4a;*.flac" };
+            if (dlg.ShowDialog() == true)
+            {
+                string input = dlg.FileName;
+                string output = Path.Combine(Path.GetDirectoryName(input) ?? "", Path.GetFileNameWithoutExtension(input) + "_cr.mp3");
+
+                // Defaults from JS: speed 5%, low 1450, high 3500
+                float speedMultiplier = 1.05f;
+                int low = 1450;
+                int high = 3500;
+                float center = (low + high) / 2f;
+                int width = high - low;
+
+                string eqFilter = $"anequalizer=c0 f={center} w={width} g=-90 t=2|c1 f={center} w={width} g=-90 t=2";
+                string args = $"-i \"{input}\" -af \"asetrate=44100*{speedMultiplier}, aresample=48000, {eqFilter}, {eqFilter}, {eqFilter}\" -c:a libmp3lame -b:a 192k \"{output}\" -y";
+
+                _ = RunFFmpegCommandAsync(args, $"CR Process: {Path.GetFileName(input)}");
+            }
+        }
+
+        private static void InteractiveRobloxSim()
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog { Title = "Select Audio for Roblox Sim", Filter = "Audio Files|*.mp3;*.wav;*.ogg;*.m4a;*.flac" };
+            if (dlg.ShowDialog() == true)
+            {
+                string input = dlg.FileName;
+                string temp1 = Path.Combine(Path.GetTempPath(), $"roblox_pass1_{DateTime.Now.Ticks}.ogg");
+                string output = Path.Combine(Path.GetDirectoryName(input) ?? "", Path.GetFileNameWithoutExtension(input) + "_roblox.ogg");
+
+                _ = Task.Run(async () =>
+                {
+                    await RunFFmpegCommandAsync($"-i \"{input}\" -af \"aformat=sample_fmts=s16\" -c:a libvorbis -q:a 0.5 \"{temp1}\" -y", "Roblox Pass 1");
+                    await RunFFmpegCommandAsync($"-i \"{temp1}\" -c:a libvorbis -q:a 0.5 \"{output}\" -y", "Roblox Pass 2");
+                    if (File.Exists(temp1)) try { File.Delete(temp1); } catch { }
+                });
+            }
+        }
+
+        private static void InteractiveAnalyzeAudio()
+        {
+            var dlg = new Microsoft.Win32.OpenFileDialog { Title = "Select Audio to Analyze", Filter = "Audio Files|*.mp3;*.wav;*.ogg;*.m4a;*.flac" };
+            if (dlg.ShowDialog() == true)
+            {
+                string input = dlg.FileName;
+                string waveform = Path.Combine(Path.GetDirectoryName(input) ?? "", Path.GetFileNameWithoutExtension(input) + "_waveform.png");
+
+                _ = Task.Run(async () =>
+                {
+                    await RunFFmpegCommandAsync($"-i \"{input}\" -af \"ebur128=peak=true\" -f null -", $"Analyze Loudness: {Path.GetFileName(input)}");
+                    await RunFFmpegCommandAsync($"-i \"{input}\" -filter_complex \"[0:a]showwavespic=s=1920x660:colors=3232C8:filter=peak:split_channels=1[peaks];[0:a]showwavespic=s=1920x660:colors=6464DC:filter=average:split_channels=1[rms];[peaks][rms]overlay\" -update 1 \"{waveform}\" -y", $"Generate Waveform: {Path.GetFileName(input)}");
+                });
+            }
+        }
+
         private static void InteractiveConvertFormat()
         {
             var dlg = new Microsoft.Win32.OpenFileDialog
@@ -465,6 +558,9 @@ namespace JarvisLauncher
                 new CommandDesc("ffmpeg gif [file]", "Convert video clip to animated GIF", "ffmpeg gif clip.mp4"),
                 new CommandDesc("ffmpeg compress [file]", "Compress video file size (H.264)", "ffmpeg compress clip.mp4"),
                 new CommandDesc("ffmpeg mute [file]", "Remove audio stream from video file", "ffmpeg mute clip.mp4"),
+                new CommandDesc("cr", "Apply CR equalizer hole and speed adjustment to audio", "cr"),
+                new CommandDesc("roblox", "Simulate Roblox audio compression (dual-pass OGG)", "roblox"),
+                new CommandDesc("analyze", "Analyze audio loudness and generate waveform", "analyze"),
                 new CommandDesc("ffmpeg <custom_args>", "Execute custom FFmpeg CLI commands", "ffmpeg -i input.mp4 output.mp3")
             };
         }

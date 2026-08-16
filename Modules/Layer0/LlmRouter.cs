@@ -39,6 +39,9 @@ namespace JarvisLauncher
         /// </summary>
         public static async Task<string> AskAsync(string prompt, List<ChatTurn>? history = null, CancellationToken ct = default)
         {
+            // Sanitize incoming prompt to strip any old metadata tags if this is a recursive call
+            prompt = AiAPI.SanitizeText(prompt);
+
             string contextSummary = BackgroundContextManager.GetActiveContextSummary();
             if (!string.IsNullOrEmpty(contextSummary))
             {
@@ -133,11 +136,21 @@ namespace JarvisLauncher
                 throw new Exception($"OpenAI API error {(int)resp.StatusCode}: {body}");
 
             using var doc = JsonDocument.Parse(body);
-            return doc.RootElement
+            string content = doc.RootElement
                 .GetProperty("choices")[0]
                 .GetProperty("message")
                 .GetProperty("content")
                 .GetString() ?? "(empty response)";
+
+            if (doc.RootElement.TryGetProperty("usage", out var usage))
+            {
+                int p = usage.GetProperty("prompt_tokens").GetInt32();
+                int c = usage.GetProperty("completion_tokens").GetInt32();
+                int t = usage.GetProperty("total_tokens").GetInt32();
+                content += $"\n[METADATA_USAGE: {p},{c},{t}]";
+            }
+
+            return content;
         }
 
         // ── Ollama Local ──────────────────────────────────────────────────────────
@@ -154,6 +167,9 @@ namespace JarvisLauncher
             CancellationToken ct = default,
             Action<string>? onThinkingToken = null)
         {
+            // Sanitize incoming prompt
+            prompt = AiAPI.SanitizeText(prompt);
+
             string contextSummary = BackgroundContextManager.GetActiveContextSummary();
             if (!string.IsNullOrEmpty(contextSummary))
             {

@@ -139,7 +139,7 @@ namespace JarvisLauncher
         private void SearchInput_PreviewKeyDown(object Sender, KeyEventArgs E)
         {
             if (E.Key == Key.Escape) { HideHUD(); E.Handled = true; }
-            else if (E.Key == Key.Enter) { ExecuteSelection(); E.Handled = true; }
+            else if (E.Key == Key.Enter && !Keyboard.IsKeyDown(Key.LeftShift)) { ExecuteSelection(); E.Handled = true; }
             else if (E.Key == Key.Down && ResultsList.Items.Count > 0) { ResultsList.SelectedIndex = (ResultsList.SelectedIndex + 1) % ResultsList.Items.Count; E.Handled = true; }
             else if (E.Key == Key.Up && ResultsList.Items.Count > 0) { ResultsList.SelectedIndex = (ResultsList.SelectedIndex - 1 + ResultsList.Items.Count) % ResultsList.Items.Count; E.Handled = true; }
         }

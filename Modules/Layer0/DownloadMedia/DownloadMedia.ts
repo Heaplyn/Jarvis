@@ -12,16 +12,19 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 let downloadDir = path.resolve(__dirname, 'downloads');
+let targetFormat = 'mp3';
 
 async function download_yt(url: string) {
-    console.log('[INFO] Route: YouTube URL detected. Initializing extraction via yt-dlp...');
+    console.log(`[INFO] Route: YouTube URL detected. Initializing extraction via yt-dlp (${targetFormat})...`);
     try {
+        const isVideo = targetFormat === 'mp4' || targetFormat === 'mkv' || targetFormat === 'webm';
         const ytdlp = new YtDlp();
         const result = await ytdlp
             .download(url, {
                 output: path.join(downloadDir, '%(title)s.%(ext)s'),
-                extractAudio: true,
-                audioFormat: 'mp3',
+                extractAudio: !isVideo,
+                audioFormat: isVideo ? undefined : targetFormat,
+                format: isVideo ? `bestvideo[ext=${targetFormat}]+bestaudio/best` : undefined,
                 audioQuality: '0',
                 noPlaylist: true,
                 cookiesFromBrowser: 'chrome'
@@ -74,6 +77,11 @@ async function main() {
     // Check if a custom download folder path was passed as the second argument
     if (args[1]) {
         downloadDir = path.resolve(args[1].trim());
+    }
+
+    // Check for target format (e.g. mp4, webm)
+    if (args[2]) {
+        targetFormat = args[2].trim().toLowerCase();
     }
 
     // Ensure the resolved downloads folder exists on disk
