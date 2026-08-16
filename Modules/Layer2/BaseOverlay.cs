@@ -1,7 +1,6 @@
 // Developer: heaplyn
 // Date: 2026-08-16
-// Summary: Base class for draggable, glassmorphic, resizable overlays.
-//          Features: Standard Windows minimize vs Widget mode setting, Maximize/Restore support, and polished TreeView styling.
+// Summary: Master glassmorphic base overlay with robust window management and high-performance styles.
 
 using System;
 using System.Collections.Generic;
@@ -56,8 +55,8 @@ namespace JarvisLauncher
             if (onClick != null) btn.Click += onClick; return btn;
         }
 
-        protected TextBlock CreateLabel(string text, double fontSize = 11, bool isBold = true) { var tb = new TextBlock { Text = text, FontSize = fontSize, FontWeight = isBold ? FontWeights.SemiBold : FontWeights.Normal, Margin = new Thickness(0, 4, 0, 4) }; tb.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush"); return tb; }
-        protected TextBox CreateTextBox() { var box = new TextBox { Background = Brushes.Transparent, BorderThickness = new Thickness(1), Padding = new Thickness(6, 4, 6, 4), FontSize = 12, FontFamily = new FontFamily("Segoe UI"), Margin = new Thickness(0, 0, 0, 8) }; box.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush"); box.SetResourceReference(TextBox.CaretBrushProperty, "AccentCaretBrush"); box.SetResourceReference(TextBox.BorderBrushProperty, "WindowBorderBrush"); return box; }
+        public static TextBlock CreateLabel(string text, double fontSize = 11, bool isBold = true) { var tb = new TextBlock { Text = text, FontSize = fontSize, FontWeight = isBold ? FontWeights.SemiBold : FontWeights.Normal, Margin = new Thickness(0, 4, 0, 4) }; tb.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush"); return tb; }
+        public static TextBox CreateTextBox() { var box = new TextBox { Background = Brushes.Transparent, BorderThickness = new Thickness(1), Padding = new Thickness(6, 4, 6, 4), FontSize = 12, FontFamily = new FontFamily("Segoe UI"), Margin = new Thickness(0, 0, 0, 8) }; box.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush"); box.SetResourceReference(TextBox.CaretBrushProperty, "AccentCaretBrush"); box.SetResourceReference(TextBox.BorderBrushProperty, "WindowBorderBrush"); return box; }
 
         protected Grid _mainGrid = null!;
         protected Border _mainBorder = null!;
@@ -66,7 +65,7 @@ namespace JarvisLauncher
         protected StackPanel _controlStack = null!;
         protected Button _standardMinButton = null!;
         protected Button _maximizeButton = null!;
-        protected Button _minimizeButton = null!;
+        protected Button _miniModeButton = null!;
         protected Button _closeButton = null!;
 
         protected string _originalTitle = string.Empty;
@@ -96,7 +95,19 @@ namespace JarvisLauncher
 
             var bgMedia = new Image { Stretch = Stretch.UniformToFill, Opacity = 0.5, IsHitTestVisible = false };
             bgMedia.SetResourceReference(Image.VisibilityProperty, "WindowMediaVisibility");
-            this.Loaded += (s, e) => { if (Application.Current.Resources["WindowBackgroundMediaSource"] is ImageSource imgSource) { try { WpfAnimatedGif.ImageBehavior.SetAnimatedSource(bgMedia, imgSource); WpfAnimatedGif.ImageBehavior.SetRepeatBehavior(bgMedia, RepeatBehavior.Forever); } catch { } } };
+            this.Loaded += (s, e) => {
+                if (Application.Current.Resources["WindowBackgroundMediaSource"] is ImageSource imgSource) {
+                    try { WpfAnimatedGif.ImageBehavior.SetAnimatedSource(bgMedia, imgSource); WpfAnimatedGif.ImageBehavior.SetRepeatBehavior(bgMedia, RepeatBehavior.Forever); } catch { }
+                }
+                if (WindowMemoryManager.RestoreWindowBounds(_originalTitle, this, out bool storedMiniMode)) {
+                    if (storedMiniMode && !_isMiniMode) ToggleMiniMode();
+                }
+                BringToFront();
+            };
+
+            this.LocationChanged += (s, e) => WindowMemoryManager.SaveWindowBounds(_originalTitle, this, _isMiniMode);
+            this.SizeChanged += (s, e) => WindowMemoryManager.SaveWindowBounds(_originalTitle, this, _isMiniMode);
+            this.StateChanged += (s, e) => WindowMemoryManager.SaveWindowBounds(_originalTitle, this, _isMiniMode);
             Grid.SetRowSpan(bgMedia, 2); _mainGrid.Children.Add(bgMedia);
 
             var headerGrid = new Grid { Height = 30, Margin = new Thickness(0, 0, 0, 8), Background = Brushes.Transparent };
@@ -117,12 +128,12 @@ namespace JarvisLauncher
 
             _standardMinButton = CreateHeaderButton("—", (s, e) => this.WindowState = WindowState.Minimized, btnStyle);
             _maximizeButton = CreateHeaderButton("⬜", (s, e) => this.WindowState = (this.WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized), btnStyle, fontSize: 10);
-            _minimizeButton = CreateHeaderButton("◱", (s, e) => ToggleMiniMode(), btnStyle);
+            _miniModeButton = CreateHeaderButton("◱", (s, e) => ToggleMiniMode(), btnStyle);
             _closeButton = CreateHeaderButton("×", (s, e) => FadeOutAndHide(), btnStyle, fontSize: 18);
 
             _controlStack.Children.Add(_standardMinButton);
             _controlStack.Children.Add(_maximizeButton);
-            _controlStack.Children.Add(_minimizeButton);
+            _controlStack.Children.Add(_miniModeButton);
             _controlStack.Children.Add(_closeButton);
 
             Grid.SetColumn(_controlStack, 1); headerGrid.Children.Add(_controlStack);
@@ -147,7 +158,7 @@ namespace JarvisLauncher
                 if (this.WindowState == WindowState.Maximized) this.WindowState = WindowState.Normal;
                 _restoreWidth = this.ActualWidth; _restoreHeight = this.ActualHeight;
                 _contentPresenter.Visibility = Visibility.Collapsed;
-                _minimizeButton.Content = "+";
+                _miniModeButton.Content = "+";
                 _standardMinButton.Visibility = Visibility.Collapsed;
                 _maximizeButton.Visibility = Visibility.Collapsed;
                 this.ResizeMode = ResizeMode.NoResize; this.MinWidth = 0; this.MinHeight = 0;
@@ -156,16 +167,18 @@ namespace JarvisLauncher
                 _standardMinButton.Visibility = Visibility.Visible;
                 _maximizeButton.Visibility = Visibility.Visible;
                 _contentPresenter.Visibility = Visibility.Visible;
-                _minimizeButton.Content = "◱";
+                _miniModeButton.Content = "◱";
                 this.MinWidth = 400; this.MinHeight = 300;
                 this.Width = _restoreWidth; this.Height = _restoreHeight;
                 this.ResizeMode = ResizeMode.CanResizeWithGrip;
-                this.WindowState = WindowState.Maximized; _isMiniMode = false;
+                this.WindowState = WindowState.Normal; _isMiniMode = false;
             }
+            WindowMemoryManager.SaveWindowBounds(_originalTitle, this, _isMiniMode);
         }
 
         public new void Show()
         {
+            if (this.WindowState == WindowState.Maximized) this.WindowState = WindowState.Normal;
             base.Show(); this.Activate(); BringToFront();
         }
 
@@ -173,7 +186,37 @@ namespace JarvisLauncher
         public virtual void FadeOutAndHide() { this.Hide(); }
         protected object UserContent { get => _contentPresenter.Content; set => _contentPresenter.Content = value; }
 
-        public static void StyleTabControl(TabControl tc) { }
+        public static void StyleTabControl(TabControl tabControl)
+        {
+            tabControl.Background = Brushes.Transparent;
+            tabControl.BorderThickness = new Thickness(0);
+
+            var itemStyle = new Style(typeof(TabItem));
+            itemStyle.Setters.Add(new Setter(TabItem.BackgroundProperty, Brushes.Transparent));
+            itemStyle.Setters.Add(new Setter(TabItem.ForegroundProperty, Brushes.White));
+            itemStyle.Setters.Add(new Setter(TabItem.PaddingProperty, new Thickness(10, 5, 10, 5)));
+            itemStyle.Setters.Add(new Setter(TabItem.CursorProperty, Cursors.Hand));
+
+            var template = new ControlTemplate(typeof(TabItem));
+            var border = new FrameworkElementFactory(typeof(Border));
+            border.Name = "Bd";
+            border.SetValue(Border.BackgroundProperty, new TemplateBindingExtension(TabItem.BackgroundProperty));
+            border.SetValue(Border.PaddingProperty, new TemplateBindingExtension(TabItem.PaddingProperty));
+            border.SetValue(Border.CornerRadiusProperty, new CornerRadius(4, 4, 0, 0));
+
+            var presenter = new FrameworkElementFactory(typeof(ContentPresenter));
+            presenter.SetValue(ContentPresenter.ContentSourceProperty, "Header");
+            border.AppendChild(presenter);
+            template.VisualTree = border;
+
+            template.Triggers.Add(new Trigger { Property = TabItem.IsSelectedProperty, Value = true, Setters = {
+                new Setter(Border.BackgroundProperty, new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)), "Bd"),
+                new Setter(TabItem.ForegroundProperty, Brushes.Cyan)
+            }});
+
+            itemStyle.Setters.Add(new Setter(TabItem.TemplateProperty, template));
+            tabControl.ItemContainerStyle = itemStyle;
+        }
 
         public static void StyleTreeView(TreeView tv)
         {
@@ -225,22 +268,5 @@ namespace JarvisLauncher
             template.Triggers.Add(new Trigger { Property = TreeViewItem.IsSelectedProperty, Value = true, Setters = { new Setter(Border.BackgroundProperty, new SolidColorBrush(Color.FromArgb(0x33, 0x00, 0xFF, 0xFF)), "Bd"), new Setter(TreeViewItem.ForegroundProperty, Brushes.White) } });
             itemStyle.Setters.Add(new Setter(TreeViewItem.TemplateProperty, template)); tv.ItemContainerStyle = itemStyle;
         }
-
-        public static void AttachPasteContextMenuToAllTextBoxes(DependencyObject parent)
-        {
-            if (parent == null) return;
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++) {
-                var child = VisualTreeHelper.GetChild(parent, i);
-                if (child is TextBox box && box.ContextMenu == null) {
-                    var menu = new ContextMenu();
-                    menu.Items.Add(new MenuItem { Header = "📋 Paste (Ctrl+V)", Command = ApplicationCommands.Paste });
-                    menu.Items.Add(new MenuItem { Header = "📄 Copy (Ctrl+C)", Command = ApplicationCommands.Copy });
-                    box.ContextMenu = menu;
-                }
-                AttachPasteContextMenuToAllTextBoxes(child);
-            }
-        }
-
-        protected override void OnClosing(System.ComponentModel.CancelEventArgs e) { if (!_forceClose) { e.Cancel = true; this.Hide(); return; } base.OnClosing(e); }
     }
 }

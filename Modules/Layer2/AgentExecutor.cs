@@ -120,6 +120,14 @@ namespace JarvisLauncher
                 _ = Task.Run(async () => await WebOperationManager.DiscoverAndDownloadMediaAsync(url, format == "mp4" ? "video" : "audio"));
             }
 
+            // 10a. Process INGEST_DOCS tags (Backup execution)
+            var ingestRegex = new Regex(@"(?:\[INGEST_DOCS:\s*(?<url>.+?)\]|@ingest\{(?<url>.+?)\})", RegexOptions.IgnoreCase);
+            foreach (Match m in ingestRegex.Matches(aiResponse))
+            {
+                string url = m.Groups["url"].Value.Trim().Trim('"', '\'');
+                _ = Task.Run(async () => await WebOperationManager.IngestDocumentationAsync(url));
+            }
+
             if (hasPsActions)
             {
                 string script = psScript.ToString();

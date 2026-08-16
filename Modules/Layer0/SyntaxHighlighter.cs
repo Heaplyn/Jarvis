@@ -1,7 +1,7 @@
 // Developer: heaplyn
 // Date: 2026-08-16
-// Summary: High-performance synchronous syntax highlighter for WPF RichTextBox.
-//          Uses a single-pass character pointer walk to apply formatting efficiently.
+// Summary: High-performance syntax highlighter for WPF RichTextBox.
+//          Applies formatting to the EXISTING document to preserve the Undo/Redo stack.
 
 using System;
 using System.Collections.Generic;
@@ -20,39 +20,42 @@ namespace JarvisLauncher
         {
             if (!EditorIntelligenceManager.SyntaxHighlightingRules.TryGetValue(extension, out var rules)) return;
 
-            var range = new TextRange(rtb.Document.ContentStart, rtb.Document.ContentEnd);
-            string text = range.Text;
+            // Use TextRange to get and set properties without wiping the document
+            var totalRange = new TextRange(rtb.Document.ContentStart, rtb.Document.ContentEnd);
+            string text = totalRange.Text.Replace("\r\n", "\n");
 
-            // Limit processing for huge files to prevent UI hang
             if (text.Length > 100000) return;
 
-            // 1. Clear existing formatting
-            range.ClearAllProperties();
+            // 1. Clear all formatting FIRST (reset to default)
+            totalRange.ClearAllProperties();
+            totalRange.ApplyPropertyValue(TextElement.ForegroundProperty, Brushes.White);
+            totalRange.ApplyPropertyValue(TextElement.FontWeightProperty, FontWeights.Normal);
 
-            // 2. Collect all matches
+            // 2. Find all matches
             var matches = new List<(int Index, int Length, SyntaxRule Rule)>();
             foreach (var rule in rules)
             {
-                var regexMatches = Regex.Matches(text, rule.Pattern, RegexOptions.Compiled);
-                foreach (Match m in regexMatches)
+                foreach (Match m in Regex.Matches(text, rule.Pattern, RegexOptions.Compiled | RegexOptions.Multiline))
+                {
                     matches.Add((m.Index, m.Length, rule));
+                }
             }
 
-            // 3. Sort matches by start position
-            var sortedMatches = matches.OrderBy(m => m.Index).ToList();
+            // 3. Sort by position and apply forward-only
+            var sorted = matches.OrderBy(m => m.Index).ToList();
 
-            // 4. Walk pointers and apply colors
+            // To avoid quadratic performance, we use a single forward-moving pointer
             TextPointer currentPointer = rtb.Document.ContentStart;
-            int currentTextOffset = 0;
+            int lastOffset = 0;
 
-            foreach (var m in sortedMatches)
+            foreach (var m in sorted)
             {
-                // Move pointer to the start of the match
-                TextPointer? start = GetPoint(currentPointer, m.Index - currentTextOffset);
+                // Move to start of match
+                TextPointer start = GetPointAtOffset(currentPointer, m.Index - lastOffset);
                 if (start == null) break;
 
-                // Move pointer to the end of the match
-                TextPointer? end = GetPoint(start, m.Length);
+                // Move to end of match
+                TextPointer end = GetPointAtOffset(start, m.Length);
                 if (end == null) break;
 
                 var matchRange = new TextRange(start, end);
@@ -62,33 +65,31 @@ namespace JarvisLauncher
                     if (m.Rule.IsBold) matchRange.ApplyPropertyValue(TextElement.FontWeightProperty, FontWeights.Bold);
                 } catch { }
 
-                // Optimization: Keep track of where we are to avoid re-scanning from start
+                // Sync for next iteration
                 currentPointer = start;
-                currentTextOffset = m.Index;
+                lastOffset = m.Index;
             }
         }
 
-        private static TextPointer? GetPoint(TextPointer start, int characterOffset)
+        private static TextPointer GetPointAtOffset(TextPointer start, int offset)
         {
-            TextPointer pointer = start;
-            int remaining = characterOffset;
-
-            while (pointer != null && remaining > 0)
+            TextPointer p = start;
+            int count = 0;
+            while (p != null && count < offset)
             {
-                var context = pointer.GetPointerContext(LogicalDirection.Forward);
+                var context = p.GetPointerContext(LogicalDirection.Forward);
                 if (context == TextPointerContext.Text)
                 {
-                    int runLength = pointer.GetTextInRun(LogicalDirection.Forward).Length;
-                    if (remaining <= runLength)
-                        return pointer.GetPositionAtOffset(remaining);
-
-                    remaining -= runLength;
+                    int runLength = p.GetTextInRun(LogicalDirection.Forward).Length;
+                    if (count + runLength >= offset)
+                    {
+                        return p.GetPositionAtOffset(offset - count);
+                    }
+                    count += runLength;
                 }
-
-                pointer = pointer.GetNextContextPosition(LogicalDirection.Forward);
+                p = p.GetNextContextPosition(LogicalDirection.Forward);
             }
-
-            return (remaining == 0) ? pointer : null;
+            return (count == offset) ? p : null;
         }
     }
 }

@@ -1,3 +1,0 @@
-# Jarvis Mobile
-## Introduction
-...

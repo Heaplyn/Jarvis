@@ -361,6 +361,23 @@ namespace JarvisLauncher
                 }
             }
 
+            // --- 5a. INGEST_DOCS / SCRAPE ---
+            // Pattern 1: [INGEST_DOCS: url]
+            // Pattern 2: @ingest{url}
+            var IngestRegex = new Regex(@"(?:\[INGEST_DOCS:\s*(?<url>.+?)\]|@ingest\{(?<url>.+?)\})", RegexOptions.IgnoreCase);
+            foreach (Match M in IngestRegex.Matches(Response))
+            {
+                string url = M.Groups["url"].Value.Trim().Trim('"', '\'');
+                if (ExecutedTags.Add($"INGEST:{url}"))
+                {
+                    NewExecs++;
+                    string res = await WebOperationManager.IngestDocumentationAsync(url);
+                    ExecutionFeedBuilder.AppendLine($"[INGEST_RESULT: {url}]\n{res}\n[END_INGEST_RESULT]");
+                    LastSummary = $"📚 **Analyzed: {url}**";
+                    Application.Current.Dispatcher.Invoke(() => ChatOverlay.LogConsoleAction("Ingest Web", $"URL: {url}"));
+                }
+            }
+
             // ... (Additional tags like SEARCH_REGISTRY, INGEST_DOCS, etc. can be updated similarly) ...
 
 
@@ -495,13 +512,13 @@ namespace JarvisLauncher
             cleaned = Regex.Replace(cleaned, @"\[SET_CORE_DIRECTIVE:.*?\][\s\S]*?\[END_CORE_DIRECTIVE\]", "", RegexOptions.IgnoreCase);
 
             // Only remove tags that are exactly [TAG] or [TAG: param], avoid removing regular bracketed text
-            cleaned = Regex.Replace(cleaned, @"\[(READ_FILE|EXEC_PS|RUN_COMMAND|TAKE_SCREENSHOT|SPEECH|SET_CLIPBOARD|OPEN_APP|USER_AUTH_REQUIRED|SOLVE_CAPTCHA)(?::\s*[\s\S]*?)?\]", "", RegexOptions.IgnoreCase);
+            cleaned = Regex.Replace(cleaned, @"\[(READ_FILE|EXEC_PS|RUN_COMMAND|TAKE_SCREENSHOT|SPEECH|SET_CLIPBOARD|OPEN_APP|USER_AUTH_REQUIRED|SOLVE_CAPTCHA|INGEST_DOCS)(?::\s*[\s\S]*?)?\]", "", RegexOptions.IgnoreCase);
 
             // --- SHORTHAND TAG REMOVAL ---
             cleaned = Regex.Replace(cleaned, @"@[a-z0-9_]{2,}\{.*?\}\{.*?\}", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
             cleaned = Regex.Replace(cleaned, @"@[a-z0-9_]{2,}\{.*?\}", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
             cleaned = Regex.Replace(cleaned, @"^(@say|@say\s+)", "", RegexOptions.IgnoreCase | RegexOptions.Multiline);
-            cleaned = Regex.Replace(cleaned, @"(@run|@run\s+|@app|@app\s+|@ps|@ps\s+|@rf|@rf\s+|@wf|@wf\s+|@snap|@clip|@clip\s+)", "", RegexOptions.IgnoreCase);
+            cleaned = Regex.Replace(cleaned, @"(@run|@run\s+|@app|@app\s+|@ps|@ps\s+|@rf|@rf\s+|@wf|@wf\s+|@snap|@clip|@clip\s+|@ingest|@ingest\s+)", "", RegexOptions.IgnoreCase);
 
             cleaned = Regex.Replace(cleaned, @"^(Response|Jarvis|Assistant|Assistant Response):\s*", "", RegexOptions.IgnoreCase | RegexOptions.Multiline);
 
@@ -739,7 +756,7 @@ namespace JarvisLauncher
                    "Example: {{{{APP_RESPONSE::: I've captured your screen and I'm analyzing it now. :::APP_RESPONSE}}}} [TAKE_SCREENSHOT]\n\n" +
                    "## CORE RULES\n- Be sassy, helpful, and varied.\n- DO NOT trigger [TAKE_SCREENSHOT] or other expensive actions for simple greetings or small talk unless specifically requested.\n- Keep conversational text under 2 sentences.\n\n## ACTIONS\n" +
                    "[READ_FILE: path] [WRITE_FILE: path] [EXEC_PS: cmd] [RUN_COMMAND: cmd]\n" +
-                   "[TAKE_SCREENSHOT] [SPEECH: text] [SET_CLIPBOARD: text]\n" +
+                   "[TAKE_SCREENSHOT] [SPEECH: text] [SET_CLIPBOARD: text] [INGEST_DOCS: url]\n" +
                    "[OPEN_APP: name] [USER_AUTH_REQUIRED: prompt] [SOLVE_CAPTCHA: url]\n" +
                    "[SET_CORE_DIRECTIVE: filename] content [END_CORE_DIRECTIVE]\n";
         }
