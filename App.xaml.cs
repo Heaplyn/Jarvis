@@ -69,6 +69,10 @@ namespace JarvisLauncher
 
                     Update("Establishing mobile bridge...", 85);
                     try { MobileBridgeServer.Start(SettingsManager.Current.MOBILE_PORT); } catch { }
+                    try { HuggingFaceTrainingManager.Start(); } catch { }
+                    try { PersonalityEvolver.Start(); } catch { }
+                    try { AutonomousInterjectionManager.Start(); } catch { }
+                    try { EmotionalContextManager.Start(); } catch { }
 
                     Update("Finalizing HUD environment...", 95);
                     try { MemoryManager.Start(); } catch { }

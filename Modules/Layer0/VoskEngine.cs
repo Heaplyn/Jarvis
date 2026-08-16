@@ -48,6 +48,13 @@ namespace JarvisLauncher
 
                     if (IsModelPresent())
                     {
+                        // Final safety check for native model file to prevent AccessViolationException
+                        if (!File.Exists(Path.Combine(ModelDirectory, "am", "final.mdl")))
+                        {
+                            DebugConsoleOverlay.Log("Vosk-Error", "Critical model file 'am/final.mdl' missing. Aborting init.");
+                            return false;
+                        }
+
                         _model = new Model(ModelDirectory);
                         _recognizer = new VoskRecognizer(_model, 16000.0f);
                         _recognizer.SetMaxAlternatives(0);
@@ -243,6 +250,42 @@ namespace JarvisLauncher
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"Vosk WAV file recognition error: {ex.Message}");
+                    return string.Empty;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Parses raw 16kHz 16-bit mono PCM bytes offline using Vosk.
+        /// </summary>
+        public static string RecognizePcmData(byte[] data)
+        {
+            if (data == null || data.Length == 0) return string.Empty;
+
+            if (!_isInitialized && !Initialize())
+            {
+                return string.Empty;
+            }
+
+            lock (_lock)
+            {
+                if (_model == null) return string.Empty;
+                try
+                {
+                    using var rec = new VoskRecognizer(_model, 16000.0f);
+                    rec.SetMaxAlternatives(0);
+                    rec.SetWords(true);
+
+                    if (rec.AcceptWaveform(data, data.Length))
+                    {
+                        // Fall through
+                    }
+
+                    return ExtractTextFromJson(rec.FinalResult()).Trim();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Vosk PCM recognition error: {ex.Message}");
                     return string.Empty;
                 }
             }

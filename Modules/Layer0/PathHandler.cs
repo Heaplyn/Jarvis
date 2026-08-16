@@ -38,9 +38,11 @@ namespace JarvisLauncher
         public static string GetProjectRoot()
         {
             string CheckDir = AppDomain.CurrentDomain.BaseDirectory;
-            for (int I = 0; I < 6; I++)
+            for (int I = 0; I < 8; I++)
             {
                 if (File.Exists(Path.Combine(CheckDir, "JarvisLauncher.csproj")) ||
+                    File.Exists(Path.Combine(CheckDir, "Jarvis.sln")) ||
+                    Directory.Exists(Path.Combine(CheckDir, ".git")) ||
                     Directory.Exists(Path.Combine(CheckDir, "Modules")))
                 {
                     return CheckDir;

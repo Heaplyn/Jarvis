@@ -195,7 +195,12 @@ namespace JarvisLauncher
                 {
                     script = $@"
                         $currentId = {Process.GetCurrentProcess().Id};
-                        while (Get-Process -Id $currentId -ErrorAction SilentlyContinue) {{ Start-Sleep -Milliseconds 100 }};
+                        $count = 0;
+                        while ((Get-Process -Id $currentId -ErrorAction SilentlyContinue) -and ($count -lt 30)) {{
+                            Start-Sleep -Milliseconds 100;
+                            $count++;
+                        }};
+                        if (Get-Process -Id $currentId -ErrorAction SilentlyContinue) {{ Stop-Process -Id $currentId -Force }};
                         Start-Process '{exePath}';
                     ";
                 }
@@ -207,21 +212,27 @@ namespace JarvisLauncher
                     {
                         script = $@"
                             $currentId = {Process.GetCurrentProcess().Id};
-                            while (Get-Process -Id $currentId -ErrorAction SilentlyContinue) {{ Start-Sleep -Milliseconds 100 }};
+                            $count = 0;
+                            while ((Get-Process -Id $currentId -ErrorAction SilentlyContinue) -and ($count -lt 30)) {{
+                                Start-Sleep -Milliseconds 100;
+                                $count++;
+                            }};
+                            if (Get-Process -Id $currentId -ErrorAction SilentlyContinue) {{ Stop-Process -Id $currentId -Force }};
+
                             Set-Location -Path '{projectRoot}';
                             dotnet build -c Debug;
                             if ($LASTEXITCODE -eq 0) {{
-                                # Use START to launch without inheriting the parent's console window
                                 Start-Process '{projectRoot}\bin\Debug\net8.0-windows\JarvisLauncher.exe'
                             }} else {{
-                                Start-Process '{exePath}'
+                                # Fallback to run if build is just having transient file issues
+                                dotnet run --no-build -c Debug
                             }}";
                     }
                     else
                     {
                         script = $@"
                             $currentId = {Process.GetCurrentProcess().Id};
-                            while (Get-Process -Id $currentId -ErrorAction SilentlyContinue) {{ Start-Sleep -Milliseconds 100 }};
+                            if (Get-Process -Id $currentId -ErrorAction SilentlyContinue) {{ Stop-Process -Id $currentId -Force }};
                             Start-Process '{exePath}';
                         ";
                     }

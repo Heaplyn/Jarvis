@@ -31,7 +31,7 @@ namespace JarvisLauncher
             _synthesizer.SpeakCompleted += (s, e) =>
             {
                 IsSpeaking = false;
-                EchoCooldownUntil = DateTime.Now.AddMilliseconds(150);
+                EchoCooldownUntil = DateTime.Now.AddMilliseconds(25); // Faster resumption (50 -> 25)
                 OnSpeechStopped?.Invoke(); // RESUME LISTENING SIGNAL
             };
         }
@@ -118,7 +118,7 @@ namespace JarvisLauncher
 
             IsSpeaking = true;
             // Short initial buffer to prevent immediate feedback on start
-            EchoCooldownUntil = DateTime.Now.AddMilliseconds(200);
+            EchoCooldownUntil = DateTime.Now.AddMilliseconds(25); // 50 -> 25
 
             DebugConsoleOverlay.Log("TTS", $"Speaking: {text.Substring(0, Math.Min(text.Length, 60))}...");
 
@@ -179,7 +179,7 @@ namespace JarvisLauncher
                     IsSpeaking = true;
                     _customAudioPlayer.MediaEnded += (s, e) => {
                         IsSpeaking = false;
-                        EchoCooldownUntil = DateTime.Now.AddMilliseconds(500);
+                        EchoCooldownUntil = DateTime.Now.AddMilliseconds(100); // 500 -> 100
                         OnSpeechStopped?.Invoke(); // RESUME LISTENING SIGNAL
                     };
                 }

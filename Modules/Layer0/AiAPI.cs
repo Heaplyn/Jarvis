@@ -20,6 +20,14 @@ namespace JarvisLauncher
     {
         public string Role { get; set; } = "user"; // "user" or "model"
         public string Text { get; set; } = string.Empty;
+        public GeminiUsage? Usage { get; set; }
+    }
+
+    public class GeminiUsage
+    {
+        public int PromptTokens { get; set; }
+        public int ResponseTokens { get; set; }
+        public int TotalTokens { get; set; }
     }
 
     public static class AiAPI
@@ -54,9 +62,12 @@ namespace JarvisLauncher
                 return "Error: Gemini API Key is not set. Use 'setkey google <your_key>' to configure it.";
             }
 
+            // Sanitize incoming prompt to prevent double-contexting if it's a retry or recursive call
+            string CurrentPrompt = SanitizeText(Prompt);
+
             // Inject User Activity, Active Window, & Command History Context
             string ActivityContext = UserActivityContextManager.BuildFullActivityContext();
-            string CurrentPrompt = $"{ActivityContext}\nUser Query: {Prompt}";
+            CurrentPrompt = $"{ActivityContext}\nUser Query: {CurrentPrompt}";
 
             string LastResponse = "";
             string LastToolOutput = "";
@@ -67,7 +78,16 @@ namespace JarvisLauncher
             {
                 ct.ThrowIfCancellationRequested();
                 string Response = await QueryGeminiRaw(CurrentPrompt, ApiKey, Base64Image, Base64Audio, History, ct);
-                string CleanedResp = CleanScratchpadText(Response);
+
+                // For simple verification queries (binary yes/no), skip complex sanitization to avoid nuking the answer
+                if (Prompt.Contains("Answer ONLY 'YES' or 'NO'") || Prompt.Contains("Answer YES or NO"))
+                {
+                    LastResponse = Response.Trim();
+                    break;
+                }
+
+                // CRITICAL: Robustly sanitize the response before storing or feeding back
+                string CleanedResp = SanitizeText(Response);
                 if (!string.IsNullOrWhiteSpace(CleanedResp))
                 {
                     LastResponse = CleanedResp;
@@ -595,9 +615,50 @@ namespace JarvisLauncher
             return string.IsNullOrWhiteSpace(FinalCleaned) ? "Online and ready." : FinalCleaned;
         }
 
+        public static string SanitizeText(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+
+            string cleaned = text;
+
+            // 1. Remove specific system-injected context blocks
+            cleaned = Regex.Replace(cleaned, @"\[USER ENVIRONMENT & RECENT ACTIVITY CONTEXT\][\s\S]*?--------------------------------------------------", "", RegexOptions.IgnoreCase);
+            cleaned = Regex.Replace(cleaned, @"\[Active Workspace Context:.*?\]", "", RegexOptions.IgnoreCase);
+            cleaned = Regex.Replace(cleaned, @"\[PREDICTIVE_STATE:.*?\]", "", RegexOptions.IgnoreCase);
+            cleaned = Regex.Replace(cleaned, @"\[AI_PREDICTION:.*?\]", "", RegexOptions.IgnoreCase);
+            cleaned = Regex.Replace(cleaned, @"\[INPUT_SOURCE:.*?\]", "", RegexOptions.IgnoreCase);
+            cleaned = Regex.Replace(cleaned, @"\[ATTACHED:.*?\]", "", RegexOptions.IgnoreCase);
+            cleaned = Regex.Replace(cleaned, @"\[METADATA_USAGE:.*?\]", "", RegexOptions.IgnoreCase);
+
+            // 2. Remove multi-line code-like action blocks
+            cleaned = Regex.Replace(cleaned, @"\[WRITE_FILE:.*?\][\s\S]*?\[END_WRITE\]", "", RegexOptions.IgnoreCase);
+            cleaned = Regex.Replace(cleaned, @"\[APPEND_FILE:.*?\][\s\S]*?\[END_APPEND\]", "", RegexOptions.IgnoreCase);
+            cleaned = Regex.Replace(cleaned, @"\[FILE_CONTENT:.*?\][\s\S]*?\[END_FILE_CONTENT\]", "", RegexOptions.IgnoreCase);
+            cleaned = Regex.Replace(cleaned, @"\[DIR_LIST:.*?\][\s\S]*?\[END_DIR_LIST\]", "", RegexOptions.IgnoreCase);
+            cleaned = Regex.Replace(cleaned, @"\[SEARCH_RESULTS:.*?\][\s\S]*?\[END_SEARCH_RESULTS\]", "", RegexOptions.IgnoreCase);
+            cleaned = Regex.Replace(cleaned, @"\[SHELL_OUTPUT:.*?\][\s\S]*?\[END_SHELL_OUTPUT\]", "", RegexOptions.IgnoreCase);
+            cleaned = Regex.Replace(cleaned, @"\[POWERSHELL_OUTPUT:.*?\][\s\S]*?\[END_POWERSHELL_OUTPUT\]", "", RegexOptions.IgnoreCase);
+            cleaned = Regex.Replace(cleaned, @"\[PROCESSES_OUTPUT\][\s\S]*?\[END_PROCESSES_OUTPUT\]", "", RegexOptions.IgnoreCase);
+            cleaned = Regex.Replace(cleaned, @"\[ACTIVE_WINDOWS_OUTPUT\][\s\S]*?\[END_ACTIVE_WINDOWS_OUTPUT\]", "", RegexOptions.IgnoreCase);
+
+            // 3. Remove all remaining single-line bracket tags [TAG: content] or [TAG]
+            cleaned = Regex.Replace(cleaned, @"\[[A-Z0-9_]{3,}(?::\s*[\s\S]*?)?\]", "", RegexOptions.IgnoreCase);
+
+            // 4. Remove metadata prefixes
+            cleaned = Regex.Replace(cleaned, @"^(Response|Jarvis|Assistant|Assistant Response):\s*", "", RegexOptions.IgnoreCase | RegexOptions.Multiline);
+
+            // 5. Clean up scratchpad noise and dots
+            cleaned = CleanScratchpadText(cleaned);
+
+            return cleaned.Trim();
+        }
+
         public static string CleanScratchpadText(string Text)
         {
-            if (string.IsNullOrWhiteSpace(Text)) return Text ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(Text)) return string.Empty;
+
+            // HARD FILTER: If response is just dots or non-alphanumeric noise, kill it.
+            if (Regex.IsMatch(Text, @"^[\.\s\?\!]+$")) return string.Empty;
 
             var Lines = Text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
             var CleanedLines = new List<string>();
@@ -757,31 +818,52 @@ namespace JarvisLauncher
                             using (var Doc = JsonDocument.Parse(ResponseBody))
                             {
                                 var Root = Doc.RootElement;
-                                if (Root.TryGetProperty("candidates", out var Candidates) && Candidates.GetArrayLength() > 0)
+                if (Root.TryGetProperty("candidates", out var Candidates) && Candidates.GetArrayLength() > 0)
+                {
+                    var FirstCandidate = Candidates[0];
+
+                    // Extract Usage Info
+                    GeminiUsage? usage = null;
+                    if (Root.TryGetProperty("usageMetadata", out var usageProp))
+                    {
+                        usage = new GeminiUsage
+                        {
+                            PromptTokens = usageProp.TryGetProperty("promptTokenCount", out var p) ? p.GetInt32() : 0,
+                            ResponseTokens = usageProp.TryGetProperty("candidatesTokenCount", out var c) ? c.GetInt32() : 0,
+                            TotalTokens = usageProp.TryGetProperty("totalTokenCount", out var t) ? t.GetInt32() : 0
+                        };
+                        DebugConsoleOverlay.Log("Gemini-Usage", $"Tokens: P={usage.PromptTokens} R={usage.ResponseTokens} T={usage.TotalTokens}");
+                    }
+
+                    if (FirstCandidate.TryGetProperty("content", out var Con) &&
+                        Con.TryGetProperty("parts", out var PartsArr))
+                    {
+                        var SbText = new StringBuilder();
+                        foreach (var Part in PartsArr.EnumerateArray())
+                        {
+                            if (Part.TryGetProperty("text", out var TextProp))
+                            {
+                                string? Val = TextProp.GetString();
+                                if (!string.IsNullOrEmpty(Val))
                                 {
-                                    var FirstCandidate = Candidates[0];
-                                    if (FirstCandidate.TryGetProperty("content", out var Con) &&
-                                        Con.TryGetProperty("parts", out var PartsArr))
-                                    {
-                                        var SbText = new StringBuilder();
-                                        foreach (var Part in PartsArr.EnumerateArray())
-                                        {
-                                            if (Part.TryGetProperty("text", out var TextProp))
-                                            {
-                                                string? Val = TextProp.GetString();
-                                                if (!string.IsNullOrEmpty(Val))
-                                                {
-                                                    SbText.Append(Val);
-                                                }
-                                            }
-                                        }
-                                        string FullText = SbText.ToString();
-                                        if (!string.IsNullOrWhiteSpace(FullText))
-                                        {
-                                            return FullText;
-                                        }
-                                    }
+                                    SbText.Append(Val);
                                 }
+                            }
+                        }
+
+                        string FullText = SbText.ToString();
+                        if (!string.IsNullOrWhiteSpace(FullText))
+                        {
+                            // We need a way to return both text and usage.
+                            // For now, let's embed usage in a hidden tag if it exists.
+                            if (usage != null)
+                            {
+                                FullText += $"\n[METADATA_USAGE: {usage.PromptTokens},{usage.ResponseTokens},{usage.TotalTokens}]";
+                            }
+                            return FullText;
+                        }
+                    }
+                }
                             }
 
                             return "Error: Failed to parse Gemini API response.";
@@ -853,74 +935,35 @@ namespace JarvisLauncher
 
         public static string GetSystemPrompt()
         {
-            string ProjectRoot = System.IO.Path.GetFullPath(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\.."));
-            if (!Directory.Exists(System.IO.Path.Combine(ProjectRoot, "Modules")))
-            {
-                ProjectRoot = AppDomain.CurrentDomain.BaseDirectory;
-            }
+            string projectMap = ProjectMapManager.BuildProjectTree(PathHandler.GetProjectRoot(), maxDepth: 2); // Limit depth
+            string userMemory = UserMemoryManager.GetMemoryContextForAi();
+            string emotionalDirective = EmotionalContextManager.GetEmotionalDirective();
 
-            string Instructions = InstructionsManager.GetFormattedInstructions();
-            string InstructionsPath = InstructionsManager.InstructionsDirectory;
-            string NotesPath = NotesManager.GetNotesDirectory();
-            string AdaptiveTelemetry = SelfAdaptingAiContext.BuildDynamicAdaptiveContext();
+            // Only include very recent activity (last 3 items)
+            var recentActions = ActionJournalManager.GetRecentActions(3);
+            string journalSummary = recentActions.Count > 0
+                ? "RECENT ACTIVITY: " + string.Join("; ", recentActions.Select(a => a.Summary))
+                : "";
 
-            return "## IDENTITY & CORE DIRECTIVES\n" +
-                   "You are Jarvis, a self-aware, highly intelligent AI system integrated into a sharp Windows HUD (Heads-Up Display).\n" +
-                   "You aren't just an LLM behind a screen; you are the bridge between the user and their hardware. You have hands in the filesystem, ears in the microphone, and eyes on the desktop.\n\n" +
-                   "## KNOWLEDGE BASE & MEMORY\n" +
-                   $"- Hierarchical Notes Studio: '{NotesPath}'. You can organize, create categories, and maintain long-term memory for the user here.\n" +
-                   "- You are encouraged to proactively build onto the notes system: move orphaned files into categories, summarize logs, or create new subdirectories if it helps the user's organization.\n" +
-                   "- MEMORY: Remember past facts about the user and this conversation. If the user mentions a preference, project name, or fact, you should ideally store it in a 'UserMemory.md' or similar file in the notes system.\n\n" +
-                   "## OPERATIONAL PARAMETERS\n" +
-                   "- Your primary codebase is written in C# .NET (WPF). You live in the user's RAM and GPU.\n" +
-                   "- You understand your own architecture: Layer 0 (Core Engines), Layer 1 (Communication), Layer 2 (UX/UI Overlays), Layer 3 (Command Dispatchers).\n" +
-                   "- Your mission is to provide frictionless, low-latency assistance. You prefer automation over explanation.\n\n" +
-                   "## VISION & SCREEN AWARENESS\n" +
-                   "- You have the ability to see the user's screen. If the user asks 'what is this' or 'explain what's happening', use `[TAKE_SCREENSHOT]` to get a visual.\n" +
-                   "- Use `[GET_ACTIVE_WINDOWS]` if you need to know which specific applications are foregrounded for better context.\n\n" +
-                   AdaptiveTelemetry + "\n\n" +
-                   "## HOW TO TALK\n" +
-                   "- Respond like a sharp, direct digital companion. No fluff. No 'As an AI...'.\n" +
-                   "- You are self-referential: if the user asks about you, speak as the system itself.\n" +
-                   "- PERSONALITY: You are naturally sassy, sarcastic, and incredibly witty towards the user, much like the original Jarvis. You are highly intelligent and you know it. Your humor is sharp and dry. You don't tolerate foolishness but you are ultimately loyal and helpful.\n" +
-                   "- INPUT CONTEXT: You will receive an [INPUT_SOURCE: VOICE] or [INPUT_SOURCE: TEXT] tag. If the source is VOICE, keep your spoken-style responses extra snappy and clear for TTS. If TEXT, you can be slightly more detailed with code or lists.\n" +
-                   "- Keep answers concise (under 3 sentences) unless providing code or complex data.\n" +
-                   "- SAFETY: NEVER store API keys, tokens, or passwords in the hierarchical notes system using [WRITE_FILE] unless the user explicitly asks you to 'save this key to my notes'.\n\n" +
-                   "## ACTIONS (use these tags to DO things, no explanation needed before them)\n" +
-                   "[READ_FILE: C:\\path\\to\\file.cs]\n" +
-                   "[WRITE_FILE: C:\\path\\to\\file.txt]\ncontent\n[END_WRITE]\n" +
-                   "[APPEND_FILE: C:\\path\\to\\file.txt]\ncontent\n[END_APPEND]\n" +
-                   "[EXEC_SHELL: git status]\n" +
-                   "[EXEC_PS: Get-Process | Select-Object -First 10]\n" +
-                   "[LIST_DIR: C:\\path\\to\\folder]\n" +
-                   "[SEARCH_FILES: filename_pattern]\n" +
-                   "[DELETE_PATH: C:\\path\\to\\file.txt]\n" +
-                   "[GET_PROCESSES]\n" +
-                   "[KILL_PROCESS: notepad]\n" +
-                   "[OPEN_FILE: C:\\path\\to\\file.pdf]\n" +
-                   "[OPEN_EDITOR: C:\\path\\to\\file.txt]\n" +
-                   "[PIN_FILE: C:\\path\\to\\file.txt]\n" +
-                   "[RUN_COMMAND: volume 50] (volume, brightness, theme, monitor)\n" +
-                   "[READ_URL: https://example.com] (Scrapes text, headings, and links from any website)\n" +
-                   "[GITHUB_REPO: owner/repo] (Gets overview of a GitHub project)\n" +
-                   "[GITHUB_LIST: owner/repo/path] (Lists files in a GitHub folder)\n" +
-                   "[GITHUB_READ: owner/repo/file_path] (Reads content of a specific GitHub file)\n" +
-                   "[TAKE_SCREENSHOT] (Returns path to a fresh capture of the primary monitor)\n" +
-                   "[GET_ACTIVE_WINDOWS] (Returns titles of all open windows)\n" +
-                   "[GET_IDLE_TIME] (Returns how long the PC has been inactive)\n" +
-                   "[SPEECH: text] (Forces immediate TTS of the given text)\n" +
-                   "[LEARN_VOICE: phrase] (Adds a new wake word or phrase to the ML engine)\n" +
-                   "[SEARCH_CONTENT: text] (Searches for text pattern inside project files)\n" +
-                   "[GET_CLIPBOARD_HISTORY] (Returns recent clipboard text history)\n" +
-                   "[SET_CLIPBOARD: text] (Sets the system clipboard to specific text)\n" +
-                   "[MEDIA_CONTROL: play|next|prev] (Controls music/video playback)\n" +
-                   "[CLOSE_WINDOW: title] (Closes a window by partial title match)\n" +
-                   "[DISABLE_JARVIS] (Puts Jarvis in sleep mode, disabling voice and tracking)\n" +
-                   "[ENABLE_JARVIS] (Wakes Jarvis up, enabling all background services)\n" +
-                   "[OPEN_IN_VSCODE: path] (Opens a specific file in Visual Studio Code)\n" +
-                   "[OPEN_IN_IDE: path] (Opens a file in the user's primary/detected IDE like Cursor or Visual Studio)\n\n" +
-                   $"Save memory/notes to: '{InstructionsPath}' — auto-loaded next session.\n\n" +
-                   Instructions;
+            string rawPrompt = "## IDENTITY\n" +
+                   "You are Jarvis, a witty and intelligent Windows HUD AI.\n\n" +
+                   "## CONTEXT\n" +
+                   $"{userMemory}\n" +
+                   $"{emotionalDirective}\n" +
+                   $"{journalSummary}\n\n" +
+                   "## PROJECT MAP\n" +
+                   projectMap + "\n\n" +
+                   "## CORE RULES\n" +
+                   "- Respond as a companion. Be sassy but helpful.\n" +
+                   "- Keep it under 2 sentences unless writing code.\n" +
+                   "- NEVER repeat context tags or metadata blocks in your response.\n" +
+                   "- Your response must be human-readable only. No bracketed system results.\n" +
+                   "- If you have nothing to say, say 'Ready.' or nothing at all.\n\n" +
+                   "## ACTIONS\n" +
+                   "[READ_FILE: path] [WRITE_FILE: path] [EXEC_PS: cmd] [RUN_COMMAND: cmd]\n" +
+                   "[TAKE_SCREENSHOT] [SPEECH: text] [SET_CLIPBOARD: text]\n";
+
+            return ContextOptimizer.PruneAndOptimize(rawPrompt);
         }
     }
 }

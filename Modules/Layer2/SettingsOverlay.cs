@@ -28,6 +28,7 @@ namespace JarvisLauncher
 
         // General Tab Controls
         private ComboBox _themeComboBox = null!;
+        private ComboBox _bgModeComboBox = null!;
         private ComboBox _searchEngineComboBox = null!;
         private CheckBox _startWithWinCheckBox = null!;
         private CheckBox _playSoundsCheckBox = null!;
@@ -219,6 +220,20 @@ namespace JarvisLauncher
                 if (_themeComboBox.SelectedItem is string th) ThemeManager.ApplyTheme(th);
             };
             root.Children.Add(_themeComboBox);
+
+            root.Children.Add(CreateLabel("Background Mode:"));
+            _bgModeComboBox = new ComboBox { Margin = new Thickness(0, 0, 0, 8), FontSize = 12, Padding = new Thickness(6, 4, 6, 4) };
+            foreach (var m in new[] { "Gradient", "Solid", "Media", "RGB" })
+                _bgModeComboBox.Items.Add(m);
+            _bgModeComboBox.SelectedItem = settings.BACKGROUND_MODE;
+            _bgModeComboBox.SelectionChanged += (s, e) =>
+            {
+                if (_bgModeComboBox.SelectedItem is string mode) {
+                    settings.BACKGROUND_MODE = mode;
+                    ThemeManager.ApplyTheme(settings.THEME);
+                }
+            };
+            root.Children.Add(_bgModeComboBox);
 
             root.Children.Add(CreateLabel("Search Engine:"));
             _searchEngineComboBox = new ComboBox { Margin = new Thickness(0, 0, 0, 8), FontSize = 12, Padding = new Thickness(6, 4, 6, 4) };
@@ -762,6 +777,7 @@ namespace JarvisLauncher
             var settings = SettingsManager.Current;
 
             if (_themeComboBox.SelectedItem is string th) settings.THEME = th;
+            if (_bgModeComboBox.SelectedItem is string mode) settings.BACKGROUND_MODE = mode;
             if (_searchEngineComboBox.SelectedItem is string se) settings.DEFAULT_SEARCH_ENGINE = se;
 
             settings.WINDOW_OPACITY = _opacitySlider.Value;

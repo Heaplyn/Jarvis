@@ -250,5 +250,28 @@ namespace JarvisLauncher
         {
             try { string json = JsonSerializer.Serialize(_recentTriggers, new JsonSerializerOptions { WriteIndented = true }); File.WriteAllText(LogFilePath, json); } catch { }
         }
+
+        public static void ResetDatabase()
+        {
+            try
+            {
+                if (Directory.Exists(ClipsDir))
+                {
+                    var files = Directory.GetFiles(ClipsDir, "*.wav");
+                    foreach (var f in files) { try { File.Delete(f); } catch { } }
+                }
+                if (File.Exists(LogFilePath)) File.Delete(LogFilePath);
+                if (File.Exists(MetadataFilePath)) File.Delete(MetadataFilePath);
+
+                DatasetRecords.Clear();
+                lock (_recentTriggers) _recentTriggers.Clear();
+
+                DebugConsoleOverlay.Log("Voice-System", "Historical voice dataset has been reset.");
+            }
+            catch (Exception ex)
+            {
+                DebugConsoleOverlay.Log("Error", $"Failed to reset voice dataset: {ex.Message}");
+            }
+        }
     }
 }

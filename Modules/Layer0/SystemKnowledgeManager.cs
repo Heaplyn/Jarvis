@@ -51,7 +51,46 @@ namespace JarvisLauncher
                 }
             });
 
+            // Trigger one-time acoustic expansion pass on startup
+            _ = Task.Run(async () => await ExpandAcousticDatabasesAsync());
+
             DebugConsoleOverlay.Log("Knowledge-System", "Autonomous System Harvester active.");
+        }
+
+        private static async Task ExpandAcousticDatabasesAsync()
+        {
+            try
+            {
+                string markerFile = Path.Combine(PathHandler.GetDataDirectory(), "acoustic_expansion_done.tag");
+                if (File.Exists(markerFile)) return;
+
+                DebugConsoleOverlay.Log("Knowledge-Self-Improvement", "Initiating search for small acoustic databases...");
+
+                // Search for datasets on GitHub or web lists
+                string searchResult = await WebOperationManager.SearchWebAsync("small voice wake word datasets github list mp3 wav");
+
+                // Use AI to extract the best dataset list from the search results
+                string prompt = "From the search results below, identify a URL that points to a GitHub repository or a list containing small acoustic datasets (MP3/WAV samples for wake words or environmental sounds). " +
+                                "Return ONLY the raw URL. If none look high-signal, return 'NONE'.\n\n" +
+                                searchResult;
+
+                string bestUrl = await LlmRouter.AskAsync(prompt);
+                bestUrl = bestUrl.Trim();
+
+                if (bestUrl != "NONE" && bestUrl.StartsWith("http"))
+                {
+                    DebugConsoleOverlay.Log("Knowledge-Self-Improvement", $"Found potential dataset: {bestUrl}. Downloading...");
+                    string result = await WebOperationManager.DownloadListAsync(bestUrl);
+                    DebugConsoleOverlay.Log("Knowledge-Self-Improvement", "Acoustic expansion pass complete.");
+
+                    await File.WriteAllTextAsync(markerFile, DateTime.Now.ToString());
+                    AcousticMlClassifier.RebuildAcousticIndex();
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugConsoleOverlay.Log("Knowledge-Error", $"Acoustic expansion failed: {ex.Message}");
+            }
         }
 
         private static async Task RebuildKnowledgeBaseAsync()
@@ -70,13 +109,17 @@ namespace JarvisLauncher
                     string layerName = Path.GetFileName(layer);
                     sb.AppendLine($"### {layerName}");
 
-                    var files = Directory.GetFiles(layer, "*.cs", SearchOption.AllDirectories);
-                    foreach (var file in files.Take(15)) // Sample top files to avoid token bloat
+                    var files = Directory.GetFiles(layer, "*.cs", SearchOption.AllDirectories)
+                                 .Select(f => new FileInfo(f))
+                                 .OrderByDescending(f => f.LastWriteTime)
+                                 .Take(15);
+
+                    foreach (var file in files)
                     {
-                        string fileName = Path.GetFileName(file);
+                        string fileName = file.Name;
                         // Extract brief summary from file header if available
-                        string summary = ExtractSummary(file);
-                        sb.AppendLine($"- {fileName}: {summary}");
+                        string summary = ExtractSummary(file.FullName);
+                        sb.AppendLine($"- {fileName} (Updated: {file.LastWriteTime:MM/dd HH:mm}): {summary}");
                     }
                 }
             }

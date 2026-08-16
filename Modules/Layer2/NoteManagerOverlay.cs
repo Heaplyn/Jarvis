@@ -37,10 +37,22 @@ namespace JarvisLauncher
             }
         }
 
+        public class NoteManagerState
+        {
+            public string? LastNotePath { get; set; }
+        }
+
         public NoteManagerOverlay()
             : base("📓 JARVIS NOTES STUDIO", width: 850, height: 600)
         {
-            this.Closed += (s, e) => { _instance = null; SaveActiveNote(); };
+            var state = PersistentStateManager.LoadState<NoteManagerState>("Notes");
+            _activeNoteRelativePath = state?.LastNotePath;
+
+            this.Closed += (s, e) => {
+                _instance = null;
+                SaveActiveNote();
+                PersistentStateManager.SaveState("Notes", new NoteManagerState { LastNotePath = _activeNoteRelativePath });
+            };
 
             var mainGrid = new Grid { Margin = new Thickness(10) };
             mainGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(240) });

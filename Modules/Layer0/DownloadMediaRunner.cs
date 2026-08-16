@@ -18,7 +18,7 @@ namespace JarvisLauncher
             return Task.FromResult("Success");
         }
 
-        public static async Task<string> DownloadAsync(string url, string? customDestinationDir = null)
+        public static async Task<string> DownloadAsync(string url, string? customDestinationDir = null, string format = "mp3")
         {
             string root = PathHandler.GetProjectRoot();
             string projectDir = Path.Combine(root, "Modules", "Layer0", "DownloadMedia");
@@ -43,7 +43,7 @@ namespace JarvisLauncher
                 StartInfo = new ProcessStartInfo
                 {
                     FileName               = "node",
-                    Arguments              = $"--import tsx DownloadMedia.ts \"{escapedUrl}\"",
+                    Arguments              = $"--import tsx DownloadMedia.ts \"{escapedUrl}\" \"{targetDir}\" \"{format}\"",
                     WorkingDirectory       = projectDir,
                     UseShellExecute        = false,
                     RedirectStandardOutput = true,

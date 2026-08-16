@@ -26,8 +26,8 @@ namespace JarvisLauncher
                 DESCRIPTION = "Fast restart of the application (1s delay)",
                 EXECUTE = () =>
                 {
-                    TextOverlay.Show("Restarting Jarvis...", 1000);
-                    var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.8) };
+                    TextOverlay.Show("Restarting Jarvis...", 800);
+                    var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.4) };
                     timer.Tick += (s, ev) =>
                     {
                         timer.Stop();
@@ -44,8 +44,8 @@ namespace JarvisLauncher
                 DESCRIPTION = "Force a clean build and cold-start the application",
                 EXECUTE = () =>
                 {
-                    TextOverlay.Show("Initiating Rebuild & Restart...", 1000);
-                    var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.8) };
+                    TextOverlay.Show("Initiating Rebuild & Restart...", 800);
+                    var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.4) };
                     timer.Tick += (s, ev) =>
                     {
                         timer.Stop();
