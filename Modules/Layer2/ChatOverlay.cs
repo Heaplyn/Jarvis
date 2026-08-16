@@ -746,6 +746,7 @@ namespace JarvisLauncher
                     {
                         if (RawResponse.Contains("@snap") || RawResponse.Contains("[TAKE_SCREENSHOT]")) sanitizedResult = "Captured your screen.";
                         else if (RawResponse.Contains("@clip") || RawResponse.Contains("[SET_CLIPBOARD")) sanitizedResult = "Updated your clipboard.";
+                        else if (RawResponse.Contains("@ingest") || RawResponse.Contains("[INGEST_DOCS")) sanitizedResult = "Ingested web documentation.";
                         else sanitizedResult = "System action performed.";
 
                         skipSpeech = true;

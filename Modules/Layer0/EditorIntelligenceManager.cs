@@ -48,6 +48,14 @@ namespace JarvisLauncher
                 new SyntaxRule { Pattern = @"\b(def|class|return|if|else|elif|for|while|import|from|as|try|except|with|async|await|print|yield|lambda|None|True|False)\b", ColorHex = "#569CD6", IsBold = true, Category = "Keyword" },
                 new SyntaxRule { Pattern = @"#.*", ColorHex = "#6A9955", Category = "Comment" },
                 new SyntaxRule { Pattern = @"'[^']*'|""[^""]*""", ColorHex = "#D69D85", Category = "String" }
+            }},
+            { ".asm", new List<SyntaxRule> {
+                new SyntaxRule { Pattern = @"\b(mov|add|sub|inc|dec|mul|div|jmp|je|jne|jg|jl|jge|jle|cmp|push|pop|call|ret|int|syscall|nop)\b", ColorHex = "#569CD6", IsBold = true, Category = "Keyword" },
+                new SyntaxRule { Pattern = @"\b(eax|ebx|ecx|edx|esi|edi|esp|ebp|rax|rbx|rcx|rdx|rsi|rdi|rsp|rbp|al|ah|bl|bh|cl|ch|dl|dh)\b", ColorHex = "#9CDCFE", Category = "Type" },
+                new SyntaxRule { Pattern = @";.*", ColorHex = "#6A9955", Category = "Comment" },
+                new SyntaxRule { Pattern = @"'[^']*'|""[^""]*""", ColorHex = "#D69D85", Category = "String" },
+                new SyntaxRule { Pattern = @"\b(section|global|extern|db|dw|dd|dq|resb|resw|resd|resq)\b", ColorHex = "#C586C0", Category = "Keyword" },
+                new SyntaxRule { Pattern = @"\b(0x[0-9a-fA-F]+|[0-9]+)\b", ColorHex = "#B5CEA8", Category = "Number" }
             }}
         };
 
@@ -59,6 +67,7 @@ namespace JarvisLauncher
             { ".py", new[] { "def", "class", "return", "if", "else", "elif", "for", "while", "import", "from", "as", "try", "except", "with", "async", "await", "print", "yield", "lambda", "None", "True", "False" } },
             { ".json", new[] { "true", "false", "null" } },
             { ".md", new[] { "TODO", "FIXME", "NOTE", "WARNING", "IMPORTANT", "HINT" } },
+            { ".asm", new[] { "mov", "add", "sub", "inc", "dec", "mul", "div", "jmp", "je", "jne", "jg", "jl", "jge", "jle", "cmp", "push", "pop", "call", "ret", "int", "syscall", "section", "global", "extern", "db", "dw", "dd", "dq", "resb", "resw", "resd", "resq" } },
             { ".xaml", new[] { "Grid", "Border", "StackPanel", "TextBlock", "TextBox", "Button", "ComboBox", "CheckBox", "Canvas", "ScrollViewer", "Grid.Row", "Grid.Column", "IsVisible", "Visibility", "Background", "Foreground", "HorizontalAlignment", "VerticalAlignment", "Margin", "Padding" } }
         };
 
@@ -90,6 +99,7 @@ namespace JarvisLauncher
         }
 
         private static readonly string[] DotNetBaseTypes = new[] { "Task", "List", "Dictionary", "Enumerable", "Console", "StringBuilder", "DateTime", "Guid", "Thread", "Regex", "HttpClient", "JsonSerializer", "File", "Directory", "Path", "Math", "Exception" };
+        private static readonly string[] AsmRegisters = new[] { "rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rsp", "rbp", "eax", "ebx", "ecx", "edx", "esi", "edi", "esp", "ebp", "ax", "bx", "cx", "dx", "al", "ah", "bl", "bh", "cl", "ch", "dl", "dh" };
 
         public static List<AutocompleteSuggestion> GetSuggestions(string currentLinePrefix, string extension, string fullText)
         {
@@ -107,12 +117,19 @@ namespace JarvisLauncher
                 }
             }
 
-            // 2. .NET Standard Pack (Offline Library Support)
+            // 2. Language Specific Extras
             if (extension.Equals(".cs", StringComparison.OrdinalIgnoreCase))
             {
                 foreach (var type in DotNetBaseTypes.Where(t => t.StartsWith(lastWord, StringComparison.OrdinalIgnoreCase)))
                 {
                     results.Add(new AutocompleteSuggestion { Text = type, Description = "System Type", Icon = "🏛️", Score = 0.95 });
+                }
+            }
+            else if (extension.Equals(".asm", StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var reg in AsmRegisters.Where(r => r.StartsWith(lastWord, StringComparison.OrdinalIgnoreCase)))
+                {
+                    results.Add(new AutocompleteSuggestion { Text = reg, Description = "Register", Icon = "📟", Score = 0.95 });
                 }
             }
 
