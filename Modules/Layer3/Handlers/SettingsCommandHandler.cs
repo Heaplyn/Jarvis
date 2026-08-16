@@ -354,7 +354,7 @@ namespace JarvisLauncher
             return new List<CommandDesc>
             {
                 new CommandDesc("settings / options", "Open visual Options & Settings GUI", "settings"),
-                new CommandDesc("apikey <key>", "Configure Gemini API key", "apikey AIzaSy...")
+                new CommandDesc("apikey <key>", "Configure Gemini API key (use semicolon for multiples)", "apikey AIzaSy1;AIzaSy2")
             };
         }
     }

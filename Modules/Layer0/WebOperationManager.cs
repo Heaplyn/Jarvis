@@ -341,6 +341,71 @@ namespace JarvisLauncher
         }
 
         /// <summary>
+        /// Searches package registries (NuGet, npm, PyPI, etc.) and returns structured data.
+        /// </summary>
+        public static async Task<string> SearchRegistryAsync(string type, string query)
+        {
+            try
+            {
+                TextOverlay.Show($"📦 Searching {type.ToUpper()} for: {query}...", 3000);
+                string url = "";
+
+                switch (type.ToLower())
+                {
+                    case "nuget":
+                        url = $"https://azuresearch-usnc.nuget.org/query?q={Uri.EscapeDataString(query)}&take=5";
+                        break;
+                    case "npm":
+                        url = $"https://registry.npmjs.org/-/v1/search?text={Uri.EscapeDataString(query)}&size=5";
+                        break;
+                    case "pypi":
+                        url = $"https://pypi.org/pypi/{Uri.EscapeDataString(query)}/json";
+                        break;
+                    default:
+                        return await SearchWebAsync($"{type} package {query}");
+                }
+
+                var response = await _httpClient.GetAsync(url);
+                if (!response.IsSuccessStatusCode) return $"Error: Registry API returned {response.StatusCode}";
+
+                string json = await response.Content.ReadAsStringAsync();
+
+                // Use AI to summarize the JSON data into a clean memory-friendly format
+                string prompt = $"Task: Summarize the following package registry JSON data for the query '{query}'.\n" +
+                               "Extract: Package Name, Version, Description, and any key links.\n" +
+                               "Format: Clean Markdown.\n\n" +
+                               $"[DATA]:\n{json.Substring(0, Math.Min(json.Length, 10000))}";
+
+                return await LlmRouter.AskAsync(prompt);
+            }
+            catch (Exception ex)
+            {
+                return $"Error searching registry: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// Deep Research: Scrapes a page and specifically extracts programming language documentation or API specs to remember.
+        /// </summary>
+        public static async Task<string> IngestDocumentationAsync(string url)
+        {
+            try
+            {
+                TextOverlay.Show($"📚 Ingesting documentation: {url}...", 3000);
+                string scraped = await ScrapeWebpageAsync(url);
+
+                // Save to semantic memory
+                SemanticMemoryManager.AddMemory($"Ingested documentation from {url}: {scraped}", "Knowledge", "Documentation", 0.8, new Dictionary<string, string> { { "url", url } });
+
+                return $"SUCCESS: Documentation from {url} has been analyzed and stored in long-term semantic memory.";
+            }
+            catch (Exception ex)
+            {
+                return $"Error ingesting documentation: {ex.Message}";
+            }
+        }
+
+        /// <summary>
         /// Performs a web search using DuckDuckGo HTML search and returns markdown results.
         /// </summary>
         public static async Task<string> SearchWebAsync(string query)

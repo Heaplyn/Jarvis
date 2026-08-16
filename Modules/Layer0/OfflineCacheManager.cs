@@ -16,6 +16,31 @@ namespace JarvisLauncher
     {
         public static readonly string OfflineDataDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "OfflineCache");
 
+        private static readonly List<OfflineTool> RequiredOfflineTools = new List<OfflineTool>
+        {
+            new OfflineTool("Git", "Git.Git", "git"),
+            new OfflineTool("Node.js", "OpenJS.NodeJS", "node"),
+            new OfflineTool("Python", "Python.Python.3", "python"),
+            new OfflineTool("FFmpeg", "Gyan.FFmpeg", "ffmpeg"),
+            new OfflineTool("Ollama", "Ollama.Ollama", "ollama"),
+            new OfflineTool("7-Zip", "7zip.7zip", "7z"),
+            new OfflineTool("VS Code", "Microsoft.VisualStudioCode", "code")
+        };
+
+        private class OfflineTool
+        {
+            public string Name { get; }
+            public string PackageId { get; }
+            public string Command { get; }
+
+            public OfflineTool(string name, string packageId, string command)
+            {
+                Name = name;
+                PackageId = packageId;
+                Command = command;
+            }
+        }
+
         static OfflineCacheManager()
         {
             if (!Directory.Exists(OfflineDataDirectory))
@@ -52,7 +77,7 @@ namespace JarvisLauncher
         }
 
         /// <summary>
-        /// Pre-caches all online resources (Vosk speech model, GitHub TTS voice samples) for 100% offline usage.
+        /// Pre-caches all online resources (Vosk speech model, Package Managers, Dev Tools) for 100% offline usage.
         /// </summary>
         public static async Task PreCacheAllForOfflineAsync(Action<string>? statusCallback = null)
         {
@@ -67,8 +92,76 @@ namespace JarvisLauncher
             statusCallback?.Invoke("🎙️ Pre-caching Vosk Offline Neural Speech Model (~40MB)...");
             await VoskEngine.EnsureModelDownloadedAsync(showToast: false);
 
-            statusCallback?.Invoke($"✅ Pre-cache complete! Cached Vosk speech model for 100% offline usage. Import custom sounds in TTS Studio for personal voices.");
+            // 2. Install Essential Development Tools & Package Managers
+            foreach (var tool in RequiredOfflineTools)
+            {
+                if (!IsAppInstalled(tool.Command))
+                {
+                    statusCallback?.Invoke($"📥 Installing {tool.Name} via winget...");
+                    await Task.Run(() => InstallToolSilently(tool.PackageId, tool.Name));
+
+                    // Small delay to let system register installation
+                    await Task.Delay(2000);
+                }
+                else
+                {
+                    statusCallback?.Invoke($"✅ {tool.Name} is already installed.");
+                }
+            }
+
+            // 3. Pre-pull Ollama Models if Ollama is running
+            if (await IsOllamaRunningAsync())
+            {
+                string defaultModel = SettingsManager.Current.OLLAMA_MODEL;
+                if (string.IsNullOrWhiteSpace(defaultModel)) defaultModel = "llama3.2";
+
+                if (!await IsOllamaModelCachedAsync(defaultModel))
+                {
+                    statusCallback?.Invoke($"🧠 Pulling local LLM model: {defaultModel}...");
+                    await Task.Run(() => PullOllamaModelSilently(defaultModel));
+                }
+                else
+                {
+                    statusCallback?.Invoke($"✅ LLM Model '{defaultModel}' is already cached.");
+                }
+            }
+
+            statusCallback?.Invoke($"✅ Pre-cache complete! Cached Vosk, Package Managers, and Dev Tools for 100% offline usage.");
             TextOverlay.Show("📶 Jarvis is now 100% Ready For Offline Use!", 3500);
+        }
+
+        private static void InstallToolSilently(string packageId, string friendlyName)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "winget",
+                    Arguments = $"install -e --id {packageId} --accept-source-agreements --accept-package-agreements --silent",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var proc = Process.Start(psi);
+                proc?.WaitForExit(600000); // 1 min timeout per tool
+            }
+            catch { }
+        }
+
+        private static void PullOllamaModelSilently(string modelName)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "ollama",
+                    Arguments = $"pull {modelName}",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var proc = Process.Start(psi);
+                proc?.WaitForExit(300000); // 5 min timeout
+            }
+            catch { }
         }
 
         /// <summary>

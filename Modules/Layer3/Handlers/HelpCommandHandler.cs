@@ -36,7 +36,10 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
             return new List<CommandDesc>
             {
                 new CommandDesc("help", "Open Help & Documentation Center", "help"),
-                new CommandDesc("shortcuts", "View Global Keyboard Hotkey Shortcuts", "shortcuts")
+                new CommandDesc("shortcuts", "View Global Keyboard Hotkey Shortcuts", "shortcuts"),
+                new CommandDesc("guide", "Read the Master User Manual", "guide"),
+                new CommandDesc("manual", "Open Jarvis technical documentation", "manual"),
+                new CommandDesc("docs", "Browse system architecture and guides", "docs")
             };
         }
 

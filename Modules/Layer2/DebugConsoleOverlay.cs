@@ -29,6 +29,7 @@ namespace JarvisLauncher
         // Interactive Debug & Error Tools
         private readonly TextBox _searchBox;
         private readonly ComboBox _categoryFilterCombo;
+        private readonly ComboBox _verbosityCombo;
         private readonly TextBox _commandInputBox;
 
         private class LogEntry
@@ -59,12 +60,15 @@ namespace JarvisLauncher
             LogInternal(category, message, false);
         }
 
-        public static void LogVerbose(string category, string message)
+        public static void LogVerbose(string category, string message, bool isMinimal = false)
         {
-            if (SettingsManager.Current.VERBOSE_LOGGING)
-            {
-                LogInternal(category, message, true);
-            }
+            int level = SettingsManager.Current.DEBUG_VERBOSITY_LEVEL;
+
+            // 0: None, 1: Minimal (Half), 2: Full
+            if (level == 0) return;
+            if (level == 1 && !isMinimal) return;
+
+            LogInternal(category, message, true);
         }
 
         private static void LogInternal(string category, string message, bool isVerbose)
@@ -124,52 +128,50 @@ namespace JarvisLauncher
         }
 
         private DebugConsoleOverlay()
-            : base("🛠️ JARVIS DEBUG & DIAGNOSTICS CONSOLE", width: 720, height: 560)
+            : base("🛠️ JARVIS DEBUG & DIAGNOSTICS CONSOLE", width: 780, height: 600)
         {
-            var mainGrid = new Grid { Margin = new Thickness(10) };
+            var mainGrid = new Grid { Margin = new Thickness(12) };
             mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Filters
             mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Console display
             mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Bottom panel (REPL + Buttons)
 
-            // --- 1. FILTER HEADER AREA ---
-            var filterGrid = new Grid { Margin = new Thickness(0, 0, 0, 8) };
-            filterGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Search Text
-            filterGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });                     // Category Dropdown
-            filterGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });                     // Stats label
+            // --- 1. FILTER HEADER AREA (Styled like the request) ---
+            var filterGrid = new Grid { Margin = new Thickness(0, 0, 0, 12) };
+            filterGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Search Label
+            filterGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(180) }); // Search Box
+            filterGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Cat Label
+            filterGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) }); // Cat Combo
+            filterGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); // Verbosity Label
+            filterGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(140) }); // Verbosity Combo
+            filterGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // Stats
 
-            var searchStack = new StackPanel { Orientation = Orientation.Horizontal };
-            searchStack.Children.Add(new TextBlock 
-            { 
-                Text = "🔍 Search: ", 
-                FontSize = 11, 
-                VerticalAlignment = VerticalAlignment.Center, 
-                Margin = new Thickness(0, 0, 4, 0) 
-            });
+            // Search
+            var searchLabel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
+            searchLabel.Children.Add(new TextBlock { Text = "🔍 Search:", FontSize = 11, VerticalAlignment = VerticalAlignment.Center });
+            Grid.SetColumn(searchLabel, 0);
+            filterGrid.Children.Add(searchLabel);
+
             _searchBox = new TextBox 
             { 
-                Width = 160, 
-                Height = 22, 
+                Height = 24,
                 FontSize = 11, 
                 VerticalContentAlignment = VerticalAlignment.Center,
-                Padding = new Thickness(3, 1, 3, 1)
+                Padding = new Thickness(5, 0, 5, 0),
+                Background = new SolidColorBrush(Color.FromArgb(30, 0, 0, 0)),
+                BorderThickness = new Thickness(1)
             };
-            _searchBox.SetResourceReference(TextBox.BackgroundProperty, "WindowBackgroundBrush");
             _searchBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
-            _searchBox.SetResourceReference(TextBox.BorderBrushProperty, "WindowBorderBrush");
+            _searchBox.SetResourceReference(TextBox.BorderBrushProperty, "AccentBrush");
             _searchBox.TextChanged += (s, e) => UpdateView();
-            searchStack.Children.Add(_searchBox);
-            Grid.SetColumn(searchStack, 0);
-            filterGrid.Children.Add(searchStack);
+            Grid.SetColumn(_searchBox, 1);
+            filterGrid.Children.Add(_searchBox);
 
-            var catStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(10, 0, 0, 0) };
-            catStack.Children.Add(new TextBlock 
-            { 
-                Text = "Category: ", 
-                FontSize = 11, 
-                VerticalAlignment = VerticalAlignment.Center, 
-                Margin = new Thickness(0, 0, 4, 0) 
-            });
-            _categoryFilterCombo = new ComboBox { Width = 110, Height = 22, FontSize = 11 };
+            // Category
+            var catLabel = new TextBlock { Text = "Category:", FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(15, 0, 8, 0) };
+            Grid.SetColumn(catLabel, 2);
+            filterGrid.Children.Add(catLabel);
+
+            _categoryFilterCombo = new ComboBox { Height = 24, FontSize = 11, Padding = new Thickness(4, 0, 4, 0) };
             _categoryFilterCombo.Items.Add("ALL");
             _categoryFilterCombo.Items.Add("ERROR / FATAL");
             _categoryFilterCombo.Items.Add("SYSTEM");
@@ -177,19 +179,38 @@ namespace JarvisLauncher
             _categoryFilterCombo.Items.Add("AI");
             _categoryFilterCombo.SelectedIndex = 0;
             _categoryFilterCombo.SelectionChanged += (s, e) => UpdateView();
-            catStack.Children.Add(_categoryFilterCombo);
-            Grid.SetColumn(catStack, 1);
-            filterGrid.Children.Add(catStack);
+            Grid.SetColumn(_categoryFilterCombo, 3);
+            filterGrid.Children.Add(_categoryFilterCombo);
+
+            // Verbosity
+            var verbLabel = new TextBlock { Text = "Verbosity:", FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(15, 0, 8, 0) };
+            Grid.SetColumn(verbLabel, 4);
+            filterGrid.Children.Add(verbLabel);
+
+            _verbosityCombo = new ComboBox { Height = 24, FontSize = 11, Padding = new Thickness(4, 0, 4, 0) };
+            _verbosityCombo.Items.Add("None (Silent)");
+            _verbosityCombo.Items.Add("Minimal (Half)");
+            _verbosityCombo.Items.Add("Full (Verbose)");
+            _verbosityCombo.SelectedIndex = SettingsManager.Current.DEBUG_VERBOSITY_LEVEL;
+            _verbosityCombo.SelectionChanged += (s, e) =>
+            {
+                SettingsManager.Current.DEBUG_VERBOSITY_LEVEL = _verbosityCombo.SelectedIndex;
+                SettingsManager.Save();
+                Log("System", $"Debug Verbosity set to: {_verbosityCombo.SelectedItem}");
+            };
+            Grid.SetColumn(_verbosityCombo, 5);
+            filterGrid.Children.Add(_verbosityCombo);
 
             _statusLabel = new TextBlock 
             { 
-                FontSize = 11, 
+                FontSize = 10,
                 FontWeight = FontWeights.Medium, 
                 VerticalAlignment = VerticalAlignment.Center, 
-                Margin = new Thickness(15, 0, 0, 0) 
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(10, 0, 0, 0)
             };
             _statusLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
-            Grid.SetColumn(_statusLabel, 2);
+            Grid.SetColumn(_statusLabel, 6);
             filterGrid.Children.Add(_statusLabel);
 
             Grid.SetRow(filterGrid, 0);

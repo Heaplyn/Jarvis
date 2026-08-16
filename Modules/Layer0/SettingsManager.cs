@@ -68,6 +68,17 @@ namespace JarvisLauncher
         public string CUSTOM_LLM_KEY { get; set; } = string.Empty;
         public string CUSTOM_LLM_MODEL { get; set; } = string.Empty;
 
+        public string ANTHROPIC_KEY { get; set; } = string.Empty;
+        public string ANTHROPIC_MODEL { get; set; } = "claude-3-5-sonnet-20240620";
+        public string GROQ_KEY { get; set; } = string.Empty;
+        public string GROQ_MODEL { get; set; } = "llama-3.1-70b-versatile";
+        public string PERPLEXITY_KEY { get; set; } = string.Empty;
+        public string PERPLEXITY_MODEL { get; set; } = "llama-3-sonar-large-32k-online";
+        public string MISTRAL_KEY { get; set; } = string.Empty;
+        public string MISTRAL_MODEL { get; set; } = "mistral-large-latest";
+        public string OPENROUTER_KEY { get; set; } = string.Empty;
+        public string OPENROUTER_MODEL { get; set; } = "anthropic/claude-3.5-sonnet";
+
         public bool ENABLE_DUAL_LLM_COPILOT { get; set; } = false;
         public string DUAL_LLM_BACKEND { get; set; } = "Ollama";
         public string DUAL_LLM_MODEL { get; set; } = "deepseek-r1:7b";
@@ -116,6 +127,8 @@ namespace JarvisLauncher
         public bool ENABLE_HF_AUTO_TRAINING { get; set; } = false;
         public string HF_TRAINING_DATASET_ID { get; set; } = string.Empty;
         public bool VERBOSE_LOGGING { get; set; } = false;
+        public int DEBUG_VERBOSITY_LEVEL { get; set; } = 1; // 0: None, 1: Minimal (Half), 2: Full
+        public bool ENABLE_PC_CONTROL { get; set; } = true;
     }
 
     public static class SettingsManager

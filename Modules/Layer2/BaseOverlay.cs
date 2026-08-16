@@ -439,9 +439,15 @@ namespace JarvisLauncher
         {
             if (!_isMiniMode)
             {
-                // Cache user-adjusted dimensions
-                _restoreWidth = this.Width;
-                _restoreHeight = this.Height;
+                // If maximized, restore to normal state before entering mini-mode
+                if (this.WindowState == WindowState.Maximized)
+                {
+                    this.WindowState = WindowState.Normal;
+                }
+
+                // Cache user-adjusted dimensions (ensure we don't cache 0 or tiny values)
+                if (this.ActualWidth > 100) _restoreWidth = this.ActualWidth;
+                if (this.ActualHeight > 40) _restoreHeight = this.ActualHeight;
 
                 // Collapse content & disable resizing
                 _contentPresenter.Visibility = Visibility.Collapsed;
@@ -511,16 +517,29 @@ namespace JarvisLauncher
             }
         }
 
-        /// <summary>Standard way to show any overlay, ensuring it fades in if animations are on.</summary>
+        /// <summary>Standard way to show any overlay, ensuring it is restored from minimized/maximized glitch states.</summary>
         public new void Show()
         {
             // Stop any running animations
             this.BeginAnimation(Window.OpacityProperty, null);
 
-            if (this.WindowState == WindowState.Minimized)
+            // FORCE RESTORE: If window is OS-minimized or stuck in maximized, bring it back to normal for the HUD
+            if (this.WindowState != WindowState.Normal && !_isMiniMode)
+            {
                 this.WindowState = WindowState.Normal;
+            }
+
+            // Ensure window is within screen bounds (safety check if it was moved off-screen)
+            var workArea = SystemParameters.WorkArea;
+            if (this.Left < workArea.Left - 50 || this.Left > workArea.Right ||
+                this.Top < workArea.Top - 50 || this.Top > workArea.Bottom)
+            {
+                this.Left = workArea.Left + (workArea.Width - this.Width) / 2;
+                this.Top = workArea.Top + (workArea.Height - this.Height) / 2;
+            }
 
             base.Show();
+            this.Visibility = Visibility.Visible;
             this.Activate();
 
             if (SettingsManager.Current.ENABLE_ANIMATIONS)

@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using JarvisLauncher.Modules.Layer3.Handlers;
 
 using CommandDictType = System.Tuple<string, JarvisLauncher.ICommandHandler>;
@@ -368,13 +369,13 @@ namespace JarvisLauncher
                 .OrderByDescending(s => s.SIMILARITY)
                 .ToList();
 
-            if (SettingsManager.Current.VERBOSE_LOGGING && Deduped.Count > 0)
+            if (Deduped.Count > 0)
             {
                 var SbDebug = new StringBuilder();
                 SbDebug.AppendLine($"Command Matching Results for '{Query}':");
                 foreach (var S in Deduped.Take(5))
                     SbDebug.AppendLine($"- {S.TITLE} (Score: {S.SIMILARITY:F2})");
-                DebugConsoleOverlay.LogVerbose("Parser-Match", SbDebug.ToString());
+                DebugConsoleOverlay.LogVerbose("Parser-Match", SbDebug.ToString(), isMinimal: true);
             }
 
             // 7. Last Resort: If no high-confidence command or app exists, suggest AI Chat
