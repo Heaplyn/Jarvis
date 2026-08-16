@@ -85,6 +85,22 @@ namespace JarvisLauncher
 
             // 5. Audit Authentication Errors (New: Screen reading login help)
             await AuditAuthErrors();
+
+            // 6. Audit Installed Apps (Keep search index fresh)
+            AuditAppIndex();
+        }
+
+        private static DateTime LastAppIndexAudit = DateTime.MinValue;
+
+        private static void AuditAppIndex()
+        {
+            // Re-index every 30 minutes to catch new installations
+            if ((DateTime.Now - LastAppIndexAudit).TotalMinutes >= 30)
+            {
+                LastAppIndexAudit = DateTime.Now;
+                DebugConsoleOverlay.LogVerbose("Autonomous-Sync", "Refreshing Windows App Search Index...", isMinimal: true);
+                Task.Run(() => WindowsAppScanner.IndexApplications(force: true));
+            }
         }
 
         private static DateTime LastAuthAudit = DateTime.MinValue;
@@ -309,7 +325,7 @@ namespace JarvisLauncher
                 if (!IsCoding) return;
 
                 // Take a screenshot of the primary monitor
-                string? Base64Image = ScreenCaptureUtil.CapturePrimaryScreenToBase64();
+                string? Base64Image = ScreenCaptureUtil.CapturePrimaryScreenToBase64(saveToDisk: true);
                 if (string.IsNullOrEmpty(Base64Image)) return;
 
                 string Prompt = "You are the Jarvis Code Teacher. Surveil this screenshot of the user's screen. If the user is editing code (in Visual Studio, VS Code, Roblox Studio, etc.), inspect the visible code, compilation squiggles, or error messages.\n\n" +

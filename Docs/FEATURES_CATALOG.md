@@ -44,4 +44,6 @@ This document provides an exhaustive list of all major functional modules in Jar
 - **Debug Console (`DebugConsoleOverlay`)**: Tiered verbosity system (None, Minimal, Full) for real-time monitoring.
 - **System Specs (`SysInfoCommandHandler`, `SystemSpecsOverlay`)**: Detailed hardware and network diagnostics.
 - **Web Research (`WebOperationManager`)**: Registry searching (NuGet/npm/pypi) and documentation ingestion into semantic memory.
+- **Search & Launch**: High-speed indexing of Windows applications and Start Menu shortcuts. Supports automatic periodic refreshes.
+- **App Management**: Ability to force re-index system apps via `reindex` command.
 - **Universal Installer**: Scrapes sites and auto-deploys Windows installers via winget.

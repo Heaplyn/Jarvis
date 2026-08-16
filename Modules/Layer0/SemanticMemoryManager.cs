@@ -155,5 +155,30 @@ namespace JarvisLauncher
             string content = $"Working on {projectName}: {action}";
             AddMemory(content, "Project", projectName, 0.6);
         }
+
+        public static void ResetDatabase()
+        {
+            lock (_lock)
+            {
+                _nodes.Clear();
+                SaveMemories();
+                DebugConsoleOverlay.Log("Memory", "Semantic Memory Database has been RESET.");
+            }
+        }
+
+        public static int FilterByImportance(double thresholdPercentage)
+        {
+            lock (_lock)
+            {
+                // thresholdPercentage is 0-100, Importance is 0.0-1.0
+                double threshold = thresholdPercentage / 100.0;
+                int initialCount = _nodes.Count;
+                _nodes = _nodes.Where(n => n.Importance >= threshold).ToList();
+                int removed = initialCount - _nodes.Count;
+                SaveMemories();
+                DebugConsoleOverlay.Log("Memory", $"Filtered database. Removed {removed} nodes below {thresholdPercentage}% importance.");
+                return removed;
+            }
+        }
     }
 }

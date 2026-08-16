@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 
@@ -108,8 +109,8 @@ namespace JarvisLauncher
             string scriptText = "⚠️ Scripting guide not found.";
             try {
                 string[] candidates = {
+                    System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "SCRIPTING_GUIDE.md"),
                     System.IO.Path.Combine(PathHandler.GetProjectRoot(), "Docs", "SCRIPTING_GUIDE.md"),
-                    System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Docs", "SCRIPTING_GUIDE.md"),
                     System.IO.Path.Combine(PathHandler.GetDataDirectory(), "SCRIPTING_GUIDE.md")
                 };
 
@@ -123,18 +124,7 @@ namespace JarvisLauncher
                 }
             } catch { }
 
-            var scriptBox = new TextBox {
-                Text = scriptText,
-                IsReadOnly = true,
-                TextWrapping = TextWrapping.Wrap,
-                FontSize = 11,
-                Padding = new Thickness(10),
-                BorderThickness = new Thickness(0)
-            };
-            scriptBox.SetResourceReference(TextBox.BackgroundProperty, "WindowBackgroundBrush");
-            scriptBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
-            scriptStack.Children.Add(scriptBox);
-
+            scriptStack.Children.Add(CreateMarkdownDisplay(scriptText));
             scriptScroll.Content = scriptStack;
             scriptTab.Content = scriptScroll;
             tabControl.Items.Add(scriptTab);
@@ -162,19 +152,18 @@ namespace JarvisLauncher
             guideStack.Children.Add(CreateHeaderBlock("🤖 JARVIS MASTER USER GUIDE & FEATURE MANUAL"));
 
             string guideText = "⚠️ Guide file user_guide.md not found.";
-            var checkedPaths = new List<string>();
             try
             {
                 string[] candidates = {
+                    System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "user_guide.md"),
                     System.IO.Path.Combine(PathHandler.GetDataDirectory(), "user_guide.md"),
                     System.IO.Path.Combine(PathHandler.GetProjectRoot(), "user_guide.md"),
-                    System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "user_guide.md"),
-                    System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "user_guide.md")
+                    System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "user_guide.md"),
+                    System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Instructions", "user_guide.md")
                 };
 
                 foreach (var path in candidates)
                 {
-                    checkedPaths.Add(path);
                     if (System.IO.File.Exists(path))
                     {
                         guideText = System.IO.File.ReadAllText(path);
@@ -182,28 +171,20 @@ namespace JarvisLauncher
                     }
                 }
 
-                if (guideText.StartsWith("⚠️"))
+                if (guideText.Contains("not found"))
                 {
-                    guideText += "\n\nChecked Paths:\n" + string.Join("\n", checkedPaths);
-                    guideText += "\n\n👉 PLEASE REBUILD THE PROJECT (Ctrl+Shift+B) and RESTART to apply latest logic.";
+                    // Add a one-click repair button if guide is missing
+                    var repairBtn = CreateStyledButton("🛠️ Attempt Auto-Repair Documentation", (s, e) => {
+                        CommandParser.ExecuteFirstSuggestion("repair");
+                        this.FadeOutAndClose();
+                        ShowOverlay();
+                    });
+                    guideStack.Children.Add(repairBtn);
                 }
             }
             catch { }
 
-            var guideBox = new TextBox
-            {
-                Text = guideText,
-                IsReadOnly = true,
-                TextWrapping = TextWrapping.Wrap,
-                FontSize = 11,
-                Padding = new Thickness(10),
-                AcceptsReturn = true,
-                BorderThickness = new Thickness(0)
-            };
-            guideBox.SetResourceReference(TextBox.BackgroundProperty, "WindowBackgroundBrush");
-            guideBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
-            guideStack.Children.Add(guideBox);
-
+            guideStack.Children.Add(CreateMarkdownDisplay(guideText));
             guideScroll.Content = guideStack;
             guideTab.Content = guideScroll;
             tabControl.Items.Add(guideTab);
@@ -214,6 +195,54 @@ namespace JarvisLauncher
             this.UserContent = mainGrid;
 
             RenderCommandsList("");
+        }
+
+        private UIElement CreateMarkdownDisplay(string md)
+        {
+            var rtb = new RichTextBox
+            {
+                IsReadOnly = true,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                FontFamily = new FontFamily("Segoe UI"),
+                FontSize = 12,
+                Document = new FlowDocument()
+            };
+            rtb.Document.PagePadding = new Thickness(10);
+            rtb.SetResourceReference(RichTextBox.ForegroundProperty, "TextPrimaryBrush");
+
+            // Simple parser for Help Center
+            var lines = md.Split('\n');
+            bool inCode = false;
+            foreach (var line in lines)
+            {
+                string t = line.Trim();
+                if (t.StartsWith("```")) { inCode = !inCode; continue; }
+                if (inCode)
+                {
+                    var p = new Paragraph(new Run(line)) { FontFamily = new FontFamily("Consolas"), Foreground = Brushes.LightBlue, Margin = new Thickness(10, 0, 0, 0) };
+                    rtb.Document.Blocks.Add(p);
+                    continue;
+                }
+
+                if (t.StartsWith("#"))
+                {
+                    int level = t.TakeWhile(c => c == '#').Count();
+                    var p = new Paragraph(new Run(t.TrimStart('#').Trim())) { FontWeight = FontWeights.Bold, Foreground = Brushes.Cyan, FontSize = 18 - level };
+                    rtb.Document.Blocks.Add(p);
+                }
+                else if (t.StartsWith("- ") || t.StartsWith("* "))
+                {
+                    var p = new Paragraph(new Run(" • " + t.Substring(2))) { Margin = new Thickness(15, 0, 0, 2) };
+                    rtb.Document.Blocks.Add(p);
+                }
+                else if (!string.IsNullOrWhiteSpace(t))
+                {
+                    rtb.Document.Blocks.Add(new Paragraph(new Run(line)));
+                }
+            }
+
+            return rtb;
         }
 
         private void RenderCommandsList(string filter)
@@ -234,13 +263,21 @@ namespace JarvisLauncher
                 ["🎙️ Voice Studio"] = new List<CommandDesc>(),
                 ["🎬 Media & Files"] = new List<CommandDesc>(),
                 ["💡 ADHD & Productivity"] = new List<CommandDesc>(),
-                ["🎛️ System & Power"] = new List<CommandDesc>()
+                ["🎛️ System & Power"] = new List<CommandDesc>(),
+                ["🛠️ Maintenance"] = new List<CommandDesc>()
             };
 
             foreach (var cmd in filtered)
             {
                 string cat = GetCommandCategory(cmd);
-                categories[cat].Add(cmd);
+                if (categories.ContainsKey(cat))
+                {
+                    categories[cat].Add(cmd);
+                }
+                else
+                {
+                    categories["🎛️ System & Power"].Add(cmd);
+                }
             }
 
             foreach (var pair in categories)
@@ -325,11 +362,11 @@ namespace JarvisLauncher
             string name = cmd.COMMAND_NAME.ToLower();
             string desc = (cmd.COMMAND_DESCRIPTION ?? "").ToLower();
 
-            if (name.Contains("ai") || name.Contains("gemini") || name.Contains("chat") || name.Contains("copilot") || name.Contains("mcp") || name.Contains("oauth") || name.Contains("login") || name.Contains("auth") || name.Contains("llm") || name.Contains("perplexity") || name.Contains("claude") || name.Contains("groq"))
+            if (name.Contains("ai") || name.Contains("gemini") || name.Contains("chat") || name.Contains("copilot") || name.Contains("mcp") || name.Contains("oauth") || name.Contains("login") || name.Contains("auth") || name.Contains("llm") || name.Contains("perplexity") || name.Contains("claude") || name.Contains("groq") || name.Contains("translate") || name.Contains("analyze"))
             {
                 return "🤖 AI, LLM & MCP";
             }
-            if (name.Contains("git") || name.Contains("powershell") || name.Contains("ps") || name.Contains("roblox") || name.Contains("blender") || name.Contains("vector") || name.Contains("r1") || name.Contains("coder") || name.Contains("tile") || name.Contains("tiling") || name.Contains("ipa") || name.Contains("ios") || name.Contains("cli") || name.Contains("build") || name.Contains("push"))
+            if (name.Contains("git") || name.Contains("powershell") || name.Contains("ps") || name.Contains("roblox") || name.Contains("blender") || name.Contains("vector") || name.Contains("r1") || name.Contains("coder") || name.Contains("tile") || name.Contains("tiling") || name.Contains("ipa") || name.Contains("ios") || name.Contains("cli") || name.Contains("build") || name.Contains("push") || name.Contains("asm") || name.Contains("edit") || name.Contains("workspace"))
             {
                 return "💻 Developer Tools";
             }
@@ -337,13 +374,21 @@ namespace JarvisLauncher
             {
                 return "🎙️ Voice Studio";
             }
-            if (name.Contains("convert") || name.Contains("webp") || name.Contains("gif") || name.Contains("png") || name.Contains("mp4") || name.Contains("mp3") || name.Contains("wav") || name.Contains("file") || name.Contains("organize") || name.Contains("edit") || name.Contains("open") || name.Contains("download") || name.Contains("ffmpeg") || name.Contains("grid") || name.Contains("folder"))
+            if (name.Contains("convert") || name.Contains("webp") || name.Contains("gif") || name.Contains("png") || name.Contains("mp4") || name.Contains("mp3") || name.Contains("wav") || name.Contains("file") || name.Contains("organize") || name.Contains("open") || name.Contains("download") || name.Contains("ffmpeg") || name.Contains("grid") || name.Contains("folder"))
             {
                 return "🎬 Media & Files";
             }
             if (name.Contains("todo") || name.Contains("calendar") || name.Contains("reminder") || name.Contains("adhd") || name.Contains("pomodoro") || name.Contains("timer") || name.Contains("habits") || name.Contains("clock") || name.Contains("time") || name.Contains("date") || name.Contains("note") || name.Contains("sticky"))
             {
                 return "💡 ADHD & Productivity";
+            }
+            if (name.Contains("repair") || name.Contains("sync") || name.Contains("fresh") || name.Contains("clean") || name.Contains("reindex") || name.Contains("update"))
+            {
+                return "🛠️ Maintenance";
+            }
+            if (name.Contains("reindex") || name.Contains("phone") || name.Contains("mobile") || name.Contains("remote") || name.Contains("bridge") || name.Contains("process") || name.Contains("network") || name.Contains("diag") || name.Contains("netstat") || name.Contains("specs") || name.Contains("health") || name.Contains("db") || name.Contains("database"))
+            {
+                return "🎛️ System & Power";
             }
             return "🎛️ System & Power";
         }

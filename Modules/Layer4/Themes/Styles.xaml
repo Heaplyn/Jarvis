@@ -1,27 +1,29 @@
 <!-- Developer: heaplyn -->
-<!-- Date: 2026-08-08 -->
-<!-- Summary: Resource Dictionary defining visual control styles, custom templates, and hover/selection triggers for results list items. -->
+<!-- Date: 2026-08-16 -->
+<!-- Summary: Master Resource Dictionary with Polished Glassmorphic ScrollBars and Native Scrolling. -->
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
     <!-- ListBox Item Styling -->
     <Style x:Key="ResultItemStyle" TargetType="ListBoxItem">
         <Setter Property="Background" Value="Transparent"/>
-        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="BorderBrush" Value="Transparent"/>
         <Setter Property="Padding" Value="12,10"/>
         <Setter Property="Margin" Value="0,2"/>
         <Setter Property="SnapsToDevicePixels" Value="true"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ListBoxItem">
-                    <Border x:Name="Bd" 
-                            CornerRadius="{DynamicResource ItemCornerRadius}" 
-                            Background="{TemplateBinding Background}" 
-                            BorderBrush="{TemplateBinding BorderBrush}" 
-                            BorderThickness="{TemplateBinding BorderThickness}" 
-                            Padding="{TemplateBinding Padding}" 
+                    <Border x:Name="Bd"
+                            CornerRadius="{DynamicResource ItemCornerRadius}"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}"
                             SnapsToDevicePixels="true">
-                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" 
-                                          SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" 
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"
                                           VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
                     </Border>
                     <ControlTemplate.Triggers>
@@ -32,12 +34,123 @@
                         <Trigger Property="IsSelected" Value="true">
                             <Setter TargetName="Bd" Property="Background" Value="{DynamicResource SelectedBackgroundBrush}"/>
                             <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource SelectedBorderBrush}"/>
-                            <Setter TargetName="Bd" Property="BorderThickness" Value="1"/>
-                            <Setter Property="Padding" Value="11,9"/> <!-- Adjust padding for border thickness -->
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
     </Style>
+
+    <!-- Polished ScrollBar Thumb -->
+    <Style x:Key="ScrollBarThumbStyle" TargetType="{x:Type Thumb}">
+        <Setter Property="OverridesDefaultStyle" Value="true"/>
+        <Setter Property="IsTabStop" Value="false"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Thumb}">
+                    <Border x:Name="rectangle"
+                            Background="#44FFFFFF"
+                            CornerRadius="4"
+                            Margin="2"/>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="true">
+                            <Setter TargetName="rectangle" Property="Background" Value="#88FFFFFF"/>
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="true">
+                            <Setter TargetName="rectangle" Property="Background" Value="#AAFFFFFF"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Modern ScrollBar -->
+    <Style TargetType="{x:Type ScrollBar}">
+        <Setter Property="Stylus.IsPressAndHoldEnabled" Value="false"/>
+        <Setter Property="Stylus.IsFlicksEnabled" Value="false"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Margin" Value="0"/>
+        <Setter Property="Width" Value="8"/>
+        <Setter Property="MinWidth" Value="8"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ScrollBar}">
+                    <Grid x:Name="Bg" SnapsToDevicePixels="true">
+                        <Track x:Name="PART_Track" IsDirectionReversed="true" IsEnabled="{TemplateBinding IsEnabled}">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton x:Name="PageUpButton" Command="{x:Static ScrollBar.PageUpCommand}" Opacity="0" Focusable="false"/>
+                            </Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton x:Name="PageDownButton" Command="{x:Static ScrollBar.PageDownCommand}" Opacity="0" Focusable="false"/>
+                            </Track.IncreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb Style="{StaticResource ScrollBarThumbStyle}"/>
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Orientation" Value="Horizontal">
+                            <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="false"/>
+                            <Setter Property="Width" Value="Auto"/>
+                            <Setter Property="MinWidth" Value="0"/>
+                            <Setter Property="Height" Value="8"/>
+                            <Setter Property="MinHeight" Value="8"/>
+                            <Setter TargetName="PageUpButton" Property="Command" Value="{x:Static ScrollBar.PageLeftCommand}"/>
+                            <Setter TargetName="PageDownButton" Property="Command" Value="{x:Static ScrollBar.PageRightCommand}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Global ScrollViewer -->
+    <Style TargetType="{x:Type ScrollViewer}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ScrollViewer}">
+                    <Grid x:Name="Grid" Background="Transparent">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <ScrollContentPresenter x:Name="PART_ScrollContentPresenter"
+                                                CanContentScroll="{TemplateBinding CanContentScroll}"
+                                                ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                Content="{TemplateBinding Content}"
+                                                Grid.Column="0" Grid.Row="0"
+                                                Margin="{TemplateBinding Padding}"
+                                                SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                        <ScrollBar x:Name="PART_VerticalScrollBar"
+                                   AutomationProperties.AutomationId="VerticalScrollBar"
+                                   Cursor="Arrow"
+                                   Grid.Column="1"
+                                   Maximum="{TemplateBinding ScrollableHeight}"
+                                   Minimum="0"
+                                   Grid.Row="0"
+                                   Visibility="{TemplateBinding ComputedVerticalScrollBarVisibility}"
+                                   Value="{Binding VerticalOffset, Mode=OneWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                   ViewportSize="{TemplateBinding ViewportHeight}"/>
+                        <ScrollBar x:Name="PART_HorizontalScrollBar"
+                                   AutomationProperties.AutomationId="HorizontalScrollBar"
+                                   Cursor="Arrow"
+                                   Grid.Column="0"
+                                   Maximum="{TemplateBinding ScrollableWidth}"
+                                   Minimum="0"
+                                   Orientation="Horizontal"
+                                   Grid.Row="1"
+                                   Visibility="{TemplateBinding ComputedHorizontalScrollBarVisibility}"
+                                   Value="{Binding HorizontalOffset, Mode=OneWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                   ViewportSize="{TemplateBinding ViewportWidth}"/>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>

@@ -191,13 +191,16 @@ namespace JarvisLauncher
 
                 string script;
                 string waitAndKill = $@"
+                    # Kill current process and any other Jarvis instances to prevent file locks
                     $currentId = {Process.GetCurrentProcess().Id};
+                    Get-Process -Name 'JarvisLauncher' -ErrorAction SilentlyContinue | Where-Object {{ $_.Id -ne $currentId }} | Stop-Process -Force;
+
                     $count = 0;
-                    while ((Get-Process -Id $currentId -ErrorAction SilentlyContinue) -and ($count -lt 30)) {{
+                    while ((Get-Process -Id $currentId -ErrorAction SilentlyContinue) -and ($count -lt 50)) {{
+                        Stop-Process -Id $currentId -Force -ErrorAction SilentlyContinue;
                         Start-Sleep -Milliseconds 100;
                         $count++;
                     }};
-                    if (Get-Process -Id $currentId -ErrorAction SilentlyContinue) {{ Stop-Process -Id $currentId -Force }};
                 ";
 
                 if (!freshBoot && !pullFirst)
@@ -210,16 +213,23 @@ namespace JarvisLauncher
                     bool isDev = System.IO.File.Exists(System.IO.Path.Combine(projectRoot, "JarvisLauncher.csproj"));
                     if (isDev)
                     {
-                        string gitPull = pullFirst ? "git pull origin main;" : "";
+                        // If it's a Git repo, we'll do a pull if requested, OR at least a fetch to see if we're behind
+                        string gitUpdate = pullFirst ? "git pull origin main;" : "if (Test-Path .git) { git fetch; }";
+
                         script = $@"
                             {waitAndKill}
                             Set-Location -Path '{projectRoot}';
-                            {gitPull}
+                            {gitUpdate}
+
+                            # Clean build to ensure fresh file alignment - Using the exact command requested
                             dotnet build -c Debug;
+
                             if ($LASTEXITCODE -eq 0) {{
-                                Start-Process '{projectRoot}\bin\Debug\net8.0-windows\JarvisLauncher.exe'
+                                Start-Process '{projectRoot}\JarvisLauncher.exe'
                             }} else {{
-                                dotnet run --no-build -c Debug
+                                # Fallback: notify user or try running without build
+                                Start-Process '{projectRoot}\JarvisLauncher.exe'
+                                Write-Error 'Rebuild failed, starting previous stable build.';
                             }}";
                     }
                     else

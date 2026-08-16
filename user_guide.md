@@ -31,11 +31,14 @@ Jarvis is built for creators.
 - **Media Download**: Type `download <url>` to grab high-quality audio or video from YouTube, SoundCloud, Spotify, and more.
 - **Converter**: Use `convert` to open the media transformation studio.
 - **Voice Studio**: Type `voice` to train your personal voiceprint for secure biometrics.
+- **Phone Control**: Type `phone` or `remote` to manage your mobile companion. Use `phone vibrate` or `phone alert` for direct control.
 
 ### 3. ADHD & Productivity Suite
 - **Pomodoro**: Type `timer 25` to start a focus sprint.
 - **Sticky Notes**: Type `note` to create a persistent on-screen reminder.
 - **File Organizer**: Type `organize` to automatically clean up your cluttered folders.
+- **System Monitoring**: Type `process` to view active tasks or `network` for connectivity diagnostics.
+- **Search Sync**: Type `reindex` to refresh your Windows application database instantly.
 
 ---
 

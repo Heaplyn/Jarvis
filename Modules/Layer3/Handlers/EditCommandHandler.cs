@@ -4,6 +4,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Windows;
 
 namespace JarvisLauncher
 {
@@ -19,36 +21,43 @@ namespace JarvisLauncher
         {
             var suggestions = new List<CommandResult>();
             query = query.Trim();
-            var parts = query.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+            var parts = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-            double similarity = SearchUtil.GetSimilarity(query.ToLower(), "edit");
+            double similarity = SearchUtil.GetSimilarity(parts.Length > 0 ? parts[0].ToLower() : "", "edit");
 
             if (parts.Length > 1)
             {
-                string targetFile = parts[1].Trim();
+                string targetPath = query.Substring(parts[0].Length).Trim().Trim('"', '\'');
+                bool isFolder = Directory.Exists(targetPath);
+
                 suggestions.Add(new CommandResult
                 {
-                    TITLE       = $"Edit: {targetFile}",
-                    DESCRIPTION = $"Open \"{targetFile}\" inside the built-in Jarvis Text Editor",
-                    SIMILARITY  = 2.0, // High priority match
-                    EXECUTE     = () => TextEditorOverlay.OpenFile(targetFile)
+                    TITLE       = isFolder ? $"📁 Open Workspace: {Path.GetFileName(targetPath)}" : $"Edit: {Path.GetFileName(targetPath)}",
+                    DESCRIPTION = isFolder ? $"Open folder \"{targetPath}\" as a project workspace" : $"Open \"{targetPath}\" inside the built-in Jarvis Text Editor",
+                    SIMILARITY  = 9.5,
+                    EXECUTE     = () => { if (isFolder) TextEditorOverlay.OpenWorkspace(targetPath); else TextEditorOverlay.OpenFile(targetPath); }
                 });
             }
             else
             {
                 suggestions.Add(new CommandResult
                 {
-                    TITLE       = "Edit File (Prompt)...",
-                    DESCRIPTION = "Type a custom file name to open in the Text Editor",
-                    SIMILARITY  = similarity + 0.8,
-                    EXECUTE     = () => InputPromptOverlay.Show("Enter file name to edit:", (fileName) => TextEditorOverlay.OpenFile(fileName))
+                    TITLE       = "📂 Open Project/Workspace...",
+                    DESCRIPTION = "Open a full directory and work on all files in Jarvis Code Studio",
+                    SIMILARITY  = similarity + 0.9,
+                    EXECUTE     = () => {
+                        Application.Current.Dispatcher.Invoke(() => {
+                            var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "Select Project Folder" };
+                            if (dlg.ShowDialog() == true) TextEditorOverlay.OpenWorkspace(dlg.FolderName);
+                        });
+                    }
                 });
 
                 suggestions.Add(new CommandResult
                 {
-                    TITLE       = "Browse Files...",
-                    DESCRIPTION = "Open a Windows file explorer dialog to select any file to edit",
-                    SIMILARITY  = similarity + 0.6,
+                    TITLE       = "📝 Edit Single File...",
+                    DESCRIPTION = "Browse and open a single source file",
+                    SIMILARITY  = similarity + 0.8,
                     EXECUTE     = () => TextEditorOverlay.PromptAndOpenFile()
                 });
 
@@ -63,5 +72,17 @@ namespace JarvisLauncher
 
             return suggestions;
         }
+
+        public List<CommandDesc> GetCommandDescriptions()
+        {
+            return new List<CommandDesc>
+            {
+                new CommandDesc("edit <path>", "Open a file or folder in AI Code Studio", "edit ."),
+                new CommandDesc("edit", "Browse and edit a single file", "edit"),
+                new CommandDesc("workspace", "Open a project directory", "edit C:\\projects\\jarvis")
+            };
+        }
+
+        public void OnStart() { }
     }
 }

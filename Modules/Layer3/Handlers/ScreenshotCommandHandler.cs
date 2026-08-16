@@ -52,7 +52,7 @@ namespace JarvisLauncher
         {
             try
             {
-                string path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Screenshots");
+                string path = Path.Combine(PathHandler.GetDataDirectory(), "Screenshots");
                 if (!Directory.Exists(path)) Directory.CreateDirectory(path);
                 System.Diagnostics.Process.Start("explorer.exe", path);
             }
@@ -74,12 +74,14 @@ namespace JarvisLauncher
                         g.CopyFromScreen(0, 0, 0, 0, bmp.Size);
                     }
 
-                    string picturesDir = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
+                    string screenshotsDir = Path.Combine(PathHandler.GetDataDirectory(), "Screenshots");
+                    if (!Directory.Exists(screenshotsDir)) Directory.CreateDirectory(screenshotsDir);
+
                     string filename = $"Screenshot_{DateTime.Now:yyyyMMdd_HHmmss}.png";
-                    string savePath = Path.Combine(picturesDir, filename);
+                    string savePath = Path.Combine(screenshotsDir, filename);
 
                     bmp.Save(savePath, ImageFormat.Png);
-                    TextOverlay.Show($"📸 Screenshot Saved:\n{filename}", 3500);
+                    TextOverlay.Show($"📸 Screenshot Saved to Data:\n{filename}", 3500);
                 }
             }
             catch (Exception ex)

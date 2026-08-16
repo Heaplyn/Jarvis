@@ -65,11 +65,21 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
         {
             return new List<CommandDesc>
             {
-                new CommandDesc("help", "Open Help & Documentation Center", "help"),
-                new CommandDesc("shortcuts", "View Global Keyboard Hotkey Shortcuts", "shortcuts"),
+                new CommandDesc("help", "Open Interactive Help & Documentation Hub", "help"),
                 new CommandDesc("guide", "Read the Master User Manual", "guide"),
-                new CommandDesc("manual", "Open Jarvis technical documentation", "manual"),
-                new CommandDesc("docs", "Browse system architecture and guides", "docs")
+                new CommandDesc("shortcuts", "View Global Keyboard Hotkey Cheat Sheet", "shortcuts"),
+                new CommandDesc("docs", "Browse system architecture and dev guides", "docs"),
+                new CommandDesc("commands", "Search the full system command directory", "commands"),
+                new CommandDesc("reindex", "Force refresh the Windows app database", "reindex"),
+                new CommandDesc("repair", "Auto-fix missing documentation files", "repair"),
+                new CommandDesc("llm", "Open AI Engine Studio", "llm"),
+                new CommandDesc("voice", "Configure acoustic training & TTS", "voice"),
+                new CommandDesc("process", "Open Advanced Process Manager", "process"),
+                new CommandDesc("network", "Run connectivity diagnostics", "network"),
+                new CommandDesc("specs", "View detailed hardware specifications", "specs"),
+                new CommandDesc("edit .", "Open current workspace in AI Code Studio", "edit ."),
+                new CommandDesc("push ai", "Stage, Commit & Push with AI messages", "push ai"),
+                new CommandDesc("ipa", "Compile project for iOS (IPA)", "ipa")
             };
         }
 

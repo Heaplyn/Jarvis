@@ -71,7 +71,7 @@ namespace JarvisLauncher
         public string ANTHROPIC_KEY { get; set; } = string.Empty;
         public string ANTHROPIC_MODEL { get; set; } = "claude-3-5-sonnet-20240620";
         public string GROQ_KEY { get; set; } = string.Empty;
-        public string GROQ_MODEL { get; set; } = "llama-3.1-70b-versatile";
+        public string GROQ_MODEL { get; set; } = "llama-3.3-70b-versatile";
         public string PERPLEXITY_KEY { get; set; } = string.Empty;
         public string PERPLEXITY_MODEL { get; set; } = "llama-3-sonar-large-32k-online";
         public string MISTRAL_KEY { get; set; } = string.Empty;
@@ -84,6 +84,13 @@ namespace JarvisLauncher
         public bool ENABLE_DUAL_LLM_COPILOT { get; set; } = false;
         public string DUAL_LLM_BACKEND { get; set; } = "Ollama";
         public string DUAL_LLM_MODEL { get; set; } = "deepseek-r1:7b";
+
+        // Editor Settings
+        public bool EDITOR_SHOW_LINE_NUMBERS { get; set; } = true;
+        public bool EDITOR_ENABLE_AI_AUTOCOMPLETE { get; set; } = true;
+        public bool EDITOR_AUTO_SAVE_ON_CLOSE { get; set; } = false;
+        public string EDITOR_FONT_FAMILY { get; set; } = "Consolas";
+        public double EDITOR_FONT_SIZE { get; set; } = 13.0;
 
         public string GOOGLE_OAUTH_CLIENT_ID { get; set; } = string.Empty;
         public string GOOGLE_OAUTH_CLIENT_SECRET { get; set; } = string.Empty;
@@ -132,6 +139,7 @@ namespace JarvisLauncher
         public int DEBUG_VERBOSITY_LEVEL { get; set; } = 1; // 0: None, 1: Minimal (Half), 2: Full
         public bool ENABLE_PC_CONTROL { get; set; } = true;
         public string OBSIDIAN_VAULT_PATH { get; set; } = string.Empty;
+        public bool MINIMIZE_TO_WIDGET { get; set; } = true;
     }
 
     public static class SettingsManager

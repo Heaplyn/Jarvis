@@ -15,6 +15,13 @@ namespace JarvisLauncher
         {
             themeName = themeName.Trim().ToLower();
 
+            // Reset background mode if it was forced to RGB by a previous theme
+            // (Unless it was manually set to Solid or Media in settings)
+            if (SettingsManager.Current.BACKGROUND_MODE == "RGB")
+            {
+                SettingsManager.Current.BACKGROUND_MODE = "Gradient";
+            }
+
             // Default: Purple Theme Accents
             string bgHex = "#FA1E1035"; 
             string borderHex = "#ffffffe6";
@@ -250,6 +257,419 @@ namespace JarvisLauncher
                     gradientEndHex = "#F205010B";
                     break;
 
+                case "rainbow":
+                case "rgb_dynamic":
+                    bgHex = "#F5050505";
+                    borderHex = "#FF00FFFF";
+                    caretHex = "#FFFFFF";
+                    hoverHex = "#22FFFFFF";
+                    selectedHex = "#4400FFFF";
+                    selectedBorderHex = "#FF00FFFF";
+                    gradientStartHex = "#F5101010";
+                    gradientEndHex = "#F5000000";
+                    SettingsManager.Current.BACKGROUND_MODE = "RGB"; // Force RGB mode for this theme
+                    break;
+
+                case "aurora":
+                case "northern_lights":
+                    bgHex = "#F5021008";
+                    borderHex = "#00FF9D";
+                    caretHex = "#70FF00";
+                    hoverHex = "#2200FF9D";
+                    selectedHex = "#44008E84";
+                    selectedBorderHex = "#00FF9D";
+                    gradientStartHex = "#F5082E1A";
+                    gradientEndHex = "#F5020804";
+                    break;
+
+                case "lava":
+                case "magma":
+                case "inferno":
+                    bgHex = "#F5150500";
+                    borderHex = "#FF4500";
+                    caretHex = "#FFD700";
+                    hoverHex = "#22FF4500";
+                    selectedHex = "#448B0000";
+                    selectedBorderHex = "#FF4500";
+                    gradientStartHex = "#F52E0A00";
+                    gradientEndHex = "#F50F0200";
+                    break;
+
+                case "cyber_glitch":
+                case "malfunction":
+                    bgHex = "#F50A0A0F";
+                    borderHex = "#00F2FF";
+                    caretHex = "#FF003C";
+                    hoverHex = "#1C00F2FF";
+                    selectedHex = "#33FF003C";
+                    selectedBorderHex = "#00F2FF";
+                    gradientStartHex = "#F5151525";
+                    gradientEndHex = "#F5050508";
+                    break;
+
+                case "nebula":
+                case "deep_space":
+                    bgHex = "#F8050015";
+                    borderHex = "#8A2BE2";
+                    caretHex = "#00BFFF";
+                    hoverHex = "#1C8A2BE2";
+                    selectedHex = "#334B0082";
+                    selectedBorderHex = "#8A2BE2";
+                    gradientStartHex = "#F80F0025";
+                    gradientEndHex = "#F802000A";
+                    break;
+
+                case "emerald_pulse":
+                    bgHex = "#F8000F05";
+                    borderHex = "#00FF41";
+                    caretHex = "#FFFFFF";
+                    hoverHex = "#1C00FF41";
+                    selectedHex = "#33003B0D";
+                    selectedBorderHex = "#00FF41";
+                    gradientStartHex = "#F800260B";
+                    gradientEndHex = "#F8000502";
+                    break;
+
+                case "iridescent":
+                case "opal":
+                    bgHex = "#F81A1A1A";
+                    borderHex = "#E0FFFF";
+                    caretHex = "#FF00FF";
+                    hoverHex = "#22FFFFFF";
+                    selectedHex = "#4400FFFF";
+                    selectedBorderHex = "#FF00FF";
+                    gradientStartHex = "#F82C2C2C";
+                    gradientEndHex = "#F80E0E0E";
+                    break;
+
+                case "solar_flare":
+                case "sun":
+                    bgHex = "#F81F0A00";
+                    borderHex = "#FFD700";
+                    caretHex = "#FF4500";
+                    hoverHex = "#22FFD700";
+                    selectedHex = "#44FF8C00";
+                    selectedBorderHex = "#FFD700";
+                    gradientStartHex = "#F83D1200";
+                    gradientEndHex = "#F80F0500";
+                    break;
+
+                case "abyssal":
+                case "deep_ocean":
+                    bgHex = "#F8000510";
+                    borderHex = "#0077BE";
+                    caretHex = "#00FFFF";
+                    hoverHex = "#1C0077BE";
+                    selectedHex = "#3300008B";
+                    selectedBorderHex = "#0077BE";
+                    gradientStartHex = "#F8000A25";
+                    gradientEndHex = "#F800020A";
+                    break;
+
+                case "glitch_wave":
+                    bgHex = "#F80A000F";
+                    borderHex = "#00FFDD";
+                    caretHex = "#FF00FF";
+                    hoverHex = "#2200FFDD";
+                    selectedHex = "#44FF00FF";
+                    selectedBorderHex = "#00FFDD";
+                    gradientStartHex = "#F8150025";
+                    gradientEndHex = "#F8050008";
+                    break;
+
+                case "spectrum":
+                case "prism":
+                    bgHex = "#F2050505";
+                    borderHex = "#FFFFFF";
+                    caretHex = "#00FFFF";
+                    hoverHex = "#33FFFFFF";
+                    selectedHex = "#55FFFFFF";
+                    selectedBorderHex = "#00FFFF";
+                    gradientStartHex = "#F21A1A1A";
+                    gradientEndHex = "#F2050505";
+                    SettingsManager.Current.BACKGROUND_MODE = "RGB";
+                    break;
+
+                case "midnight_neon":
+                    bgHex = "#F2020205";
+                    borderHex = "#39FF14";
+                    caretHex = "#FF00FF";
+                    hoverHex = "#2239FF14";
+                    selectedHex = "#44000000";
+                    selectedBorderHex = "#FF00FF";
+                    gradientStartHex = "#F2050510";
+                    gradientEndHex = "#F2010105";
+                    break;
+
+                case "frozen_fire":
+                    bgHex = "#F20A0515";
+                    borderHex = "#FF4500";
+                    caretHex = "#00FFFF";
+                    hoverHex = "#2200FFFF";
+                    selectedHex = "#44FF4500";
+                    selectedBorderHex = "#00FFFF";
+                    gradientStartHex = "#F210082E";
+                    gradientEndHex = "#F205020F";
+                    break;
+
+                case "quantum_flux":
+                case "matrix_cyan":
+                    bgHex = "#F8000A0A";
+                    borderHex = "#00FFDD";
+                    caretHex = "#00FF99";
+                    hoverHex = "#2200FFDD";
+                    selectedHex = "#44002222";
+                    selectedBorderHex = "#00FFDD";
+                    gradientStartHex = "#F8001A1A";
+                    gradientEndHex = "#F8000505";
+                    break;
+
+                case "hyper_neon":
+                    bgHex = "#F80A000A";
+                    borderHex = "#CC00FF";
+                    caretHex = "#00FFFF";
+                    hoverHex = "#22CC00FF";
+                    selectedHex = "#44220033";
+                    selectedBorderHex = "#CC00FF";
+                    gradientStartHex = "#F81A001A";
+                    gradientEndHex = "#F8050005";
+                    break;
+
+                case "plasma_core":
+                    bgHex = "#F805000F";
+                    borderHex = "#7F00FF";
+                    caretHex = "#E0B0FF";
+                    hoverHex = "#227F00FF";
+                    selectedHex = "#441A0033";
+                    selectedBorderHex = "#7F00FF";
+                    gradientStartHex = "#F80F0025";
+                    gradientEndHex = "#F802000A";
+                    break;
+
+                case "matrix_red":
+                case "blood_code":
+                    bgHex = "#F80A0000";
+                    borderHex = "#FF0000";
+                    caretHex = "#FF4500";
+                    hoverHex = "#22FF0000";
+                    selectedHex = "#44330000";
+                    selectedBorderHex = "#FF0000";
+                    gradientStartHex = "#F81A0000";
+                    gradientEndHex = "#F8050000";
+                    break;
+
+                case "hologram":
+                case "cyber_ghost":
+                    bgHex = "#CC0A1520";
+                    borderHex = "#00FFFF";
+                    caretHex = "#FFFFFF";
+                    hoverHex = "#1C00FFFF";
+                    selectedHex = "#3300FFFF";
+                    selectedBorderHex = "#00FFFF";
+                    gradientStartHex = "#CC152535";
+                    gradientEndHex = "#CC050A10";
+                    break;
+
+                case "supernova":
+                case "cosmic_blast":
+                    bgHex = "#F81A002A";
+                    borderHex = "#FF00FF";
+                    caretHex = "#FFD700";
+                    hoverHex = "#22FF00FF";
+                    selectedHex = "#444B0082";
+                    selectedBorderHex = "#FFD700";
+                    gradientStartHex = "#F82D004D";
+                    gradientEndHex = "#F80D0015";
+                    break;
+
+                case "electric_storm":
+                    bgHex = "#F800001A";
+                    borderHex = "#BF00FF";
+                    caretHex = "#00E5FF";
+                    hoverHex = "#22BF00FF";
+                    selectedHex = "#4400008B";
+                    selectedBorderHex = "#00E5FF";
+                    gradientStartHex = "#F800002E";
+                    gradientEndHex = "#F800000F";
+                    break;
+
+                case "vapor_wave":
+                case "retro_grid":
+                    bgHex = "#F50D011F";
+                    borderHex = "#FF00FF";
+                    caretHex = "#00FFFF";
+                    hoverHex = "#22FF00FF";
+                    selectedHex = "#4400FFFF";
+                    selectedBorderHex = "#FFFFFF";
+                    gradientStartHex = "#F522023F";
+                    gradientEndHex = "#F5080010";
+                    break;
+
+                case "toxic":
+                case "biohazard":
+                    bgHex = "#F5050F02";
+                    borderHex = "#CCFF00";
+                    caretHex = "#39FF14";
+                    hoverHex = "#22CCFF00";
+                    selectedHex = "#44003300";
+                    selectedBorderHex = "#CCFF00";
+                    gradientStartHex = "#F50A2605";
+                    gradientEndHex = "#F5020501";
+                    break;
+
+                case "monolith":
+                case "brutalist":
+                    bgHex = "#FF121212";
+                    borderHex = "#404040";
+                    caretHex = "#FFFFFF";
+                    hoverHex = "#33FFFFFF";
+                    selectedHex = "#55FFFFFF";
+                    selectedBorderHex = "#FFFFFF";
+                    gradientStartHex = "#FF1A1A1A";
+                    gradientEndHex = "#FF0A0A0A";
+                    break;
+
+                case "glitch_cyan":
+                case "cyber_vibe":
+                    bgHex = "#F8050A15";
+                    borderHex = "#00FFFF";
+                    caretHex = "#FF007F";
+                    hoverHex = "#1C00FFFF";
+                    selectedHex = "#44002222";
+                    selectedBorderHex = "#00FFFF";
+                    gradientStartHex = "#F80D1525";
+                    gradientEndHex = "#F802050A";
+                    break;
+
+                case "magma_flow":
+                    bgHex = "#F81A0500";
+                    borderHex = "#FF4500";
+                    caretHex = "#FFD700";
+                    hoverHex = "#22FF4500";
+                    selectedHex = "#44330000";
+                    selectedBorderHex = "#FF4500";
+                    gradientStartHex = "#F82E0A00";
+                    gradientEndHex = "#F80F0200";
+                    break;
+
+                case "emerald_city":
+                    bgHex = "#F8000F05";
+                    borderHex = "#00FF41";
+                    caretHex = "#00FF41";
+                    hoverHex = "#1C00FF41";
+                    selectedHex = "#33002205";
+                    selectedBorderHex = "#00FF41";
+                    gradientStartHex = "#F8001A08";
+                    gradientEndHex = "#F8000502";
+                    break;
+
+                case "royal_gold":
+                case "emperor":
+                    bgHex = "#F8151205";
+                    borderHex = "#FFD700";
+                    caretHex = "#FFD700";
+                    hoverHex = "#22FFD700";
+                    selectedHex = "#442A200B";
+                    selectedBorderHex = "#FFD700";
+                    gradientStartHex = "#F82A220B";
+                    gradientEndHex = "#F80C0903";
+                    break;
+
+                case "blood_moon":
+                case "eclipse":
+                    bgHex = "#F81A0000";
+                    borderHex = "#FF0000";
+                    caretHex = "#8B0000";
+                    hoverHex = "#22FF0000";
+                    selectedHex = "#44400000";
+                    selectedBorderHex = "#FF0000";
+                    gradientStartHex = "#F82D0000";
+                    gradientEndHex = "#F80A0000";
+                    break;
+
+                case "cyber_forest":
+                    bgHex = "#F804150A";
+                    borderHex = "#00FF41";
+                    caretHex = "#00FF41";
+                    hoverHex = "#2200FF41";
+                    selectedHex = "#33002612";
+                    selectedBorderHex = "#00FF41";
+                    gradientStartHex = "#F8082E1A";
+                    gradientEndHex = "#F8020804";
+                    break;
+
+                case "void_pulse":
+                case "singularity":
+                    bgHex = "#F8050010";
+                    borderHex = "#FFFFFF";
+                    caretHex = "#00FFFF";
+                    hoverHex = "#22FFFFFF";
+                    selectedHex = "#44101010";
+                    selectedBorderHex = "#FFFFFF";
+                    gradientStartHex = "#F8101010";
+                    gradientEndHex = "#F8000000";
+                    SettingsManager.Current.BACKGROUND_MODE = "RGB";
+                    break;
+
+                case "spectrum_shift":
+                case "rainbow_vibe":
+                    bgHex = "#F5050505";
+                    borderHex = "#FF00FF";
+                    caretHex = "#00FFFF";
+                    hoverHex = "#22FFFFFF";
+                    selectedHex = "#44FF00FF";
+                    selectedBorderHex = "#00FFFF";
+                    gradientStartHex = "#F5101010";
+                    gradientEndHex = "#F5000000";
+                    SettingsManager.Current.BACKGROUND_MODE = "RGB";
+                    break;
+
+                case "nebula_gas":
+                case "deep_purple":
+                    bgHex = "#F50A0015";
+                    borderHex = "#8A2BE2";
+                    caretHex = "#FF00FF";
+                    hoverHex = "#228A2BE2";
+                    selectedHex = "#444B0082";
+                    selectedBorderHex = "#8A2BE2";
+                    gradientStartHex = "#F51A002A";
+                    gradientEndHex = "#F505000A";
+                    break;
+
+                case "frozen_wasteland":
+                    bgHex = "#F5000A1A";
+                    borderHex = "#00FFFF";
+                    caretHex = "#E0FFFF";
+                    hoverHex = "#2200FFFF";
+                    selectedHex = "#4400008B";
+                    selectedBorderHex = "#00FFFF";
+                    gradientStartHex = "#F5001A2E";
+                    gradientEndHex = "#F500050F";
+                    break;
+
+                case "acid_burn":
+                case "toxic_waste":
+                    bgHex = "#F5050F00";
+                    borderHex = "#CCFF00";
+                    caretHex = "#CCFF00";
+                    hoverHex = "#22CCFF00";
+                    selectedHex = "#44003300";
+                    selectedBorderHex = "#CCFF00";
+                    gradientStartHex = "#F50A2600";
+                    gradientEndHex = "#F5020500";
+                    break;
+
+                case "obsidian_flow":
+                    bgHex = "#F8050505";
+                    borderHex = "#FF0000";
+                    caretHex = "#FFFFFF";
+                    hoverHex = "#22FF0000";
+                    selectedHex = "#44000000";
+                    selectedBorderHex = "#FF0000";
+                    gradientStartHex = "#F8101010";
+                    gradientEndHex = "#F8000000";
+                    break;
+
                 case "purple":
                 default:
                     // Keep default purple accents
@@ -349,8 +769,8 @@ namespace JarvisLauncher
                     gradient.StartPoint = new Point(0, 0);
                     gradient.EndPoint = new Point(1, 1);
 
-                    // Using semi-transparent colors for the RGB effect to ensure text readability
-                    byte alpha = 0x33; // ~20% opacity for a subtle glow effect
+                    // Increased alpha for better visibility (from 0x33 to 0xEE)
+                    byte alpha = 0xEE;
                     var stop1 = new GradientStop(Color.FromArgb(alpha, 255, 0, 0), 0.0);
                     var stop2 = new GradientStop(Color.FromArgb(alpha, 0, 255, 0), 0.5);
                     var stop3 = new GradientStop(Color.FromArgb(alpha, 0, 0, 255), 1.0);
