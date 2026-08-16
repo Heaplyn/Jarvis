@@ -53,6 +53,8 @@ namespace JarvisLauncher
             string prediction = PredictiveStreamManager.GetCurrentPrediction();
             prompt = $"[PREDICTIVE_STATE: {infoPass}]\n[AI_PREDICTION: {prediction}]\n\n" + prompt;
 
+            DebugConsoleOverlay.LogVerbose("LlmRouter", $"Full Prompt Context:\n{prompt}");
+
             string backend = SettingsManager.Current.LLM_BACKEND;
             bool isLocalLlmAvailable = await IsOllamaAvailableAsync();
 

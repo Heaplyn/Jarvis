@@ -25,6 +25,9 @@ namespace JarvisLauncher
         // Public Default OAuth2 Client IDs (Can be overridden by user settings)
         public const string DefaultGoogleClientId = "1092610474410-idgtl29cts68fq4vblaa3ibvuj09ph0t.apps.googleusercontent.com";
         public const string DefaultGithubClientId = "Ov23liXXXXXXXXXXXXXX";
+        public const string DefaultDiscordClientId = "123456789012345678";
+        public const string DefaultSpotifyClientId = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
+        public const string DefaultTwitchClientId = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
 
         /// <summary>
         /// Orchestrates the authentication check. Checks local tokens first, 
@@ -137,6 +140,82 @@ namespace JarvisLauncher
             bool ok = await ExchangeGithubCodeAsync(code, clientId, redirectUri);
             statusCallback?.Invoke(ok ? $"🟢 Connected: @{SettingsManager.Current.GITHUB_OAUTH_USER_LOGIN}" : "❌ GitHub token exchange failed.");
             return ok;
+        }
+
+        public static async Task<bool> LoginDiscordOAuth2Async(Action<string>? statusCallback = null)
+        {
+            string clientId = string.IsNullOrWhiteSpace(SettingsManager.Current.DISCORD_OAUTH_CLIENT_ID)
+                ? DefaultDiscordClientId
+                : SettingsManager.Current.DISCORD_OAUTH_CLIENT_ID;
+
+            int port = GetRandomUnusedPort();
+            string redirectUri = $"http://127.0.0.1:{port}/oauth/callback/";
+
+            statusCallback?.Invoke("🎮 Opening Discord authorization in browser...");
+
+            string authUrl = $"https://discord.com/api/oauth2/authorize?" +
+                             $"client_id={Uri.EscapeDataString(clientId)}&" +
+                             $"redirect_uri={Uri.EscapeDataString(redirectUri)}&" +
+                             $"response_type=code&" +
+                             $"scope={Uri.EscapeDataString("identify guilds")}";
+
+            string code = await ListenForAuthorizationCodeAsync(authUrl, redirectUri, "Discord");
+            if (string.IsNullOrEmpty(code))
+            {
+                statusCallback?.Invoke("⚠️ Discord login cancelled or timed out.");
+                return false;
+            }
+
+            statusCallback?.Invoke("⏳ Exchanging code for access token...");
+            bool ok = await ExchangeDiscordCodeAsync(code, clientId, redirectUri);
+            statusCallback?.Invoke(ok ? $"🟢 Connected: {SettingsManager.Current.DISCORD_USER_TAG}" : "❌ Discord token exchange failed.");
+            return ok;
+        }
+
+        public static async Task<bool> LoginSpotifyOAuth2Async(Action<string>? statusCallback = null)
+        {
+            string clientId = string.IsNullOrWhiteSpace(SettingsManager.Current.SPOTIFY_OAUTH_CLIENT_ID)
+                ? DefaultSpotifyClientId
+                : SettingsManager.Current.SPOTIFY_OAUTH_CLIENT_ID;
+
+            int port = GetRandomUnusedPort();
+            string redirectUri = $"http://127.0.0.1:{port}/oauth/callback/";
+
+            statusCallback?.Invoke("🎵 Opening Spotify authorization in browser...");
+
+            string authUrl = $"https://accounts.spotify.com/authorize?" +
+                             $"client_id={Uri.EscapeDataString(clientId)}&" +
+                             $"redirect_uri={Uri.EscapeDataString(redirectUri)}&" +
+                             $"response_type=code&" +
+                             $"scope={Uri.EscapeDataString("user-read-playback-state user-modify-playback-state user-read-currently-playing")}";
+
+            string code = await ListenForAuthorizationCodeAsync(authUrl, redirectUri, "Spotify");
+            if (string.IsNullOrEmpty(code)) return false;
+
+            return await ExchangeSpotifyCodeAsync(code, clientId, redirectUri);
+        }
+
+        public static async Task<bool> LoginTwitchOAuth2Async(Action<string>? statusCallback = null)
+        {
+            string clientId = string.IsNullOrWhiteSpace(SettingsManager.Current.TWITCH_OAUTH_CLIENT_ID)
+                ? DefaultTwitchClientId
+                : SettingsManager.Current.TWITCH_OAUTH_CLIENT_ID;
+
+            int port = GetRandomUnusedPort();
+            string redirectUri = $"http://127.0.0.1:{port}/oauth/callback/";
+
+            statusCallback?.Invoke("🟣 Opening Twitch authorization in browser...");
+
+            string authUrl = $"https://id.twitch.tv/oauth2/authorize?" +
+                             $"client_id={Uri.EscapeDataString(clientId)}&" +
+                             $"redirect_uri={Uri.EscapeDataString(redirectUri)}&" +
+                             $"response_type=code&" +
+                             $"scope={Uri.EscapeDataString("user:read:email channel:read:subscriptions")}";
+
+            string code = await ListenForAuthorizationCodeAsync(authUrl, redirectUri, "Twitch");
+            if (string.IsNullOrEmpty(code)) return false;
+
+            return await ExchangeTwitchCodeAsync(code, clientId, redirectUri);
         }
 
         /// <summary>
@@ -313,9 +392,25 @@ namespace JarvisLauncher
                 {
                     string json = await res.Content.ReadAsStringAsync();
                     using var doc = JsonDocument.Parse(json);
-                    if (doc.RootElement.TryGetProperty("email", out var email))
+                    var root = doc.RootElement;
+
+                    if (root.TryGetProperty("email", out var email))
                     {
                         SettingsManager.Current.GOOGLE_OAUTH_USER_EMAIL = email.GetString() ?? "";
+                    }
+
+                    // Extract more info to understand the user better
+                    if (root.TryGetProperty("name", out var name))
+                    {
+                        UserMemoryManager.AddFact($"User's full name is {name.GetString()}", "Identity", 1.0);
+                    }
+                    if (root.TryGetProperty("given_name", out var givenName))
+                    {
+                        UserMemoryManager.AddFact($"User prefers to be called {givenName.GetString()}", "Identity", 1.0);
+                    }
+                    if (root.TryGetProperty("locale", out var locale))
+                    {
+                        UserMemoryManager.AddFact($"User's preferred language/locale is {locale.GetString()}", "Preference", 0.7);
                     }
                 }
             }
@@ -364,6 +459,165 @@ namespace JarvisLauncher
                 DebugConsoleOverlay.Log("GitHub Token Exchange Error", ex.Message);
             }
             return false;
+        }
+
+        private static async Task<bool> ExchangeDiscordCodeAsync(string code, string clientId, string redirectUri)
+        {
+            try
+            {
+                string clientSecret = SettingsManager.Current.DISCORD_OAUTH_CLIENT_SECRET;
+                var values = new Dictionary<string, string>
+                {
+                    ["client_id"] = clientId,
+                    ["client_secret"] = clientSecret,
+                    ["grant_type"] = "authorization_code",
+                    ["code"] = code,
+                    ["redirect_uri"] = redirectUri
+                };
+
+                var content = new FormUrlEncodedContent(values);
+                var response = await _http.PostAsync("https://discord.com/api/oauth2/token", content);
+                string json = await response.Content.ReadAsStringAsync();
+
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("access_token", out var tok))
+                {
+                    SettingsManager.Current.DISCORD_OAUTH_ACCESS_TOKEN = tok.GetString() ?? "";
+                    if (doc.RootElement.TryGetProperty("refresh_token", out var refTok))
+                        SettingsManager.Current.DISCORD_OAUTH_REFRESH_TOKEN = refTok.GetString() ?? "";
+
+                    await FetchDiscordUserInfoAsync(SettingsManager.Current.DISCORD_OAUTH_ACCESS_TOKEN);
+                    SettingsManager.Save();
+                    return true;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        private static async Task<bool> ExchangeSpotifyCodeAsync(string code, string clientId, string redirectUri)
+        {
+            try
+            {
+                string clientSecret = SettingsManager.Current.SPOTIFY_OAUTH_CLIENT_SECRET;
+                var values = new Dictionary<string, string>
+                {
+                    ["grant_type"] = "authorization_code",
+                    ["code"] = code,
+                    ["redirect_uri"] = redirectUri,
+                    ["client_id"] = clientId,
+                    ["client_secret"] = clientSecret
+                };
+
+                var content = new FormUrlEncodedContent(values);
+                var response = await _http.PostAsync("https://accounts.spotify.com/api/token", content);
+                string json = await response.Content.ReadAsStringAsync();
+
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("access_token", out var tok))
+                {
+                    SettingsManager.Current.SPOTIFY_OAUTH_ACCESS_TOKEN = tok.GetString() ?? "";
+                    if (doc.RootElement.TryGetProperty("refresh_token", out var refTok))
+                        SettingsManager.Current.SPOTIFY_OAUTH_REFRESH_TOKEN = refTok.GetString() ?? "";
+
+                    await FetchSpotifyUserInfoAsync(SettingsManager.Current.SPOTIFY_OAUTH_ACCESS_TOKEN);
+                    SettingsManager.Save();
+                    return true;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        private static async Task<bool> ExchangeTwitchCodeAsync(string code, string clientId, string redirectUri)
+        {
+            try
+            {
+                string clientSecret = SettingsManager.Current.TWITCH_OAUTH_CLIENT_SECRET;
+                var values = new Dictionary<string, string>
+                {
+                    ["client_id"] = clientId,
+                    ["client_secret"] = clientSecret,
+                    ["code"] = code,
+                    ["grant_type"] = "authorization_code",
+                    ["redirect_uri"] = redirectUri
+                };
+
+                var content = new FormUrlEncodedContent(values);
+                var response = await _http.PostAsync("https://id.twitch.tv/oauth2/token", content);
+                string json = await response.Content.ReadAsStringAsync();
+
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("access_token", out var tok))
+                {
+                    SettingsManager.Current.TWITCH_OAUTH_ACCESS_TOKEN = tok.GetString() ?? "";
+                    await FetchTwitchUserInfoAsync(SettingsManager.Current.TWITCH_OAUTH_ACCESS_TOKEN);
+                    SettingsManager.Save();
+                    return true;
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        private static async Task FetchDiscordUserInfoAsync(string accessToken)
+        {
+            try
+            {
+                var req = new HttpRequestMessage(HttpMethod.Get, "https://discord.com/api/users/@me");
+                req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+                var res = await _http.SendAsync(req);
+                if (res.IsSuccessStatusCode)
+                {
+                    string json = await res.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(json);
+                    var root = doc.RootElement;
+                    string user = root.GetProperty("username").GetString() ?? "";
+                    string disc = root.TryGetProperty("discriminator", out var d) ? d.GetString() : "0";
+                    SettingsManager.Current.DISCORD_USER_TAG = disc == "0" ? user : $"{user}#{disc}";
+
+                    UserMemoryManager.AddFact($"User's Discord tag is {SettingsManager.Current.DISCORD_USER_TAG}", "Identity", 0.8);
+                }
+            }
+            catch { }
+        }
+
+        private static async Task FetchSpotifyUserInfoAsync(string accessToken)
+        {
+            try
+            {
+                var req = new HttpRequestMessage(HttpMethod.Get, "https://api.spotify.com/v1/me");
+                req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+                var res = await _http.SendAsync(req);
+                if (res.IsSuccessStatusCode)
+                {
+                    string json = await res.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(json);
+                    SettingsManager.Current.SPOTIFY_USER_NAME = doc.RootElement.GetProperty("display_name").GetString() ?? "";
+                    UserMemoryManager.AddFact($"User's Spotify name is {SettingsManager.Current.SPOTIFY_USER_NAME}", "Identity", 0.6);
+                }
+            }
+            catch { }
+        }
+
+        private static async Task FetchTwitchUserInfoAsync(string accessToken)
+        {
+            try
+            {
+                var req = new HttpRequestMessage(HttpMethod.Get, "https://api.twitch.tv/helix/users");
+                req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+                req.Headers.Add("Client-Id", string.IsNullOrWhiteSpace(SettingsManager.Current.TWITCH_OAUTH_CLIENT_ID) ? DefaultTwitchClientId : SettingsManager.Current.TWITCH_OAUTH_CLIENT_ID);
+
+                var res = await _http.SendAsync(req);
+                if (res.IsSuccessStatusCode)
+                {
+                    string json = await res.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(json);
+                    SettingsManager.Current.TWITCH_USER_NAME = doc.RootElement.GetProperty("data")[0].GetProperty("display_name").GetString() ?? "";
+                    UserMemoryManager.AddFact($"User's Twitch name is {SettingsManager.Current.TWITCH_USER_NAME}", "Identity", 0.6);
+                }
+            }
+            catch { }
         }
 
         private static async Task FetchGithubUserInfoAsync(string accessToken)
@@ -418,6 +672,29 @@ namespace JarvisLauncher
                 .Replace("+", "-")
                 .Replace("/", "_")
                 .Replace("=", "");
+        }
+
+        public static void SignOutTwitch()
+        {
+            SettingsManager.Current.TWITCH_OAUTH_ACCESS_TOKEN = string.Empty;
+            SettingsManager.Current.TWITCH_USER_NAME = string.Empty;
+            SettingsManager.Save();
+        }
+
+        public static void SignOutSpotify()
+        {
+            SettingsManager.Current.SPOTIFY_OAUTH_ACCESS_TOKEN = string.Empty;
+            SettingsManager.Current.SPOTIFY_OAUTH_REFRESH_TOKEN = string.Empty;
+            SettingsManager.Current.SPOTIFY_USER_NAME = string.Empty;
+            SettingsManager.Save();
+        }
+
+        public static void SignOutDiscord()
+        {
+            SettingsManager.Current.DISCORD_OAUTH_ACCESS_TOKEN = string.Empty;
+            SettingsManager.Current.DISCORD_OAUTH_REFRESH_TOKEN = string.Empty;
+            SettingsManager.Current.DISCORD_USER_TAG = string.Empty;
+            SettingsManager.Save();
         }
 
         public static void SignOutGoogle()

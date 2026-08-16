@@ -52,6 +52,16 @@ export function ensureYtDlpAndFfmpeg() {
 export function ensureAllDependencies() {
     ensureFlareSolverr();
     ensureYtDlpAndFfmpeg();
+
+    // Ensure node_modules are present
+    if (!fs.existsSync(path.join(__dirname, 'node_modules'))) {
+        console.log('📦 [SETUP] Installing local Node.js dependencies...');
+        try {
+            execSync('npm install', { cwd: __dirname, stdio: 'inherit' });
+        } catch (e) {
+            console.error('❌ [SETUP] Failed to install Node.js dependencies:', e.message);
+        }
+    }
 }
 
 // Support running directly via: node setup.js

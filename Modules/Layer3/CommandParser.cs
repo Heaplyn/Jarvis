@@ -318,25 +318,25 @@ namespace JarvisLauncher
                     if (Cd == null || string.IsNullOrWhiteSpace(Cd.COMMAND_NAME)) continue;
 
                     string CmdName = Cd.COMMAND_NAME.ToLower();
-                    string CmdNameNoSpaces = CmdName.Replace(" ", "").Replace("-", "");
                     string Example = (Cd.COMMAND_EXAMPLE ?? "").ToLower();
-                    string ExampleNoSpaces = Example.Replace(" ", "").Replace("-", "");
                     string Desc    = (Cd.COMMAND_DESCRIPTION ?? "").ToLower();
 
-                    // Enhanced matching: prefix, substring, acronym, word-boundary, description, & space-insensitive
-                    bool IsMatch = CmdName.StartsWith(LowerQuery)      || CmdNameNoSpaces.StartsWith(LowerNoSpaces) ||
-                                   Example.StartsWith(LowerQuery)      || ExampleNoSpaces.StartsWith(LowerNoSpaces) ||
-                                   CmdName.Contains(LowerQuery)        || CmdNameNoSpaces.Contains(LowerNoSpaces) ||
-                                   Desc.Contains(LowerQuery)           || Desc.Contains(LowerNoSpaces) ||
-                                   SearchUtil.IsAcronymMatch(LowerQuery, CmdName) ||
-                                   SearchUtil.IsClose(LowerQuery, CmdName) ||
-                                   SearchUtil.IsClose(LowerNoSpaces, CmdNameNoSpaces);
+                    // Calculate similarity for each field
+                    double nameSim = SearchUtil.GetSimilarity(LowerQuery, CmdName);
+                    double exSim   = SearchUtil.GetSimilarity(LowerQuery, Example);
+                    double descSim = SearchUtil.GetSimilarity(LowerQuery, Desc) * 0.8; // Penalty for description match
 
-                    if (IsMatch)
+                    // Space-insensitive fallbacks for Name and Example
+                    double nameSimNoSpace = SearchUtil.GetSimilarity(LowerNoSpaces, CmdName.Replace(" ", "").Replace("-", "")) * 0.9;
+                    double exSimNoSpace   = SearchUtil.GetSimilarity(LowerNoSpaces, Example.Replace(" ", "").Replace("-", "")) * 0.9;
+
+                    double finalSim = Math.Max(nameSim, Math.Max(exSim, Math.Max(descSim, Math.Max(nameSimNoSpace, exSimNoSpace))));
+
+                    // Acronym boost
+                    if (SearchUtil.IsAcronymMatch(LowerQuery, CmdName)) finalSim = Math.Max(finalSim, 4.0);
+
+                    if (finalSim > 0.45) // Threshold for relevance
                     {
-                        double Sim = SearchUtil.GetSimilarity(LowerQuery, CmdName);
-                        if (Sim < 1.0) Sim = (CmdName.StartsWith(LowerQuery) || CmdNameNoSpaces.StartsWith(LowerNoSpaces)) ? 4.5 : (Example.StartsWith(LowerQuery) ? 4.0 : 2.5);
-
                         // Avoid duplicates if specific handler already produced exact card
                         if (!Suggestions.Any(s => s.TITLE.IndexOf(Cd.COMMAND_NAME, StringComparison.OrdinalIgnoreCase) >= 0 || (!string.IsNullOrEmpty(Cd.COMMAND_EXAMPLE) && s.TITLE.IndexOf(Cd.COMMAND_EXAMPLE, StringComparison.OrdinalIgnoreCase) >= 0)))
                         {
@@ -345,7 +345,7 @@ namespace JarvisLauncher
                             {
                                 TITLE       = $"⚡ Command: {Cd.COMMAND_NAME}",
                                 DESCRIPTION = $"{Cd.COMMAND_DESCRIPTION} (Example: {Cd.COMMAND_EXAMPLE})",
-                                SIMILARITY  = Sim,
+                                SIMILARITY  = finalSim,
                                 EXECUTE     = () => ExecuteFirstSuggestion(RunTarget)
                             });
                         }
@@ -367,6 +367,15 @@ namespace JarvisLauncher
                 .Select(g => g.OrderByDescending(s => s.SIMILARITY).First())
                 .OrderByDescending(s => s.SIMILARITY)
                 .ToList();
+
+            if (SettingsManager.Current.VERBOSE_LOGGING && Deduped.Count > 0)
+            {
+                var SbDebug = new StringBuilder();
+                SbDebug.AppendLine($"Command Matching Results for '{Query}':");
+                foreach (var S in Deduped.Take(5))
+                    SbDebug.AppendLine($"- {S.TITLE} (Score: {S.SIMILARITY:F2})");
+                DebugConsoleOverlay.LogVerbose("Parser-Match", SbDebug.ToString());
+            }
 
             // 7. Last Resort: If no high-confidence command or app exists, suggest AI Chat
             if (!string.IsNullOrWhiteSpace(ExpandedQuery) && !Deduped.Any(s => s.SIMILARITY >= 8.0))
