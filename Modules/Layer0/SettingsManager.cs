@@ -78,6 +78,8 @@ namespace JarvisLauncher
         public string MISTRAL_MODEL { get; set; } = "mistral-large-latest";
         public string OPENROUTER_KEY { get; set; } = string.Empty;
         public string OPENROUTER_MODEL { get; set; } = "anthropic/claude-3.5-sonnet";
+        public string CUSTOM_DATA_PROCESSOR_PATH { get; set; } = string.Empty;
+        public bool ENABLE_CUSTOM_PROCESSOR { get; set; } = false;
 
         public bool ENABLE_DUAL_LLM_COPILOT { get; set; } = false;
         public string DUAL_LLM_BACKEND { get; set; } = "Ollama";
@@ -129,6 +131,7 @@ namespace JarvisLauncher
         public bool VERBOSE_LOGGING { get; set; } = false;
         public int DEBUG_VERBOSITY_LEVEL { get; set; } = 1; // 0: None, 1: Minimal (Half), 2: Full
         public bool ENABLE_PC_CONTROL { get; set; } = true;
+        public string OBSIDIAN_VAULT_PATH { get; set; } = string.Empty;
     }
 
     public static class SettingsManager

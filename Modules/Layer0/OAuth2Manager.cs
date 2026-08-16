@@ -79,7 +79,7 @@ namespace JarvisLauncher
                 : SettingsManager.Current.GOOGLE_OAUTH_CLIENT_ID;
 
             int port = GetRandomUnusedPort();
-            string redirectUri = $"http://127.0.0.1:{port}/oauth/callback/";
+            string redirectUri = $"http://127.importance: 0.importance: 0.1:{port}/oauth/callback/";
 
             // Generate PKCE Verifier and Challenge
             string codeVerifier = GeneratePkceVerifier();
@@ -120,7 +120,7 @@ namespace JarvisLauncher
                 : SettingsManager.Current.GITHUB_OAUTH_CLIENT_ID;
 
             int port = GetRandomUnusedPort();
-            string redirectUri = $"http://127.0.0.1:{port}/oauth/callback/";
+            string redirectUri = $"http://127.importance: 0.importance: 0.1:{port}/oauth/callback/";
 
             statusCallback?.Invoke("🐙 Opening GitHub authorization in browser...");
 
@@ -149,7 +149,7 @@ namespace JarvisLauncher
                 : SettingsManager.Current.DISCORD_OAUTH_CLIENT_ID;
 
             int port = GetRandomUnusedPort();
-            string redirectUri = $"http://127.0.0.1:{port}/oauth/callback/";
+            string redirectUri = $"http://127.importance: 0.importance: 0.1:{port}/oauth/callback/";
 
             statusCallback?.Invoke("🎮 Opening Discord authorization in browser...");
 
@@ -179,7 +179,7 @@ namespace JarvisLauncher
                 : SettingsManager.Current.SPOTIFY_OAUTH_CLIENT_ID;
 
             int port = GetRandomUnusedPort();
-            string redirectUri = $"http://127.0.0.1:{port}/oauth/callback/";
+            string redirectUri = $"http://127.importance: 0.importance: 0.1:{port}/oauth/callback/";
 
             statusCallback?.Invoke("🎵 Opening Spotify authorization in browser...");
 
@@ -202,7 +202,7 @@ namespace JarvisLauncher
                 : SettingsManager.Current.TWITCH_OAUTH_CLIENT_ID;
 
             int port = GetRandomUnusedPort();
-            string redirectUri = $"http://127.0.0.1:{port}/oauth/callback/";
+            string redirectUri = $"http://127.importance: 0.importance: 0.1:{port}/oauth/callback/";
 
             statusCallback?.Invoke("🟣 Opening Twitch authorization in browser...");
 
@@ -410,7 +410,7 @@ namespace JarvisLauncher
                     }
                     if (root.TryGetProperty("locale", out var locale))
                     {
-                        SemanticMemoryManager.AddMemory($"User's preferred language/locale is {locale.GetString()}", "Personal", "Preference", 0.7);
+                        SemanticMemoryManager.AddMemory($"User's preferred language/locale is {locale.GetString()}", "Personal", "Preference", importance: 0.7);
                     }
                 }
             }
@@ -479,6 +479,12 @@ namespace JarvisLauncher
                 var response = await _http.PostAsync("https://discord.com/api/oauth2/token", content);
                 string json = await response.Content.ReadAsStringAsync();
 
+                if (!response.IsSuccessStatusCode)
+                {
+                    DebugConsoleOverlay.Log("Discord Auth Error", $"Status: {response.StatusCode}\nBody: {json}");
+                    return false;
+                }
+
                 using var doc = JsonDocument.Parse(json);
                 if (doc.RootElement.TryGetProperty("access_token", out var tok))
                 {
@@ -488,10 +494,14 @@ namespace JarvisLauncher
 
                     await FetchDiscordUserInfoAsync(SettingsManager.Current.DISCORD_OAUTH_ACCESS_TOKEN);
                     SettingsManager.Save();
+                    DebugConsoleOverlay.Log("Discord Auth", "Token exchange successful.");
                     return true;
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                DebugConsoleOverlay.Log("Discord Auth Fatal", ex.Message);
+            }
             return false;
         }
 
@@ -513,6 +523,12 @@ namespace JarvisLauncher
                 var response = await _http.PostAsync("https://accounts.spotify.com/api/token", content);
                 string json = await response.Content.ReadAsStringAsync();
 
+                if (!response.IsSuccessStatusCode)
+                {
+                    DebugConsoleOverlay.Log("Spotify Auth Error", $"Status: {response.StatusCode}\nBody: {json}");
+                    return false;
+                }
+
                 using var doc = JsonDocument.Parse(json);
                 if (doc.RootElement.TryGetProperty("access_token", out var tok))
                 {
@@ -522,10 +538,14 @@ namespace JarvisLauncher
 
                     await FetchSpotifyUserInfoAsync(SettingsManager.Current.SPOTIFY_OAUTH_ACCESS_TOKEN);
                     SettingsManager.Save();
+                    DebugConsoleOverlay.Log("Spotify Auth", "Token exchange successful.");
                     return true;
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                DebugConsoleOverlay.Log("Spotify Auth Fatal", ex.Message);
+            }
             return false;
         }
 
@@ -547,16 +567,26 @@ namespace JarvisLauncher
                 var response = await _http.PostAsync("https://id.twitch.tv/oauth2/token", content);
                 string json = await response.Content.ReadAsStringAsync();
 
+                if (!response.IsSuccessStatusCode)
+                {
+                    DebugConsoleOverlay.Log("Twitch Auth Error", $"Status: {response.StatusCode}\nBody: {json}");
+                    return false;
+                }
+
                 using var doc = JsonDocument.Parse(json);
                 if (doc.RootElement.TryGetProperty("access_token", out var tok))
                 {
                     SettingsManager.Current.TWITCH_OAUTH_ACCESS_TOKEN = tok.GetString() ?? "";
                     await FetchTwitchUserInfoAsync(SettingsManager.Current.TWITCH_OAUTH_ACCESS_TOKEN);
                     SettingsManager.Save();
+                    DebugConsoleOverlay.Log("Twitch Auth", "Token exchange successful.");
                     return true;
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                DebugConsoleOverlay.Log("Twitch Auth Fatal", ex.Message);
+            }
             return false;
         }
 
@@ -576,7 +606,7 @@ namespace JarvisLauncher
                     string disc = root.TryGetProperty("discriminator", out var d) ? d.GetString() : "0";
                     SettingsManager.Current.DISCORD_USER_TAG = disc == "0" ? user : $"{user}#{disc}";
 
-                    SemanticMemoryManager.AddMemory($"User's Discord tag is {SettingsManager.Current.DISCORD_USER_TAG}", "Identity", 0.8);
+                    SemanticMemoryManager.AddMemory($"User's Discord tag is {SettingsManager.Current.DISCORD_USER_TAG}", "Identity", importance: 0.8);
                 }
             }
             catch { }
@@ -594,7 +624,7 @@ namespace JarvisLauncher
                     string json = await res.Content.ReadAsStringAsync();
                     using var doc = JsonDocument.Parse(json);
                     SettingsManager.Current.SPOTIFY_USER_NAME = doc.RootElement.GetProperty("display_name").GetString() ?? "";
-                    SemanticMemoryManager.AddMemory($"User's Spotify name is {SettingsManager.Current.SPOTIFY_USER_NAME}", "Personal", "Identity", 0.6);
+                    SemanticMemoryManager.AddMemory($"User's Spotify name is {SettingsManager.Current.SPOTIFY_USER_NAME}", "Personal", "Identity", importance: 0.6);
                 }
             }
             catch { }
@@ -614,7 +644,7 @@ namespace JarvisLauncher
                     string json = await res.Content.ReadAsStringAsync();
                     using var doc = JsonDocument.Parse(json);
                     SettingsManager.Current.TWITCH_USER_NAME = doc.RootElement.GetProperty("data")[0].GetProperty("display_name").GetString() ?? "";
-                    SemanticMemoryManager.AddMemory($"User's Twitch name is {SettingsManager.Current.TWITCH_USER_NAME}", "Personal", "Identity", 0.6);
+                    SemanticMemoryManager.AddMemory($"User's Twitch name is {SettingsManager.Current.TWITCH_USER_NAME}", "Personal", "Identity", importance: 0.6);
                 }
             }
             catch { }

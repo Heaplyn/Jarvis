@@ -36,8 +36,13 @@ The top-level shell of the application.
 
 ---
 
-## Best Practices for Development
-1. **Never Block the UI**: Always use `Task.Run` or `Dispatcher.BeginInvoke` for long-running operations like API calls or file I/O.
-2. **Layer Isolation**: Layer 0 should never depend on Layer 4. Keep core logic decoupled from the UI.
-3. **Fuzzy Searching**: Use `SearchUtil.GetSimilarity` when adding new commands to ensure they can be found easily.
-4. **Error Handling**: Use `DebugConsoleOverlay.Log` for system events. Use the **Verbose** level for raw data that might clutter the standard log.
+## File-Dependent Modular Execution
+Jarvis is intentionally built as a **File-Dependent (Modular)** system. Unlike monolithic applications, the `JarvisLauncher.exe` is a lightweight entry point that dynamically loads logic from the surrounding directory.
+
+### Structural Requirements
+- **DLL Dependencies**: All core libraries (Layer 0-3) are stored as external DLLs. 
+- **Resource Coupling**: Themes, Scripts, and AI Instructions must reside in their respective folders (`Themes/`, `Scripts/`, `Data/Instructions/`) for the HUD to function correctly.
+- **Development Flexibility**: This structure allows for real-time hot-swapping of modules and scripts without requiring a full application re-compile.
+
+### Data Isolation
+All user state and long-term memories are stored in the `Data/` folder. Deleting this folder will "reset" Jarvis's personality and understanding of the user.

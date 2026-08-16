@@ -40,6 +40,15 @@ namespace JarvisLauncher
         /// </summary>
         public static async Task<string> AskAsync(string prompt, List<ChatTurn>? history = null, CancellationToken ct = default)
         {
+            // 1. Try Local Heuristic Bypass first (Fast, Offline-Ready)
+            // This ensures common system commands work instantly without LLM dependency
+            string? localResult = await HeuristicIntentParser.TryHandleLocallyAsync(prompt);
+            if (localResult != null)
+            {
+                DebugConsoleOverlay.LogVerbose("LlmRouter", "Intent handled via Local Heuristics (Bypassed LLM).", isMinimal: true);
+                return localResult;
+            }
+
             // Sanitize incoming prompt to strip any old metadata tags if this is a recursive call
             prompt = AiAPI.SanitizeText(prompt);
 

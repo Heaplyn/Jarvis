@@ -273,6 +273,10 @@ namespace JarvisLauncher
 
             // 3. Handler suggestions (check both raw query and space-stripped query e.g. "pre cache" -> "precache")
             string NoSpacesQuery = ExpandedQuery.Replace(" ", "").Replace("-", "");
+
+            // 3a. Dynamic Skills (Higher priority than generic handlers)
+            try { Suggestions.AddRange(SkillManager.GetSkillSuggestions(ExpandedQuery)); } catch { }
+
             foreach (var (Type, Handler) in HANDLERS)
             {
                 try

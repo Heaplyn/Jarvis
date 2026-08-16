@@ -341,6 +341,44 @@ namespace JarvisLauncher
         }
 
         /// <summary>
+        /// Highly specific data processing via external binary with operation-level control.
+        /// </summary>
+        public static async Task<string> ProcessDataFineAsync(string mode, string op, string data)
+        {
+            try
+            {
+                if (!SettingsManager.Current.ENABLE_CUSTOM_PROCESSOR) return "Error: Custom processor disabled.";
+                string path = SettingsManager.Current.CUSTOM_DATA_PROCESSOR_PATH;
+                if (!File.Exists(path)) return "Error: Processor binary not found.";
+
+                TextOverlay.Show($"⚙️ Processing {mode.ToUpper()}: {op}...", 3000);
+
+                // Pass structure: [path] --mode [mode] --op [op] --data [data]
+                string args = $"--mode {mode} --op {op} --data \"{data.Replace("\"", "\\\"")}\"";
+
+                var psi = new ProcessStartInfo {
+                    FileName = path,
+                    Arguments = args,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using var proc = Process.Start(psi);
+                if (proc == null) return "Error: Start failed.";
+
+                string output = await proc.StandardOutput.ReadToEndAsync();
+                string error = await proc.StandardError.ReadToEndAsync();
+                proc.WaitForExit();
+
+                if (proc.ExitCode != 0) return $"Error ({proc.ExitCode}): {error}";
+                return output.Trim();
+            }
+            catch (Exception ex) { return $"Process Exception: {ex.Message}"; }
+        }
+
+        /// <summary>
         /// Searches package registries (NuGet, npm, PyPI, etc.) and returns structured data.
         /// </summary>
         public static async Task<string> SearchRegistryAsync(string type, string query)

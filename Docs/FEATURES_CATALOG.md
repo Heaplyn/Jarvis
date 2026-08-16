@@ -7,6 +7,7 @@ This document provides an exhaustive list of all major functional modules in Jar
 - **Agent Execution (`AgentExecutor`, `AutonomousAgentEngine`)**: Background agents that can execute shell scripts, read/write files, and perform system tasks.
 - **LLM Routing (`LlmRouter`)**: Supports Gemini (with Key Rotation), Anthropic, Groq, Mistral, Perplexity, OpenRouter, and local Ollama/P2P backends.
 - **Concise Shorthand Protocol**: Optimized `@rf`, `@wf`, `@ps` tags for faster AI-to-System communication.
+- **Custom Data Processor (@proc)**: A bridge for executing external logic in Python, Node.js, or C# ([API Guide](CUSTOM_PROCESSOR_API.md)).
 - **Autonomous Reflection**: Periodic background cycles where Jarvis reviews history and memory to suggest or perform proactive tasks.
 - **Context Management (`ContextOptimizer`, `EmotionalContextManager`)**: Dynamically prunes the system prompt based on user mood and project state.
 

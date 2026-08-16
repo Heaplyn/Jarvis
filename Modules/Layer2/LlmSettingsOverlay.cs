@@ -179,12 +179,38 @@ namespace JarvisLauncher
             _openRouterPanel.Children.Add(orKey);
 
             _openRouterPanel.Children.Add(CreateLabel("OpenRouter Model:"));
-            _openRouterModelCombo = CreateEditableComboBox(new[] { "anthropic/claude-3.5-sonnet", "google/gemini-pro-1.5", "meta-llama/llama-3.1-405b", "mistralai/mistral-large-2407" }, SettingsManager.Current.OPENROUTER_MODEL);
+            _openRouterModelCombo = CreateEditableComboBox(new[] { "anthropic/claude-3.5-sonnet", "google/gemini-pro-1.5", "meta-llama/llama-3.1-405b", "mistralai/mistral-large-2407", "nousresearch/hermes-3-llama-3.1-405b", "openchat/openchat-7b" }, SettingsManager.Current.OPENROUTER_MODEL);
             _openRouterModelCombo.SelectionChanged += (s, e) => SettingsManager.Current.OPENROUTER_MODEL = _openRouterModelCombo.Text;
             _openRouterModelCombo.LostFocus += (s, e) => SettingsManager.Current.OPENROUTER_MODEL = _openRouterModelCombo.Text;
             _openRouterPanel.Children.Add(_openRouterModelCombo);
 
             root.Children.Add(_openRouterPanel);
+
+            // ── Custom Processor Panel ────────────────────────────────────────────────
+            root.Children.Add(CreateHeader("⚙️ Custom Data Processor (Experimental)"));
+
+            var processorToggle = new CheckBox {
+                Content = "Enable External Data Processor (@proc)",
+                IsChecked = SettingsManager.Current.ENABLE_CUSTOM_PROCESSOR,
+                FontSize = 12,
+                Margin = new Thickness(0, 0, 0, 6)
+            };
+            processorToggle.SetResourceReference(CheckBox.ForegroundProperty, "TextPrimaryBrush");
+            processorToggle.Checked += (s, e) => { SettingsManager.Current.ENABLE_CUSTOM_PROCESSOR = true; SettingsManager.Save(); };
+            processorToggle.Unchecked += (s, e) => { SettingsManager.Current.ENABLE_CUSTOM_PROCESSOR = false; SettingsManager.Save(); };
+            root.Children.Add(processorToggle);
+
+            root.Children.Add(CreateLabel("Processor Path (.exe / .bat / .ps1):"));
+            var procPathBox = CreateTextBox(SettingsManager.Current.CUSTOM_DATA_PROCESSOR_PATH);
+            procPathBox.TextChanged += (s, e) => SettingsManager.Current.CUSTOM_DATA_PROCESSOR_PATH = procPathBox.Text.Trim();
+            root.Children.Add(procPathBox);
+
+            var browseProcBtn = CreateButton("📂 Browse for Processor...");
+            browseProcBtn.Click += (s, e) => {
+                var dlg = new Microsoft.Win32.OpenFileDialog();
+                if (dlg.ShowDialog() == true) procPathBox.Text = dlg.FileName;
+            };
+            root.Children.Add(browseProcBtn);
 
             // ── Ollama & Local LLM Panel ──────────────────────────────────────────────
             _ollamaPanel = new StackPanel();

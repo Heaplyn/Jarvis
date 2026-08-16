@@ -25,7 +25,7 @@ namespace JarvisLauncher
         {
             if (string.IsNullOrWhiteSpace(query)) return false;
             string q = query.Trim().ToLower().Split(' ')[0];
-            string[] verbs = { "sleep", "shutdown", "reboot", "restart", "lock", "wifi", "netstat", "specs", "md5", "sha256", "guid", "temp", "vol", "mute", "ping", "port", "wordcount", "res", "gmail", "json", "base64", "url", "lorem", "unix", "uptime", "battery", "gpu", "cpu", "whoami", "kill", "ip", "speedtest", "upper", "lower", "titlecase", "reverse", "sort", "unique", "weather", "stock", "crypto", "define", "news", "trash", "shred" };
+            string[] verbs = { "sleep", "shutdown", "reboot", "restart", "lock", "wifi", "netstat", "specs", "md5", "sha256", "guid", "temp", "vol", "mute", "ping", "port", "wordcount", "res", "gmail", "json", "base64", "url", "lorem", "unix", "uptime", "battery", "gpu", "cpu", "whoami", "kill", "ip", "speedtest", "upper", "lower", "titlecase", "reverse", "sort", "unique", "weather", "stock", "crypto", "define", "news", "trash", "shred", "process", "network", "translate", "analyze", "os" };
             return verbs.Any(v => q.StartsWith(v));
         }
 
@@ -37,6 +37,22 @@ namespace JarvisLauncher
             if (parts.Length == 0) return suggestions;
             string cmd = parts[0].ToLower();
             string arg = parts.Length > 1 ? raw.Substring(parts[0].Length).Trim() : "";
+
+            // ── Extra Requested Commands ─────────────────────────────────────────
+            if (cmd == "process" || cmd == "procs")
+                suggestions.Add(new CommandResult { TITLE = "📊 Process Manager", DESCRIPTION = "Open visual task manager with resource usage", EXECUTE = () => CommandParser.ExecuteFirstSuggestion("procs"), SIMILARITY = 5.0 });
+
+            if (cmd == "network" || cmd == "netstat")
+                suggestions.Add(new CommandResult { TITLE = "📶 Network Diagnostics", DESCRIPTION = "Show active connections and interface stats", EXECUTE = () => CommandParser.ExecuteFirstSuggestion("diagnostics"), SIMILARITY = 5.0 });
+
+            if (cmd == "translate" && !string.IsNullOrEmpty(arg))
+                suggestions.Add(new CommandResult { TITLE = $"🌍 Translate: {arg}", DESCRIPTION = "Use AI to translate clipboard text", EXECUTE = async () => { string t = Clipboard.GetText(); string res = await LlmRouter.AskAsync($"Translate this to {arg}: {t}"); CliOutputOverlay.Show("Translation", res); }, SIMILARITY = 4.5 });
+
+            if (cmd == "analyze" && !string.IsNullOrEmpty(arg))
+                suggestions.Add(new CommandResult { TITLE = $"🧠 Analyze: {Path.GetFileName(arg)}", DESCRIPTION = "Perform deep AI analysis on file content", EXECUTE = async () => { if (File.Exists(arg)) { string c = File.ReadAllText(arg); string res = await LlmRouter.AskAsync($"Perform a deep technical analysis of this file:\n\n{c}"); CliOutputOverlay.Show("Deep Analysis", res); } }, SIMILARITY = 4.5 });
+
+            if (cmd == "os")
+                suggestions.Add(new CommandResult { TITLE = "🖥️ JarvisOS Info", DESCRIPTION = "Show information about the active OS development project", EXECUTE = () => { string root = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\JarvisOS")); if (Directory.Exists(root)) TextOverlay.Show($"JarvisOS Project detected at {root}", 4000); else TextOverlay.Show("JarvisOS project folder not found.", 3000); }, SIMILARITY = 5.0 });
 
             // ── 1. GMAIL & WEB SCRAPING ──────────────────────────────────────────
             if (cmd == "gmail")

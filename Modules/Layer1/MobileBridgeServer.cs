@@ -55,8 +55,7 @@ namespace JarvisLauncher
 
                     LogToFile($"Server LIVE on all interfaces at port {PortParam}.");
 
-                    Application.Current.Dispatcher.Invoke(() =>
-                        ChatOverlay.LogConsoleAction("Mobile Server Active", $"Listening on port {PortParam} (Dual-Stack TCP)"));
+                    // Removed ChatOverlay.LogConsoleAction from here to keep the Chat Console focused on AI actions only.
 
                     while (IsRunningInternal && Listener != null)
                     {
