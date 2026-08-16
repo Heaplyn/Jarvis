@@ -1,65 +1,55 @@
-# Core build artifacts (Recursive)
 **/bin/
 **/obj/
 **/publish/
-bin/
-obj/
-publish/
-
-# --- ROOT BUILD ARTIFACTS ---
-# Added because OutputPath is set to root folder
-JarvisLauncher.exe
-JarvisLauncher.dll
-JarvisLauncher.deps.json
-JarvisLauncher.runtimeconfig.json
-JarvisLauncher.pdb
-*.dll
-*.exe
-*.pdb
-
-# --- JARVIS RUNTIME DATA & CACHES ---
-# Ignore all dynamic data but keep the folder structure if needed via .gitkeep
-Data/*
-!Data/.gitkeep
-
-# Explicitly ignore large ML models & voice packs
-**/Data/Models/
-**/Data/TtsVoices/
-**/Data/Training/
-**/Data/Conversations/
-**/Data/Sounds/
-**/Data/Tools/
-apptoipa.exe
-
-# Local configuration & credentials
 **/SystemSettings.json
 SystemSettings.json
 **/jarvis_debug.log
 **/boot_debug.log
 *.log
-
-# Visual Studio / VS Code
-.vs/
-.vscode/
-*.user
-*.suo
-*.userosscache
-*.sln.docstates
-
-# OS files
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# Node.js dependencies and outputs
+*.exe
+*.dll
+*.pdb
 **/node_modules/
 node_modules/
 **/downloads/
 downloads/
 **/dist/
 dist/
-
-# FlareSolverr / Browser caches
 **/flaresolverr/
+**/Data/Models/
+**/Data/TtsVoices/
+**/Data/Training/
+**/Data/Conversations/
+**/Data/Sounds/
+**/Data/Tools/
+**/Data/*
+**/vs/
+**/vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+apptoipa.exe
+JarvisLauncher.exe
+JarvisLauncher.csproj
+JarvisLauncher.deps.json
+JarvisLauncher.dll
+JarvisLauncher.pdb
+JarvisLauncher.runtimeconfig.json
+libgcc_s_seh-1.dll
+libstdc++-6.dll
+libvosk.dll
+libwinpthread-1.dll
+*.dll
+*.exe
+*.pdb
+*.log
+*.json
 **/debug_before_click.png
 **/debug_error.png
+**/SystemSettings.json
+**/jarvis_debug.log
+**/boot_debug.log

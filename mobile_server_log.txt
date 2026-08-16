@@ -452,3 +452,10 @@
 8/16/2026 9:08:21 AM: Accept error: The I/O operation has been aborted because of either a thread exit or an application request.
 8/16/2026 9:08:21 AM: Server LIVE on all interfaces at port 9000.
 8/16/2026 9:08:21 AM: Accept error: Not listening. You must call the Start() method before calling this method.
+8/16/2026 9:10:38 AM: Request: GET / from [::ffff:127.0.0.1]:51710
+8/16/2026 9:10:38 AM: Request: GET /api/stats from [::ffff:127.0.0.1]:51712
+8/16/2026 9:10:39 AM: Request: GET /favicon.ico from [::ffff:127.0.0.1]:51713
+8/16/2026 9:10:44 AM: Request: GET /api/stats from [::ffff:127.0.0.1]:51718
+8/16/2026 9:10:44 AM: Request: GET /api/screen/analyze from [::ffff:127.0.0.1]:51719
+8/16/2026 9:10:48 AM: Request: GET /api/stats from [::ffff:127.0.0.1]:51722
+8/16/2026 9:10:53 AM: Request: GET /api/stats from [::ffff:127.0.0.1]:51728
