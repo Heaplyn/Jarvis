@@ -11,8 +11,8 @@ dotnet clean
 echo.
 
 echo ⚙️ Building Jarvis Launcher...
-dotnet build
+dotnet build -c Debug
 echo.
 
 echo 🚀 Launching Jarvis HUD background service...
-dotnet run --no-build
+dotnet run 

@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using JarvisLauncher.Modules.Layer3.Handlers;
 
 using CommandDictType = System.Tuple<string, JarvisLauncher.ICommandHandler>;
@@ -84,7 +85,9 @@ namespace JarvisLauncher
         TEMPLATE,
         TEACHER,
         UNINSTALL,
-        WEB_OP
+        WEB_OP,
+        DATABASE,
+        BUILD
     };
 
     public static class CommandParser
@@ -145,6 +148,7 @@ namespace JarvisLauncher
             RegisterHandler(CommandType.STICKY_NOTE, "Visual Desktop Sticky Notes widget", () => new StickyNotesCommandHandler());
             RegisterHandler(CommandType.GAME_DEV_TOOLBOX, "Roblox Studio and Blender developer utilities dashboard", () => new GameDevToolboxCommandHandler());
             RegisterHandler(CommandType.FFMPEG, "FFmpeg video, audio, GIF, and media processing tools", () => new FFMpegCommandHandler());
+            RegisterHandler(CommandType.BUILD, "Universal build and compilation studio", () => new BuildCommandHandler());
             RegisterHandler(CommandType.MCP, "Model Context Protocol (MCP) server registry studio and tools", () => new McpCommandHandler());
             RegisterHandler(CommandType.OAUTH2, "Manage OAuth2 authentication credentials", () => new OAuth2CommandHandler());
             RegisterHandler(CommandType.CODE_ASSIST, "Real-time AI screen and workspace file coding assistance sidebar", () => new CodeAssistCommandHandler());
@@ -171,6 +175,7 @@ namespace JarvisLauncher
             RegisterHandler(CommandType.TEACHER, "Interactive programming assistance teacher", () => new TeacherCommandHandler());
             RegisterHandler(CommandType.UNINSTALL, "Uninstall packages or remove Jarvis", () => new UninstallCommandHandler());
             RegisterHandler(CommandType.WEB_OP, "Download, scrape, or search the web", () => new WebOperationCommandHandler());
+            RegisterHandler(CommandType.DATABASE, "Manage system memory and databases", () => new DatabaseCommandHandler());
         }
 
         private static void RegisterHandler(CommandType Type, string Description, Func<ICommandHandler> Factory)
@@ -567,8 +572,13 @@ namespace JarvisLauncher
             });
         }
 
+        private static List<CommandDesc> _cachedAllCommandDescriptions = new List<CommandDesc>();
+        private static bool _descriptionsCached = false;
+
         public static List<CommandDesc> GetAllCommandDescriptions()
         {
+            if (_descriptionsCached) return _cachedAllCommandDescriptions;
+
             var Descs = new List<CommandDesc>();
             var SeenCommands = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -610,6 +620,21 @@ namespace JarvisLauncher
                 }
             }
 
+            // 7. Add Plugin Commands
+            try
+            {
+                foreach (var pc in JarvisPluginManager.GetAllPluginCommands())
+                {
+                    if (pc != null && SeenCommands.Add(pc.COMMAND_NAME))
+                    {
+                        Descs.Add(pc);
+                    }
+                }
+            }
+            catch { }
+
+            _cachedAllCommandDescriptions = Descs;
+            _descriptionsCached = true;
             return Descs;
         }
 
@@ -721,6 +746,12 @@ namespace JarvisLauncher
 
         public static void Initialize()
         {
+            // First initialize core plugins if any (optional)
+            JarvisPluginManager.Initialize();
+
+            // PRE-CACHE descriptions to avoid UI lag during first search
+            Task.Run(() => GetAllCommandDescriptions());
+
             foreach (var (Type, Handler) in HANDLERS)
             {
                 try

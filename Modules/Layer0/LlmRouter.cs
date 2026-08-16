@@ -34,84 +34,78 @@ namespace JarvisLauncher
             }
         }
 
-        /// <summary>
-        /// Route a prompt to the configured LLM backend.
-        /// Falls back to Gemini or local Ollama if offline.
-        /// </summary>
         public static async Task<string> AskAsync(string prompt, List<ChatTurn>? history = null, CancellationToken ct = default)
         {
-            // 1. Try Local Heuristic Bypass first (Fast, Offline-Ready)
-            // This ensures common system commands work instantly without LLM dependency
+            // 1. Try Local Heuristic Bypass first
             string? localResult = await HeuristicIntentParser.TryHandleLocallyAsync(prompt);
-            if (localResult != null)
-            {
-                DebugConsoleOverlay.LogVerbose("LlmRouter", "Intent handled via Local Heuristics (Bypassed LLM).", isMinimal: true);
-                return localResult;
-            }
+            if (localResult != null) return localResult;
 
-            // Sanitize incoming prompt to strip any old metadata tags if this is a recursive call
             prompt = AiAPI.SanitizeText(prompt);
 
             string contextSummary = BackgroundContextManager.GetActiveContextSummary();
-            if (!string.IsNullOrEmpty(contextSummary))
-            {
-                prompt = $"[Active Workspace Context: {contextSummary}]\n\n" + prompt;
-            }
+            if (!string.IsNullOrEmpty(contextSummary)) prompt = $"[Active Workspace Context: {contextSummary}]\n\n" + prompt;
 
-            // INJECT PREDICTIVE PASS
             string infoPass = PredictiveStreamManager.GetInfoPass();
             string prediction = PredictiveStreamManager.GetCurrentPrediction();
             prompt = $"[PREDICTIVE_STATE: {infoPass}]\n[AI_PREDICTION: {prediction}]\n\n" + prompt;
 
-            DebugConsoleOverlay.LogVerbose("LlmRouter", $"Full Prompt Context:\n{prompt}", isMinimal: false);
-
-            string backend = SettingsManager.Current.LLM_BACKEND;
+            string primaryBackend = SettingsManager.Current.LLM_BACKEND;
             bool isLocalLlmAvailable = await IsOllamaAvailableAsync();
 
-            // Detect if internet is disconnected, and automatically resort to local LLM to avoid online dependency
-            if (!OfflineCacheManager.IsInternetAvailable() && isLocalLlmAvailable)
-            {
-                DebugConsoleOverlay.Log("LlmRouter Offline", "Internet disconnected, but local Ollama is active. Auto-resorting to offline local LLM.");
-                try { return await AskOllamaAsync(prompt, history); } catch { }
-            }
+            // --- LLM FAILOVER CHAIN (TIERED) ---
+            var failoverChain = new List<string> { primaryBackend, "Groq", "Gemini", "Ollama" };
+            failoverChain = failoverChain.Distinct().ToList();
 
-            try
+            string lastError = "";
+
+            foreach (var backend in failoverChain)
             {
-                if (backend == "Gemini" && !OfflineCacheManager.CanUseGemini())
+                try
                 {
-                    if (isLocalLlmAvailable)
+                    // Validation checks before attempting backend
+                    if (backend == "Ollama" && !isLocalLlmAvailable) continue;
+                    if (backend == "Gemini" && !OfflineCacheManager.CanUseGemini()) continue;
+                    if (backend == "Groq" && string.IsNullOrEmpty(SettingsManager.Current.GROQ_KEY)) continue;
+
+                    DebugConsoleOverlay.LogVerbose("LlmRouter", $"Attempting AI backend: {backend}", isMinimal: true);
+                    return await CallBackendAsync(backend, prompt, history, ct);
+                }
+                catch (Exception ex)
+                {
+                    if (ex is OperationCanceledException) throw;
+
+                    lastError = ex.Message;
+                    DebugConsoleOverlay.Log("LlmRouter", $"{backend} failed: {ex.Message}. Rotating to fallback...");
+
+                    // Smart Groq handling: If we hit a rate limit, try the ultra-fast 8B model instead of 70B
+                    if (backend == "Groq" && ex.Message.Contains("rate_limit_exceeded"))
                     {
-                        DebugConsoleOverlay.Log("LlmRouter Offline", "Gemini offline or key missing. Auto-routing query to Ollama local model.");
-                        return await AskOllamaAsync(prompt, history, ct);
+                        try {
+                            DebugConsoleOverlay.Log("LlmRouter", "Groq overload. Trying ultra-fast 8B model...");
+                            return await AskGenericOpenAICompatibleAsync("https://api.groq.com/openai/v1", SettingsManager.Current.GROQ_KEY, "llama-3.1-8b-instant", prompt, history, ct);
+                        } catch { }
                     }
                 }
-
-                return backend switch
-                {
-                    "OpenAI"     => await AskOpenAIAsync(prompt, history, ct),
-                    "Anthropic"  => await AskAnthropicAsync(prompt, history, ct),
-                    "Groq"       => await AskGroqAsync(prompt, history, ct),
-                    "Perplexity" => await AskPerplexityAsync(prompt, history, ct),
-                    "Mistral"    => await AskMistralAsync(prompt, history, ct),
-                    "OpenRouter" => await AskOpenRouterAsync(prompt, history, ct),
-                    "Ollama"     => await AskOllamaAsync(prompt, history, ct),
-                    "Custom"     => await AskCustomAsync(prompt, history, ct),
-                    "P2P"        => await JarvisP2PClient.AskBestPeerAsync(prompt, history),
-                    _            => await AiAPI.AskGemini(prompt, history, ct)
-                };
             }
-            catch (Exception ex)
+
+            return $"⚠️ LLM ENGINE ERROR: All providers exhausted.\nLast error: {lastError}";
+        }
+
+        private static async Task<string> CallBackendAsync(string backend, string prompt, List<ChatTurn>? history, CancellationToken ct)
+        {
+            return backend switch
             {
-                if (ex is OperationCanceledException) throw;
-
-                ChatOverlay.LogConsoleAction("LlmRouter Fallback", $"{backend} failed: {ex.Message}. Falling back to Ollama local model.");
-                if (isLocalLlmAvailable)
-                {
-                    try { return await AskOllamaAsync(prompt, history, ct); }
-                    catch { }
-                }
-                return $"⚠️ LLM Error ({backend}): {ex.Message}";
-            }
+                "OpenAI"     => await AskOpenAIAsync(prompt, history, ct),
+                "Anthropic"  => await AskAnthropicAsync(prompt, history, ct),
+                "Groq"       => await AskGroqAsync(prompt, history, ct),
+                "Perplexity" => await AskPerplexityAsync(prompt, history, ct),
+                "Mistral"    => await AskMistralAsync(prompt, history, ct),
+                "OpenRouter" => await AskOpenRouterAsync(prompt, history, ct),
+                "Ollama"     => await AskOllamaAsync(prompt, history, ct),
+                "Custom"     => await AskCustomAsync(prompt, history, ct),
+                "P2P"        => await JarvisP2PClient.AskBestPeerAsync(prompt, history),
+                _            => await AiAPI.AskGemini(prompt, history, ct)
+            };
         }
 
         // ── Anthropic (Claude) ──────────────────────────────────────────────────
@@ -158,7 +152,18 @@ namespace JarvisLauncher
             var s = SettingsManager.Current;
             if (string.IsNullOrEmpty(s.GROQ_KEY)) throw new Exception("Groq API key not set.");
 
-            return await AskGenericOpenAICompatibleAsync("https://api.groq.com/openai/v1", s.GROQ_KEY, s.GROQ_MODEL, prompt, history, ct);
+            // Self-Healing: Auto-correct decommissioned models
+            if (s.GROQ_MODEL == "llama-3.1-70b-versatile")
+            {
+                s.GROQ_MODEL = "llama-3.3-70b-versatile";
+                SettingsManager.Save();
+                DebugConsoleOverlay.Log("Groq-Heal", "Auto-updated decommissioned model to llama-3.3-70b-versatile");
+            }
+
+            // Use the configured model from settings
+            string model = string.IsNullOrEmpty(s.GROQ_MODEL) ? "llama-3.3-70b-versatile" : s.GROQ_MODEL;
+
+            return await AskGenericOpenAICompatibleAsync("https://api.groq.com/openai/v1", s.GROQ_KEY, model, prompt, history, ct);
         }
 
         // ── Perplexity (Online Search AI) ─────────────────────────────────────────

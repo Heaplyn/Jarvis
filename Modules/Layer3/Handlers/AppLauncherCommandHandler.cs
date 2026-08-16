@@ -15,6 +15,8 @@ namespace JarvisLauncher
             if (string.IsNullOrWhiteSpace(query)) return false;
             string q = query.Trim().ToLower();
 
+            if (q == "index apps" || q == "reindex" || q == "refresh apps") return true;
+
             // Do not catch plain conversational English sentences
             if (q.Split(' ').Length > 3 && !q.Contains(":\\") && !q.Contains("/") && !q.Contains("."))
                 return false;
@@ -26,6 +28,23 @@ namespace JarvisLauncher
         public List<CommandResult> GetSuggestions(string query)
         {
             var suggestions = new List<CommandResult>();
+            string q = query.Trim().ToLower();
+
+            if (q == "index apps" || q == "reindex" || q == "refresh apps")
+            {
+                suggestions.Add(new CommandResult
+                {
+                    TITLE = "🔄 Re-Index Windows Applications",
+                    DESCRIPTION = "Force a full scan of installed apps and Start Menu shortcuts",
+                    SIMILARITY = 8.0,
+                    EXECUTE = () => {
+                        TextOverlay.Show("🔄 Re-indexing system applications...", 3000);
+                        System.Threading.Tasks.Task.Run(() => WindowsAppScanner.IndexApplications(force: true));
+                    }
+                });
+                return suggestions;
+            }
+
             query = query.Trim();
 
             suggestions.Add(new CommandResult

@@ -1,11 +1,13 @@
 // Developer: heaplyn
-// Date: 2026-08-13
+// Date: 2026-08-16
 // Summary: Command handler for LLM settings, Hugging Face Hub Model Grabber, local LLM installers, & model pulls.
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace JarvisLauncher
 {
@@ -19,7 +21,7 @@ namespace JarvisLauncher
                    query == "huggingface" || query == "hf" || query == "grabmodel" || query == "downloadhf" ||
                    query == "installllm" || query == "installollama" || query == "installlmstudio" ||
                    query.StartsWith("install ") || query.StartsWith("pull ") ||
-                   query.StartsWith("llm ");
+                   query.StartsWith("llm ") || query == "test keys" || query == "check keys";
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -28,6 +30,18 @@ namespace JarvisLauncher
             string trimmed = query.Trim();
             string lower = trimmed.ToLower();
             var parts = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            if (lower == "test keys" || lower == "check keys")
+            {
+                suggestions.Add(new CommandResult
+                {
+                    TITLE = "🔑 Test Gemini API Keys Pool",
+                    DESCRIPTION = "Verify status (Active/Blocked/Quota) for all configured keys",
+                    SIMILARITY = 9.0,
+                    EXECUTE = () => TestApiKeysPool()
+                });
+                return suggestions;
+            }
 
             if (lower == "huggingface" || lower == "hf" || lower == "grabmodel" || lower == "downloadhf")
             {
@@ -124,14 +138,6 @@ namespace JarvisLauncher
 
             suggestions.Add(new CommandResult
             {
-                TITLE = "🤗 Open Hugging Face Model Hub & Internet Grabber",
-                DESCRIPTION = "Live search Hugging Face GGUF models, 1-click grab repos from the internet",
-                SIMILARITY = 5.6,
-                EXECUTE = () => HuggingFaceOverlay.ShowOverlay()
-            });
-
-            suggestions.Add(new CommandResult
-            {
                 TITLE = "🤖 Open LLM Engine & Installer Studio",
                 DESCRIPTION = "Configure Gemini, OpenAI, Ollama, P2P nodes, & 1-click install local LLM models",
                 SIMILARITY = 5.5,
@@ -184,11 +190,61 @@ namespace JarvisLauncher
             catch (Exception ex) { TextOverlay.Show($"❌ Error: {ex.Message}", 3000); }
         }
 
+        private void TestApiKeysPool()
+        {
+            Task.Run(async () =>
+            {
+                string rawKeys = SettingsManager.Current.GOOGLE_AI_KEY;
+                if (string.IsNullOrWhiteSpace(rawKeys))
+                {
+                    System.Windows.Application.Current.Dispatcher.Invoke(() => TextOverlay.Show("⚠️ No Gemini keys configured.", 3000));
+                    return;
+                }
+
+                var keys = rawKeys.Split(';', StringSplitOptions.RemoveEmptyEntries).Select(k => k.Trim()).ToList();
+                var sb = new StringBuilder();
+                sb.AppendLine("# Gemini API Key Pool Status");
+                sb.AppendLine($"Found {keys.Count} configured keys.\n");
+
+                foreach (var k in keys)
+                {
+                    string masked = k.Length > 8 ? k.Substring(0, 4) + "..." + k.Substring(k.Length - 4) : "****";
+                    sb.AppendLine($"### Key: `{masked}`");
+
+                    // Simple validation call
+                    string res = await AiAPI.AskGemini("Reply with: ACTIVE", null);
+
+                    if (res.Contains("ACTIVE"))
+                    {
+                        sb.AppendLine("- **Status**: ✅ ACTIVE");
+                    }
+                    else if (res.Contains("DISABLED") || res.Contains("BLOCKED"))
+                    {
+                        sb.AppendLine("- **Status**: ❌ DISABLED (Enable 'Generative Language API' in GCP)");
+                    }
+                    else if (res.Contains("429") || res.Contains("Quota"))
+                    {
+                        sb.AppendLine("- **Status**: ⚠️ QUOTA EXCEEDED");
+                    }
+                    else
+                    {
+                        sb.AppendLine($"- **Status**: ❓ UNKNOWN\n- **Error**: {res}");
+                    }
+                    sb.AppendLine();
+                }
+
+                System.Windows.Application.Current.Dispatcher.Invoke(() => {
+                    ContentPreviewOverlay.Show("API Key Audit", sb.ToString(), "markdown");
+                });
+            });
+        }
+
         public List<CommandDesc> GetCommandDescriptions()
         {
             return new List<CommandDesc>
             {
                 new CommandDesc("llm", "Open LLM Engine Studio", "llm"),
+                new CommandDesc("test keys", "Test all Gemini API keys in pool", "test keys"),
                 new CommandDesc("llm backend <name>", "Switch active LLM engine", "llm backend Groq"),
                 new CommandDesc("llm model <backend> <model>", "Set model for a specific backend", "llm model openai gpt-4o"),
                 new CommandDesc("llm key <backend> <key>", "Set API key for a backend", "llm key groq gsk_..."),

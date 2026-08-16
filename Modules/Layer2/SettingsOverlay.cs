@@ -14,6 +14,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 
 namespace JarvisLauncher
 {
@@ -34,6 +35,7 @@ namespace JarvisLauncher
         private CheckBox _playSoundsCheckBox = null!;
         private CheckBox _autoHideCheckBox = null!;
         private CheckBox _alwaysOnTopCheckBox = null!;
+        private CheckBox _minimizeToWidgetCheckBox = null!;
         private CheckBox _enablePcControlCheckBox = null!;
         private Slider _opacitySlider = null!;
         private TextBox _googleKeyBox = null!;
@@ -79,6 +81,13 @@ namespace JarvisLauncher
         private TextBox _newAliasKeyBox = null!;
         private TextBox _newAliasValueBox = null!;
 
+        // Editor Tab Controls
+        private CheckBox _editorLineNumbersCheck = null!;
+        private CheckBox _editorAiAutocompleteCheck = null!;
+        private CheckBox _editorAutoSaveCheck = null!;
+        private TextBox _editorFontFamilyBox = null!;
+        private TextBox _editorFontSizeBox = null!;
+
         public static void OpenSettings()
         {
             ShowSettings();
@@ -121,11 +130,11 @@ namespace JarvisLauncher
             // ── Glassmorphic Tab Bar ───────────────────────────────────────────────────
             var tabBarGrid = new UniformGrid
             {
-                Columns = 6,
+                Columns = 7,
                 Margin = new Thickness(0, 0, 0, 10)
             };
 
-            string[] tabNames = new[] { "⚙️ General", "🤖 LLM", "🗣️ TTS", "🎙️ Voice AI", "📶 Offline", "🏷️ Aliases" };
+            string[] tabNames = new[] { "⚙️ General", "🤖 LLM", "🗣️ TTS", "🎙️ Voice AI", "📶 Offline", "🏷️ Aliases", "📝 Editor" };
             for (int i = 0; i < tabNames.Length; i++)
             {
                 int tabIdx = i;
@@ -155,6 +164,7 @@ namespace JarvisLauncher
             _tabPanels.Add(BuildVoiceAiTab());
             _tabPanels.Add(BuildOfflineTab());
             _tabPanels.Add(BuildAliasesTab());
+            _tabPanels.Add(BuildEditorTab());
 
             foreach (var panel in _tabPanels)
             {
@@ -218,7 +228,16 @@ namespace JarvisLauncher
             root.Children.Add(CreateHeader("🎨 Interface & Visual Theme"));
 
             _themeComboBox = new ComboBox { Margin = new Thickness(0, 0, 0, 8), FontSize = 12, Padding = new Thickness(6, 4, 6, 4) };
-            foreach (var t in new[] { "purple", "dark", "cyberpunk", "emerald", "sunset", "ocean", "midnight", "rose" })
+            string[] themes = new[] {
+                "purple", "dark", "blue", "green", "cyberpunk", "glass", "dracula", "sunset", "crimson", "gold",
+                "nordic", "solarized", "forest", "sakura", "monochrome", "cybernetic", "oceanic", "outrun", "rainbow",
+                "aurora", "lava", "cyber_glitch", "nebula", "emerald_pulse", "iridescent", "solar_flare", "abyssal",
+                "glitch_wave", "spectrum", "midnight_neon", "frozen_fire", "quantum_flux", "hyper_neon", "plasma_core",
+                "matrix_red", "hologram", "supernova", "electric_storm", "vapor_wave", "toxic", "monolith", "glitch_cyan",
+                "magma_flow", "emerald_city", "royal_gold", "blood_moon", "cyber_forest", "void_pulse", "spectrum_shift",
+                "nebula_gas", "frozen_wasteland", "acid_burn", "obsidian_flow"
+            };
+            foreach (var t in themes.OrderBy(x => x))
                 _themeComboBox.Items.Add(t);
             _themeComboBox.SelectedItem = settings.THEME;
             _themeComboBox.SelectionChanged += (s, e) =>
@@ -265,6 +284,9 @@ namespace JarvisLauncher
 
             _alwaysOnTopCheckBox = CreateCheckBox("📌 Always Keep Launcher on Top", settings.ALWAYS_ON_TOP);
             root.Children.Add(_alwaysOnTopCheckBox);
+
+            _minimizeToWidgetCheckBox = CreateCheckBox("🔲 Minimize windows to floating widgets (old behavior)", settings.MINIMIZE_TO_WIDGET);
+            root.Children.Add(_minimizeToWidgetCheckBox);
 
             _enablePcControlCheckBox = CreateCheckBox("🖥️ Enable AI Computer Control (PowerShell/Files/System)", settings.ENABLE_PC_CONTROL);
             _enablePcControlCheckBox.ToolTip = "If disabled, the AI can only speak or take screenshots, but cannot modify files or run scripts.";
@@ -842,6 +864,61 @@ namespace JarvisLauncher
             }
         }
 
+        // ── TAB 7 BUILDER: Code Editor Settings ──────────────────────────────────────
+        private UIElement BuildEditorTab()
+        {
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var root = new StackPanel { Margin = new Thickness(4) };
+            scroll.Content = root;
+
+            var settings = SettingsManager.Current;
+
+            root.Children.Add(CreateHeader("📝 Jarvis AI Code Studio Preferences"));
+
+            _editorLineNumbersCheck = CreateCheckBox("Show Line Numbers in Editor", settings.EDITOR_SHOW_LINE_NUMBERS);
+            root.Children.Add(_editorLineNumbersCheck);
+
+            _editorAiAutocompleteCheck = CreateCheckBox("Enable Hybrid AI Autocomplete (Ghost Predictions)", settings.EDITOR_ENABLE_AI_AUTOCOMPLETE);
+            root.Children.Add(_editorAiAutocompleteCheck);
+
+            _editorAutoSaveCheck = CreateCheckBox("Auto-Save Workspace on Close", settings.EDITOR_AUTO_SAVE_ON_CLOSE);
+            root.Children.Add(_editorAutoSaveCheck);
+
+            root.Children.Add(CreateHeader("🔤 Typography"));
+
+            root.Children.Add(CreateLabel("Font Family (Monospace recommended):"));
+            _editorFontFamilyBox = CreateTextBox(settings.EDITOR_FONT_FAMILY);
+            root.Children.Add(_editorFontFamilyBox);
+
+            root.Children.Add(CreateLabel("Base Font Size:"));
+            _editorFontSizeBox = CreateTextBox(settings.EDITOR_FONT_SIZE.ToString());
+            root.Children.Add(_editorFontSizeBox);
+
+            var indexBtn = CreateButton("🔍 Force Project Re-Index (Full Scan)");
+            indexBtn.Click += async (s, e) => {
+                indexBtn.IsEnabled = false;
+                await ProjectSymbolIndexer.IndexProjectAsync(GetProjectRoot());
+                indexBtn.IsEnabled = true;
+                TextOverlay.Show("✅ Project symbols re-indexed successfully.", 2500);
+            };
+            root.Children.Add(indexBtn);
+
+            root.Children.Add(CreateHeader("🧩 Extensions"));
+            var installBtn = CreateButton("📦 Install VS Code Extension (.vsix)");
+            installBtn.Click += async (s, e) => {
+                var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "VSIX Extensions|*.vsix", Title = "Select VS Code Extension" };
+                if (dlg.ShowDialog() == true)
+                {
+                    TextOverlay.Show("Installing extension...", 2000);
+                    bool ok = await VsixManager.InstallExtensionAsync(dlg.FileName);
+                    TextOverlay.Show(ok ? "✅ Extension installed! Restart to apply." : "❌ Installation failed.", 3000);
+                }
+            };
+            root.Children.Add(installBtn);
+
+            return scroll;
+        }
+
         private void SaveAllSettings()
         {
             var settings = SettingsManager.Current;
@@ -855,6 +932,7 @@ namespace JarvisLauncher
             settings.PLAY_SOUNDS = _playSoundsCheckBox.IsChecked == true;
             settings.AUTO_HIDE_ON_EXECUTE = _autoHideCheckBox.IsChecked == true;
             settings.ALWAYS_ON_TOP = _alwaysOnTopCheckBox.IsChecked == true;
+            settings.MINIMIZE_TO_WIDGET = _minimizeToWidgetCheckBox.IsChecked == true;
             settings.ENABLE_PC_CONTROL = _enablePcControlCheckBox.IsChecked == true;
 
             settings.GOOGLE_AI_KEY = _googleKeyBox.Text.Trim();
@@ -872,9 +950,27 @@ namespace JarvisLauncher
             if (_dualLlmBackendCombo.SelectedItem is string db) settings.DUAL_LLM_BACKEND = db;
             if (_dualLlmModelCombo.SelectedItem is string dm) settings.DUAL_LLM_MODEL = DualLlmCopilot.ExtractModelName(dm);
 
+            // Save Editor Settings
+            settings.EDITOR_SHOW_LINE_NUMBERS = _editorLineNumbersCheck.IsChecked == true;
+            settings.EDITOR_ENABLE_AI_AUTOCOMPLETE = _editorAiAutocompleteCheck.IsChecked == true;
+            settings.EDITOR_AUTO_SAVE_ON_CLOSE = _editorAutoSaveCheck.IsChecked == true;
+            settings.EDITOR_FONT_FAMILY = _editorFontFamilyBox.Text.Trim();
+            if (double.TryParse(_editorFontSizeBox.Text.Trim(), out double fs)) settings.EDITOR_FONT_SIZE = fs;
+
             SettingsManager.Save();
-            TextOverlay.Show("💾 Saved All Master Settings!", 3000);
-            this.FadeOutAndClose();
+
+            // Visual feedback instead of closing
+            TextOverlay.Show("💾 System Settings Synchronized!", 2500);
+
+            // Pulse the border to show it happened
+            var anim = new DoubleAnimation(0.4, 1.0, TimeSpan.FromMilliseconds(400));
+            this.BeginAnimation(Window.OpacityProperty, anim);
+        }
+
+        private static string GetProjectRoot()
+        {
+            string devPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\.."));
+            return Directory.Exists(Path.Combine(devPath, "Modules")) ? devPath : AppDomain.CurrentDomain.BaseDirectory;
         }
 
         private static TextBlock CreateHeader(string title)

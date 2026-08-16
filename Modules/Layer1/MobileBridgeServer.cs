@@ -30,6 +30,7 @@ namespace JarvisLauncher
         private static TcpListener? Listener;
         private static bool IsRunningInternal;
         private static int PortParam = 9000;
+        public static string? LastConnectedPhoneIp { get; private set; }
 
         public static bool IsActive => IsRunningInternal && Listener != null;
         public static int Port => PortParam;
@@ -81,6 +82,8 @@ namespace JarvisLauncher
         private static async Task HandleClientAsync(TcpClient ClientParam)
         {
             var RemoteEp = ClientParam.Client.RemoteEndPoint;
+            if (RemoteEp is IPEndPoint iep) LastConnectedPhoneIp = iep.Address.ToString();
+
             try
             {
                 using (ClientParam)

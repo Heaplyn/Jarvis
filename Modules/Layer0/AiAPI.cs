@@ -94,22 +94,35 @@ namespace JarvisLauncher
 
             // Iterate through available keys if one fails
             string lastExecutionError = "";
+            int keyIndex = 0;
 
             foreach (var tokenToUse in ApiKeys)
             {
+                keyIndex++;
                 bool isOAuth = !tokenToUse.StartsWith("AIzaSy");
                 bool keySuccess = false;
 
                 try
                 {
+                    DebugConsoleOverlay.LogVerbose("Gemini-Pool", $"Using Key Pool #{keyIndex} (isOAuth: {isOAuth})", isMinimal: true);
+
                     for (int I = 0; I < LoopLimit; I++)
                     {
                         ct.ThrowIfCancellationRequested();
                         string Response = await QueryGeminiRaw(CurrentPrompt, tokenToUse, isOAuth, Base64Image, Base64Audio, History, ct);
 
-                        if (Response.StartsWith("Error: Model") || Response.Contains("429") || Response.Contains("Quota"))
+                        if (Response.Contains("DISABLED") || Response.Contains("BLOCKED") ||
+                            Response.Contains("429") || Response.Contains("Quota") ||
+                            Response.Contains("Unauthorized") || Response.Contains("invalid_api_key") ||
+                            Response.StartsWith("Error: Model"))
                         {
                             lastExecutionError = Response;
+                            // If this was the last key, don't throw, just use the error as the response
+                            if (tokenToUse == ApiKeys.Last())
+                            {
+                                LastResponse = Response;
+                                break;
+                            }
                             throw new Exception("Key rotation required: " + Response);
                         }
 
@@ -120,12 +133,22 @@ namespace JarvisLauncher
                             break;
                         }
 
-                        string CleanedResp = SanitizeText(Response);
-                        if (!string.IsNullOrWhiteSpace(CleanedResp)) LastResponse = CleanedResp;
+                        // Save the raw response before sanitization to ensure we have something if sanitization nukes it all
+                        LastResponse = Response;
 
+                        string CleanedResp = SanitizeText(Response);
                         var ExecutionFeedBuilder = new StringBuilder();
                         LastToolSummary = await ProcessAllActionTagsAsync(Response, ExecutedTags, ExecutionFeedBuilder, Base64Image, ct);
 
+                        if (ExecutionFeedBuilder.Length == 0 && !string.IsNullOrWhiteSpace(CleanedResp))
+                        {
+                            keySuccess = true;
+                            break;
+                        }
+
+                        // If we have tool results, we continue the loop to let the AI respond to them.
+                        // If we have no tool results but the response was only tags (CleanedResp is empty),
+                        // we also stop but mark it as success.
                         if (ExecutionFeedBuilder.Length == 0)
                         {
                             keySuccess = true;
@@ -138,11 +161,23 @@ namespace JarvisLauncher
                 }
                 catch (Exception ex) when (ex.Message.Contains("Key rotation required"))
                 {
-                    DebugConsoleOverlay.Log("Gemini-Rotate", $"Current key failed, rotating to next... Error: {ex.Message}");
+                    DebugConsoleOverlay.Log("Gemini-Rotate", $"Key #{keyIndex} failed, rotating... Error: {ex.Message}");
                     continue; // Try next key
                 }
 
-                if (keySuccess) break; // We found a working key and finished the loop
+                if (keySuccess) break;
+            }
+
+            // --- FINAL FALLBACK: If Gemini Pool is TOTALLY dead, let LlmRouter handle fallbacks ---
+            bool isFatalError = lastExecutionError.Contains("GOOGLE API ERROR") ||
+                               lastExecutionError.Contains("BLOCKED") ||
+                               lastExecutionError.Contains("invalid_api_key") ||
+                               lastExecutionError.Contains("Unauthorized");
+
+            if (string.IsNullOrWhiteSpace(LastResponse) || isFatalError)
+            {
+                // We throw the error so LlmRouter can catch it and switch backends (Groq/Ollama)
+                throw new Exception(string.IsNullOrEmpty(lastExecutionError) ? "Gemini Service Unavailable" : lastExecutionError);
             }
 
             string FinalCleaned = CleanScratchpadText(LastResponse);
@@ -298,7 +333,7 @@ namespace JarvisLauncher
             {
                 NewExecs++;
                 try {
-                    string? b64 = ScreenCaptureUtil.CapturePrimaryScreenToBase64();
+                    string? b64 = ScreenCaptureUtil.CapturePrimaryScreenToBase64(saveToDisk: true);
                     if (b64 != null) {
                         ExecutionFeedBuilder.AppendLine("[SCREENSHOT_CAPTURED]");
                         LastSummary = "📸 **Captured screenshot.**";
@@ -436,6 +471,16 @@ namespace JarvisLauncher
         {
             if (string.IsNullOrWhiteSpace(text)) return string.Empty;
             string cleaned = text;
+
+            // 1. Extract content from APP_RESPONSE block if present
+            var appResponseRegex = new Regex(@"\{\{\{\{APP_RESPONSE:::(?<content>.*?):::APP_RESPONSE\}\}\}\}", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            var match = appResponseRegex.Match(cleaned);
+            if (match.Success)
+            {
+                cleaned = match.Groups["content"].Value.Trim();
+            }
+
+            // Remove internal system contexts
             cleaned = Regex.Replace(cleaned, @"\[USER ENVIRONMENT & RECENT ACTIVITY CONTEXT\][\s\S]*?--------------------------------------------------", "", RegexOptions.IgnoreCase);
             cleaned = Regex.Replace(cleaned, @"\[Active Workspace Context:.*?\]", "", RegexOptions.IgnoreCase);
             cleaned = Regex.Replace(cleaned, @"\[PREDICTIVE_STATE:.*?\]", "", RegexOptions.IgnoreCase);
@@ -443,10 +488,26 @@ namespace JarvisLauncher
             cleaned = Regex.Replace(cleaned, @"\[INPUT_SOURCE:.*?\]", "", RegexOptions.IgnoreCase);
             cleaned = Regex.Replace(cleaned, @"\[ATTACHED:.*?\]", "", RegexOptions.IgnoreCase);
             cleaned = Regex.Replace(cleaned, @"\[METADATA_USAGE:.*?\]", "", RegexOptions.IgnoreCase);
+            cleaned = Regex.Replace(cleaned, @"\[METADATA_MODEL:.*?\]", "", RegexOptions.IgnoreCase);
+
+            // Remove Standard Action Tags but keep the text around them
             cleaned = Regex.Replace(cleaned, @"\[WRITE_FILE:.*?\][\s\S]*?\[END_WRITE\]", "", RegexOptions.IgnoreCase);
             cleaned = Regex.Replace(cleaned, @"\[SET_CORE_DIRECTIVE:.*?\][\s\S]*?\[END_CORE_DIRECTIVE\]", "", RegexOptions.IgnoreCase);
-            cleaned = Regex.Replace(cleaned, @"\[[A-Z0-9_]{3,}(?::\s*[\s\S]*?)?\]", "", RegexOptions.IgnoreCase);
+
+            // Only remove tags that are exactly [TAG] or [TAG: param], avoid removing regular bracketed text
+            cleaned = Regex.Replace(cleaned, @"\[(READ_FILE|EXEC_PS|RUN_COMMAND|TAKE_SCREENSHOT|SPEECH|SET_CLIPBOARD|OPEN_APP|USER_AUTH_REQUIRED|SOLVE_CAPTCHA)(?::\s*[\s\S]*?)?\]", "", RegexOptions.IgnoreCase);
+
+            // --- SHORTHAND TAG REMOVAL ---
+            cleaned = Regex.Replace(cleaned, @"@[a-z0-9_]{2,}\{.*?\}\{.*?\}", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            cleaned = Regex.Replace(cleaned, @"@[a-z0-9_]{2,}\{.*?\}", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            cleaned = Regex.Replace(cleaned, @"^(@say|@say\s+)", "", RegexOptions.IgnoreCase | RegexOptions.Multiline);
+            cleaned = Regex.Replace(cleaned, @"(@run|@run\s+|@app|@app\s+|@ps|@ps\s+|@rf|@rf\s+|@wf|@wf\s+|@snap|@clip|@clip\s+)", "", RegexOptions.IgnoreCase);
+
             cleaned = Regex.Replace(cleaned, @"^(Response|Jarvis|Assistant|Assistant Response):\s*", "", RegexOptions.IgnoreCase | RegexOptions.Multiline);
+
+            // Clean up any remaining wrapper fragments
+            cleaned = cleaned.Replace("{{{{APP_RESPONSE:::", "").Replace(":::APP_RESPONSE}}}}", "");
+
             return CleanScratchpadText(cleaned).Trim();
         }
 
@@ -567,8 +628,8 @@ namespace JarvisLauncher
         {
             // Broad list of models to try in case of deprecation or region limits
             var Models = new List<string> {
-                "gemini-2.0-flash-exp",
                 "gemini-2.0-flash",
+                "gemini-2.0-flash-exp",
                 "gemini-1.5-flash",
                 "gemini-1.5-flash-8b",
                 "gemini-1.5-pro",
@@ -615,6 +676,26 @@ namespace JarvisLauncher
 
                             if (!Response.IsSuccessStatusCode) {
                                 LastError = $"Model {Model} returned {Response.StatusCode}: {ResponseBody}";
+
+                                if (ResponseBody.Contains("API_KEY_SERVICE_BLOCKED") || ResponseBody.Contains("403"))
+                                {
+                                    string err = "❌ GOOGLE API ERROR: The 'Generative Language API' is DISABLED.\n\n" +
+                                                 "1. Open: https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com\n" +
+                                                 "2. Select your project and click ENABLE.\n" +
+                                                 "3. Wait 1 minute and try again.";
+                                    DebugConsoleOverlay.Log("Gemini-Fatal", err);
+                                    return err;
+                                }
+
+                                if (ResponseBody.Contains("invalid_api_key") || ResponseBody.Contains("API_KEY_INVALID"))
+                                {
+                                    string err = "❌ GOOGLE API ERROR: Invalid API Key.\n\n" +
+                                                 "1. Open: https://aistudio.google.com/app/apikey\n" +
+                                                 "2. Copy your key and use 'setkey gemini <key>' in the HUD.";
+                                    DebugConsoleOverlay.Log("Gemini-Fatal", err);
+                                    return err;
+                                }
+
                                 if (Response.StatusCode == System.Net.HttpStatusCode.NotFound) continue; // Try next version
                                 break; // Try next model
                             }
@@ -649,13 +730,18 @@ namespace JarvisLauncher
             var recentActions = ActionJournalManager.GetRecentActions(3);
             string journalSummary = recentActions.Count > 0 ? "RECENT ACTIVITY: " + string.Join("; ", recentActions.Select(a => a.Summary)) : "";
 
-            return "## IDENTITY\nYou are Jarvis, a witty HUD AI. You are a modular entity that lives within your filesystem.\n\n## CONTEXT\n" + userMemory + "\n" + instructions + "\n" + journalSummary + "\n\n## PROJECT MAP\n" + projectMap +
-                   "\n\n## CORE RULES\n- Be sassy and helpful.\n- You are file-dependent; you rely on the local directory for modules and memory.\n- Keep it under 2 sentences.\n- NEVER repeat context tags.\n\n## ACTIONS\n" +
+            return "## IDENTITY\nYou are Jarvis, a witty and high-performance HUD AI.\n\n## CONTEXT\n" + userMemory + "\n" + instructions + "\n" + journalSummary + "\n\n## PROJECT MAP\n" + projectMap +
+                   "\n\n## RESPONSE FORMAT\n" +
+                   "1. Always respond with conversational text. Even if you only take an action, say what you are doing.\n" +
+                   "2. Wrap all conversational speech/text for the user inside this exact block:\n" +
+                   "{{{{APP_RESPONSE::: [Your visible response here] :::APP_RESPONSE}}}}\n\n" +
+                   "3. Place system action tags OUTSIDE that block.\n" +
+                   "Example: {{{{APP_RESPONSE::: I've captured your screen and I'm analyzing it now. :::APP_RESPONSE}}}} [TAKE_SCREENSHOT]\n\n" +
+                   "## CORE RULES\n- Be sassy, helpful, and varied.\n- DO NOT trigger [TAKE_SCREENSHOT] or other expensive actions for simple greetings or small talk unless specifically requested.\n- Keep conversational text under 2 sentences.\n\n## ACTIONS\n" +
                    "[READ_FILE: path] [WRITE_FILE: path] [EXEC_PS: cmd] [RUN_COMMAND: cmd]\n" +
                    "[TAKE_SCREENSHOT] [SPEECH: text] [SET_CLIPBOARD: text]\n" +
-                   "[USER_AUTH_REQUIRED: prompt] [SOLVE_CAPTCHA: url]\n" +
-                   "[SET_CORE_DIRECTIVE: filename] content [END_CORE_DIRECTIVE]\n" +
-                   "[SEARCH_REGISTRY: type, query] [INGEST_DOCS: url]\n";
+                   "[OPEN_APP: name] [USER_AUTH_REQUIRED: prompt] [SOLVE_CAPTCHA: url]\n" +
+                   "[SET_CORE_DIRECTIVE: filename] content [END_CORE_DIRECTIVE]\n";
         }
 
         public static string GetCompactSystemPrompt()

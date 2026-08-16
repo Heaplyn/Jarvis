@@ -125,21 +125,23 @@ namespace JarvisLauncher
                 }
 
                 // 3. Ask AI to summarize
-                string prompt = "Task: Write a concise, professional Git commit message based on these changes.\n" +
-                               "Format: A single line summary (max 72 chars), followed by bullet points if complex.\n" +
-                               "RULES:\n" +
-                               "1. Be specific (e.g., 'Fix: Null check in UI' not 'Updated files').\n" +
-                               "2. Do not use markdown backticks around the message.\n" +
-                               "3. Output ONLY the commit message text.\n\n" +
-                               $"## FILE STATS:\n{diffStat}\n\n" +
-                               $"## DIFF CONTENT:\n{diffContent}";
+                string prompt = "## TASK\n" +
+                               "Write a concise, professional Git commit message based on the code changes provided below.\n\n" +
+                               "## FORMAT\n" +
+                               "1. Start with a high-level summary line (max 72 chars).\n" +
+                               "2. If multiple modules changed, add a brief bulleted list of key technical improvements.\n" +
+                               "3. Output ONLY the raw commit message text. No markdown backticks.\n\n" +
+                               "## CONTEXT\n" +
+                               $"FILE STATS:\n{diffStat}\n\n" +
+                               $"CODE CHANGES:\n{diffContent}";
 
+                // Use Gemini Flash specifically for speed on large text processing
                 string aiMessage = await LlmRouter.AskAsync(prompt);
-                aiMessage = aiMessage.Trim().Trim('"', '\'');
+                aiMessage = AiAPI.SanitizeText(aiMessage).Trim().Trim('"', '\'');
 
-                if (string.IsNullOrWhiteSpace(aiMessage) || aiMessage.Contains("Error"))
+                if (string.IsNullOrWhiteSpace(aiMessage) || aiMessage.Contains("Error") || aiMessage.Length < 5)
                 {
-                    aiMessage = $"Update: {DateTime.Now:yyyy-MM-dd HH:mm} (AI generation failed)";
+                    aiMessage = $"System Update: {DateTime.Now:yyyy-MM-dd HH:mm}";
                 }
 
                 DebugConsoleOverlay.Log("Git-AI", $"Generated Message: {aiMessage}");
@@ -180,6 +182,14 @@ namespace JarvisLauncher
 
             log.AppendLine($"Working directory: {projectRoot}\n");
 
+            // 1. AI .gitignore Analysis (Pre-Push check)
+            if (OfflineCacheManager.IsInternetAvailable() || await LlmRouter.IsOllamaAvailableAsync())
+            {
+                log.AppendLine("--- ANALYZING .GITIGNORE ---");
+                string gitignoreResult = await AnalyzeAndFixGitIgnoreAsync(projectRoot);
+                log.AppendLine(gitignoreResult);
+            }
+
             string branchName = await RunCommandAsync("git", "rev-parse --abbrev-ref HEAD", projectRoot);
             branchName = branchName.Trim();
             if (string.IsNullOrEmpty(branchName) || branchName.Contains("Error") || branchName.Contains("fatal")) branchName = "main";
@@ -187,7 +197,8 @@ namespace JarvisLauncher
             log.AppendLine($"Current branch: {branchName}\n");
 
             log.AppendLine("--- CLEANING CACHE ---");
-            await RunCommandAsync("git", "rm -r --cached bin obj Data publish JarvisLauncher.exe", projectRoot);
+            // Ensure we don't accidentally push large build artifacts now that they are in the root
+            await RunCommandAsync("git", "rm -r --cached bin obj Data publish *.exe *.dll *.pdb *.deps.json *.runtimeconfig.json", projectRoot);
 
             log.AppendLine("--- STAGING & COMMITTING ---");
             await RunCommandAsync("git", "add .", projectRoot);
@@ -221,6 +232,47 @@ namespace JarvisLauncher
             }
 
             return log.ToString();
+        }
+
+        private static async Task<string> AnalyzeAndFixGitIgnoreAsync(string projectRoot)
+        {
+            try
+            {
+                string gitignorePath = Path.Combine(projectRoot, ".gitignore");
+                string currentContent = File.Exists(gitignorePath) ? File.ReadAllText(gitignorePath) : "";
+                string filesInRoot = string.Join("\n", Directory.GetFiles(projectRoot).Select(Path.GetFileName));
+
+                string prompt = "## TASK\n" +
+                               "Analyze the current .gitignore and the list of files in the project root. " +
+                               "Identify if any build artifacts, sensitive data, or temporary files are NOT being ignored.\n\n" +
+                               "## CURRENT .GITIGNORE:\n" + currentContent + "\n\n" +
+                               "## FILES IN ROOT:\n" + filesInRoot + "\n\n" +
+                               "## INSTRUCTIONS:\n" +
+                               "1. If the .gitignore is already perfect, respond with 'PERFECT'.\n" +
+                               "2. If improvements are needed, output ONLY the full, corrected content for the .gitignore file.\n" +
+                               "3. Ensure large binaries (.exe, .dll), logs (*.log), and private settings (.json) are ignored.\n" +
+                               "4. Output only the file content. No conversation.";
+
+                string aiResult = await LlmRouter.AskAsync(prompt);
+                aiResult = AiAPI.SanitizeText(aiResult).Trim();
+
+                if (aiResult.Contains("PERFECT") || string.IsNullOrWhiteSpace(aiResult) || aiResult.Length < 10)
+                {
+                    return "✅ .gitignore is up to date.";
+                }
+
+                // Apply the update
+                File.WriteAllText(gitignorePath, aiResult);
+
+                // Clean cache for newly ignored files
+                await RunCommandAsync("git", "rm -r --cached .", projectRoot);
+
+                return "✨ AI updated .gitignore and synchronized the index.";
+            }
+            catch (Exception ex)
+            {
+                return $"⚠️ .gitignore analysis failed: {ex.Message}";
+            }
         }
 
         private static async Task<string> RunCommandAsync(string fileName, string arguments, string workingDirectory)

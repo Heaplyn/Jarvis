@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.Win32;
 
 namespace JarvisLauncher
@@ -22,42 +23,59 @@ namespace JarvisLauncher
     {
         private static readonly List<InstalledApp> _cachedApps = new();
         private static bool _isIndexed = false;
+        private static bool _isIndexingInProgress = false;
         private static readonly object _lock = new();
 
         static WindowsAppScanner()
         {
-            System.Threading.Tasks.Task.Run(() => IndexApplications());
+            // Start indexing immediately on a background thread
+            Task.Run(() => IndexApplications());
         }
 
-        public static void IndexApplications()
+        public static void IndexApplications(bool force = false)
         {
             lock (_lock)
             {
-                if (_isIndexed && _cachedApps.Count > 0) return;
-
-                var appMap = new Dictionary<string, InstalledApp>(StringComparer.OrdinalIgnoreCase);
-
-                // 1. Common Windows Apps (Built-in)
-                AddBuiltInApps(appMap);
-
-                // 2. Scan Start Menu Directories
-                ScanStartMenuDirectory(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), appMap);
-                ScanStartMenuDirectory(Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu), appMap);
-
-                // 3. Scan LocalAppData Programs
-                string localProg = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs");
-                if (Directory.Exists(localProg))
-                {
-                    ScanDirectoryForExes(localProg, appMap);
-                }
-
-                // 4. Scan Registry Uninstall keys
-                ScanRegistryApps(appMap);
-
-                _cachedApps.Clear();
-                _cachedApps.AddRange(appMap.Values.OrderBy(a => a.Name));
-                _isIndexed = true;
+                if (!force && _isIndexed && _cachedApps.Count > 0) return;
+                if (_isIndexingInProgress) return;
+                _isIndexingInProgress = true;
             }
+
+            Task.Run(() => {
+                try {
+                    DebugConsoleOverlay.Log("App-Scanner", force ? "Forcing full application re-index..." : "Starting application indexing...");
+                    var appMap = new Dictionary<string, InstalledApp>(StringComparer.OrdinalIgnoreCase);
+
+                    // 1. Common Windows Apps (Built-in)
+                    AddBuiltInApps(appMap);
+
+                    // 2. Scan Start Menu Directories
+                    ScanStartMenuDirectory(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), appMap);
+                    ScanStartMenuDirectory(Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu), appMap);
+
+                    // 3. Scan LocalAppData Programs
+                    string localProg = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs");
+                    if (Directory.Exists(localProg))
+                    {
+                        ScanDirectoryForExes(localProg, appMap);
+                    }
+
+                    // 4. Scan Registry Uninstall keys
+                    ScanRegistryApps(appMap);
+
+                    lock (_lock) {
+                        _cachedApps.Clear();
+                        _cachedApps.AddRange(appMap.Values.OrderBy(a => a.Name));
+                        _isIndexed = true;
+                        _isIndexingInProgress = false;
+                    }
+                    DebugConsoleOverlay.Log("App-Scanner", $"Indexing complete. Found {_cachedApps.Count} applications.");
+                }
+                catch (Exception ex) {
+                    lock(_lock) { _isIndexingInProgress = false; }
+                    DebugConsoleOverlay.Log("App-Scanner", $"Indexing failed: {ex.Message}");
+                }
+            });
         }
 
         public static List<CommandResult> GetMatchingApps(string query)
@@ -65,7 +83,12 @@ namespace JarvisLauncher
             var results = new List<CommandResult>();
             if (!SettingsManager.Current.ENABLE_WINDOWS_APP_INDEXING || string.IsNullOrWhiteSpace(query)) return results;
 
-            if (!_isIndexed) IndexApplications();
+            // If not indexed and not currently indexing, trigger it.
+            // But don't wait for it here to avoid blocking HUD responsiveness.
+            if (!_isIndexed && !_isIndexingInProgress) IndexApplications();
+
+            // If we have NO apps yet, just return empty instead of blocking.
+            if (_cachedApps.Count == 0) return results;
 
             string q = query.ToLower().Trim();
 

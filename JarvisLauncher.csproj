@@ -9,9 +9,10 @@
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>JarvisLauncher</RootNamespace>
     <AssemblyName>JarvisLauncher</AssemblyName>
-    <!-- Reverting to File-Dependent (Modular) build per user request -->
-    <SelfContained>false</SelfContained>
-    <PublishSelfContained>false</PublishSelfContained>
+    <!-- File-Dependent (Modular) build: Bundles runtime files in the folder but doesn't merge into one EXE -->
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishSelfContained>true</PublishSelfContained>
     <PublishSingleFile>false</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
 

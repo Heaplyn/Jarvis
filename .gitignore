@@ -6,6 +6,17 @@ bin/
 obj/
 publish/
 
+# --- ROOT BUILD ARTIFACTS ---
+# Added because OutputPath is set to root folder
+JarvisLauncher.exe
+JarvisLauncher.dll
+JarvisLauncher.deps.json
+JarvisLauncher.runtimeconfig.json
+JarvisLauncher.pdb
+*.dll
+*.exe
+*.pdb
+
 # --- JARVIS RUNTIME DATA & CACHES ---
 # Ignore all dynamic data but keep the folder structure if needed via .gitkeep
 Data/*

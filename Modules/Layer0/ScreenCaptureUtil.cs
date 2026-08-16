@@ -8,7 +8,7 @@ namespace JarvisLauncher
 {
     public static class ScreenCaptureUtil
     {
-        public static byte[]? CapturePrimaryScreen()
+        public static byte[]? CapturePrimaryScreen(bool saveToDisk = false)
         {
             try
             {
@@ -20,6 +20,16 @@ namespace JarvisLauncher
                     using (Graphics g = Graphics.FromImage(bitmap))
                     {
                         g.CopyFromScreen(Point.Empty, Point.Empty, bounds.Size);
+                    }
+
+                    if (saveToDisk)
+                    {
+                        try {
+                            string dir = Path.Combine(PathHandler.GetDataDirectory(), "Screenshots");
+                            if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                            string filename = $"AI_Vision_{DateTime.Now:yyyyMMdd_HHmmss}.jpg";
+                            bitmap.Save(Path.Combine(dir, filename), ImageFormat.Jpeg);
+                        } catch { }
                     }
 
                     using (MemoryStream ms = new MemoryStream())
@@ -37,9 +47,9 @@ namespace JarvisLauncher
             }
         }
 
-        public static string? CapturePrimaryScreenToBase64()
+        public static string? CapturePrimaryScreenToBase64(bool saveToDisk = false)
         {
-            var bytes = CapturePrimaryScreen();
+            var bytes = CapturePrimaryScreen(saveToDisk);
             return bytes != null ? Convert.ToBase64String(bytes) : null;
         }
     }

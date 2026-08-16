@@ -141,7 +141,7 @@ namespace JarvisLauncher
                 sb.AppendLine($"[INFO] Runtime: {threadCount} threads, {GC.GetTotalMemory(false) / 1024 / 1024}MB Memory");
 
                 DebugConsoleOverlay.Log("Health", "Self-check completed.");
-                CliOutputOverlay.Show("Jarvis Self-Check", sb.ToString());
+                ContentPreviewOverlay.Show("Jarvis Self-Check", sb.ToString(), "markdown");
             });
         }
 
@@ -150,9 +150,9 @@ namespace JarvisLauncher
             Task.Run(() =>
             {
                 var sb = new StringBuilder();
-                sb.AppendLine("=== NETWORK DIAGNOSTICS ===");
-                sb.AppendLine($"Machine: {Environment.MachineName}");
-                sb.AppendLine($"Time: {DateTime.Now}");
+                sb.AppendLine("# NETWORK DIAGNOSTICS");
+                sb.AppendLine($"**Machine:** {Environment.MachineName}");
+                sb.AppendLine($"**Time:** {DateTime.Now}");
                 sb.AppendLine();
 
                 try
@@ -161,27 +161,28 @@ namespace JarvisLauncher
                     {
                         if (ni.OperationalStatus != OperationalStatus.Up) continue;
 
-                        sb.AppendLine($"Adapter: {ni.Name} ({ni.NetworkInterfaceType})");
+                        sb.AppendLine($"### Adapter: {ni.Name}");
+                        sb.AppendLine($"- **Type:** {ni.NetworkInterfaceType}");
                         var props = ni.GetIPProperties();
                         foreach (var addr in props.UnicastAddresses)
                         {
-                            sb.AppendLine($"  - IP: {addr.Address}");
+                            sb.AppendLine($"- **IP:** `{addr.Address}`");
                         }
                     }
                 }
-                catch (Exception ex) { sb.AppendLine($"Error scanning adapters: {ex.Message}"); }
+                catch (Exception ex) { sb.AppendLine($"> ⚠️ Error scanning adapters: {ex.Message}"); }
 
                 sb.AppendLine();
-                sb.AppendLine("=== BRIDGE SERVER ===");
-                sb.AppendLine($"Active: {MobileBridgeServer.IsActive}");
-                sb.AppendLine($"Primary URL: {MobileBridgeServer.ServerUrl}");
+                sb.AppendLine("## BRIDGE SERVER");
+                sb.AppendLine($"- **Active:** {MobileBridgeServer.IsActive}");
+                sb.AppendLine($"- **Primary URL:** {MobileBridgeServer.ServerUrl}");
 
                 string log = MobileBridgeServer.GetRecentLogs(5);
-                sb.AppendLine("\nRecent Server Logs:\n" + log);
+                sb.AppendLine("\n### Recent Server Logs\n```\n" + log + "\n```");
 
                 string final = sb.ToString();
                 DebugConsoleOverlay.Log("Diag", "Network diagnostics completed.");
-                CliOutputOverlay.Show("Network Diagnostics", final);
+                ContentPreviewOverlay.Show("Network Diagnostics", final, "markdown");
             });
         }
 
@@ -193,7 +194,8 @@ namespace JarvisLauncher
                 {
                     var ping = new Ping();
                     var sb = new StringBuilder();
-                    sb.AppendLine($"=== PING TEST: {target} ===");
+                    sb.AppendLine($"# PING TEST: {target}");
+                    sb.AppendLine("```");
 
                     for (int i = 0; i < 4; i++)
                     {
@@ -203,9 +205,10 @@ namespace JarvisLauncher
                         else
                             sb.AppendLine($"Ping failed: {reply.Status}");
                     }
+                    sb.AppendLine("```");
 
                     DebugConsoleOverlay.Log("Net", $"Ping test to {target} completed.");
-                    CliOutputOverlay.Show("Ping Results", sb.ToString());
+                    ContentPreviewOverlay.Show("Ping Results", sb.ToString(), "markdown");
                 }
                 catch (Exception ex)
                 {
@@ -232,7 +235,7 @@ namespace JarvisLauncher
                     string output = proc?.StandardOutput.ReadToEnd() ?? "No output";
 
                     DebugConsoleOverlay.Log("System", "Port scan completed.");
-                    CliOutputOverlay.Show("Listening Ports", output);
+                    ContentPreviewOverlay.Show("Listening Ports", "### Active TCP/UDP Listening Ports\n```\n" + output + "\n```", "markdown");
                 }
                 catch (Exception ex)
                 {

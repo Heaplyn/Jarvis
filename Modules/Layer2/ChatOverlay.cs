@@ -174,7 +174,7 @@ namespace JarvisLauncher
 
             LoadOrWelcomeActiveChatHistory();
 
-            var Divider = new Border { Height = 1, Margin = new Thickness(0, 0, 0, 8) };
+            var Divider = new Border { Height = 1, Margin = new Thickness(0, 0, 0, 8), IsHitTestVisible = false };
             Divider.SetResourceReference(Border.BackgroundProperty, "WindowBorderBrush");
             Grid.SetRow(Divider, 3);
             ContentGrid.Children.Add(Divider);
@@ -342,16 +342,39 @@ namespace JarvisLauncher
 
         private void PopulateModels()
         {
-            ModelSelector.Items.Add("gemini-1.5-flash");
-            ModelSelector.Items.Add("gemini-1.5-pro");
-            ModelSelector.Items.Add("gemini-2.0-flash-exp");
-            ModelSelector.Items.Add("gemini-2.0-pro-exp");
+            ModelSelector.Items.Clear();
+            string backend = SettingsManager.Current.LLM_BACKEND;
 
-            string current = SettingsManager.Current.GEMINI_MODEL;
-            if (ModelSelector.Items.Contains(current))
-                ModelSelector.SelectedItem = current;
-            else
+            if (backend == "Gemini")
+            {
+                ModelSelector.Items.Add("gemini-1.5-flash");
+                ModelSelector.Items.Add("gemini-1.5-pro");
+                ModelSelector.Items.Add("gemini-2.0-flash-exp");
+                ModelSelector.Items.Add("gemini-2.0-pro-exp");
+
+                string current = SettingsManager.Current.GEMINI_MODEL;
+                if (ModelSelector.Items.Contains(current)) ModelSelector.SelectedItem = current;
+                else ModelSelector.SelectedIndex = 0;
+            }
+            else if (backend == "Groq")
+            {
+                ModelSelector.Items.Add("llama-3.3-70b-versatile");
+                ModelSelector.Items.Add("llama-3.1-8b-instant");
+                ModelSelector.Items.Add("mixtral-8x7b-32768");
                 ModelSelector.SelectedIndex = 0;
+            }
+            else if (backend == "OpenAI")
+            {
+                ModelSelector.Items.Add("gpt-4o");
+                ModelSelector.Items.Add("gpt-4o-mini");
+                ModelSelector.Items.Add("o1-preview");
+                ModelSelector.SelectedIndex = 0;
+            }
+            else
+            {
+                ModelSelector.Items.Add("Default");
+                ModelSelector.SelectedIndex = 0;
+            }
         }
 
         private void SetStatus(string text, Brush color)
@@ -689,38 +712,82 @@ namespace JarvisLauncher
             if (ct.IsCancellationRequested) return;
 
             // --- FINAL CLEANUP & ECHO PROTECTION ---
-            // 1. Sanitize the response (remove all system tags and meta-noise)
-            string sanitizedResult = AiAPI.SanitizeText(FinalResult);
+            // 1. Extract Spoken Shorthand (@say{...} or @say text)
+            string extractedSpeech = "";
+            // Regex to catch @say{...} or @say Text until end of line
+            var sayMatches = Regex.Matches(RawResponse, @"@say(?:\{(?<t>.*?)\}|\s+(?<t>.*?)(?:\n|@|$))", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            foreach (Match m in sayMatches)
+            {
+                string t = m.Groups["t"].Value.Trim().Trim('{', '}');
+                if (!string.IsNullOrEmpty(t)) extractedSpeech += t + " ";
+            }
+            extractedSpeech = extractedSpeech.Trim();
 
-            // 2. Store for voice echo rejection
-            VoiceActivationManager.LastAiSpokenText = sanitizedResult;
+            // 2. Sanitize the primary response
+            string sanitizedResult = FinalResult; // FinalResult is already sanitized by AiAPI
+            bool skipSpeech = false;
 
-            // 3. Reject echoes ONLY for Voice input (prevents transcription feedback loops)
-            double echoSimilarity = SearchUtil.GetSimilarity(sanitizedResult.ToLower(), Message.ToLower());
-            bool isEcho = sanitizedResult.Equals(Message, StringComparison.OrdinalIgnoreCase) ||
-                          sanitizedResult.StartsWith(Message, StringComparison.OrdinalIgnoreCase) ||
-                          (Message.Length > 25 && sanitizedResult.Contains(Message)) ||
-                          (echoSimilarity > 0.9);
-
+            // 3. Smart Fallback for empty/action-only responses
             bool isNoise = string.IsNullOrWhiteSpace(sanitizedResult) || Regex.IsMatch(sanitizedResult, @"^[\.\s\?\!]+$");
 
-            if (source == "VOICE" && (isEcho || isNoise))
+            // --- SMART FALLBACK & ANTI-SPAM ---
+            if (isNoise)
+            {
+                if (!string.IsNullOrEmpty(extractedSpeech))
+                {
+                    sanitizedResult = extractedSpeech;
+                    skipSpeech = true;
+                }
+                else
+                {
+                    bool hadActions = !string.IsNullOrEmpty(RawResponse) && (RawResponse.Contains("@") || (RawResponse.Contains("[") && !RawResponse.Contains("[METADATA")));
+
+                    if (hadActions)
+                    {
+                        if (RawResponse.Contains("@snap") || RawResponse.Contains("[TAKE_SCREENSHOT]")) sanitizedResult = "Captured your screen.";
+                        else if (RawResponse.Contains("@clip") || RawResponse.Contains("[SET_CLIPBOARD")) sanitizedResult = "Updated your clipboard.";
+                        else sanitizedResult = "System action performed.";
+
+                        skipSpeech = true;
+                    }
+                    else if (source == "TEXT")
+                    {
+                        string[] fallbacks = { "Acknowledged.", "Done.", "I've handled that.", "Ready." };
+                        sanitizedResult = fallbacks[new Random().Next(fallbacks.Length)];
+                    }
+                }
+            }
+
+            // Always clear the Thinking state even on errors
+            SetStatus("READY", Brushes.LightGreen);
+            AiTextBlock.FontStyle = FontStyles.Normal;
+            if (AiDebugBlock != null) AiDebugBlock.Text += "\n[SYSTEM] Interaction Complete.";
+
+            // 4. Reject echoes ONLY for Voice input
+            double echoSimilarity = SearchUtil.GetSimilarity(sanitizedResult.ToLower(), Message.ToLower());
+            bool isEcho = sanitizedResult.Equals(Message, StringComparison.OrdinalIgnoreCase) || (echoSimilarity > 0.9);
+
+            if (source == "VOICE" && (isEcho || string.IsNullOrEmpty(sanitizedResult)))
             {
                 Application.Current.Dispatcher.Invoke(() => ChatHistoryPanel.Children.Remove(AiBorder));
                 return;
             }
 
-            // 3b. For TEXT input, never silent-fail. Provide a fallback if response was nuked by filters.
-            if (source == "TEXT" && isNoise)
+            // 5. Final Visibility Check
+            if (string.IsNullOrEmpty(sanitizedResult))
             {
-                sanitizedResult = "Task completed successfully, Boss.";
+                Application.Current.Dispatcher.Invoke(() => ChatHistoryPanel.Children.Remove(AiBorder));
+                return;
             }
 
-            // 4. Show the result in the bubble
+            // 6. Show the result in the bubble
             RenderBubbleContent((StackPanel)AiBorder.Child, AiTextBlock, sanitizedResult);
 
-            // 5. Speak the clean result
-            _ = Task.Run(() => TtsManager.Speak(sanitizedResult, isShortSpeech: true));
+            // 7. Speak the result if not already spoken by tags
+            if (!skipSpeech)
+            {
+                _ = Task.Run(() => TtsManager.Speak(sanitizedResult, isShortSpeech: true));
+            }
 
             if (!sanitizedResult.StartsWith("⚠️"))
             {
@@ -738,7 +805,7 @@ namespace JarvisLauncher
             }
         }
 
-        private async Task<string> InterceptAndExecuteCommandsAsync(string RawResponseString, TextBox AiTextBlock, StackPanel BubblePanel, CancellationToken ct, TextBox? AiDebugBlock = null)
+        private async Task<string> InterceptAndExecuteCommandsAsync(string RawResponseString, TextBlock AiTextBlock, StackPanel BubblePanel, CancellationToken ct, TextBox? AiDebugBlock = null)
         {
             if (string.IsNullOrEmpty(RawResponseString)) return RawResponseString;
             ct.ThrowIfCancellationRequested();
@@ -892,7 +959,7 @@ namespace JarvisLauncher
             catch { }
         }
 
-        private (Border Border, TextBox TextContent, TextBox DebugContent) AddMessageBubbleWithControl(string Text, bool IsAi, bool IsItalic = false, string? RawResponse = null)
+        private (Border Border, TextBlock TextContent, TextBox DebugContent) AddMessageBubbleWithControl(string Text, bool IsAi, bool IsItalic = false, string? RawResponse = null)
         {
             var BubbleBorder = new Border { Background = IsAi ? new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(64, 128, 80, 230)), CornerRadius = IsAi ? new CornerRadius(12, 12, 12, 0) : new CornerRadius(12, 12, 0, 12), Margin = IsAi ? new Thickness(0, 4, 48, 4) : new Thickness(48, 4, 0, 4), HorizontalAlignment = IsAi ? HorizontalAlignment.Left : HorizontalAlignment.Right, Padding = new Thickness(12, 10, 12, 10), MaxWidth = 300 };
 
@@ -902,19 +969,14 @@ namespace JarvisLauncher
             var mainStack = new StackPanel();
             outerStack.Children.Add(mainStack);
 
-            var Tb = new TextBox
+            var Tb = new TextBlock
             { 
                 FontSize = 13, 
                 FontFamily = new FontFamily("Segoe UI"), 
                 TextWrapping = TextWrapping.Wrap, 
-                FontStyle = IsItalic ? FontStyles.Italic : FontStyles.Normal,
-                IsReadOnly = true,
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
-                FocusVisualStyle = null,
-                IsReadOnlyCaretVisible = false
+                FontStyle = IsItalic ? FontStyles.Italic : FontStyles.Normal
             };
-            Tb.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
+            Tb.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
             mainStack.Children.Add(Tb);
 
             TextBox debugText = null!;
@@ -987,7 +1049,7 @@ namespace JarvisLauncher
             return (BubbleBorder, Tb, debugText);
         }
 
-        private void RenderBubbleContent(StackPanel Container, TextBox MainText, string Text)
+        private void RenderBubbleContent(StackPanel Container, TextBlock MainText, string Text)
         {
             string cleanText = Text;
             string usageInfo = "";
@@ -1032,39 +1094,29 @@ namespace JarvisLauncher
                     if (Part.IsCode)
                     {
                         var CodeBdr = new Border { Background = new SolidColorBrush(Color.FromArgb(30, 0, 0, 0)), Padding = new Thickness(6), Margin = new Thickness(0, 4, 0, 4), CornerRadius = new CornerRadius(4) };
-                        var CodeTb = new TextBox
+                        var CodeTb = new TextBlock
                         { 
                             Text = Part.Content.Trim(),
                             FontSize = 12, 
                             FontFamily = new FontFamily("Consolas"), 
-                            TextWrapping = TextWrapping.Wrap,
-                            IsReadOnly = true,
-                            Background = Brushes.Transparent,
-                            BorderThickness = new Thickness(0),
-                            FocusVisualStyle = null,
-                            IsReadOnlyCaretVisible = false
+                            TextWrapping = TextWrapping.Wrap
                         };
-                        CodeTb.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
+                        CodeTb.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
                         CodeBdr.Child = CodeTb;
                         Container.Children.Add(CodeBdr);
                     }
                     else if (!string.IsNullOrWhiteSpace(Part.Content))
                     {
-                        var Tb = new TextBox
+                        var TbPart = new TextBlock
                         { 
                             Text = Part.Content.Trim(),
                             FontSize = 13, 
                             FontFamily = new FontFamily("Segoe UI"), 
                             TextWrapping = TextWrapping.Wrap, 
-                            Margin = new Thickness(0, 2, 0, 2),
-                            IsReadOnly = true,
-                            Background = Brushes.Transparent,
-                            BorderThickness = new Thickness(0),
-                            FocusVisualStyle = null,
-                            IsReadOnlyCaretVisible = false
+                            Margin = new Thickness(0, 2, 0, 2)
                         };
-                        Tb.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
-                        Container.Children.Add(Tb);
+                        TbPart.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
+                        Container.Children.Add(TbPart);
                     }
                 }
             }

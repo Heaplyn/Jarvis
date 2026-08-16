@@ -78,6 +78,9 @@ namespace JarvisLauncher
                     try { MemoryManager.Start(); } catch { }
                     try { SelfHealingManager.Initialize(); } catch { }
                     try { ReminderManager.Initialize(); } catch { }
+                    try { VsixManager.LoadInstalledExtensions(); } catch { }
+                    try { _ = ProjectSymbolIndexer.IndexProjectAsync(AppDomain.CurrentDomain.BaseDirectory); } catch { }
+                    try { JarvisPluginManager.Initialize(); } catch { }
 
                     await Task.Delay(500); // Dramatic pause
                 });
@@ -134,7 +137,16 @@ namespace JarvisLauncher
 
         protected override void OnExit(ExitEventArgs e)
         {
-            _notifyIcon?.Dispose();
+            try
+            {
+                // Graceful shutdown of active background services
+                VoiceActivationManager.Stop();
+                MobileBridgeServer.Stop();
+                MemoryManager.Stop();
+
+                _notifyIcon?.Dispose();
+            }
+            catch { }
             base.OnExit(e);
         }
     }

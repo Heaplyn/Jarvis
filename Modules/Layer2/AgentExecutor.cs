@@ -36,27 +36,27 @@ namespace JarvisLauncher
 
             bool hasPsActions = false;
 
-            // 1. Process WRITE_FILE tags
-            var writeRegex = new Regex(@"\[WRITE_FILE:\s*(.+?)\](.*?)\[END_WRITE\]", RegexOptions.Singleline);
+            // 1. Process WRITE_FILE tags: [WRITE_FILE:] or @wf{}{}
+            var writeRegex = new Regex(@"(?:\[WRITE_FILE:\s*(?<path>.+?)\](?<content>.*?)\[END_WRITE\]|@wf\{(?<path>.+?)\}\{(?<content>.*?)\})", RegexOptions.Singleline);
             foreach (Match match in writeRegex.Matches(aiResponse))
             {
-                string path = match.Groups[1].Value.Trim().Trim('"', '\'');
-                string content = match.Groups[2].Value.Replace("'", "''");
+                string path = match.Groups["path"].Value.Trim().Trim('"', '\'');
+                string content = match.Groups["content"].Value.Replace("'", "''");
                 psScript.AppendLine($"$dir = Split-Path '{path}'; if (!(Test-Path $dir)) {{ New-Item -ItemType Directory -Force -Path $dir }}; Set-Content -Path '{path}' -Value @'\n{content}\n'@ -Force");
                 hasPsActions = true;
             }
 
-            // 2. Process DELETE_PATH tags
-            var deleteRegex = new Regex(@"\[DELETE_PATH:\s*(.+?)\]", RegexOptions.IgnoreCase);
+            // 2. Process DELETE_PATH tags: [DELETE_PATH:]
+            var deleteRegex = new Regex(@"\[DELETE_PATH:\s*(?<path>.+?)\]", RegexOptions.IgnoreCase);
             foreach (Match match in deleteRegex.Matches(aiResponse))
             {
-                string path = match.Groups[1].Value.Trim().Trim('"', '\'');
+                string path = match.Groups["path"].Value.Trim().Trim('"', '\'');
                 psScript.AppendLine($"if (Test-Path '{path}') {{ Remove-Item -Path '{path}' -Recurse -Force }}");
                 hasPsActions = true;
             }
 
-            // 3. Process EXEC_PS tags
-            var psRegex = new Regex(@"\[EXEC_PS:\s*(?<cmd>[\s\S]+?)\]", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            // 3. Process EXEC_PS tags: [EXEC_PS:] or @ps{}
+            var psRegex = new Regex(@"(?:\[EXEC_PS:\s*(?<cmd>[\s\S]+?)\]|@ps\{(?<cmd>.+?)\})", RegexOptions.IgnoreCase | RegexOptions.Singleline);
             foreach (Match m in psRegex.Matches(aiResponse))
             {
                 psScript.AppendLine(m.Groups["cmd"].Value.Trim());
@@ -72,11 +72,11 @@ namespace JarvisLauncher
                 hasPsActions = true;
             }
 
-            // 5. Process SPEECH tags (Immediate TTS)
-            var speechRegex = new Regex(@"\[SPEECH:\s*(.+?)\]", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            // 5. Process SPEECH tags: [SPEECH:] or @say{}
+            var speechRegex = new Regex(@"(?:\[SPEECH:\s*(?<text>.+?)\]|@say\{(?<text>.+?)\})", RegexOptions.IgnoreCase | RegexOptions.Singleline);
             foreach (Match m in speechRegex.Matches(aiResponse))
             {
-                string text = m.Groups[1].Value.Trim().Trim('"', '\'');
+                string text = m.Groups["text"].Value.Trim().Trim('"', '\'');
                 TtsManager.Speak(text);
             }
 
@@ -120,8 +120,6 @@ namespace JarvisLauncher
                 _ = Task.Run(async () => await WebOperationManager.DiscoverAndDownloadMediaAsync(url, format == "mp4" ? "video" : "audio"));
             }
 
-            string executionSummary = "";
-
             if (hasPsActions)
             {
                 string script = psScript.ToString();
@@ -129,12 +127,12 @@ namespace JarvisLauncher
                 ChatOverlay.LogConsoleAction("Script Executed", $"Actions offloaded to PowerShell.\nOutput:\n{output}");
             }
 
-            // 7. Handling non-scriptable UI actions (Open windows, volume, etc.)
-            var cmdRegex = new Regex(@"\[RUN_COMMAND:\s*(.+?)\]", RegexOptions.IgnoreCase);
+            // 11. Handling non-scriptable UI actions: [RUN_COMMAND:] or @run{} or @run
+            var cmdRegex = new Regex(@"(?:\[RUN_COMMAND:\s*(?<cmd>.+?)\]|@run\{(?<cmd>.+?)\}|@run\s+(?<cmd>.+?)(?:\n|@|$))", RegexOptions.IgnoreCase);
             var cmdMatches = cmdRegex.Matches(aiResponse);
             foreach (Match m in cmdMatches)
             {
-                string cmd = m.Groups[1].Value.Trim();
+                string cmd = m.Groups["cmd"].Value.Trim();
 
                 if (cmd.Contains("git push") || cmd.StartsWith("push"))
                 {
@@ -144,6 +142,14 @@ namespace JarvisLauncher
                 {
                     Application.Current.Dispatcher.Invoke(() => CommandParser.ExecuteFirstSuggestion(cmd));
                 }
+            }
+
+            // 12. Process OPEN_APP tags: [OPEN_APP:] or @app{} or @app
+            var appRegex = new Regex(@"(?:\[OPEN_APP:\s*(?<name>.+?)\]|@app\{(?<name>.+?)\}|@app\s+(?<name>.+?)(?:\n|@|$))", RegexOptions.IgnoreCase);
+            foreach (Match m in appRegex.Matches(aiResponse))
+            {
+                string name = m.Groups["name"].Value.Trim().Trim('"', '\'');
+                Application.Current.Dispatcher.Invoke(() => CommandParser.ExecuteFirstSuggestion($"app {name}"));
             }
 
             return StripAllInternalTags(aiResponse);
@@ -173,19 +179,33 @@ namespace JarvisLauncher
 
             string cleaned = text;
 
-            // 1. Remove multi-line code-like action blocks
+            // 1. Extract content from APP_RESPONSE block if present
+            var appResponseRegex = new Regex(@"\{\{\{\{APP_RESPONSE:::(?<content>.*?):::APP_RESPONSE\}\}\}\}", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            var match = appResponseRegex.Match(cleaned);
+            if (match.Success)
+            {
+                cleaned = match.Groups["content"].Value.Trim();
+            }
+
+            // 2. Remove multi-line code-like action blocks
             cleaned = Regex.Replace(cleaned, @"\[WRITE_FILE:\s*.+?\][\s\S]*?\[END_WRITE\]", "", RegexOptions.IgnoreCase);
             cleaned = Regex.Replace(cleaned, @"\[APPEND_FILE:\s*.+?\][\s\S]*?\[END_APPEND\]", "", RegexOptions.IgnoreCase);
 
-            // 2. Remove all standard square-bracket tags (Actions & Context)
+            // 3. Remove all standard square-bracket tags (Actions & Context)
             cleaned = Regex.Replace(cleaned, @"\[[A-Z0-9_]{3,}(?::\s*[\s\S]*?)?\]", "", RegexOptions.IgnoreCase);
 
-            // 3. Remove metadata prefixes
+            // 4. Remove Shorthand tags (@tag{...})
+            cleaned = Regex.Replace(cleaned, @"@[a-z0-9_]{2,}\{.*?\}(\{.*?\})?", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+
+            // 5. Remove metadata prefixes
             cleaned = Regex.Replace(cleaned, @"^(Response|Jarvis|Assistant|Assistant Response):\s*", "", RegexOptions.IgnoreCase | RegexOptions.Multiline);
 
-            // 4. Filter for any line that is just punctuation or dots
+            // 6. Filter for any line that is just punctuation or dots
             var lines = cleaned.Split('\n').Where(l => !string.IsNullOrWhiteSpace(l) && !Regex.IsMatch(l, @"^[\.\s\?\!]+$"));
             cleaned = string.Join("\n", lines);
+
+            // Final cleanup of wrapper fragments
+            cleaned = cleaned.Replace("{{{{APP_RESPONSE:::", "").Replace(":::APP_RESPONSE}}}}", "");
 
             return cleaned.Trim();
         }

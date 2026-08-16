@@ -82,8 +82,7 @@ namespace JarvisLauncher
                         Task.Run(async () =>
                         {
                             string result = await WebOperationManager.ScrapeWebpageAsync(url);
-                            ChatOverlay.ShowChat();
-                            await ChatOverlay.SubmitTextMessage($"web operation report:\n{result}");
+                            ContentPreviewOverlay.Show($"Scrape: {url}", result, "markdown");
                         });
                     }
                 });
@@ -104,8 +103,7 @@ namespace JarvisLauncher
                         Task.Run(async () =>
                         {
                             string result = await WebOperationManager.SearchWebAsync(term);
-                            ChatOverlay.ShowChat();
-                            await ChatOverlay.SubmitTextMessage($"web operation report:\n{result}");
+                            ContentPreviewOverlay.Show($"Search: {term}", result, "markdown");
                         });
                     }
                 });

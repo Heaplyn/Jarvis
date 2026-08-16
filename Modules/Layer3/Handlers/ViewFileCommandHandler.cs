@@ -68,9 +68,17 @@ namespace JarvisLauncher
                 if (File.Exists(path))
                 {
                     string content = File.ReadAllText(path);
+                    string ext = Path.GetExtension(path).ToLower();
 
-                    // Reuses the scrollable console overlay from Layer 2!
-                    CliOutputOverlay.Show(Path.GetFileName(path), content);
+                    if (ext == ".md" || ext == ".json" || ext == ".log")
+                    {
+                        ContentPreviewOverlay.Show(Path.GetFileName(path), content);
+                    }
+                    else
+                    {
+                        // Reuses the scrollable console overlay from Layer 2!
+                        CliOutputOverlay.Show(Path.GetFileName(path), content);
+                    }
                 }
                 else
                 {

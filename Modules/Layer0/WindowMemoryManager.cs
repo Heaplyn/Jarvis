@@ -86,6 +86,19 @@ namespace JarvisLauncher
             }
         }
 
+        public static bool IsWindowMaximized(string windowKey)
+        {
+            if (string.IsNullOrWhiteSpace(windowKey)) return false;
+            lock (_lock)
+            {
+                if (_states.TryGetValue(windowKey, out var bounds))
+                {
+                    return bounds.IsMaximized;
+                }
+            }
+            return false;
+        }
+
         public static bool RestoreWindowBounds(string windowKey, Window window, out bool isMiniMode)
         {
             isMiniMode = false;
