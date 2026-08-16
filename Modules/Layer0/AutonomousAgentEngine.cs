@@ -8,6 +8,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -81,6 +82,57 @@ namespace JarvisLauncher
 
             // 4. Audit Screen Surveillance (AI code teacher screen analysis)
             await AuditScreenSurveillance();
+
+            // 5. Audit Authentication Errors (New: Screen reading login help)
+            await AuditAuthErrors();
+        }
+
+        private static DateTime LastAuthAudit = DateTime.MinValue;
+
+        private static async Task AuditAuthErrors()
+        {
+            try
+            {
+                // Only audit auth errors every 30 seconds to save performance
+                if ((DateTime.Now - LastAuthAudit).TotalSeconds < 30) return;
+                LastAuthAudit = DateTime.Now;
+
+                string activeWin = MemoryManager.GetCurrentWindowTitle().ToLower();
+                if (string.IsNullOrEmpty(activeWin)) return;
+
+                // Only check browsers or common login windows
+                bool isTarget = activeWin.Contains("chrome") || activeWin.Contains("edge") ||
+                               activeWin.Contains("firefox") || activeWin.Contains("discord") ||
+                               activeWin.Contains("spotify") || activeWin.Contains("sign in") ||
+                               activeWin.Contains("login");
+
+                if (!isTarget) return;
+
+                string? b64 = ScreenCaptureUtil.CapturePrimaryScreenToBase64();
+                if (string.IsNullOrEmpty(b64)) return;
+
+                string prompt = "Task: Analyze this screen for authentication or authorization errors.\n" +
+                               "Identify errors like 'Invalid Credentials', 'Client ID missing', 'Redirect URI mismatch', 'OAuth error', 'Invalid Token', or '401 Unauthorized'.\n" +
+                               "If a clear auth error is found, describe it briefly and list which service (Google, Discord, etc.) is failing.\n" +
+                               "If no error is visible, respond with 'CLEAR'.\n" +
+                               "Respond ONLY with the error description or 'CLEAR'.";
+
+                string response = await AiAPI.AnalyzeImageAsync(prompt, b64);
+
+                if (!string.IsNullOrWhiteSpace(response) && !response.Contains("CLEAR"))
+                {
+                    DebugConsoleOverlay.Log("Autonomous-Auth", $"Detected Screen Auth Error: {response}");
+
+                    Application.Current.Dispatcher.Invoke(() => {
+                        TextOverlay.Show("⚠️ Jarvis detected a login error on screen!", 5000);
+                        TtsManager.Speak("I noticed an authentication error on your screen. Would you like me to help you set that up in my settings?");
+
+                        ChatOverlay.ShowChat();
+                        ChatOverlay.SubmitTextMessage($"I see an auth error: \"{response}\". Let's fix this. I can help you find your Client ID, Secret, or Redirect URI in the settings.");
+                    });
+                }
+            }
+            catch { }
         }
 
         private static async Task RunDeepAutonomousReflect()

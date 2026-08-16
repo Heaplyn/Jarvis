@@ -9,10 +9,16 @@
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>JarvisLauncher</RootNamespace>
     <AssemblyName>JarvisLauncher</AssemblyName>
-    <!-- Shrink binary by requiring .NET 8 Runtime to be installed on PC -->
+    <!-- Reverting to File-Dependent (Modular) build per user request -->
     <SelfContained>false</SelfContained>
     <PublishSelfContained>false</PublishSelfContained>
     <PublishSingleFile>false</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
+
+    <!-- Redirect output to the main Jarvis folder -->
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <OutputPath>.\</OutputPath>
   </PropertyGroup>
 
   <ItemGroup>

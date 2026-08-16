@@ -53,6 +53,19 @@ For faster communication, the AI uses a concise "@" protocol:
 - `@wf{path}{content}`: Write File
 - `@ps{cmd}`: Execute PowerShell
 - `@snap`: Take Screenshot
+- `@app{name}`: Launch Application
+
+---
+
+## 🏗️ Architecture: File-Dependent & Modular
+Jarvis is designed to be **transparent and modular**. The `JarvisLauncher.exe` you see in the folder is a dependent binary that relies on the surrounding files and directories to function.
+
+- **Modules/**: Contains the core logic layers.
+- **Themes/**: Stores visual glassmorphic styles.
+- **Data/**: The persistent brain of Jarvis (Settings, Memory, Skills).
+- **Macros/**: User-defined command chains.
+
+**Note**: Do not move the `JarvisLauncher.exe` out of its root folder, or it will lose access to its "Limbs and Memories."
 
 ---
 

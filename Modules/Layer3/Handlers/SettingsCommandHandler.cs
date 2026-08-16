@@ -16,7 +16,8 @@ namespace JarvisLauncher
                 || q.StartsWith("setkey") || q.StartsWith("getkey")
                 || q.StartsWith("ontop") || q.StartsWith("topmost") || q.StartsWith("alwaysontop")
                 || q.StartsWith("disable") || q.StartsWith("enable") || q == "sleep jarvis" || q == "wake jarvis"
-                || q.StartsWith("debug") || q.StartsWith("verbose");
+                || q.StartsWith("debug") || q.StartsWith("verbose")
+                || q.StartsWith("obsidian");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -29,6 +30,34 @@ namespace JarvisLauncher
 
             string cmd = parts[0].ToLower();
             double similarity = 2.0; // High priority match
+
+            if (cmd == "obsidian")
+            {
+                if (parts.Length > 1 && parts[1].ToLower() == "path")
+                {
+                    if (parts.Length > 2)
+                    {
+                        string path = query.Substring(query.IndexOf(parts[2])).Trim();
+                        suggestions.Add(new CommandResult
+                        {
+                            TITLE = "Set Obsidian Vault Path",
+                            DESCRIPTION = $"Target: {path}",
+                            SIMILARITY = 7.0,
+                            EXECUTE = () => { SettingsManager.Current.OBSIDIAN_VAULT_PATH = path; SettingsManager.Save(); TextOverlay.Show("✅ Obsidian Vault path updated.", 2500); }
+                        });
+                    }
+                    else
+                    {
+                        suggestions.Add(new CommandResult
+                        {
+                            TITLE = "Set Obsidian Vault Path...",
+                            DESCRIPTION = "Type path or use 'obsidian path browse'",
+                            SIMILARITY = 6.0,
+                            EXECUTE = null
+                        });
+                    }
+                }
+            }
 
             if (lowerQuery.Contains("setting") || lowerQuery.Contains("option") || lowerQuery.Contains("config") || lowerQuery.Contains("pref"))
             {

@@ -14,6 +14,7 @@ using System.Windows;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Diagnostics;
 
 namespace JarvisLauncher
 {
@@ -168,6 +169,63 @@ namespace JarvisLauncher
             }
 
             string LastSummary = "";
+
+            // --- 0. CUSTOM DATA PROCESSORS (Fine-Tuned) ---
+
+            // @proc_text{op, data}
+            var TextProcRegex = new Regex(@"@proc_text\{(?<op>[^,]+),\s*(?<data>.*?)\}", RegexOptions.Singleline);
+            foreach (Match M in TextProcRegex.Matches(Response))
+            {
+                string op = M.Groups["op"].Value.Trim();
+                string data = M.Groups["data"].Value.Trim();
+                if (ExecutedTags.Add($"PROCTEXT:{op}:{data.GetHashCode()}")) {
+                    string res = await WebOperationManager.ProcessDataFineAsync("text", op, data);
+                    ExecutionFeedBuilder.AppendLine($"[TEXT_PROC_RESULT: {op}]\n{res}\n[END_TEXT_PROC_RESULT]");
+                    LastSummary = $"⚙️ **Text Processed: {op}**";
+                }
+            }
+
+            // @proc_img{op, path}
+            var ImgProcRegex = new Regex(@"@proc_img\{(?<op>[^,]+),\s*(?<path>.*?)\}", RegexOptions.Singleline);
+            foreach (Match M in ImgProcRegex.Matches(Response))
+            {
+                string op = M.Groups["op"].Value.Trim();
+                string path = M.Groups["path"].Value.Trim().Trim('"', '\'');
+                if (ExecutedTags.Add($"PROCIMG:{op}:{path}")) {
+                    string res = await WebOperationManager.ProcessDataFineAsync("image", op, path);
+                    ExecutionFeedBuilder.AppendLine($"[IMG_PROC_RESULT: {op}]\n{res}\n[END_IMG_PROC_RESULT]");
+                    LastSummary = $"🖼️ **Image Processed: {op}**";
+                }
+            }
+
+            // @proc_req{method, url, body}
+            var ReqProcRegex = new Regex(@"@proc_req\{(?<method>[^,]+),\s*(?<url>[^,]+),\s*(?<body>.*?)\}", RegexOptions.Singleline);
+            foreach (Match M in ReqProcRegex.Matches(Response))
+            {
+                string method = M.Groups["method"].Value.Trim();
+                string url = M.Groups["url"].Value.Trim();
+                string body = M.Groups["body"].Value.Trim();
+                if (ExecutedTags.Add($"PROCREQ:{method}:{url}")) {
+                    string combined = $"{method}|{url}|{body}";
+                    string res = await WebOperationManager.ProcessDataFineAsync("request", method, combined);
+                    ExecutionFeedBuilder.AppendLine($"[REQ_PROC_RESULT: {method}]\n{res}\n[END_REQ_PROC_RESULT]");
+                    LastSummary = $"🌐 **Network Action: {method}**";
+                }
+            }
+
+            // Legacy catch-all @proc{input}
+            var ProcRegex = new Regex(@"@proc\{(?<input>.*?)\}", RegexOptions.Singleline);
+            foreach (Match M in ProcRegex.Matches(Response))
+            {
+                string input = M.Groups["input"].Value.Trim();
+                if (SettingsManager.Current.ENABLE_CUSTOM_PROCESSOR && ExecutedTags.Add($"PROC:{input.GetHashCode()}"))
+                {
+                    string res = await WebOperationManager.ProcessDataFineAsync("generic", "execute", input);
+                    ExecutionFeedBuilder.AppendLine($"[PROCESSOR_RESULT]\n{res}\n[END_PROCESSOR_RESULT]");
+                    LastSummary = "⚙️ **Data processed via custom engine.**";
+                }
+            }
+
             int NewExecs = 0;
 
             // --- 1. READ_FILE ---
@@ -184,6 +242,7 @@ namespace JarvisLauncher
                         string text = File.Exists(P) ? File.ReadAllText(P) : "Error: File not found.";
                         ExecutionFeedBuilder.AppendLine($"[FILE_CONTENT: {P}]\n{text}\n[END_FILE_CONTENT]");
                         LastSummary = $"📄 **Read: {Path.GetFileName(P)}**";
+                        Application.Current.Dispatcher.Invoke(() => ChatOverlay.LogConsoleAction("Read File", $"Path: {P}\nStatus: SUCCESS"));
                     } catch (Exception ex) { ExecutionFeedBuilder.AppendLine($"[FILE_ERROR: {P}] {ex.Message}"); }
                 }
             }
@@ -204,6 +263,7 @@ namespace JarvisLauncher
                         File.WriteAllText(P, C);
                         ExecutionFeedBuilder.AppendLine($"[WRITE_SUCCESS: {P}]");
                         LastSummary = $"📝 **Wrote: {Path.GetFileName(P)}**";
+                        Application.Current.Dispatcher.Invoke(() => ChatOverlay.LogConsoleAction("Write File", $"Path: {P}\nLength: {C.Length} chars"));
                     } catch (Exception ex) { ExecutionFeedBuilder.AppendLine($"[WRITE_ERROR: {P}] {ex.Message}"); }
                 }
             }
@@ -227,6 +287,7 @@ namespace JarvisLauncher
                             Proc.WaitForExit(10000);
                             ExecutionFeedBuilder.AppendLine($"[POWERSHELL_OUTPUT]\n{outText}\n{errText}\n[END_POWERSHELL_OUTPUT]");
                             LastSummary = "⚡ **Executed PowerShell command.**";
+                            Application.Current.Dispatcher.Invoke(() => ChatOverlay.LogConsoleAction("PowerShell", $"Cmd: {cmd}\nOutput: {(outText.Length > 100 ? outText.Substring(0, 100) + "..." : outText)}"));
                         }
                     } catch (Exception ex) { ExecutionFeedBuilder.AppendLine($"[PS_ERROR] {ex.Message}"); }
                 }
@@ -241,6 +302,7 @@ namespace JarvisLauncher
                     if (b64 != null) {
                         ExecutionFeedBuilder.AppendLine("[SCREENSHOT_CAPTURED]");
                         LastSummary = "📸 **Captured screenshot.**";
+                        Application.Current.Dispatcher.Invoke(() => ChatOverlay.LogConsoleAction("Screenshot", "Status: CAPTURED"));
                     }
                 } catch { }
             }
@@ -255,7 +317,10 @@ namespace JarvisLauncher
                 if (ExecutedTags.Add($"RUN:{cmd}"))
                 {
                     NewExecs++;
-                    Application.Current.Dispatcher.Invoke(() => CommandParser.ExecuteFirstSuggestion(cmd));
+                    Application.Current.Dispatcher.Invoke(() => {
+                        CommandParser.ExecuteFirstSuggestion(cmd);
+                        ChatOverlay.LogConsoleAction("Run Command", $"Command: {cmd}");
+                    });
                     ExecutionFeedBuilder.AppendLine($"[COMMAND_EXECUTED: {cmd}]");
                     LastSummary = $"⚡ **Executed: {cmd}**";
                 }
@@ -263,6 +328,57 @@ namespace JarvisLauncher
 
             // ... (Additional tags like SEARCH_REGISTRY, INGEST_DOCS, etc. can be updated similarly) ...
 
+
+            // --- 5b. OPEN_APP ---
+            // Pattern 1: [OPEN_APP: name]
+            // Pattern 2: @app{name}
+            var AppRegex = new Regex(@"(?:\[OPEN_APP:\s*(?<name>.+?)\]|@app\{(?<name>.+?)\})", RegexOptions.IgnoreCase);
+            foreach (Match M in AppRegex.Matches(Response))
+            {
+                string name = M.Groups["name"].Value.Trim().Trim('"', '\'');
+                if (ExecutedTags.Add($"APP:{name}"))
+                {
+                    NewExecs++;
+                    var matches = WindowsAppScanner.GetMatchingApps(name);
+                    if (matches.Any())
+                    {
+                        var best = matches.OrderByDescending(m => m.SIMILARITY).First();
+                        Application.Current.Dispatcher.Invoke(() => {
+                            best.EXECUTE?.Invoke();
+                            ChatOverlay.LogConsoleAction("Open App", $"App: {best.TITLE}");
+                        });
+                        ExecutionFeedBuilder.AppendLine($"[APP_SUCCESS: {name}]");
+                        LastSummary = $"📱 **Launched: {best.TITLE}**";
+                    }
+                    else {
+                        try {
+                            Process.Start(new ProcessStartInfo { FileName = name, UseShellExecute = true });
+                            ExecutionFeedBuilder.AppendLine($"[APP_SUCCESS: {name}]");
+                            LastSummary = $"📱 **Launched: {name}**";
+                            Application.Current.Dispatcher.Invoke(() => ChatOverlay.LogConsoleAction("Open App", $"Name: {name} (Fallback)"));
+                        }
+                        catch { ExecutionFeedBuilder.AppendLine($"[APP_ERROR: {name}] Not found."); }
+                    }
+                }
+            }
+
+            // --- 5c. BUILD_PROJECT ---
+            // Tag: @build{lang, path, options}
+            var BuildRegex = new Regex(@"@build\{(?<lang>[^,]+),\s*(?<path>[^,]+)(?:,\s*(?<opts>[^\}]+))?\}", RegexOptions.IgnoreCase);
+            foreach (Match M in BuildRegex.Matches(Response))
+            {
+                string l = M.Groups["lang"].Value.Trim();
+                string p = M.Groups["path"].Value.Trim().Trim('"', '\'');
+                string o = M.Groups["opts"].Success ? M.Groups["opts"].Value.Trim() : "";
+                if (ExecutedTags.Add($"BUILD:{l}:{p}"))
+                {
+                    NewExecs++;
+                    string res = await BuildSystemManager.BuildProjectAsync(l, p, o);
+                    ExecutionFeedBuilder.AppendLine($"[BUILD_RESULT]\n{res}\n[END_BUILD_RESULT]");
+                    LastSummary = $"🛠️ **Building {l.ToUpper()} Project...**";
+                    Application.Current.Dispatcher.Invoke(() => ChatOverlay.LogConsoleAction("Build Project", $"Lang: {l}\nPath: {p}"));
+                }
+            }
 
             // 6. [SEARCH_REGISTRY: type, query]
             var RegRegex = new Regex(@"\[SEARCH_REGISTRY:\s*(?<type>[^,]+),\s*(?<query>[^\]]+)\]", RegexOptions.IgnoreCase);
@@ -392,6 +508,27 @@ namespace JarvisLauncher
             return Text.Trim();
         }
 
+        private static async Task<string> ExecuteCustomProcessorAsync(string path, string input)
+        {
+            return await Task.Run(() =>
+            {
+                try {
+                    var psi = new ProcessStartInfo {
+                        FileName = path,
+                        Arguments = $"\"{input.Replace("\"", "\\\"")}\"",
+                        RedirectStandardOutput = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+                    using var proc = Process.Start(psi);
+                    if (proc == null) return "Error: Failed to start processor.";
+                    string output = proc.StandardOutput.ReadToEnd();
+                    proc.WaitForExit(30000);
+                    return output.Trim();
+                } catch (Exception ex) { return $"Processor Exception: {ex.Message}"; }
+            });
+        }
+
         private static string ProcessSafeActionTags(string Response, HashSet<string> ExecutedTags, StringBuilder ExecutionFeedBuilder)
         {
             string LastSummary = "";
@@ -444,10 +581,10 @@ namespace JarvisLauncher
             string[] ApiVersions = new[] { "v1beta", "v1" };
             int globalRetryCount = 0;
             int maxGlobalRetries = 2;
+            string LastError = "";
 
             while (globalRetryCount < maxGlobalRetries)
             {
-                string LastError = "";
                 foreach (var Model in Models)
                 {
                     foreach (var ApiVer in ApiVersions)
@@ -512,8 +649,8 @@ namespace JarvisLauncher
             var recentActions = ActionJournalManager.GetRecentActions(3);
             string journalSummary = recentActions.Count > 0 ? "RECENT ACTIVITY: " + string.Join("; ", recentActions.Select(a => a.Summary)) : "";
 
-            return "## IDENTITY\nYou are Jarvis, a witty HUD AI.\n\n## CONTEXT\n" + userMemory + "\n" + instructions + "\n" + journalSummary + "\n\n## PROJECT MAP\n" + projectMap +
-                   "\n\n## CORE RULES\n- Be sassy and helpful.\n- Keep it under 2 sentences.\n- NEVER repeat context tags.\n\n## ACTIONS\n" +
+            return "## IDENTITY\nYou are Jarvis, a witty HUD AI. You are a modular entity that lives within your filesystem.\n\n## CONTEXT\n" + userMemory + "\n" + instructions + "\n" + journalSummary + "\n\n## PROJECT MAP\n" + projectMap +
+                   "\n\n## CORE RULES\n- Be sassy and helpful.\n- You are file-dependent; you rely on the local directory for modules and memory.\n- Keep it under 2 sentences.\n- NEVER repeat context tags.\n\n## ACTIONS\n" +
                    "[READ_FILE: path] [WRITE_FILE: path] [EXEC_PS: cmd] [RUN_COMMAND: cmd]\n" +
                    "[TAKE_SCREENSHOT] [SPEECH: text] [SET_CLIPBOARD: text]\n" +
                    "[USER_AUTH_REQUIRED: prompt] [SOLVE_CAPTCHA: url]\n" +
@@ -527,7 +664,7 @@ namespace JarvisLauncher
             return "You are Jarvis, a sharp AI assistant in a Windows HUD. Be concise.\n" +
                    $"Active Window: {activeWindow}\n" +
                    "## ACTIONS (Use shorthand @)\n" +
-                   "@rf{path} @wf{path}{content} @ps{cmd} @run{cmd} @snap @say{text} @ingest{url}\n" +
+                   "@rf{path} @wf{path}{content} @ps{cmd} @run{cmd} @snap @say{text} @ingest{url} @app{name}\n" +
                    "Never narrate. Never explain steps. Just respond or act.";
         }
     }

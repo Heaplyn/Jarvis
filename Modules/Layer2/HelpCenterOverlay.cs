@@ -98,45 +98,94 @@ namespace JarvisLauncher
             keysTab.Content = keysScroll;
             tabControl.Items.Add(keysTab);
 
-            // ── TAB 3: Chaining & Advanced Features ─────────────────────────────
-            var advTab = new TabItem { Header = "🚀 Advanced Pipelines & Tips" };
-            var advScroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Margin = new Thickness(12) };
-            var advStack = new StackPanel();
+            // ── TAB 3: Scripting & Automation ──────────────────────────────────────────
+            var scriptTab = new TabItem { Header = "📜 Scripting Guide" };
+            var scriptScroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Margin = new Thickness(12) };
+            var scriptStack = new StackPanel();
 
-            advStack.Children.Add(CreateHeaderBlock("Command Chaining & Inline Scripting"));
-            advStack.Children.Add(CreateInfoRow("Pipeline Operator '|'", "Chain multiple commands together (e.g. 'sysinfo | screenshot')"));
-            advStack.Children.Add(CreateInfoRow("Sequence Operator '&&'", "Run sequential commands step-by-step (e.g. 'lock && timer 10')"));
-            advStack.Children.Add(CreateInfoRow("Math Evaluator", "Type math directly (e.g. '54 * 12 + sqrt(144)') for instant output"));
-            advStack.Children.Add(CreateInfoRow("Machine Learning Prior", "Jarvis learns your frequently used commands and ranks them higher"));
-            advStack.Children.Add(CreateInfoRow("Voice AI Studio", "Type 'voice' or 'voicestudio' to calibrate voice commands & sample recorder"));
+            scriptStack.Children.Add(CreateHeaderBlock("Advanced Automation & Command Chaining"));
 
-            advScroll.Content = advStack;
-            advTab.Content = advScroll;
-            tabControl.Items.Add(advTab);
-
-            // ── TAB 4: Master User Guide & Feature Manual ──────────────────────
-            var guideTab = new TabItem { Header = "📚 Master User Guide" };
-            var guideScroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Margin = new Thickness(12) };
-            var guideStack = new StackPanel();
-
-            guideStack.Children.Add(CreateHeaderBlock("🤖 JARVIS MASTER USER GUIDE & FEATURE MANUAL"));
-
-            string guideText = "⚠️ Guide file user_guide.md not found in standard paths.";
-            try
-            {
+            string scriptText = "⚠️ Scripting guide not found.";
+            try {
                 string[] candidates = {
-                    System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "user_guide.md"),
-                    System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "user_guide.md"),
-                    System.IO.Path.GetFullPath(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\user_guide.md"))
+                    System.IO.Path.Combine(PathHandler.GetProjectRoot(), "Docs", "SCRIPTING_GUIDE.md"),
+                    System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Docs", "SCRIPTING_GUIDE.md"),
+                    System.IO.Path.Combine(PathHandler.GetDataDirectory(), "SCRIPTING_GUIDE.md")
                 };
 
                 foreach (var path in candidates)
                 {
                     if (System.IO.File.Exists(path))
                     {
+                        scriptText = System.IO.File.ReadAllText(path);
+                        break;
+                    }
+                }
+            } catch { }
+
+            var scriptBox = new TextBox {
+                Text = scriptText,
+                IsReadOnly = true,
+                TextWrapping = TextWrapping.Wrap,
+                FontSize = 11,
+                Padding = new Thickness(10),
+                BorderThickness = new Thickness(0)
+            };
+            scriptBox.SetResourceReference(TextBox.BackgroundProperty, "WindowBackgroundBrush");
+            scriptBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
+            scriptStack.Children.Add(scriptBox);
+
+            scriptScroll.Content = scriptStack;
+            scriptTab.Content = scriptScroll;
+            tabControl.Items.Add(scriptTab);
+
+            // ── TAB 4: Advanced Tips & Tricks ─────────────────────────────
+            var advTab = new TabItem { Header = "🚀 Expert Tips" };
+            var advScroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Margin = new Thickness(12) };
+            var advStack = new StackPanel();
+
+            advStack.Children.Add(CreateHeaderBlock("HUD Mastery & Chaining Tips"));
+            advStack.Children.Add(CreateInfoRow("AI Shorthand", "Use @rf{file} or @ps{cmd} in chat for direct system control."));
+            advStack.Children.Add(CreateInfoRow("Custom Processors", "Link Python/C++ binaries to Jarvis via the @proc pipeline."));
+            advStack.Children.Add(CreateInfoRow("Obsidian Sync", "Ask Jarvis to save notes directly to your Obsidian vault using [[links]]."));
+            advStack.Children.Add(CreateInfoRow("Math HUD", "Type math directly (e.g. '54 * 12 + sqrt(144)') for instant output."));
+
+            advScroll.Content = advStack;
+            advTab.Content = advScroll;
+            tabControl.Items.Add(advTab);
+
+            // ── TAB 5: Master User Guide ──────────────────────────────────────
+            var guideTab = new TabItem { Header = "📚 User Manual" };
+            var guideScroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Margin = new Thickness(12) };
+            var guideStack = new StackPanel();
+
+            guideStack.Children.Add(CreateHeaderBlock("🤖 JARVIS MASTER USER GUIDE & FEATURE MANUAL"));
+
+            string guideText = "⚠️ Guide file user_guide.md not found.";
+            var checkedPaths = new List<string>();
+            try
+            {
+                string[] candidates = {
+                    System.IO.Path.Combine(PathHandler.GetDataDirectory(), "user_guide.md"),
+                    System.IO.Path.Combine(PathHandler.GetProjectRoot(), "user_guide.md"),
+                    System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "user_guide.md"),
+                    System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "user_guide.md")
+                };
+
+                foreach (var path in candidates)
+                {
+                    checkedPaths.Add(path);
+                    if (System.IO.File.Exists(path))
+                    {
                         guideText = System.IO.File.ReadAllText(path);
                         break;
                     }
+                }
+
+                if (guideText.StartsWith("⚠️"))
+                {
+                    guideText += "\n\nChecked Paths:\n" + string.Join("\n", checkedPaths);
+                    guideText += "\n\n👉 PLEASE REBUILD THE PROJECT (Ctrl+Shift+B) and RESTART to apply latest logic.";
                 }
             }
             catch { }
@@ -146,7 +195,7 @@ namespace JarvisLauncher
                 Text = guideText,
                 IsReadOnly = true,
                 TextWrapping = TextWrapping.Wrap,
-                FontSize = 11.5,
+                FontSize = 11,
                 Padding = new Thickness(10),
                 AcceptsReturn = true,
                 BorderThickness = new Thickness(0)
@@ -219,13 +268,38 @@ namespace JarvisLauncher
                     {
                         var border = new Border
                         {
-                            Background = new SolidColorBrush(Color.FromArgb(12, 255, 255, 255)),
+                            Background = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255)), // Increased opacity for better hit-test
                             CornerRadius = new CornerRadius(6),
                             Padding = new Thickness(10, 6, 10, 6),
-                            Margin = new Thickness(0, 2, 0, 4)
+                            Margin = new Thickness(0, 2, 0, 4),
+                            Cursor = Cursors.Hand,
+                            ToolTip = "Click to execute this command",
+                            IsHitTestVisible = true
                         };
 
-                        var itemStack = new StackPanel();
+                        // Use Preview event to ensure we catch it before any child controls
+                        border.PreviewMouseLeftButtonDown += (s, e) =>
+                        {
+                            border.Background = new SolidColorBrush(Color.FromArgb(60, 0, 255, 255)); // Visual feedback
+                        };
+
+                        border.PreviewMouseLeftButtonUp += (s, e) =>
+                        {
+                            border.Background = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255));
+
+                            string runTarget = !string.IsNullOrWhiteSpace(cmd.COMMAND_EXAMPLE) ? cmd.COMMAND_EXAMPLE : cmd.COMMAND_NAME;
+
+                            // Prevent empty targets
+                            if (string.IsNullOrWhiteSpace(runTarget)) return;
+
+                            Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                CommandParser.ExecuteFirstSuggestion(runTarget);
+                                TextOverlay.Show($"⚡ Executing: {runTarget}", 1500);
+                            });
+                        };
+
+                        var itemStack = new StackPanel { IsHitTestVisible = false }; // Let clicks pass to the border
                         var title = new TextBlock { Text = $"⚡ {cmd.COMMAND_NAME}", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.Cyan };
                         var desc = new TextBlock { Text = cmd.COMMAND_DESCRIPTION, FontSize = 11, Foreground = Brushes.LightGray, Margin = new Thickness(0, 2, 0, 0) };
                         itemStack.Children.Add(title);

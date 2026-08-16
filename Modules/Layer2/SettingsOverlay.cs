@@ -284,6 +284,11 @@ namespace JarvisLauncher
             _downloadDirBox = CreateTextBox(settings.DOWNLOAD_DIRECTORY);
             root.Children.Add(_downloadDirBox);
 
+            root.Children.Add(CreateLabel("Obsidian Vault Path:"));
+            var obsidianPathBox = CreateTextBox(settings.OBSIDIAN_VAULT_PATH);
+            obsidianPathBox.TextChanged += (s, e) => settings.OBSIDIAN_VAULT_PATH = obsidianPathBox.Text.Trim();
+            root.Children.Add(obsidianPathBox);
+
             root.Children.Add(CreateLabel("Mobile Bridge Server Port (default 8080):"));
             _mobilePortBox = CreateTextBox(settings.MOBILE_PORT.ToString());
             root.Children.Add(_mobilePortBox);

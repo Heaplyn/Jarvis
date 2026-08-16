@@ -678,11 +678,6 @@ namespace JarvisLauncher
                         AiDebugBlock.Text = sbFinal.ToString();
                     }
                     RenderBubbleContent((StackPanel)AiBorder.Child, AiTextBlock, FinalResult);
-                        sbFinal.AppendLine(FinalResult);
-                        sbFinal.AppendLine("\n" + AiDebugBlock.Text);
-                        AiDebugBlock.Text = sbFinal.ToString();
-                    }
-                    RenderBubbleContent((StackPanel)AiBorder.Child, AiTextBlock, FinalResult);
                 }
             }
             catch (OperationCanceledException) { SetStatus("READY", Brushes.LightGreen); return; }
