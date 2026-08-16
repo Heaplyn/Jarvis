@@ -22,6 +22,13 @@ namespace JarvisLauncher
             if (string.IsNullOrEmpty(aiResponse)) return aiResponse;
             aiResponse = AiAPI.CleanScratchpadText(aiResponse);
 
+            if (!SettingsManager.Current.ENABLE_PC_CONTROL)
+            {
+                // In safety mode, AgentExecutor only processes non-intrusive UI/Audio tags
+                ProcessSafeIntents(aiResponse);
+                return StripAllInternalTags(aiResponse);
+            }
+
             var psScript = new StringBuilder();
             psScript.AppendLine("$ErrorActionPreference = 'SilentlyContinue'"); // Non-blocking
             psScript.AppendLine("$ProgressPreference = 'SilentlyContinue'");
@@ -140,6 +147,24 @@ namespace JarvisLauncher
             }
 
             return StripAllInternalTags(aiResponse);
+        }
+
+        private static void ProcessSafeIntents(string aiResponse)
+        {
+            // Only process Speech and Clipboard in safety mode
+            var speechRegex = new Regex(@"(?:\[SPEECH:\s*(.+?)\]|@say\{(.+?)\})", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            foreach (Match m in speechRegex.Matches(aiResponse))
+            {
+                string text = (m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value).Trim().Trim('"', '\'');
+                TtsManager.Speak(text);
+            }
+
+            var clipRegex = new Regex(@"\[SET_CLIPBOARD:\s*(.+?)\]", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            foreach (Match m in clipRegex.Matches(aiResponse))
+            {
+                string text = m.Groups[1].Value.Trim().Trim('"', '\'');
+                Application.Current.Dispatcher.Invoke(() => Clipboard.SetText(text));
+            }
         }
 
         public static string StripAllInternalTags(string text)

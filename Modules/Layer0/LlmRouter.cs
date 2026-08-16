@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.IO;
 using System.Net.Http;
 using System.Text;
@@ -53,7 +54,7 @@ namespace JarvisLauncher
             string prediction = PredictiveStreamManager.GetCurrentPrediction();
             prompt = $"[PREDICTIVE_STATE: {infoPass}]\n[AI_PREDICTION: {prediction}]\n\n" + prompt;
 
-            DebugConsoleOverlay.LogVerbose("LlmRouter", $"Full Prompt Context:\n{prompt}");
+            DebugConsoleOverlay.LogVerbose("LlmRouter", $"Full Prompt Context:\n{prompt}", isMinimal: false);
 
             string backend = SettingsManager.Current.LLM_BACKEND;
             bool isLocalLlmAvailable = await IsOllamaAvailableAsync();
@@ -78,11 +79,16 @@ namespace JarvisLauncher
 
                 return backend switch
                 {
-                    "OpenAI"   => await AskOpenAIAsync(prompt, history, ct),
-                    "Ollama"   => await AskOllamaAsync(prompt, history, ct),
-                    "Custom"   => await AskCustomAsync(prompt, history, ct),
-                    "P2P"      => await JarvisP2PClient.AskBestPeerAsync(prompt, history),
-                    _          => await AiAPI.AskGemini(prompt, history, ct)
+                    "OpenAI"     => await AskOpenAIAsync(prompt, history, ct),
+                    "Anthropic"  => await AskAnthropicAsync(prompt, history, ct),
+                    "Groq"       => await AskGroqAsync(prompt, history, ct),
+                    "Perplexity" => await AskPerplexityAsync(prompt, history, ct),
+                    "Mistral"    => await AskMistralAsync(prompt, history, ct),
+                    "OpenRouter" => await AskOpenRouterAsync(prompt, history, ct),
+                    "Ollama"     => await AskOllamaAsync(prompt, history, ct),
+                    "Custom"     => await AskCustomAsync(prompt, history, ct),
+                    "P2P"        => await JarvisP2PClient.AskBestPeerAsync(prompt, history),
+                    _            => await AiAPI.AskGemini(prompt, history, ct)
                 };
             }
             catch (Exception ex)
@@ -99,60 +105,124 @@ namespace JarvisLauncher
             }
         }
 
+        // ── Anthropic (Claude) ──────────────────────────────────────────────────
+
+        public static async Task<string> AskAnthropicAsync(string prompt, List<ChatTurn>? history = null, CancellationToken ct = default)
+        {
+            var s = SettingsManager.Current;
+            if (string.IsNullOrEmpty(s.ANTHROPIC_KEY))
+                throw new Exception("Anthropic API key not set.");
+
+            var messages = new List<object>();
+            if (history != null)
+            {
+                foreach (var turn in history.TakeLast(30))
+                    messages.Add(new { role = turn.Role == "model" ? "assistant" : "user", content = turn.Text });
+            }
+            messages.Add(new { role = "user", content = prompt });
+
+            var payload = new
+            {
+                model = s.ANTHROPIC_MODEL,
+                system = AiAPI.GetSystemPrompt(),
+                messages = messages,
+                max_tokens = 2000
+            };
+
+            var req = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages");
+            req.Headers.Add("x-api-key", s.ANTHROPIC_KEY);
+            req.Headers.Add("anthropic-version", "2023-06-01");
+            req.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+            var resp = await _http.SendAsync(req, ct);
+            string body = await resp.Content.ReadAsStringAsync(ct);
+            if (!resp.IsSuccessStatusCode) throw new Exception($"Anthropic Error: {body}");
+
+            using var doc = JsonDocument.Parse(body);
+            return doc.RootElement.GetProperty("content")[0].GetProperty("text").GetString() ?? "";
+        }
+
+        // ── Groq (Ultra-Fast Llama/Mixtral) ──────────────────────────────────────
+
+        public static async Task<string> AskGroqAsync(string prompt, List<ChatTurn>? history = null, CancellationToken ct = default)
+        {
+            var s = SettingsManager.Current;
+            if (string.IsNullOrEmpty(s.GROQ_KEY)) throw new Exception("Groq API key not set.");
+
+            return await AskGenericOpenAICompatibleAsync("https://api.groq.com/openai/v1", s.GROQ_KEY, s.GROQ_MODEL, prompt, history, ct);
+        }
+
+        // ── Perplexity (Online Search AI) ─────────────────────────────────────────
+
+        public static async Task<string> AskPerplexityAsync(string prompt, List<ChatTurn>? history = null, CancellationToken ct = default)
+        {
+            var s = SettingsManager.Current;
+            if (string.IsNullOrEmpty(s.PERPLEXITY_KEY)) throw new Exception("Perplexity API key not set.");
+
+            return await AskGenericOpenAICompatibleAsync("https://api.perplexity.ai", s.PERPLEXITY_KEY, s.PERPLEXITY_MODEL, prompt, history, ct);
+        }
+
+        // ── Mistral AI ────────────────────────────────────────────────────────────
+
+        public static async Task<string> AskMistralAsync(string prompt, List<ChatTurn>? history = null, CancellationToken ct = default)
+        {
+            var s = SettingsManager.Current;
+            if (string.IsNullOrEmpty(s.MISTRAL_KEY)) throw new Exception("Mistral API key not set.");
+
+            return await AskGenericOpenAICompatibleAsync("https://api.mistral.ai/v1", s.MISTRAL_KEY, s.MISTRAL_MODEL, prompt, history, ct);
+        }
+
+        // ── OpenRouter (Unified API) ──────────────────────────────────────────────
+
+        public static async Task<string> AskOpenRouterAsync(string prompt, List<ChatTurn>? history = null, CancellationToken ct = default)
+        {
+            var s = SettingsManager.Current;
+            if (string.IsNullOrEmpty(s.OPENROUTER_KEY)) throw new Exception("OpenRouter API key not set.");
+
+            return await AskGenericOpenAICompatibleAsync("https://openrouter.ai/api/v1", s.OPENROUTER_KEY, s.OPENROUTER_MODEL, prompt, history, ct);
+        }
+
+        private static async Task<string> AskGenericOpenAICompatibleAsync(string baseUrl, string key, string model, string prompt, List<ChatTurn>? history, CancellationToken ct)
+        {
+            var compressedHistory = await CompressHistoryAsync(history);
+            var messages = new List<object> { new { role = "system", content = AiAPI.GetCompactSystemPrompt() } };
+
+            foreach (var turn in compressedHistory)
+                messages.Add(new { role = turn.Role == "model" ? "assistant" : "user", content = turn.Text });
+
+            messages.Add(new { role = "user", content = prompt });
+
+            var payload = new { model, messages, max_tokens = 1500, temperature = 0.5 };
+            var req = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl.TrimEnd('/')}/chat/completions");
+            req.Headers.Add("Authorization", $"Bearer {key}");
+            req.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+            var resp = await _http.SendAsync(req, ct);
+            string body = await resp.Content.ReadAsStringAsync(ct);
+            if (!resp.IsSuccessStatusCode) throw new Exception($"API Error: {body}");
+
+            using var doc = JsonDocument.Parse(body);
+            string content = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? "";
+
+            if (doc.RootElement.TryGetProperty("usage", out var usage))
+            {
+                int p = usage.TryGetProperty("prompt_tokens", out var pp) ? pp.GetInt32() : 0;
+                int c = usage.TryGetProperty("completion_tokens", out var cc) ? cc.GetInt32() : 0;
+                int t = usage.TryGetProperty("total_tokens", out var tt) ? tt.GetInt32() : 0;
+                content += $"\n[METADATA_USAGE: {p},{c},{t}]";
+            }
+            return content;
+        }
+
         // ── OpenAI-Compatible ─────────────────────────────────────────────────────
 
         public static async Task<string> AskOpenAIAsync(string prompt, List<ChatTurn>? history = null, CancellationToken ct = default)
         {
             var s = SettingsManager.Current;
             if (string.IsNullOrEmpty(s.OPENAI_KEY))
-                throw new Exception("OpenAI API key not set. Use 'llm' settings to configure.");
+                throw new Exception("OpenAI API key not set.");
 
-            string baseUrl = s.OPENAI_BASE_URL.TrimEnd('/');
-            string model = s.OPENAI_MODEL;
-
-            var messages = new List<object>
-            {
-                new { role = "system", content = AiAPI.GetSystemPrompt() }
-            };
-
-            if (history != null)
-            {
-                var relevantHistory = history.Count > 120 ? history.GetRange(history.Count - 120, 120) : history;
-                foreach (var turn in relevantHistory)
-                    messages.Add(new { role = turn.Role == "model" ? "assistant" : turn.Role, content = turn.Text });
-            }
-
-            messages.Add(new { role = "user", content = prompt });
-
-            var payload = new { model, messages, max_tokens = 2000 };
-            string json = JsonSerializer.Serialize(payload);
-
-            var req = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl}/chat/completions");
-            req.Headers.Add("Authorization", $"Bearer {s.OPENAI_KEY}");
-            req.Content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var resp = await _http.SendAsync(req, ct);
-            string body = await resp.Content.ReadAsStringAsync(ct);
-
-            if (!resp.IsSuccessStatusCode)
-                throw new Exception($"OpenAI API error {(int)resp.StatusCode}: {body}");
-
-            using var doc = JsonDocument.Parse(body);
-            string content = doc.RootElement
-                .GetProperty("choices")[0]
-                .GetProperty("message")
-                .GetProperty("content")
-                .GetString() ?? "(empty response)";
-
-            if (doc.RootElement.TryGetProperty("usage", out var usage))
-            {
-                int p = usage.GetProperty("prompt_tokens").GetInt32();
-                int c = usage.GetProperty("completion_tokens").GetInt32();
-                int t = usage.GetProperty("total_tokens").GetInt32();
-                content += $"\n[METADATA_USAGE: {p},{c},{t}]";
-            }
-
-            return content;
+            return await AskGenericOpenAICompatibleAsync(s.OPENAI_BASE_URL, s.OPENAI_KEY, s.OPENAI_MODEL, prompt, history, ct);
         }
 
         // ── Ollama Local ──────────────────────────────────────────────────────────

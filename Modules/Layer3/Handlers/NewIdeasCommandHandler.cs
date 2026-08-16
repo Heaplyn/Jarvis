@@ -38,7 +38,8 @@ namespace JarvisLauncher
                    query.StartsWith("jump") ||
                    query == "procs" || query == "taskmgr" ||
                    query.StartsWith("time ") || query == "time" ||
-                   query.StartsWith("hash") || query == "hash";
+                   query.StartsWith("hash") || query == "hash" ||
+                   query == "quote" || query == "sys quote";
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -47,6 +48,17 @@ namespace JarvisLauncher
             query = query.Trim();
             var parts = query.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
             string cmd = parts[0].ToLower();
+
+            if (query.ToLower() == "quote" || query.ToLower() == "sys quote")
+            {
+                suggestions.Add(new CommandResult
+                {
+                    TITLE = "💬 Get System Quote",
+                    DESCRIPTION = "Receive a proactive witty or philosophical remark from Jarvis",
+                    SIMILARITY = 2.0,
+                    EXECUTE = () => GetSystemQuote()
+                });
+            }
 
             // --- 1. WINDOW SNAP & WORKSPACE ---
             if (cmd == "snap" || cmd == "window")
@@ -486,6 +498,19 @@ namespace JarvisLauncher
             }
         }
 
+        private static void GetSystemQuote()
+        {
+            Task.Run(async () =>
+            {
+                string prompt = "Generate a single, short, witty, and slightly sassy philosophical or technical remark from Jarvis. Do not use tags.";
+                string remark = await LlmRouter.AskAsync(prompt);
+                Application.Current.Dispatcher.Invoke(() => {
+                    TextOverlay.Show("🤖 Jarvis: " + remark, 5000);
+                    TtsManager.Speak(remark, isShortSpeech: true);
+                });
+            });
+        }
+
         public List<CommandDesc> GetCommandDescriptions()
         {
             return new List<CommandDesc>
@@ -496,7 +521,8 @@ namespace JarvisLauncher
                 new CommandDesc("jump <folder>", "Quick jump to system folder path", "jump downloads"),
                 new CommandDesc("procs / taskmgr", "Open interactive Process Manager GUI", "procs"),
                 new CommandDesc("time <city>", "Look up global time & UTC offset", "time Tokyo"),
-                new CommandDesc("hash <file>", "Compute file SHA-256 checksum", "hash notes.txt")
+                new CommandDesc("hash <file>", "Compute file SHA-256 checksum", "hash notes.txt"),
+                new CommandDesc("quote", "Get a sassy system remark", "quote")
             };
         }
     }

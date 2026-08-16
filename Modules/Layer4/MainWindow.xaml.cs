@@ -81,7 +81,12 @@ namespace JarvisLauncher
                 int Id = WParam.ToInt32();
                 if (Id == HOTKEY_ID) { ToggleHUD(); Handled = true; }
                 else if (Id == CTRL_SHIFT_C_ID) { Application.Current.Shutdown(); Handled = true; }
-                else if (Id == CTRL_SHIFT_R_ID) { NativeMethods.Restart(); Handled = true; }
+                else if (Id == CTRL_SHIFT_R_ID)
+                {
+                    TextOverlay.Show("Syncing & Rebuilding...", 2000);
+                    NativeMethods.Restart(freshBoot: true, pullFirst: true);
+                    Handled = true;
+                }
             }
             return IntPtr.Zero;
         }

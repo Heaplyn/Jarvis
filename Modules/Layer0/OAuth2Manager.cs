@@ -402,15 +402,15 @@ namespace JarvisLauncher
                     // Extract more info to understand the user better
                     if (root.TryGetProperty("name", out var name))
                     {
-                        UserMemoryManager.AddFact($"User's full name is {name.GetString()}", "Identity", 1.0);
+                        SemanticMemoryManager.AddMemory($"User's full name is {name.GetString()}", "Personal", "Identity", 1.0);
                     }
                     if (root.TryGetProperty("given_name", out var givenName))
                     {
-                        UserMemoryManager.AddFact($"User prefers to be called {givenName.GetString()}", "Identity", 1.0);
+                        SemanticMemoryManager.AddMemory($"User prefers to be called {givenName.GetString()}", "Personal", "Identity", 1.0);
                     }
                     if (root.TryGetProperty("locale", out var locale))
                     {
-                        UserMemoryManager.AddFact($"User's preferred language/locale is {locale.GetString()}", "Preference", 0.7);
+                        SemanticMemoryManager.AddMemory($"User's preferred language/locale is {locale.GetString()}", "Personal", "Preference", 0.7);
                     }
                 }
             }
@@ -576,7 +576,7 @@ namespace JarvisLauncher
                     string disc = root.TryGetProperty("discriminator", out var d) ? d.GetString() : "0";
                     SettingsManager.Current.DISCORD_USER_TAG = disc == "0" ? user : $"{user}#{disc}";
 
-                    UserMemoryManager.AddFact($"User's Discord tag is {SettingsManager.Current.DISCORD_USER_TAG}", "Identity", 0.8);
+                    SemanticMemoryManager.AddMemory($"User's Discord tag is {SettingsManager.Current.DISCORD_USER_TAG}", "Identity", 0.8);
                 }
             }
             catch { }
@@ -594,7 +594,7 @@ namespace JarvisLauncher
                     string json = await res.Content.ReadAsStringAsync();
                     using var doc = JsonDocument.Parse(json);
                     SettingsManager.Current.SPOTIFY_USER_NAME = doc.RootElement.GetProperty("display_name").GetString() ?? "";
-                    UserMemoryManager.AddFact($"User's Spotify name is {SettingsManager.Current.SPOTIFY_USER_NAME}", "Identity", 0.6);
+                    SemanticMemoryManager.AddMemory($"User's Spotify name is {SettingsManager.Current.SPOTIFY_USER_NAME}", "Personal", "Identity", 0.6);
                 }
             }
             catch { }
@@ -614,7 +614,7 @@ namespace JarvisLauncher
                     string json = await res.Content.ReadAsStringAsync();
                     using var doc = JsonDocument.Parse(json);
                     SettingsManager.Current.TWITCH_USER_NAME = doc.RootElement.GetProperty("data")[0].GetProperty("display_name").GetString() ?? "";
-                    UserMemoryManager.AddFact($"User's Twitch name is {SettingsManager.Current.TWITCH_USER_NAME}", "Identity", 0.6);
+                    SemanticMemoryManager.AddMemory($"User's Twitch name is {SettingsManager.Current.TWITCH_USER_NAME}", "Personal", "Identity", 0.6);
                 }
             }
             catch { }

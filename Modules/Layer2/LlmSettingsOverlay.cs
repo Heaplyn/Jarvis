@@ -22,7 +22,19 @@ namespace JarvisLauncher
 
         private ComboBox _backendCombo = null!;
         private StackPanel _geminiPanel = null!;
+        private ComboBox _geminiModelCombo = null!;
         private StackPanel _openAiPanel = null!;
+        private ComboBox _openAiModelCombo = null!;
+        private StackPanel _anthropicPanel = null!;
+        private ComboBox _anthropicModelCombo = null!;
+        private StackPanel _groqPanel = null!;
+        private ComboBox _groqModelCombo = null!;
+        private StackPanel _perplexityPanel = null!;
+        private ComboBox _perplexityModelCombo = null!;
+        private StackPanel _mistralPanel = null!;
+        private ComboBox _mistralModelCombo = null!;
+        private StackPanel _openRouterPanel = null!;
+        private ComboBox _openRouterModelCombo = null!;
         private StackPanel _ollamaPanel = null!;
         private StackPanel _customPanel = null!;
         private StackPanel _p2pPanel = null!;
@@ -49,41 +61,130 @@ namespace JarvisLauncher
                 Padding = new Thickness(8, 6, 8, 6),
                 FontSize = 13
             };
-            foreach (var b in new[] { "Gemini", "OpenAI", "Ollama", "Custom", "P2P" })
+            foreach (var b in new[] { "Gemini", "OpenAI", "Anthropic", "Groq", "Perplexity", "Mistral", "OpenRouter", "Ollama", "Custom", "P2P" })
                 _backendCombo.Items.Add(b);
-            _backendCombo.SelectedItem = SettingsManager.Current.LLM_BACKEND;
+
+            // NOTE: Don't set SelectedItem here yet, as it fires SelectionChanged before all panels are created.
+            // _backendCombo.SelectedItem = SettingsManager.Current.LLM_BACKEND;
+
             _backendCombo.SelectionChanged += (s, e) => UpdatePanelVisibility();
             root.Children.Add(_backendCombo);
 
             // ── Gemini Panel ──────────────────────────────────────────────────────────
             _geminiPanel = new StackPanel();
-            _geminiPanel.Children.Add(CreateLabel("Google Gemini API Key:"));
+            _geminiPanel.Children.Add(CreateLabel("Google Gemini API Key (use semicolon ; for multiple):"));
+            _geminiPanel.Children.Add(CreateLinkButton("🔗 Get Gemini API Key", "https://aistudio.google.com/app/apikey"));
             var geminiKey = CreateTextBox(SettingsManager.Current.GOOGLE_AI_KEY);
             geminiKey.TextChanged += (s, e) => SettingsManager.Current.GOOGLE_AI_KEY = geminiKey.Text.Trim();
             _geminiPanel.Children.Add(geminiKey);
 
-            _geminiPanel.Children.Add(CreateLabel("Gemini Model (e.g. gemini-2.0-flash, gemini-1.5-pro):"));
-            var geminiModel = CreateTextBox(SettingsManager.Current.GEMINI_MODEL);
-            geminiModel.TextChanged += (s, e) => SettingsManager.Current.GEMINI_MODEL = geminiModel.Text.Trim();
-            _geminiPanel.Children.Add(geminiModel);
+            _geminiPanel.Children.Add(CreateLabel("Gemini Model:"));
+            _geminiModelCombo = CreateEditableComboBox(new[] { "gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro", "gemini-2.0-flash-exp" }, SettingsManager.Current.GEMINI_MODEL);
+            _geminiModelCombo.SelectionChanged += (s, e) => SettingsManager.Current.GEMINI_MODEL = _geminiModelCombo.Text;
+            _geminiModelCombo.LostFocus += (s, e) => SettingsManager.Current.GEMINI_MODEL = _geminiModelCombo.Text;
+            _geminiPanel.Children.Add(_geminiModelCombo);
 
             root.Children.Add(_geminiPanel);
 
             // ── OpenAI Panel ──────────────────────────────────────────────────────────
             _openAiPanel = new StackPanel();
-            _openAiPanel.Children.Add(CreateLabel("OpenAI API Key (or LM Studio key):"));
+            _openAiPanel.Children.Add(CreateLabel("OpenAI API Key:"));
+            _openAiPanel.Children.Add(CreateLinkButton("🔗 Get OpenAI API Key", "https://platform.openai.com/api-keys"));
             var oaiKey = CreateTextBox(SettingsManager.Current.OPENAI_KEY);
             oaiKey.TextChanged += (s, e) => SettingsManager.Current.OPENAI_KEY = oaiKey.Text.Trim();
             _openAiPanel.Children.Add(oaiKey);
+
+            _openAiPanel.Children.Add(CreateLabel("OpenAI Model:"));
+            _openAiModelCombo = CreateEditableComboBox(new[] { "gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "o1-preview" }, SettingsManager.Current.OPENAI_MODEL);
+            _openAiModelCombo.SelectionChanged += (s, e) => SettingsManager.Current.OPENAI_MODEL = _openAiModelCombo.Text;
+            _openAiModelCombo.LostFocus += (s, e) => SettingsManager.Current.OPENAI_MODEL = _openAiModelCombo.Text;
+            _openAiPanel.Children.Add(_openAiModelCombo);
+
             _openAiPanel.Children.Add(CreateLabel("Base URL (default: https://api.openai.com/v1):"));
             var oaiBase = CreateTextBox(SettingsManager.Current.OPENAI_BASE_URL);
             oaiBase.TextChanged += (s, e) => SettingsManager.Current.OPENAI_BASE_URL = oaiBase.Text.Trim();
             _openAiPanel.Children.Add(oaiBase);
-            _openAiPanel.Children.Add(CreateLabel("Model (e.g. gpt-4o-mini, gpt-4o):"));
-            var oaiModel = CreateTextBox(SettingsManager.Current.OPENAI_MODEL);
-            oaiModel.TextChanged += (s, e) => SettingsManager.Current.OPENAI_MODEL = oaiModel.Text.Trim();
-            _openAiPanel.Children.Add(oaiModel);
             root.Children.Add(_openAiPanel);
+
+            // ── Anthropic Panel ───────────────────────────────────────────────────────
+            _anthropicPanel = new StackPanel();
+            _anthropicPanel.Children.Add(CreateLabel("Anthropic (Claude) API Key:"));
+            _anthropicPanel.Children.Add(CreateLinkButton("🔗 Get Anthropic API Key", "https://console.anthropic.com/settings/keys"));
+            var antKey = CreateTextBox(SettingsManager.Current.ANTHROPIC_KEY);
+            antKey.TextChanged += (s, e) => SettingsManager.Current.ANTHROPIC_KEY = antKey.Text.Trim();
+            _anthropicPanel.Children.Add(antKey);
+
+            _anthropicPanel.Children.Add(CreateLabel("Anthropic Model:"));
+            _anthropicModelCombo = CreateEditableComboBox(new[] { "claude-3-5-sonnet-20240620", "claude-3-opus-20240229", "claude-3-haiku-20240307" }, SettingsManager.Current.ANTHROPIC_MODEL);
+            _anthropicModelCombo.SelectionChanged += (s, e) => SettingsManager.Current.ANTHROPIC_MODEL = _anthropicModelCombo.Text;
+            _anthropicModelCombo.LostFocus += (s, e) => SettingsManager.Current.ANTHROPIC_MODEL = _anthropicModelCombo.Text;
+            _anthropicPanel.Children.Add(_anthropicModelCombo);
+
+            root.Children.Add(_anthropicPanel);
+
+            // ── Groq Panel ────────────────────────────────────────────────────────────
+            _groqPanel = new StackPanel();
+            _groqPanel.Children.Add(CreateLabel("Groq API Key (Ultra-Fast):"));
+            _groqPanel.Children.Add(CreateLinkButton("🔗 Get Groq API Key", "https://console.groq.com/keys"));
+            var groqKey = CreateTextBox(SettingsManager.Current.GROQ_KEY);
+            groqKey.TextChanged += (s, e) => SettingsManager.Current.GROQ_KEY = groqKey.Text.Trim();
+            _groqPanel.Children.Add(groqKey);
+
+            _groqPanel.Children.Add(CreateLabel("Groq Model:"));
+            _groqModelCombo = CreateEditableComboBox(new[] { "llama-3.1-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it" }, SettingsManager.Current.GROQ_MODEL);
+            _groqModelCombo.SelectionChanged += (s, e) => SettingsManager.Current.GROQ_MODEL = _groqModelCombo.Text;
+            _groqModelCombo.LostFocus += (s, e) => SettingsManager.Current.GROQ_MODEL = _groqModelCombo.Text;
+            _groqPanel.Children.Add(_groqModelCombo);
+
+            root.Children.Add(_groqPanel);
+
+            // ── Perplexity Panel ──────────────────────────────────────────────────────
+            _perplexityPanel = new StackPanel();
+            _perplexityPanel.Children.Add(CreateLabel("Perplexity API Key (Online Search):"));
+            _perplexityPanel.Children.Add(CreateLinkButton("🔗 Get Perplexity API Key", "https://www.perplexity.ai/settings/api"));
+            var perpKey = CreateTextBox(SettingsManager.Current.PERPLEXITY_KEY);
+            perpKey.TextChanged += (s, e) => SettingsManager.Current.PERPLEXITY_KEY = perpKey.Text.Trim();
+            _perplexityPanel.Children.Add(perpKey);
+
+            _perplexityPanel.Children.Add(CreateLabel("Perplexity Model:"));
+            _perplexityModelCombo = CreateEditableComboBox(new[] { "llama-3-sonar-large-32k-online", "llama-3-sonar-small-32k-online", "mistral-7b-instruct" }, SettingsManager.Current.PERPLEXITY_MODEL);
+            _perplexityModelCombo.SelectionChanged += (s, e) => SettingsManager.Current.PERPLEXITY_MODEL = _perplexityModelCombo.Text;
+            _perplexityModelCombo.LostFocus += (s, e) => SettingsManager.Current.PERPLEXITY_MODEL = _perplexityModelCombo.Text;
+            _perplexityPanel.Children.Add(_perplexityModelCombo);
+
+            root.Children.Add(_perplexityPanel);
+
+            // ── Mistral Panel ─────────────────────────────────────────────────────────
+            _mistralPanel = new StackPanel();
+            _mistralPanel.Children.Add(CreateLabel("Mistral AI API Key:"));
+            _mistralPanel.Children.Add(CreateLinkButton("🔗 Get Mistral API Key", "https://console.mistral.ai/api-keys/"));
+            var misKey = CreateTextBox(SettingsManager.Current.MISTRAL_KEY);
+            misKey.TextChanged += (s, e) => SettingsManager.Current.MISTRAL_KEY = misKey.Text.Trim();
+            _mistralPanel.Children.Add(misKey);
+
+            _mistralPanel.Children.Add(CreateLabel("Mistral Model:"));
+            _mistralModelCombo = CreateEditableComboBox(new[] { "mistral-large-latest", "mistral-medium-latest", "mistral-small-latest", "open-mixtral-8x22b" }, SettingsManager.Current.MISTRAL_MODEL);
+            _mistralModelCombo.SelectionChanged += (s, e) => SettingsManager.Current.MISTRAL_MODEL = _mistralModelCombo.Text;
+            _mistralModelCombo.LostFocus += (s, e) => SettingsManager.Current.MISTRAL_MODEL = _mistralModelCombo.Text;
+            _mistralPanel.Children.Add(_mistralModelCombo);
+
+            root.Children.Add(_mistralPanel);
+
+            // ── OpenRouter Panel ──────────────────────────────────────────────────────
+            _openRouterPanel = new StackPanel();
+            _openRouterPanel.Children.Add(CreateLabel("OpenRouter API Key (Unified):"));
+            _openRouterPanel.Children.Add(CreateLinkButton("🔗 Get OpenRouter API Key", "https://openrouter.ai/settings/keys"));
+            var orKey = CreateTextBox(SettingsManager.Current.OPENROUTER_KEY);
+            orKey.TextChanged += (s, e) => SettingsManager.Current.OPENROUTER_KEY = orKey.Text.Trim();
+            _openRouterPanel.Children.Add(orKey);
+
+            _openRouterPanel.Children.Add(CreateLabel("OpenRouter Model:"));
+            _openRouterModelCombo = CreateEditableComboBox(new[] { "anthropic/claude-3.5-sonnet", "google/gemini-pro-1.5", "meta-llama/llama-3.1-405b", "mistralai/mistral-large-2407" }, SettingsManager.Current.OPENROUTER_MODEL);
+            _openRouterModelCombo.SelectionChanged += (s, e) => SettingsManager.Current.OPENROUTER_MODEL = _openRouterModelCombo.Text;
+            _openRouterModelCombo.LostFocus += (s, e) => SettingsManager.Current.OPENROUTER_MODEL = _openRouterModelCombo.Text;
+            _openRouterPanel.Children.Add(_openRouterModelCombo);
+
+            root.Children.Add(_openRouterPanel);
 
             // ── Ollama & Local LLM Panel ──────────────────────────────────────────────
             _ollamaPanel = new StackPanel();
@@ -295,6 +396,9 @@ namespace JarvisLauncher
             root.Children.Add(saveBtn);
 
             this.UserContent = scroll;
+
+            // Initialize selection and panels AFTER everything is created
+            _backendCombo.SelectedItem = SettingsManager.Current.LLM_BACKEND;
             UpdatePanelVisibility();
         }
 
@@ -348,6 +452,41 @@ namespace JarvisLauncher
             return btn;
         }
 
+        private static Button CreateLinkButton(string content, string url)
+        {
+            var btn = new Button
+            {
+                Content = content,
+                Margin = new Thickness(0, 2, 0, 8),
+                Padding = new Thickness(10, 4, 10, 4),
+                FontSize = 10,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Cursor = Cursors.Hand,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                BorderBrush = Brushes.DimGray
+            };
+            btn.SetResourceReference(Button.ForegroundProperty, "AccentBrush");
+            btn.Click += (s, e) => {
+                try { Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true }); } catch { }
+            };
+            return btn;
+        }
+
+        private static ComboBox CreateEditableComboBox(string[] items, string current)
+        {
+            var combo = new ComboBox
+            {
+                IsEditable = true,
+                Margin = new Thickness(0, 0, 0, 8),
+                Padding = new Thickness(6, 4, 6, 4),
+                FontSize = 12
+            };
+            foreach (var item in items) combo.Items.Add(item);
+            combo.Text = current;
+            return combo;
+        }
+
         private static void InstallTool(string wingetCommand, string fallbackUrl)
         {
             try
@@ -376,12 +515,19 @@ namespace JarvisLauncher
 
         private void UpdatePanelVisibility()
         {
+            if (_backendCombo == null || _geminiPanel == null) return;
+
             string sel = (_backendCombo.SelectedItem as string) ?? "Gemini";
-            _geminiPanel.Visibility = sel == "Gemini" ? Visibility.Visible : Visibility.Collapsed;
-            _openAiPanel.Visibility = sel == "OpenAI" ? Visibility.Visible : Visibility.Collapsed;
-            _ollamaPanel.Visibility = sel == "Ollama" ? Visibility.Visible : Visibility.Collapsed;
-            _customPanel.Visibility = sel == "Custom" ? Visibility.Visible : Visibility.Collapsed;
-            _p2pPanel.Visibility = sel == "P2P" ? Visibility.Visible : Visibility.Collapsed;
+            if (_geminiPanel != null) _geminiPanel.Visibility = sel == "Gemini" ? Visibility.Visible : Visibility.Collapsed;
+            if (_openAiPanel != null) _openAiPanel.Visibility = sel == "OpenAI" ? Visibility.Visible : Visibility.Collapsed;
+            if (_anthropicPanel != null) _anthropicPanel.Visibility = sel == "Anthropic" ? Visibility.Visible : Visibility.Collapsed;
+            if (_groqPanel != null) _groqPanel.Visibility = sel == "Groq" ? Visibility.Visible : Visibility.Collapsed;
+            if (_perplexityPanel != null) _perplexityPanel.Visibility = sel == "Perplexity" ? Visibility.Visible : Visibility.Collapsed;
+            if (_mistralPanel != null) _mistralPanel.Visibility = sel == "Mistral" ? Visibility.Visible : Visibility.Collapsed;
+            if (_openRouterPanel != null) _openRouterPanel.Visibility = sel == "OpenRouter" ? Visibility.Visible : Visibility.Collapsed;
+            if (_ollamaPanel != null) _ollamaPanel.Visibility = sel == "Ollama" ? Visibility.Visible : Visibility.Collapsed;
+            if (_customPanel != null) _customPanel.Visibility = sel == "Custom" ? Visibility.Visible : Visibility.Collapsed;
+            if (_p2pPanel != null) _p2pPanel.Visibility = sel == "P2P" ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void RefreshPeerList()
@@ -446,15 +592,17 @@ namespace JarvisLauncher
 
         public static void ShowOverlay()
         {
-            if (_instance == null || !_instance.IsLoaded)
+            Application.Current.Dispatcher.Invoke(() =>
             {
-                _instance = new LlmSettingsOverlay();
+                if (_instance == null || !_instance.IsLoaded)
+                {
+                    _instance = new LlmSettingsOverlay();
+                }
+
                 _instance.Show();
-            }
-            else
-            {
                 _instance.Activate();
-            }
+                _instance.BringToFront();
+            });
         }
     }
 }

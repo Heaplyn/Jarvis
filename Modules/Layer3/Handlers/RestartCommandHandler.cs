@@ -49,11 +49,29 @@ namespace JarvisLauncher
                     timer.Tick += (s, ev) =>
                     {
                         timer.Stop();
-                        NativeMethods.Restart(freshBoot: true);
+                        NativeMethods.Restart(freshBoot: true, pullFirst: false);
                     };
                     timer.Start();
                 },
                 SIMILARITY = 8.0
+            });
+
+            suggestions.Add(new CommandResult
+            {
+                TITLE = "🚀 Sync & Full Rebuild",
+                DESCRIPTION = "Pull latest files from GitHub and force a clean rebuild",
+                EXECUTE = () =>
+                {
+                    TextOverlay.Show("Syncing & Rebuilding Jarvis...", 800);
+                    var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.4) };
+                    timer.Tick += (s, ev) =>
+                    {
+                        timer.Stop();
+                        NativeMethods.Restart(freshBoot: true, pullFirst: true);
+                    };
+                    timer.Start();
+                },
+                SIMILARITY = 7.5
             });
 
             return suggestions;

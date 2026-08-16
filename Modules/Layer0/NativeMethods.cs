@@ -167,7 +167,7 @@ namespace JarvisLauncher
             return (uint)Environment.TickCount - lastInputInfo.dwTime;
         }
 
-        public static void Restart(bool freshBoot = false)
+        public static void Restart(bool freshBoot = false, bool pullFirst = false)
         {
             try
             {
@@ -189,52 +189,42 @@ namespace JarvisLauncher
                     checkDir = parent.FullName;
                 }
 
-                // If not fresh boot, just do a simple, fast restart of the current EXE
                 string script;
-                if (!freshBoot)
+                string waitAndKill = $@"
+                    $currentId = {Process.GetCurrentProcess().Id};
+                    $count = 0;
+                    while ((Get-Process -Id $currentId -ErrorAction SilentlyContinue) -and ($count -lt 30)) {{
+                        Start-Sleep -Milliseconds 100;
+                        $count++;
+                    }};
+                    if (Get-Process -Id $currentId -ErrorAction SilentlyContinue) {{ Stop-Process -Id $currentId -Force }};
+                ";
+
+                if (!freshBoot && !pullFirst)
                 {
-                    script = $@"
-                        $currentId = {Process.GetCurrentProcess().Id};
-                        $count = 0;
-                        while ((Get-Process -Id $currentId -ErrorAction SilentlyContinue) -and ($count -lt 30)) {{
-                            Start-Sleep -Milliseconds 100;
-                            $count++;
-                        }};
-                        if (Get-Process -Id $currentId -ErrorAction SilentlyContinue) {{ Stop-Process -Id $currentId -Force }};
-                        Start-Process '{exePath}';
-                    ";
+                    script = waitAndKill + $"Start-Process '{exePath}';";
                 }
                 else
                 {
-                    // Fresh Boot: Try to rebuild if in a dev environment, otherwise just restart
+                    // Fresh Boot or Pull: Try to rebuild if in a dev environment
                     bool isDev = System.IO.File.Exists(System.IO.Path.Combine(projectRoot, "JarvisLauncher.csproj"));
                     if (isDev)
                     {
+                        string gitPull = pullFirst ? "git pull origin main;" : "";
                         script = $@"
-                            $currentId = {Process.GetCurrentProcess().Id};
-                            $count = 0;
-                            while ((Get-Process -Id $currentId -ErrorAction SilentlyContinue) -and ($count -lt 30)) {{
-                                Start-Sleep -Milliseconds 100;
-                                $count++;
-                            }};
-                            if (Get-Process -Id $currentId -ErrorAction SilentlyContinue) {{ Stop-Process -Id $currentId -Force }};
-
+                            {waitAndKill}
                             Set-Location -Path '{projectRoot}';
+                            {gitPull}
                             dotnet build -c Debug;
                             if ($LASTEXITCODE -eq 0) {{
                                 Start-Process '{projectRoot}\bin\Debug\net8.0-windows\JarvisLauncher.exe'
                             }} else {{
-                                # Fallback to run if build is just having transient file issues
                                 dotnet run --no-build -c Debug
                             }}";
                     }
                     else
                     {
-                        script = $@"
-                            $currentId = {Process.GetCurrentProcess().Id};
-                            if (Get-Process -Id $currentId -ErrorAction SilentlyContinue) {{ Stop-Process -Id $currentId -Force }};
-                            Start-Process '{exePath}';
-                        ";
+                        script = waitAndKill + $"Start-Process '{exePath}';";
                     }
                 }
 

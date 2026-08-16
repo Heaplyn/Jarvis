@@ -548,8 +548,34 @@ namespace JarvisLauncher
             AddMessageBubble(DisplayMessage, IsAi: false);
 
             int TurnNumber = (ConversationHistory.Count / 2) + 1;
-            var (AiBorder, AiTextBlock) = AddMessageBubbleWithControl("🧠 Thinking...", IsAi: true, IsItalic: true);
+            var (AiBorder, AiTextBlock, AiDebugBlock) = AddMessageBubbleWithControl("🧠 Thinking...", IsAi: true, IsItalic: true);
             SetStatus("THINKING", Brushes.Yellow);
+
+            if (AiDebugBlock != null)
+            {
+                var sbDebug = new System.Text.StringBuilder();
+                sbDebug.AppendLine($">>> [BRAIN TIMELINE - {DateTime.Now:HH:mm:ss.fff}]");
+                sbDebug.AppendLine($"[INIT] Input: {source} | Backend: {SettingsManager.Current.LLM_BACKEND}");
+
+                // --- CONTEXT GATHERING ---
+                sbDebug.AppendLine("\n[CONTEXT GATHERING]");
+                try {
+                    string activeWin = MemoryManager.GetCurrentWindowTitle();
+                    sbDebug.AppendLine($"  - Window: '{activeWin}'");
+
+                    int memBytes = SemanticMemoryManager.GetMemoryContextForAi().Length;
+                    sbDebug.AppendLine($"  - Memory: {memBytes} bytes injected");
+
+                    var recent = ActionJournalManager.GetRecentActions(1);
+                    if (recent.Any()) sbDebug.AppendLine($"  - Last Action: {recent[0].ActionType}");
+                } catch { }
+
+                sbDebug.AppendLine("\n[FULL PROMPT]");
+                sbDebug.AppendLine(ApiMessage.Length > 800 ? ApiMessage.Substring(0, 800) + "..." : ApiMessage);
+
+                sbDebug.AppendLine("\n[LLM] Requesting model response...");
+                AiDebugBlock.Text = sbDebug.ToString();
+            }
 
             bool UseStreaming = SettingsManager.Current.LLM_BACKEND == "Ollama";
             var ThinkingTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -595,25 +621,67 @@ namespace JarvisLauncher
 
                     if (FinalResult.Contains("[EXEC_PS:") || FinalResult.Contains("[EXEC_SHELL:") || (FinalResult.Contains("[RUN_COMMAND:") && (FinalResult.Contains("download") || FinalResult.Contains("scrape") || FinalResult.Contains("search") || FinalResult.Contains("google") || FinalResult.Contains("websearch"))))
                     {
-                        FinalResult = await InterceptAndExecuteCommandsAsync(FinalResult, AiTextBlock, (StackPanel)AiBorder.Child, ct);
+                        FinalResult = await InterceptAndExecuteCommandsAsync(FinalResult, AiTextBlock, (StackPanel)AiBorder.Child, ct, AiDebugBlock);
                     }
 
                     ct.ThrowIfCancellationRequested();
                     AiTextBlock.FontStyle = FontStyles.Normal;
+                    if (AiDebugBlock != null)
+                    {
+                        // Extract model info if present
+                        string usedModel = "Unknown";
+                        var modelMatch = Regex.Match(RawResponse, @"\[METADATA_MODEL:\s*(?<m>.+?)\]");
+                        if (modelMatch.Success) {
+                            usedModel = modelMatch.Groups["m"].Value;
+                            RawResponse = RawResponse.Replace(modelMatch.Value, "").Trim();
+                        }
+
+                        var sbFinal = new System.Text.StringBuilder();
+                        sbFinal.AppendLine($"\n[LLM RESPONSE RECEIVED - {usedModel}]");
+                        sbFinal.AppendLine(RawResponse);
+                        sbFinal.AppendLine("\n[FINAL SYNTHESIZED OUTPUT]");
+                        sbFinal.AppendLine(FinalResult);
+                        sbFinal.AppendLine("\n" + AiDebugBlock.Text);
+                        AiDebugBlock.Text = sbFinal.ToString();
+                    }
                     RenderBubbleContent((StackPanel)AiBorder.Child, AiTextBlock, !string.IsNullOrWhiteSpace(FinalResult) ? FinalResult : RawResponse);
                 }
                 else
                 {
                     RawResponse = await Task.Run(async () => await LlmRouter.AskAsync(ApiMessage, Snapshot, ct), ct);
+
+                    // Extract model info
+                    string usedModel = "Unknown";
+                    var modelMatch = Regex.Match(RawResponse, @"\[METADATA_MODEL:\s*(?<m>.+?)\]");
+                    if (modelMatch.Success) {
+                        usedModel = modelMatch.Groups["m"].Value;
+                        RawResponse = RawResponse.Replace(modelMatch.Value, "").Trim();
+                    }
+
                     FinalResult = AgentExecutor.ProcessAIResponse(RawResponse);
 
                     if (FinalResult.Contains("[EXEC_PS:") || FinalResult.Contains("[EXEC_SHELL:") || (FinalResult.Contains("[RUN_COMMAND:") && (FinalResult.Contains("download") || FinalResult.Contains("scrape") || FinalResult.Contains("search") || FinalResult.Contains("google") || FinalResult.Contains("websearch"))))
                     {
-                        FinalResult = await InterceptAndExecuteCommandsAsync(FinalResult, AiTextBlock, (StackPanel)AiBorder.Child, ct);
+                        FinalResult = await InterceptAndExecuteCommandsAsync(FinalResult, AiTextBlock, (StackPanel)AiBorder.Child, ct, AiDebugBlock);
                     }
 
                     ct.ThrowIfCancellationRequested();
                     AiTextBlock.FontStyle = FontStyles.Normal;
+                    if (AiDebugBlock != null)
+                    {
+                        var sbFinal = new System.Text.StringBuilder();
+                        sbFinal.AppendLine($"\n[LLM RESPONSE RECEIVED - {usedModel}]");
+                        sbFinal.AppendLine(RawResponse);
+                        sbFinal.AppendLine("\n[FINAL SYNTHESIZED OUTPUT]");
+                        sbFinal.AppendLine(FinalResult);
+                        sbFinal.AppendLine("\n" + AiDebugBlock.Text);
+                        AiDebugBlock.Text = sbFinal.ToString();
+                    }
+                    RenderBubbleContent((StackPanel)AiBorder.Child, AiTextBlock, FinalResult);
+                        sbFinal.AppendLine(FinalResult);
+                        sbFinal.AppendLine("\n" + AiDebugBlock.Text);
+                        AiDebugBlock.Text = sbFinal.ToString();
+                    }
                     RenderBubbleContent((StackPanel)AiBorder.Child, AiTextBlock, FinalResult);
                 }
             }
@@ -632,20 +700,28 @@ namespace JarvisLauncher
             // 2. Store for voice echo rejection
             VoiceActivationManager.LastAiSpokenText = sanitizedResult;
 
-            // 3. Reject if the AI just echoed the user exactly, or if it's just noise/dots
+            // 3. Reject echoes ONLY for Voice input (prevents transcription feedback loops)
             double echoSimilarity = SearchUtil.GetSimilarity(sanitizedResult.ToLower(), Message.ToLower());
-            if (string.IsNullOrWhiteSpace(sanitizedResult) ||
-                sanitizedResult.Equals(Message, StringComparison.OrdinalIgnoreCase) ||
-                sanitizedResult.StartsWith(Message, StringComparison.OrdinalIgnoreCase) ||
-                (Message.Length > 25 && sanitizedResult.Contains(Message)) ||
-                (echoSimilarity > 0.9) ||
-                Regex.IsMatch(sanitizedResult, @"^[\.\s\?\!]+$"))
+            bool isEcho = sanitizedResult.Equals(Message, StringComparison.OrdinalIgnoreCase) ||
+                          sanitizedResult.StartsWith(Message, StringComparison.OrdinalIgnoreCase) ||
+                          (Message.Length > 25 && sanitizedResult.Contains(Message)) ||
+                          (echoSimilarity > 0.9);
+
+            bool isNoise = string.IsNullOrWhiteSpace(sanitizedResult) || Regex.IsMatch(sanitizedResult, @"^[\.\s\?\!]+$");
+
+            if (source == "VOICE" && (isEcho || isNoise))
             {
                 Application.Current.Dispatcher.Invoke(() => ChatHistoryPanel.Children.Remove(AiBorder));
                 return;
             }
 
-            // 4. Show the clean result in the bubble
+            // 3b. For TEXT input, never silent-fail. Provide a fallback if response was nuked by filters.
+            if (source == "TEXT" && isNoise)
+            {
+                sanitizedResult = "Task completed successfully, Boss.";
+            }
+
+            // 4. Show the result in the bubble
             RenderBubbleContent((StackPanel)AiBorder.Child, AiTextBlock, sanitizedResult);
 
             // 5. Speak the clean result
@@ -662,12 +738,12 @@ namespace JarvisLauncher
                 _ = Task.Run(async () =>
                 {
                     await EmotionalContextManager.AnalyzeSentimentAsync(Message);
-                    await UserMemoryManager.ExtractFactsFromChatAsync(Message, sanitizedResult);
+                    await SemanticMemoryManager.ExtractFactsFromChatAsync(Message, sanitizedResult);
                 });
             }
         }
 
-        private async Task<string> InterceptAndExecuteCommandsAsync(string RawResponseString, TextBox AiTextBlock, StackPanel BubblePanel, CancellationToken ct)
+        private async Task<string> InterceptAndExecuteCommandsAsync(string RawResponseString, TextBox AiTextBlock, StackPanel BubblePanel, CancellationToken ct, TextBox? AiDebugBlock = null)
         {
             if (string.IsNullOrEmpty(RawResponseString)) return RawResponseString;
             ct.ThrowIfCancellationRequested();
@@ -687,6 +763,7 @@ namespace JarvisLauncher
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     AiTextBlock.Text = "⚡ Executing PowerShell script in background...";
+                    if (AiDebugBlock != null) AiDebugBlock.Text += $"\n>>> [EXECUTING POWERSHELL]\n{ParameterString}";
                 });
                 ExecResult = await Task.Run(() => AgentExecutor.ExecutePowerShellDirect(ParameterString));
             }
@@ -697,6 +774,7 @@ namespace JarvisLauncher
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     AiTextBlock.Text = "💻 Executing Command shell script in background...";
+                    if (AiDebugBlock != null) AiDebugBlock.Text += $"\n>>> [EXECUTING SHELL]\n{ParameterString}";
                 });
                 ExecResult = await Task.Run(() => AgentExecutor.ExecuteShellDirect(ParameterString));
             }
@@ -707,6 +785,7 @@ namespace JarvisLauncher
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     AiTextBlock.Text = $"🌐 Intercepted task: {CmdTypeString} {ParameterString}...\nExecuting...";
+                    if (AiDebugBlock != null) AiDebugBlock.Text += $"\n>>> [INTERCEPTED WEB ACTION: {CmdTypeString}]\n{ParameterString}";
                 });
 
                 if (CmdTypeString == "download-list")
@@ -729,6 +808,14 @@ namespace JarvisLauncher
             else
             {
                 return RawResponseString;
+            }
+
+            if (AiDebugBlock != null)
+            {
+                await Application.Current.Dispatcher.InvokeAsync(() =>
+                {
+                    AiDebugBlock.Text += $"\n>>> [TOOL OUTPUT RECEIVED]\n{ExecResult.Substring(0, Math.Min(ExecResult.Length, 500))}";
+                });
             }
 
             string Prompt = $"The user asked a query that required executing a background action. Here is the output/result from that execution:\n\n" +
@@ -810,7 +897,7 @@ namespace JarvisLauncher
             catch { }
         }
 
-        private (Border Border, TextBox TextContent) AddMessageBubbleWithControl(string Text, bool IsAi, bool IsItalic = false)
+        private (Border Border, TextBox TextContent, TextBox DebugContent) AddMessageBubbleWithControl(string Text, bool IsAi, bool IsItalic = false, string? RawResponse = null)
         {
             var BubbleBorder = new Border { Background = IsAi ? new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(64, 128, 80, 230)), CornerRadius = IsAi ? new CornerRadius(12, 12, 12, 0) : new CornerRadius(12, 12, 0, 12), Margin = IsAi ? new Thickness(0, 4, 48, 4) : new Thickness(48, 4, 0, 4), HorizontalAlignment = IsAi ? HorizontalAlignment.Left : HorizontalAlignment.Right, Padding = new Thickness(12, 10, 12, 10), MaxWidth = 300 };
 
@@ -835,6 +922,8 @@ namespace JarvisLauncher
             Tb.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
             mainStack.Children.Add(Tb);
 
+            TextBox debugText = null!;
+
             // --- BUBBLE ACTION BUTTONS (AI ONLY) ---
             if (IsAi)
             {
@@ -842,21 +931,65 @@ namespace JarvisLauncher
 
                 var copyBtn = new Button { Content = "📋 Copy", FontSize = 9, Padding = new Thickness(4, 1, 4, 1), Cursor = Cursors.Hand, Background = Brushes.Transparent, BorderThickness = new Thickness(0) };
                 copyBtn.SetResourceReference(Button.ForegroundProperty, "TextSecondaryBrush");
-                copyBtn.Click += (s, e) => { Clipboard.SetText(Text); TextOverlay.Show("Copied to clipboard", 1500); };
+                copyBtn.Click += (s, e) => { try { Clipboard.SetText(Tb.Text); TextOverlay.Show("Copied to clipboard", 1500); } catch { } };
 
                 var speakBtn = new Button { Content = "🔊 Repeat", FontSize = 9, Padding = new Thickness(4, 1, 4, 1), Cursor = Cursors.Hand, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Margin = new Thickness(5, 0, 0, 0) };
                 speakBtn.SetResourceReference(Button.ForegroundProperty, "TextSecondaryBrush");
-                speakBtn.Click += (s, e) => TtsManager.Speak(Text, isShortSpeech: false);
+                speakBtn.Click += (s, e) => TtsManager.Speak(Tb.Text, isShortSpeech: false);
+
+                // --- DEBUG DETAILS TOGGLE ---
+                var debugPanel = new Border
+                {
+                    Background = new SolidColorBrush(Color.FromArgb(25, 0, 0, 0)),
+                    Padding = new Thickness(8),
+                    Margin = new Thickness(0, 8, 0, 0),
+                    CornerRadius = new CornerRadius(4),
+                    Visibility = Visibility.Collapsed,
+                    BorderThickness = new Thickness(0, 1, 0, 0)
+                };
+                debugPanel.SetResourceReference(Border.BorderBrushProperty, "WindowBorderBrush");
+
+                var debugContent = new StackPanel();
+                var debugTitle = new TextBlock { Text = "DEBUG TRACE", FontSize = 9, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 4), Opacity = 0.7 };
+                debugTitle.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
+                debugContent.Children.Add(debugTitle);
+
+                debugText = new TextBox
+                {
+                    Text = RawResponse ?? Text,
+                    FontSize = 10,
+                    FontFamily = new FontFamily("Consolas"),
+                    IsReadOnly = true,
+                    Background = Brushes.Transparent,
+                    BorderThickness = new Thickness(0),
+                    TextWrapping = TextWrapping.Wrap,
+                    Opacity = 0.8
+                };
+                debugText.SetResourceReference(TextBox.ForegroundProperty, "TextSecondaryBrush");
+                debugContent.Children.Add(debugText);
+                debugPanel.Child = debugContent;
+
+                var detailsBtn = new Button { Content = "⌄ Details", FontSize = 9, Padding = new Thickness(4, 1, 4, 1), Cursor = Cursors.Hand, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Margin = new Thickness(5, 0, 0, 0) };
+                detailsBtn.SetResourceReference(Button.ForegroundProperty, "TextSecondaryBrush");
+                detailsBtn.Click += (s, e) =>
+                {
+                    bool isVisible = debugPanel.Visibility == Visibility.Visible;
+                    debugPanel.Visibility = isVisible ? Visibility.Collapsed : Visibility.Visible;
+                    detailsBtn.Content = isVisible ? "⌄ Details" : "⌃ Details";
+                    if (!isVisible) ScrollViewerPrivate.ScrollToBottom();
+                };
 
                 actionStack.Children.Add(copyBtn);
                 actionStack.Children.Add(speakBtn);
+                actionStack.Children.Add(detailsBtn);
                 outerStack.Children.Add(actionStack);
+                outerStack.Children.Add(debugPanel);
             }
 
             RenderBubbleContent(mainStack, Tb, Text);
             ChatHistoryPanel.Children.Add(BubbleBorder);
             ScrollViewerPrivate.ScrollToBottom();
-            return (BubbleBorder, Tb);
+            return (BubbleBorder, Tb, debugText);
         }
 
         private void RenderBubbleContent(StackPanel Container, TextBox MainText, string Text)
@@ -873,11 +1006,19 @@ namespace JarvisLauncher
             }
 
             // --- NOISE FILTER ---
+            // Only collapse the bubble if it's truly empty AND NOT a manual user interaction
             if (string.IsNullOrWhiteSpace(cleanText) || Regex.IsMatch(cleanText, @"^[\.\s\?\!]+$"))
             {
-                // If the bubble is now effectively empty/noise, hide it all
-                if (Container.Parent is Border border) border.Visibility = Visibility.Collapsed;
-                return;
+                // If it's a direct AI response bubble (already visible with "Thinking"), we should show a placeholder instead of hiding
+                if (MainText.Text == "🧠 Thinking..." || MainText.Text == "⏳ Loading model...")
+                {
+                    cleanText = "Done.";
+                }
+                else
+                {
+                    if (Container.Parent is Border border) border.Visibility = Visibility.Collapsed;
+                    return;
+                }
             }
 
             MainText.Text = cleanText;

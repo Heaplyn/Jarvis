@@ -121,13 +121,22 @@ namespace JarvisLauncher
 
             guideStack.Children.Add(CreateHeaderBlock("🤖 JARVIS MASTER USER GUIDE & FEATURE MANUAL"));
 
-            string guideText = "⚠️ Guide file user_guide.md not loaded.";
+            string guideText = "⚠️ Guide file user_guide.md not found in standard paths.";
             try
             {
-                string guidePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "user_guide.md");
-                if (System.IO.File.Exists(guidePath))
+                string[] candidates = {
+                    System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "user_guide.md"),
+                    System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "user_guide.md"),
+                    System.IO.Path.GetFullPath(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\user_guide.md"))
+                };
+
+                foreach (var path in candidates)
                 {
-                    guideText = System.IO.File.ReadAllText(guidePath);
+                    if (System.IO.File.Exists(path))
+                    {
+                        guideText = System.IO.File.ReadAllText(path);
+                        break;
+                    }
                 }
             }
             catch { }
@@ -242,23 +251,23 @@ namespace JarvisLauncher
             string name = cmd.COMMAND_NAME.ToLower();
             string desc = (cmd.COMMAND_DESCRIPTION ?? "").ToLower();
 
-            if (name.Contains("ai") || name.Contains("gemini") || name.Contains("chat") || name.Contains("copilot") || name.Contains("mcp") || name.Contains("oauth") || name.Contains("login") || name.Contains("auth") || name.Contains("llm"))
+            if (name.Contains("ai") || name.Contains("gemini") || name.Contains("chat") || name.Contains("copilot") || name.Contains("mcp") || name.Contains("oauth") || name.Contains("login") || name.Contains("auth") || name.Contains("llm") || name.Contains("perplexity") || name.Contains("claude") || name.Contains("groq"))
             {
                 return "🤖 AI, LLM & MCP";
             }
-            if (name.Contains("git") || name.Contains("powershell") || name.Contains("roblox") || name.Contains("blender") || name.Contains("vector") || name.Contains("r1") || name.Contains("coder") || name.Contains("tile") || name.Contains("tiling") || name.Contains("ipa") || name.Contains("ios"))
+            if (name.Contains("git") || name.Contains("powershell") || name.Contains("ps") || name.Contains("roblox") || name.Contains("blender") || name.Contains("vector") || name.Contains("r1") || name.Contains("coder") || name.Contains("tile") || name.Contains("tiling") || name.Contains("ipa") || name.Contains("ios") || name.Contains("cli") || name.Contains("build") || name.Contains("push"))
             {
                 return "💻 Developer Tools";
             }
-            if (name.Contains("voice") || name.Contains("dataset") || name.Contains("mic") || name.Contains("silence") || name.Contains("noise") || name.Contains("confidence") || name.Contains("gate"))
+            if (name.Contains("voice") || name.Contains("dataset") || name.Contains("mic") || name.Contains("silence") || name.Contains("noise") || name.Contains("confidence") || name.Contains("gate") || name.Contains("stt") || name.Contains("speech") || name.Contains("biometrics"))
             {
                 return "🎙️ Voice Studio";
             }
-            if (name.Contains("convert") || name.Contains("webp") || name.Contains("gif") || name.Contains("png") || name.Contains("mp4") || name.Contains("mp3") || name.Contains("wav") || name.Contains("file") || name.Contains("organize") || name.Contains("edit") || name.Contains("open"))
+            if (name.Contains("convert") || name.Contains("webp") || name.Contains("gif") || name.Contains("png") || name.Contains("mp4") || name.Contains("mp3") || name.Contains("wav") || name.Contains("file") || name.Contains("organize") || name.Contains("edit") || name.Contains("open") || name.Contains("download") || name.Contains("ffmpeg") || name.Contains("grid") || name.Contains("folder"))
             {
                 return "🎬 Media & Files";
             }
-            if (name.Contains("todo") || name.Contains("calendar") || name.Contains("reminder") || name.Contains("adhd") || name.Contains("pomodoro") || name.Contains("timer") || name.Contains("habits") || name.Contains("clock") || name.Contains("time"))
+            if (name.Contains("todo") || name.Contains("calendar") || name.Contains("reminder") || name.Contains("adhd") || name.Contains("pomodoro") || name.Contains("timer") || name.Contains("habits") || name.Contains("clock") || name.Contains("time") || name.Contains("date") || name.Contains("note") || name.Contains("sticky"))
             {
                 return "💡 ADHD & Productivity";
             }

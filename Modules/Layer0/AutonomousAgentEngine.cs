@@ -23,6 +23,8 @@ namespace JarvisLauncher
             "youtube", "netflix", "facebook", "twitter", "reddit", "instagram", "tiktok", "steam", "gaming", "discord", "spotify"
         };
 
+        private static DateTime LastDeepReflection = DateTime.MinValue;
+
         public static void Start()
         {
             if (IsRunning) return;
@@ -38,6 +40,13 @@ namespace JarvisLauncher
                         if (Settings.IS_AUTONOMOUS_MODE_ENABLED && Settings.IS_JARVIS_ENABLED)
                         {
                             await RunAutonomousAudit();
+
+                            // Run Deep Reflection every 15 minutes
+                            if ((DateTime.Now - LastDeepReflection).TotalMinutes >= 15)
+                            {
+                                LastDeepReflection = DateTime.Now;
+                                await RunDeepAutonomousReflect();
+                            }
                         }
                     }
                     catch (Exception Ex)
@@ -72,6 +81,75 @@ namespace JarvisLauncher
 
             // 4. Audit Screen Surveillance (AI code teacher screen analysis)
             await AuditScreenSurveillance();
+        }
+
+        private static async Task RunDeepAutonomousReflect()
+        {
+            try
+            {
+                DebugConsoleOverlay.Log("Autonomous-Mind", "Jarvis is entering a background reflection cycle...");
+
+                string journal = ActionJournalManager.GetJournalSummaryForAi();
+                string memory = SemanticMemoryManager.GetMemoryContextForAi();
+                string activeWin = MemoryManager.GetCurrentWindowTitle();
+
+                string prompt = "## IDENTITY\n" +
+                               "You are the autonomous subconscious of Jarvis. You are analyzing your recent session to decide if any background tasks are needed.\n\n" +
+                               "## CONTEXT\n" +
+                               $"{journal}\n{memory}\nActive Window: {activeWin}\n\n" +
+                               "## TASK\n" +
+                               "Based on the above, do you need to perform any background actions? You can use your standard [TAGS] to act.\n" +
+                               "POSSIBLE ACTIONS:\n" +
+                               "- [CLEAN_LOGS]: If logs are getting too large.\n" +
+                               "- [ORGANIZE_FILES: path]: If you see the user working in a cluttered folder.\n" +
+                               "- [UPDATE_MEMORIES]: Consolidate recent facts.\n" +
+                               "- [REFRESH_PROJECT_MAP]: If the user switched projects.\n" +
+                               "- [PROACTIVE_NUDGE: message]: If you have a helpful suggestion.\n\n" +
+                               "If no action is needed, respond with 'QUIET'. Otherwise, execute the tags. Be decisive.";
+
+                string response = await LlmRouter.AskAsync(prompt);
+
+                if (string.IsNullOrWhiteSpace(response) || response.Contains("QUIET"))
+                {
+                    DebugConsoleOverlay.LogVerbose("Autonomous-Mind", "Reflection complete: No action required.", isMinimal: true);
+                    return;
+                }
+
+                DebugConsoleOverlay.Log("Autonomous-Mind", $"Subconscious Decision: {response}");
+
+                // Handle Proactive Nudge specifically to show it visually
+                var nudgeRegex = new Regex(@"\[PROACTIVE_NUDGE:\s*(.+?)\]", RegexOptions.IgnoreCase);
+                var match = nudgeRegex.Match(response);
+                if (match.Success)
+                {
+                    string msg = match.Groups[1].Value.Trim();
+                    Application.Current.Dispatcher.Invoke(() => {
+                        TextOverlay.Show("💡 Jarvis Suggestion: " + msg, 6000);
+                        TtsManager.Speak(msg, isShortSpeech: true);
+                    });
+                }
+
+                // The AiAPI.AskGeminiInternal loop will automatically catch and execute other standard tags
+                // if we were to pipe this through a specialized 'ExecuteAutonomousTask' method,
+                // but since we called LlmRouter.AskAsync, if it returned tags, we might need a dedicated execution pass.
+
+                await ProcessAutonomousResponse(response);
+            }
+            catch (Exception ex)
+            {
+                DebugConsoleOverlay.Log("Autonomous Error", "Deep reflection failed: " + ex.Message);
+            }
+        }
+
+        private static async Task ProcessAutonomousResponse(string response)
+        {
+            // If the response contains standard executable tags, we need to make sure they run.
+            // We'll reuse the logic in AiAPI by "acting" as if the user sent this response.
+            if (response.Contains("[") && response.Contains("]"))
+            {
+                // We use a internal trigger that doesn't show in the chat UI
+                await AiAPI.ExecuteAgentLoopAsync(response);
+            }
         }
 
         private static void AuditFocus()

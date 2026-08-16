@@ -34,6 +34,7 @@ namespace JarvisLauncher
         private CheckBox _playSoundsCheckBox = null!;
         private CheckBox _autoHideCheckBox = null!;
         private CheckBox _alwaysOnTopCheckBox = null!;
+        private CheckBox _enablePcControlCheckBox = null!;
         private Slider _opacitySlider = null!;
         private TextBox _googleKeyBox = null!;
         private TextBox _githubTokenBox = null!;
@@ -44,6 +45,11 @@ namespace JarvisLauncher
         private ComboBox _llmBackendCombo = null!;
         private StackPanel _geminiPanel = null!;
         private StackPanel _openAiPanel = null!;
+        private StackPanel _anthropicPanel = null!;
+        private StackPanel _groqPanel = null!;
+        private StackPanel _perplexityPanel = null!;
+        private StackPanel _mistralPanel = null!;
+        private StackPanel _openRouterPanel = null!;
         private StackPanel _ollamaPanel = null!;
         private StackPanel _customPanel = null!;
         private CheckBox _enableDualLlmCheckBox = null!;
@@ -260,6 +266,10 @@ namespace JarvisLauncher
             _alwaysOnTopCheckBox = CreateCheckBox("📌 Always Keep Launcher on Top", settings.ALWAYS_ON_TOP);
             root.Children.Add(_alwaysOnTopCheckBox);
 
+            _enablePcControlCheckBox = CreateCheckBox("🖥️ Enable AI Computer Control (PowerShell/Files/System)", settings.ENABLE_PC_CONTROL);
+            _enablePcControlCheckBox.ToolTip = "If disabled, the AI can only speak or take screenshots, but cannot modify files or run scripts.";
+            root.Children.Add(_enablePcControlCheckBox);
+
             root.Children.Add(CreateHeader("🔑 API Credentials & Downloads"));
 
             root.Children.Add(CreateLabel("Google Gemini API Key:"));
@@ -293,27 +303,72 @@ namespace JarvisLauncher
             root.Children.Add(CreateHeader("🤖 Active LLM Backend Engine"));
 
             _llmBackendCombo = new ComboBox { Margin = new Thickness(0, 0, 0, 10), FontSize = 12, Padding = new Thickness(6, 4, 6, 4) };
-            foreach (var b in new[] { "Gemini", "OpenAI", "Ollama", "Custom", "P2P" }) _llmBackendCombo.Items.Add(b);
+            foreach (var b in new[] { "Gemini", "OpenAI", "Anthropic", "Groq", "Perplexity", "Mistral", "OpenRouter", "Ollama", "Custom", "P2P" }) _llmBackendCombo.Items.Add(b);
             _llmBackendCombo.SelectedItem = settings.LLM_BACKEND;
             _llmBackendCombo.SelectionChanged += (s, e) => UpdateLlmPanels();
             root.Children.Add(_llmBackendCombo);
 
             // Gemini Panel
             _geminiPanel = new StackPanel();
-            _geminiPanel.Children.Add(CreateLabel("Gemini API Key is configured under General Tab."));
+            _geminiPanel.Children.Add(CreateLabel("Gemini API Key (use semicolon ; for multiple keys):"));
+            _geminiPanel.Children.Add(CreateLinkButton("🔗 Get Gemini API Key", "https://aistudio.google.com/app/apikey"));
+            _googleKeyBox = CreateTextBox(settings.GOOGLE_AI_KEY);
+            _geminiPanel.Children.Add(_googleKeyBox);
             root.Children.Add(_geminiPanel);
 
             // OpenAI Panel
             _openAiPanel = new StackPanel();
-            _openAiPanel.Children.Add(CreateLabel("OpenAI API Key (or LM Studio key):"));
+            _openAiPanel.Children.Add(CreateLabel("OpenAI API Key:"));
+            _openAiPanel.Children.Add(CreateLinkButton("🔗 Get OpenAI API Key", "https://platform.openai.com/api-keys"));
             var oaiKey = CreateTextBox(settings.OPENAI_KEY);
             oaiKey.TextChanged += (s, e) => settings.OPENAI_KEY = oaiKey.Text.Trim();
             _openAiPanel.Children.Add(oaiKey);
-            _openAiPanel.Children.Add(CreateLabel("Base URL (default https://api.openai.com/v1):"));
-            var oaiBase = CreateTextBox(settings.OPENAI_BASE_URL);
-            oaiBase.TextChanged += (s, e) => settings.OPENAI_BASE_URL = oaiBase.Text.Trim();
-            _openAiPanel.Children.Add(oaiBase);
             root.Children.Add(_openAiPanel);
+
+            // Anthropic Panel
+            _anthropicPanel = new StackPanel();
+            _anthropicPanel.Children.Add(CreateLabel("Anthropic (Claude) API Key:"));
+            _anthropicPanel.Children.Add(CreateLinkButton("🔗 Get Anthropic API Key", "https://console.anthropic.com/settings/keys"));
+            var antKey = CreateTextBox(settings.ANTHROPIC_KEY);
+            antKey.TextChanged += (s, e) => settings.ANTHROPIC_KEY = antKey.Text.Trim();
+            _anthropicPanel.Children.Add(antKey);
+            root.Children.Add(_anthropicPanel);
+
+            // Groq Panel
+            _groqPanel = new StackPanel();
+            _groqPanel.Children.Add(CreateLabel("Groq API Key (Ultra-Fast):"));
+            _groqPanel.Children.Add(CreateLinkButton("🔗 Get Groq API Key", "https://console.groq.com/keys"));
+            var groqKey = CreateTextBox(settings.GROQ_KEY);
+            groqKey.TextChanged += (s, e) => settings.GROQ_KEY = groqKey.Text.Trim();
+            _groqPanel.Children.Add(groqKey);
+            root.Children.Add(_groqPanel);
+
+            // Perplexity Panel
+            _perplexityPanel = new StackPanel();
+            _perplexityPanel.Children.Add(CreateLabel("Perplexity API Key (Search AI):"));
+            _perplexityPanel.Children.Add(CreateLinkButton("🔗 Get Perplexity API Key", "https://www.perplexity.ai/settings/api"));
+            var perpKey = CreateTextBox(settings.PERPLEXITY_KEY);
+            perpKey.TextChanged += (s, e) => settings.PERPLEXITY_KEY = perpKey.Text.Trim();
+            _perplexityPanel.Children.Add(perpKey);
+            root.Children.Add(_perplexityPanel);
+
+            // Mistral Panel
+            _mistralPanel = new StackPanel();
+            _mistralPanel.Children.Add(CreateLabel("Mistral AI API Key:"));
+            _mistralPanel.Children.Add(CreateLinkButton("🔗 Get Mistral API Key", "https://console.mistral.ai/api-keys/"));
+            var misKey = CreateTextBox(settings.MISTRAL_KEY);
+            misKey.TextChanged += (s, e) => settings.MISTRAL_KEY = misKey.Text.Trim();
+            _mistralPanel.Children.Add(misKey);
+            root.Children.Add(_mistralPanel);
+
+            // OpenRouter Panel
+            _openRouterPanel = new StackPanel();
+            _openRouterPanel.Children.Add(CreateLabel("OpenRouter API Key (Unified access):"));
+            _openRouterPanel.Children.Add(CreateLinkButton("🔗 Get OpenRouter API Key", "https://openrouter.ai/settings/keys"));
+            var orKey = CreateTextBox(settings.OPENROUTER_KEY);
+            orKey.TextChanged += (s, e) => settings.OPENROUTER_KEY = orKey.Text.Trim();
+            _openRouterPanel.Children.Add(orKey);
+            root.Children.Add(_openRouterPanel);
 
             // Ollama Panel
             _ollamaPanel = new StackPanel();
@@ -399,6 +454,11 @@ namespace JarvisLauncher
             string sel = (_llmBackendCombo.SelectedItem as string) ?? "Gemini";
             _geminiPanel.Visibility = sel == "Gemini" ? Visibility.Visible : Visibility.Collapsed;
             _openAiPanel.Visibility = sel == "OpenAI" ? Visibility.Visible : Visibility.Collapsed;
+            _anthropicPanel.Visibility = sel == "Anthropic" ? Visibility.Visible : Visibility.Collapsed;
+            _groqPanel.Visibility = sel == "Groq" ? Visibility.Visible : Visibility.Collapsed;
+            _perplexityPanel.Visibility = sel == "Perplexity" ? Visibility.Visible : Visibility.Collapsed;
+            _mistralPanel.Visibility = sel == "Mistral" ? Visibility.Visible : Visibility.Collapsed;
+            _openRouterPanel.Visibility = sel == "OpenRouter" ? Visibility.Visible : Visibility.Collapsed;
             _ollamaPanel.Visibility = sel == "Ollama" ? Visibility.Visible : Visibility.Collapsed;
             _customPanel.Visibility = sel == "Custom" ? Visibility.Visible : Visibility.Collapsed;
         }
@@ -591,9 +651,14 @@ namespace JarvisLauncher
             bool voskReady = Directory.Exists(VoskEngine.ModelDirectory);
             _offlineVoskStatus.Text = voskReady ? "🎙️ Vosk Neural Model: ✅ Ready Offline" : "🎙️ Vosk Neural Model: ⚠️ Not Downloaded";
 
-            string voiceDir = TtsSampleDownloader.VoiceDirectory;
-            int cachedVoices = Directory.Exists(voiceDir) ? Directory.GetFiles(voiceDir, "*.mp3").Length : 0;
-            _offlineTtsStatus.Text = cachedVoices > 0 ? $"🎵 GitHub TTS Voices: ✅ {cachedVoices} cached offline" : "🎵 GitHub TTS Voices: ⚠️ Not Cached";
+            var toolStatus = new List<string>();
+            if (OfflineCacheManager.IsCommandAvailable("git")) toolStatus.Add("Git");
+            if (OfflineCacheManager.IsCommandAvailable("node")) toolStatus.Add("Node");
+            if (OfflineCacheManager.IsCommandAvailable("python")) toolStatus.Add("Python");
+            if (OfflineCacheManager.IsCommandAvailable("ollama")) toolStatus.Add("Ollama");
+
+            string toolsStr = toolStatus.Count > 0 ? string.Join(", ", toolStatus) : "None";
+            _offlineTtsStatus.Text = $"🛠️ Dev Tools & PMs: ✅ {toolsStr} detected";
         }
 
         // ── TAB 6 BUILDER: Custom Aliases & Commands ─────────────────────────────────
@@ -785,6 +850,7 @@ namespace JarvisLauncher
             settings.PLAY_SOUNDS = _playSoundsCheckBox.IsChecked == true;
             settings.AUTO_HIDE_ON_EXECUTE = _autoHideCheckBox.IsChecked == true;
             settings.ALWAYS_ON_TOP = _alwaysOnTopCheckBox.IsChecked == true;
+            settings.ENABLE_PC_CONTROL = _enablePcControlCheckBox.IsChecked == true;
 
             settings.GOOGLE_AI_KEY = _googleKeyBox.Text.Trim();
             settings.GITHUB_TOKEN = _githubTokenBox.Text.Trim();
@@ -866,6 +932,27 @@ namespace JarvisLauncher
                 Padding = new Thickness(8, 5, 8, 5),
                 FontSize = 12,
                 Cursor = Cursors.Hand
+            };
+            return btn;
+        }
+
+        private static Button CreateLinkButton(string content, string url)
+        {
+            var btn = new Button
+            {
+                Content = content,
+                Margin = new Thickness(0, 4, 0, 8),
+                Padding = new Thickness(10, 4, 10, 4),
+                FontSize = 10,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Cursor = Cursors.Hand,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                BorderBrush = Brushes.DimGray
+            };
+            btn.SetResourceReference(Button.ForegroundProperty, "AccentBrush");
+            btn.Click += (s, e) => {
+                try { Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true }); } catch { }
             };
             return btn;
         }
