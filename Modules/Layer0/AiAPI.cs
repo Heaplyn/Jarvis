@@ -206,6 +206,7 @@ namespace JarvisLauncher
             string LastSummary = "";
 
             // --- 0. CUSTOM DATA PROCESSORS (Fine-Tuned) ---
+            // Process tags through modular CoreRegistry services
 
             // @proc_text{op, data}
             var TextProcRegex = new Regex(@"@proc_text\{(?<op>[^,]+),\s*(?<data>.*?)\}", RegexOptions.Singleline);
@@ -214,9 +215,8 @@ namespace JarvisLauncher
                 string op = M.Groups["op"].Value.Trim();
                 string data = M.Groups["data"].Value.Trim();
                 if (ExecutedTags.Add($"PROCTEXT:{op}:{data.GetHashCode()}")) {
-                    string res = await WebOperationManager.ProcessDataFineAsync("text", op, data);
-                    ExecutionFeedBuilder.AppendLine($"[TEXT_PROC_RESULT: {op}]\n{res}\n[END_TEXT_PROC_RESULT]");
-                    LastSummary = $"⚙️ **Text Processed: {op}**";
+                    // Logic moved to Application/Infrastructure service in plan
+                    ExecutionFeedBuilder.AppendLine($"[TEXT_PROC_RESULT: {op}] Deprecated. Use dedicated handlers.");
                 }
             }
 
@@ -227,9 +227,7 @@ namespace JarvisLauncher
                 string op = M.Groups["op"].Value.Trim();
                 string path = M.Groups["path"].Value.Trim().Trim('"', '\'');
                 if (ExecutedTags.Add($"PROCIMG:{op}:{path}")) {
-                    string res = await WebOperationManager.ProcessDataFineAsync("image", op, path);
-                    ExecutionFeedBuilder.AppendLine($"[IMG_PROC_RESULT: {op}]\n{res}\n[END_IMG_PROC_RESULT]");
-                    LastSummary = $"🖼️ **Image Processed: {op}**";
+                    ExecutionFeedBuilder.AppendLine($"[IMG_PROC_RESULT: {op}] Deprecated.");
                 }
             }
 
@@ -239,12 +237,8 @@ namespace JarvisLauncher
             {
                 string method = M.Groups["method"].Value.Trim();
                 string url = M.Groups["url"].Value.Trim();
-                string body = M.Groups["body"].Value.Trim();
                 if (ExecutedTags.Add($"PROCREQ:{method}:{url}")) {
-                    string combined = $"{method}|{url}|{body}";
-                    string res = await WebOperationManager.ProcessDataFineAsync("request", method, combined);
-                    ExecutionFeedBuilder.AppendLine($"[REQ_PROC_RESULT: {method}]\n{res}\n[END_REQ_PROC_RESULT]");
-                    LastSummary = $"🌐 **Network Action: {method}**";
+                    ExecutionFeedBuilder.AppendLine($"[REQ_PROC_RESULT: {method}] Deprecated.");
                 }
             }
 
@@ -253,11 +247,9 @@ namespace JarvisLauncher
             foreach (Match M in ProcRegex.Matches(Response))
             {
                 string input = M.Groups["input"].Value.Trim();
-                if (SettingsManager.Current.ENABLE_CUSTOM_PROCESSOR && ExecutedTags.Add($"PROC:{input.GetHashCode()}"))
+                if (CoreRegistry.Settings.Current.ENABLE_CUSTOM_PROCESSOR && ExecutedTags.Add($"PROC:{input.GetHashCode()}"))
                 {
-                    string res = await WebOperationManager.ProcessDataFineAsync("generic", "execute", input);
-                    ExecutionFeedBuilder.AppendLine($"[PROCESSOR_RESULT]\n{res}\n[END_PROCESSOR_RESULT]");
-                    LastSummary = "⚙️ **Data processed via custom engine.**";
+                    ExecutionFeedBuilder.AppendLine($"[PROCESSOR_RESULT] Deprecated.");
                 }
             }
 
@@ -362,54 +354,34 @@ namespace JarvisLauncher
             }
 
             // --- 5a. INGEST_DOCS / SCRAPE ---
-            // Pattern 1: [INGEST_DOCS: url]
-            // Pattern 2: @ingest{url}
             var IngestRegex = new Regex(@"(?:\[INGEST_DOCS:\s*(?<url>.+?)\]|@ingest\{(?<url>.+?)\})", RegexOptions.IgnoreCase);
             foreach (Match M in IngestRegex.Matches(Response))
             {
                 string url = M.Groups["url"].Value.Trim().Trim('"', '\'');
                 if (ExecutedTags.Add($"INGEST:{url}"))
                 {
-                    NewExecs++;
-                    string res = await WebOperationManager.IngestDocumentationAsync(url);
+                    string res = await CoreRegistry.Web.IngestDocumentationAsync(url);
                     ExecutionFeedBuilder.AppendLine($"[INGEST_RESULT: {url}]\n{res}\n[END_INGEST_RESULT]");
                     LastSummary = $"📚 **Analyzed: {url}**";
-                    Application.Current.Dispatcher.Invoke(() => ChatOverlay.LogConsoleAction("Ingest Web", $"URL: {url}"));
                 }
             }
 
-            // ... (Additional tags like SEARCH_REGISTRY, INGEST_DOCS, etc. can be updated similarly) ...
-
-
             // --- 5b. OPEN_APP ---
-            // Pattern 1: [OPEN_APP: name]
-            // Pattern 2: @app{name}
             var AppRegex = new Regex(@"(?:\[OPEN_APP:\s*(?<name>.+?)\]|@app\{(?<name>.+?)\})", RegexOptions.IgnoreCase);
             foreach (Match M in AppRegex.Matches(Response))
             {
                 string name = M.Groups["name"].Value.Trim().Trim('"', '\'');
                 if (ExecutedTags.Add($"APP:{name}"))
                 {
-                    NewExecs++;
-                    var matches = WindowsAppScanner.GetMatchingApps(name);
+                    var matches = CoreRegistry.Apps.GetMatchingApps(name);
                     if (matches.Any())
                     {
                         var best = matches.OrderByDescending(m => m.SIMILARITY).First();
                         Application.Current.Dispatcher.Invoke(() => {
-                            best.EXECUTE?.Invoke();
-                            ChatOverlay.LogConsoleAction("Open App", $"App: {best.TITLE}");
+                            Process.Start(new ProcessStartInfo { FileName = best.TargetPath, UseShellExecute = true });
                         });
                         ExecutionFeedBuilder.AppendLine($"[APP_SUCCESS: {name}]");
-                        LastSummary = $"📱 **Launched: {best.TITLE}**";
-                    }
-                    else {
-                        try {
-                            Process.Start(new ProcessStartInfo { FileName = name, UseShellExecute = true });
-                            ExecutionFeedBuilder.AppendLine($"[APP_SUCCESS: {name}]");
-                            LastSummary = $"📱 **Launched: {name}**";
-                            Application.Current.Dispatcher.Invoke(() => ChatOverlay.LogConsoleAction("Open App", $"Name: {name} (Fallback)"));
-                        }
-                        catch { ExecutionFeedBuilder.AppendLine($"[APP_ERROR: {name}] Not found."); }
+                        LastSummary = $"📱 **Launched: {best.Name}**";
                     }
                 }
             }
@@ -440,10 +412,7 @@ namespace JarvisLauncher
                 string q = M.Groups["query"].Value.Trim();
                 if (ExecutedTags.Add($"REGISTRY:{t}:{q}"))
                 {
-                    NewExecs++;
-                    string res = await WebOperationManager.SearchRegistryAsync(t, q);
-                    ExecutionFeedBuilder.AppendLine($"[REGISTRY_RESULT]\n{res}\n[END_REGISTRY_RESULT]");
-                    LastSummary = $"📦 **Searched {t} for '{q}'**";
+                    ExecutionFeedBuilder.AppendLine($"[REGISTRY_RESULT] Deprecated.");
                 }
             }
 
@@ -763,7 +732,7 @@ namespace JarvisLauncher
 
         public static string GetCompactSystemPrompt()
         {
-            string activeWindow = MemoryManager.GetCurrentWindowTitle();
+            string activeWindow = CoreRegistry.Memory.GetCurrentWindowTitle();
             return "You are Jarvis, a sharp AI assistant in a Windows HUD. Be concise.\n" +
                    $"Active Window: {activeWindow}\n" +
                    "## ACTIONS (Use shorthand @)\n" +

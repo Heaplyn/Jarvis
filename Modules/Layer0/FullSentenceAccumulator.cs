@@ -35,8 +35,8 @@ namespace JarvisLauncher
         {
             if (string.IsNullOrWhiteSpace(token)) return;
 
-            // Acoustic Echo Suppression: Ignore mic input while TTS is active
-            if (TtsManager.IsSpeakingOrEchoing) return;
+            // Acoustic Echo Suppression
+            if (((TtsManager)CoreRegistry.Tts).IsSpeakingOrEchoingInternal) return;
 
             lock (_lock)
             {

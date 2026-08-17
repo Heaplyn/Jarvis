@@ -20,7 +20,7 @@ namespace JarvisLauncher
 
         public static void ProcessBuffer(byte[] buffer, int length)
         {
-            if (TtsManager.IsSpeakingOrEchoing) return;
+            if (((TtsManager)CoreRegistry.Tts).IsSpeakingOrEchoingInternal) return;
 
             // Extract samples
             int sampleCount = length / 2;

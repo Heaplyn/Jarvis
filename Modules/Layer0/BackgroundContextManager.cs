@@ -73,7 +73,7 @@ namespace JarvisLauncher
         private static async Task RefreshContextSnapshotAsync()
         {
             // Gather telemetry components
-            string ActiveWin = MemoryManager.GetCurrentWindowTitle();
+            string ActiveWin = CoreRegistry.Memory.GetCurrentWindowTitle();
             string ClipboardText = string.Empty;
             try
             {
@@ -103,7 +103,7 @@ namespace JarvisLauncher
             // Query LLM in background (use the fast route)
             try
             {
-                string Summary = await LlmRouter.AskAsync(PrefetchPrompt, null);
+                string Summary = await CoreRegistry.Llm.AskAsync(PrefetchPrompt, null);
                 if (!string.IsNullOrWhiteSpace(Summary) && !Summary.StartsWith("⚠️"))
                 {
                     lock (Lock)

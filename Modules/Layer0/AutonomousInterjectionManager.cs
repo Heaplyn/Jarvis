@@ -1,129 +1,66 @@
 // Developer: heaplyn
-// Date: 2026-08-15
-// Summary: Autonomous Interjection & Proactive Speech Engine.
-//          Uses "Self-Learning" heuristics to decide when Jarvis should step in.
-//          Analyzes audio cues (claps, sighs), visual changes (idle time, app switching),
-//          and action history to trigger proactive sassy or helpful remarks.
+// Date: 2026-08-17
+// Summary: Autonomous Interjection Service implementation.
+//          Follows modularization rules and implements IAutonomousInterjectionService.
 
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
 namespace JarvisLauncher
 {
-    public static class AutonomousInterjectionManager
+    public class AutonomousInterjectionManager : IAutonomousInterjectionService
     {
-        private static bool IsRunning = false;
-        private static DateTime _lastInterjectionTime = DateTime.Now;
-        private static readonly Random _random = new Random();
+        private bool _isRunning = false;
+        private DateTime _lastInterjection = DateTime.Now;
+        private readonly Random _random = new Random();
 
-        public static void Start()
+        public void Start()
         {
-            if (IsRunning) return;
-            IsRunning = true;
+            if (_isRunning) return;
+            _isRunning = true;
+            EnvironmentalAudioAnalyzer.OnSoundDetected += (cat, conf) => {
+                if (IsReady() && (cat == "Sigh" || cat == "Frustrated_Noise")) Trigger("You sound frustrated, Boss. Need a hand with the code?");
+            };
 
-            // Hook into Environmental Audio
-            EnvironmentalAudioAnalyzer.OnSoundDetected += HandleEnvironmentalSound;
-
-            Task.Run(async () =>
-            {
-                // Wait for system to settle
+            Task.Run(async () => {
                 await Task.Delay(30000);
-
-                while (IsRunning)
-                {
-                    try
-                    {
-                        await RunProactiveCheckAsync();
-                    }
-                    catch { }
-
-                    // Check every 3-5 minutes for spontaneous thoughts
+                while (_isRunning) {
+                    try { await CheckProactiveAsync(); } catch { }
                     await Task.Delay(_random.Next(180000, 300000));
                 }
             });
-
-            DebugConsoleOverlay.Log("Autonomous-Interjection", "Proactive Speech Engine active.");
         }
 
-        private static void HandleEnvironmentalSound(string category, double confidence)
+        public void Stop() => _isRunning = false;
+
+        private async Task CheckProactiveAsync()
         {
-            if (!IsReadyToSpeak()) return;
+            if (!IsReady()) return;
+            if (NativeMethods.GetIdleTime() > 600000) return; // Silent if idle > 10m
 
-            // Trigger based on specific sounds
-            if (category == "Sigh" || category == "Frustrated_Noise")
-            {
-                _ = TriggerProactiveSpeech("I just heard a rather dramatic sigh. Having trouble with that code again, Boss?");
-            }
-            else if (category == "Clap" || category == "Success_Cheer")
-            {
-                _ = TriggerProactiveSpeech("Was that a clap? Did we finally get something to work, or did you just kill a fly?");
+            var recent = ActionJournalManager.GetRecentActions(5);
+            if (recent.Count(a => a.ActionType == "BUILD_ERROR") >= 3) {
+                await Trigger("Third build error in a row. Maybe we should check the references?");
             }
         }
 
-        private static async Task RunProactiveCheckAsync()
+        private bool IsReady() => CoreRegistry.Settings.Current.IS_AUTONOMOUS_MODE_ENABLED &&
+                                 CoreRegistry.Settings.Current.IS_VOICE_MODE_ACTIVE &&
+                                 (DateTime.Now - _lastInterjection).TotalMinutes >= 15 &&
+                                 !CoreRegistry.Tts.IsSpeaking;
+
+        private async Task Trigger(string fallback)
         {
-            if (!IsReadyToSpeak()) return;
-
-            // Analyze visual/system state
-            ScreenMonitorEngine.UpdateActiveWindowInfo();
-            string activeWin = ScreenMonitorEngine.ActiveWindowTitle;
-            uint idleTime = NativeMethods.GetIdleTime();
-
-            // 1. Boredom trigger (PC idle for long time but Jarvis is open)
-            if (idleTime > 600000) // 10 minutes idle
-            {
-                await TriggerProactiveSpeech("You've been staring at that screen for 10 minutes without moving. Is the code staring back at you, or are we having a philosophical crisis?");
-                return;
-            }
-
-            // 2. "Action Loop" detection via Journal
-            var recent = ActionJournalManager.GetRecentActions(10);
-            int buildFailures = recent.Count(a => a.ActionType == "BUILD_ERROR");
-            if (buildFailures >= 3)
-            {
-                await TriggerProactiveSpeech("That's the third build error in a row. Maybe we should take a step back and actually read the stack trace this time?");
-                return;
-            }
+            _lastInterjection = DateTime.Now;
+            try {
+                string prompt = $"Reason: {fallback}\nGenerate wity 1-sentence remark.";
+                string res = await CoreRegistry.Llm.AskAsync(prompt);
+                CoreRegistry.Tts.Speak(res);
+                TextOverlay.Show("🤖 Jarvis: " + res, 5000);
+            } catch { CoreRegistry.Tts.Speak(fallback); }
         }
 
-        private static bool IsReadyToSpeak()
-        {
-            // Only speak if Voice Mode is on and we haven't talked in the last 15 minutes
-            bool isVoiceOn = SettingsManager.Current.IS_VOICE_MODE_ACTIVE;
-            bool coolDownPassed = (DateTime.Now - _lastInterjectionTime).TotalMinutes >= 15;
-            return isVoiceOn && coolDownPassed && !TtsManager.IsSpeakingOrEchoing;
-        }
-
-        private static async Task TriggerProactiveSpeech(string fallbackText)
-        {
-            _lastInterjectionTime = DateTime.Now;
-
-            // Use the LLM to generate a better version of the proactive thought based on the full context
-            string context = UserActivityContextManager.BuildFullActivityContext();
-            string prompt = "You are Jarvis. You've decided to proactively speak to the user based on their background activity.\n" +
-                            "CONTEXT:\n" + context + "\n\n" +
-                            "REASON FOR INTERJECTING: " + fallbackText + "\n\n" +
-                            "Generate a short, sassy, proactive 1-sentence remark. Be witty. Do not use action tags.";
-
-            try
-            {
-                string remark = await LlmRouter.AskAsync(prompt, null);
-                if (!string.IsNullOrWhiteSpace(remark) && !remark.Contains("Error"))
-                {
-                    TtsManager.Speak(remark);
-                    ActionJournalManager.LogAction("AI_INTERJECTION", remark, "PROACTIVE", 0.8);
-
-                    // Show visually too
-                    TextOverlay.Show("🤖 Jarvis: " + remark, 5000);
-                }
-            }
-            catch
-            {
-                TtsManager.Speak(fallbackText);
-            }
-        }
+        public static void StartGlobal() => CoreRegistry.Autonomous.Start();
     }
 }

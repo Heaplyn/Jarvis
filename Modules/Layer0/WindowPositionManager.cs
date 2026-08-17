@@ -163,6 +163,7 @@ namespace JarvisLauncher
                             case nameof(MusicPlaylistOverlay): MusicPlaylistOverlay.ShowOverlay(); break;
                             case nameof(ChatOverlay): ChatOverlay.ShowOverlay(); break;
                             case nameof(SettingsOverlay): SettingsOverlay.ShowOverlay(); break;
+                            case nameof(CalculusStudioOverlay): CalculusStudioOverlay.ShowStudio(); break;
                         }
                     }
                     catch (Exception ex)

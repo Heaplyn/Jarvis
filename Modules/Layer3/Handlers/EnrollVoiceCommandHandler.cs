@@ -35,7 +35,7 @@ namespace JarvisLauncher
                 DESCRIPTION = "Train speaker verification biometrics to secure voice activation",
                 EXECUTE = () =>
                 {
-                    Task.Run(async () => await VoiceActivationManager.EnrollVoiceAsync(name));
+                    Task.Run(async () => await VoiceActivationManager.EnrollVoiceGlobalAsync(name));
                 },
                 SIMILARITY = 8.5
             });

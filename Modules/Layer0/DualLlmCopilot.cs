@@ -42,19 +42,12 @@ namespace JarvisLauncher
 
                     if (settings.DUAL_LLM_BACKEND.Equals("Ollama", StringComparison.OrdinalIgnoreCase))
                     {
-                        copilotInsight = await LlmRouter.AskOllamaAsync(prompt);
-                    }
-                    else if (settings.DUAL_LLM_BACKEND.Equals("Gemini", StringComparison.OrdinalIgnoreCase))
-                    {
-                        copilotInsight = await AiAPI.AskGemini(prompt);
-                    }
-                    else if (settings.DUAL_LLM_BACKEND.Equals("OpenAI", StringComparison.OrdinalIgnoreCase))
-                    {
-                        copilotInsight = await LlmRouter.AskOpenAIAsync(prompt);
+                        // Modular service registry call
+                        copilotInsight = await CoreRegistry.Llm.AskAsync(prompt);
                     }
                     else
                     {
-                        copilotInsight = await LlmRouter.AskAsync(prompt);
+                        copilotInsight = await CoreRegistry.Llm.AskAsync(prompt);
                     }
 
                     if (!string.IsNullOrWhiteSpace(copilotInsight))

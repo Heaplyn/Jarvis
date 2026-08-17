@@ -23,12 +23,14 @@ namespace JarvisLauncher
             if (launchMatch.Success)
             {
                 string app = launchMatch.Groups["app"].Value.Trim();
-                var matches = WindowsAppScanner.GetMatchingApps(app);
-                if (matches.Any(m => m.SIMILARITY >= 0.8))
+                var matches = CoreRegistry.Apps.GetMatchingApps(app);
+                if (matches.Any(m => m.SIMILARITY >= 0.6))
                 {
                     var best = matches.OrderByDescending(m => m.SIMILARITY).First();
-                    System.Windows.Application.Current.Dispatcher.Invoke(() => best.EXECUTE?.Invoke());
-                    return $"📱 Done. Launched {best.TITLE}.";
+                    System.Windows.Application.Current.Dispatcher.Invoke(() => {
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = best.TargetPath, UseShellExecute = true });
+                    });
+                    return $"📱 Done. Launched {best.Name}.";
                 }
             }
 

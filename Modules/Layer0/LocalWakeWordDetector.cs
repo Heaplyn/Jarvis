@@ -77,7 +77,7 @@ namespace JarvisLauncher
                             PredictiveStreamManager.IngestEvent("VOICE", normalized);
 
                             // BACKGROUND LOGGING: Save even non-commands to training folder for future learning
-                            _ = VoiceActivationManager.SaveBackgroundAudioTokenAsync(normalized);
+                            _ = VoiceActivationManager.SaveAudioTokenGlobalAsync(normalized);
 
                             // Append token to sentence buffer (waits until user finishes speaking completely)
                             FullSentenceAccumulator.AppendSpeechToken(normalized);

@@ -1,11 +1,11 @@
 // Developer: heaplyn
-// Date: 2026-08-09
-// Summary: Manages loading and saving configuration values (API keys) in SystemSettings.json.
+// Date: 2026-08-17
+// Summary: Manages loading and saving configuration values in SystemSettings.json.
 
 using System;
 using System.IO;
 using System.Text.Json;
-using System.Text.Json.Serialization;
+using System.Collections.Generic;
 
 namespace JarvisLauncher
 {
@@ -23,8 +23,8 @@ namespace JarvisLauncher
         public string DEFAULT_SEARCH_ENGINE { get; set; } = "Google";
         public int WINDOW_MARGIN { get; set; } = 10;
         public bool USE_GRADIENT_BACKGROUND { get; set; } = true;
-        public string BACKGROUND_MODE { get; set; } = "Gradient"; // Solid | Gradient | Media | RGB
-        public string BACKGROUND_MEDIA_SOURCE { get; set; } = string.Empty; // Path to GIF or Video
+        public string BACKGROUND_MODE { get; set; } = "Gradient";
+        public string BACKGROUND_MEDIA_SOURCE { get; set; } = string.Empty;
         public bool ENABLE_ANIMATIONS { get; set; } = true;
         public bool USE_ROUNDED_CORNERS { get; set; } = true;
         public string CUSTOM_FONT_FAMILY { get; set; } = "Segoe UI";
@@ -41,7 +41,7 @@ namespace JarvisLauncher
         public int AUTONOMOUS_INTERVAL_MINUTES { get; set; } = 2;
 
         public bool ENABLE_VOICE_COMMAND_CHUNKING { get; set; } = true;
-        public int VOICE_CHUNKING_SILENCE_MS { get; set; } = 1200; // Snappier sentence detection
+        public int VOICE_CHUNKING_SILENCE_MS { get; set; } = 1200;
         public double MIN_VOICE_CONFIDENCE { get; set; } = 0.65;
         public float MIC_AUDIO_ENERGY_FLOOR { get; set; } = 0.12f;
         public double MIC_NOISE_GATE_DB { get; set; } = -35.0;
@@ -55,7 +55,7 @@ namespace JarvisLauncher
         public string GEMINI_VOICE_DETAIL_LEVEL { get; set; } = "Concise";
         public bool PHONETIC_FUZZY_MATCHING { get; set; } = true;
 
-        public System.Collections.Generic.Dictionary<string, string> ALIASES { get; set; } = new System.Collections.Generic.Dictionary<string, string>();
+        public Dictionary<string, string> ALIASES { get; set; } = new Dictionary<string, string>();
 
         public string LLM_BACKEND { get; set; } = "Gemini";
         public string GEMINI_MODEL { get; set; } = "gemini-2.0-flash";
@@ -136,61 +136,50 @@ namespace JarvisLauncher
         public bool ENABLE_HF_AUTO_TRAINING { get; set; } = false;
         public string HF_TRAINING_DATASET_ID { get; set; } = string.Empty;
         public bool VERBOSE_LOGGING { get; set; } = false;
-        public int DEBUG_VERBOSITY_LEVEL { get; set; } = 1; // 0: None, 1: Minimal (Half), 2: Full
+        public int DEBUG_VERBOSITY_LEVEL { get; set; } = 1;
         public bool ENABLE_PC_CONTROL { get; set; } = true;
         public string OBSIDIAN_VAULT_PATH { get; set; } = string.Empty;
         public bool MINIMIZE_TO_WIDGET { get; set; } = true;
     }
 
-    public static class SettingsManager
+    public class SettingsManager : ISettingsService
     {
         private static string DataDir => PathHandler.GetDataDirectory();
         private static string SettingsPath => Path.Combine(DataDir, "SystemSettings.json");
-        private static SystemSettings CurrentSettings = new SystemSettings();
+        private SystemSettings? _cached;
 
-        static SettingsManager()
-        {
-            Load();
-        }
+        public static SystemSettings Current => CoreRegistry.Settings.Current;
 
-        public static SystemSettings Current => CurrentSettings;
+        SystemSettings ISettingsService.Current => _cached ??= LoadInternal();
 
-        public static void Load()
+        void ISettingsService.Load() => _cached = LoadInternal();
+
+        private SystemSettings LoadInternal()
         {
             try
             {
                 if (File.Exists(SettingsPath))
                 {
-                    string Json = File.ReadAllText(SettingsPath);
-                    CurrentSettings = JsonSerializer.Deserialize<SystemSettings>(Json) ?? new SystemSettings();
-                }
-                else
-                {
-                    CurrentSettings = new SystemSettings();
-                    Save(); // Initialize empty file
+                    string json = File.ReadAllText(SettingsPath);
+                    return JsonSerializer.Deserialize<SystemSettings>(json) ?? new SystemSettings();
                 }
             }
-            catch
-            {
-                CurrentSettings = new SystemSettings();
-            }
+            catch { }
+            return new SystemSettings();
         }
 
-        public static void Save()
+        void ISettingsService.Save()
         {
             try
             {
-                if (!Directory.Exists(DataDir))
-                {
-                    Directory.CreateDirectory(DataDir);
-                }
-                string Json = JsonSerializer.Serialize(CurrentSettings, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(SettingsPath, Json);
+                if (!Directory.Exists(DataDir)) Directory.CreateDirectory(DataDir);
+                string json = JsonSerializer.Serialize(_cached ?? new SystemSettings(), new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(SettingsPath, json);
             }
-            catch (Exception Ex)
-            {
-                Console.WriteLine($"Failed to save settings: {Ex.Message}");
-            }
+            catch { }
         }
+
+        public static void Load() => CoreRegistry.Settings.Load();
+        public static void Save() => CoreRegistry.Settings.Save();
     }
 }
