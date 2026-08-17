@@ -440,7 +440,7 @@ namespace JarvisLauncher
                 if (cmd.StartsWith("/learnsound "))
                 {
                     string name = Message.Substring(12).Trim();
-                    _ = Task.Run(async () => await VoiceActivationManager.LearnEnvironmentalSoundAsync(name));
+                    _ = Task.Run(async () => await VoiceActivationManager.LearnSoundGlobalAsync(name));
                     return;
                 }
                 if (cmd == "/resetvoice")

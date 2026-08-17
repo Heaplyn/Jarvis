@@ -83,7 +83,7 @@ namespace JarvisLauncher
             this.Topmost = SettingsManager.Current.ALWAYS_ON_TOP; this.WindowStartupLocation = WindowStartupLocation.CenterScreen;
             _openOverlays.Add(this); this.Closed += (s, e) => _openOverlays.Remove(this);
 
-            var windowChrome = new WindowChrome { ResizeBorderThickness = new Thickness(6), CaptionHeight = 0, GlassFrameThickness = new Thickness(0), CornerRadius = new CornerRadius(12) };
+            var windowChrome = new WindowChrome { ResizeBorderThickness = new Thickness(6), CaptionHeight = 0, GlassFrameThickness = new Thickness(1), CornerRadius = new CornerRadius(12) };
             WindowChrome.SetWindowChrome(this, windowChrome);
 
             _mainBorder = new Border { BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(12), IsHitTestVisible = true, Effect = new DropShadowEffect { BlurRadius = 15, Color = Colors.Black, Opacity = 0.5, ShadowDepth = 2 } };
@@ -101,8 +101,10 @@ namespace JarvisLauncher
                 }
                 if (WindowMemoryManager.RestoreWindowBounds(_originalTitle, this, out bool storedMiniMode)) {
                     if (storedMiniMode && !_isMiniMode) ToggleMiniMode();
+                    else if (this.WindowState == WindowState.Maximized) this.WindowState = WindowState.Normal;
                 }
                 BringToFront();
+                AttachPasteContextMenuToAllTextBoxes(this);
             };
 
             this.LocationChanged += (s, e) => WindowMemoryManager.SaveWindowBounds(_originalTitle, this, _isMiniMode);
@@ -201,7 +203,7 @@ namespace JarvisLauncher
             var border = new FrameworkElementFactory(typeof(Border));
             border.Name = "Bd";
             border.SetValue(Border.BackgroundProperty, new TemplateBindingExtension(TabItem.BackgroundProperty));
-            border.SetValue(Border.PaddingProperty, new TemplateBindingExtension(TabItem.PaddingProperty));
+            border.SetValue(Border.PaddingProperty, new Thickness(2));
             border.SetValue(Border.CornerRadiusProperty, new CornerRadius(4, 4, 0, 0));
 
             var presenter = new FrameworkElementFactory(typeof(ContentPresenter));
@@ -220,13 +222,15 @@ namespace JarvisLauncher
 
         public static void StyleTreeView(TreeView tv)
         {
-            tv.Background = Brushes.Transparent; tv.BorderThickness = new Thickness(0);
+            tv.Background = Brushes.Transparent;
+            tv.BorderThickness = new Thickness(0);
+
             var itemStyle = new Style(typeof(TreeViewItem));
             itemStyle.Setters.Add(new Setter(TreeViewItem.ForegroundProperty, Brushes.White));
             itemStyle.Setters.Add(new Setter(TreeViewItem.FontSizeProperty, 12.0));
 
             var template = new ControlTemplate(typeof(TreeViewItem));
-            var outerStack = new FrameworkElementFactory(typeof(StackPanel));
+            var stack = new FrameworkElementFactory(typeof(StackPanel));
 
             var headerStack = new FrameworkElementFactory(typeof(StackPanel));
             headerStack.SetValue(StackPanel.OrientationProperty, Orientation.Horizontal);
@@ -259,14 +263,31 @@ namespace JarvisLauncher
             itemsPresenter.Name = "ItemsHost";
             itemsPresenter.SetValue(ItemsPresenter.MarginProperty, new Thickness(15, 0, 0, 0));
 
-            outerStack.AppendChild(headerStack);
-            outerStack.AppendChild(itemsPresenter);
-            template.VisualTree = outerStack;
+            stack.AppendChild(headerStack);
+            stack.AppendChild(itemsPresenter);
+            template.VisualTree = stack;
 
             template.Triggers.Add(new Trigger { Property = TreeViewItem.IsExpandedProperty, Value = false, Setters = { new Setter(ItemsPresenter.VisibilityProperty, Visibility.Collapsed, "ItemsHost") } });
             template.Triggers.Add(new Trigger { Property = TreeViewItem.HasItemsProperty, Value = false, Setters = { new Setter(ToggleButton.VisibilityProperty, Visibility.Hidden, "Expander") } });
             template.Triggers.Add(new Trigger { Property = TreeViewItem.IsSelectedProperty, Value = true, Setters = { new Setter(Border.BackgroundProperty, new SolidColorBrush(Color.FromArgb(0x33, 0x00, 0xFF, 0xFF)), "Bd"), new Setter(TreeViewItem.ForegroundProperty, Brushes.White) } });
             itemStyle.Setters.Add(new Setter(TreeViewItem.TemplateProperty, template)); tv.ItemContainerStyle = itemStyle;
         }
+
+        public static void AttachPasteContextMenuToAllTextBoxes(DependencyObject parent)
+        {
+            if (parent == null) return;
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++) {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is TextBox box && box.ContextMenu == null) {
+                    var menu = new ContextMenu();
+                    menu.Items.Add(new MenuItem { Header = "📋 Paste (Ctrl+V)", Command = ApplicationCommands.Paste });
+                    menu.Items.Add(new MenuItem { Header = "📄 Copy (Ctrl+C)", Command = ApplicationCommands.Copy });
+                    box.ContextMenu = menu;
+                }
+                AttachPasteContextMenuToAllTextBoxes(child);
+            }
+        }
+
+        protected override void OnClosing(System.ComponentModel.CancelEventArgs e) { if (!_forceClose) { e.Cancel = true; this.Hide(); return; } base.OnClosing(e); }
     }
 }

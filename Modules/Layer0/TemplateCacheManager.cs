@@ -96,7 +96,7 @@ namespace JarvisLauncher
                                 $"Return ONLY the modified code. Do not output markdown formatting blocks, and do not explain anything. Just output the raw adjusted code code file.";
 
                 // Use the Unified LLM Router
-                string adjustedCode = await LlmRouter.AskAsync(prompt, null);
+                string adjustedCode = await CoreRegistry.Llm.AskAsync(prompt, null);
                 
                 // Strip markdown code fencing if the LLM outputted them anyway
                 adjustedCode = StripCodeFences(adjustedCode);
@@ -108,7 +108,7 @@ namespace JarvisLauncher
                 });
 
                 string msg = $"Template '{templateName}' adapted and copied to Clipboard!";
-                TtsManager.Speak("Template adapted and copied to clipboard.", isShortSpeech: true);
+                TtsManager.Speak("Template adapted and copied to clipboard.");
                 TextOverlay.Show("✅ Template copied to clipboard!", 3000);
                 DebugConsoleOverlay.Log("Templates", "Adjusted code copied to Clipboard.");
 

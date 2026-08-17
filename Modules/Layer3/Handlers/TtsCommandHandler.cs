@@ -54,7 +54,7 @@ namespace JarvisLauncher
                 {
                     TITLE = $"🔊 Read File: {Path.GetFileName(arg)}",
                     DESCRIPTION = $"Convert text in {arg} to speech",
-                    EXECUTE = () => TtsManager.SpeakFile(arg),
+                    EXECUTE = () => TtsManager.Speak(File.ReadAllText(arg)),
                     SIMILARITY = 4.5
                 });
             }
@@ -65,7 +65,7 @@ namespace JarvisLauncher
                 {
                     TITLE = $"🗣️ Say: \"{arg}\"",
                     DESCRIPTION = "Play text through the active TTS engine",
-                    EXECUTE = () => TtsManager.Speak(arg, isShortSpeech: false),
+                    EXECUTE = () => TtsManager.Speak(arg),
                     SIMILARITY = 4.0
                 });
             }

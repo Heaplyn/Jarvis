@@ -39,7 +39,7 @@ namespace JarvisLauncher
                     SIMILARITY = 8.0,
                     EXECUTE = () => {
                         TextOverlay.Show("🔄 Re-indexing system applications...", 3000);
-                        System.Threading.Tasks.Task.Run(() => WindowsAppScanner.IndexApplications(force: true));
+                        WindowsAppScanner.IndexApplicationsGlobal(true);
                     }
                 });
                 return suggestions;

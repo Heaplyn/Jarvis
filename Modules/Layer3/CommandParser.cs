@@ -308,10 +308,19 @@ namespace JarvisLauncher
             // 3b. Windows Installed Apps autocomplete
             try
             {
-                var AppMatches = WindowsAppScanner.GetMatchingApps(ExpandedQuery);
-                if (AppMatches.Count > 0)
+                var AppMatches = CoreRegistry.Apps.GetMatchingApps(ExpandedQuery);
+                if (AppMatches != null && AppMatches.Count > 0)
                 {
-                    Suggestions.AddRange(AppMatches);
+                    foreach (var app in AppMatches)
+                    {
+                        Suggestions.Add(new CommandResult
+                        {
+                            TITLE = $"📱 App: {app.Name}",
+                            DESCRIPTION = $"Launch {System.IO.Path.GetFileName(app.TargetPath)}",
+                            SIMILARITY = 4.5,
+                            EXECUTE = () => System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = app.TargetPath, UseShellExecute = true })
+                        });
+                    }
                 }
             }
             catch { }

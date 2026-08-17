@@ -81,7 +81,7 @@ namespace JarvisLauncher
                 if (record.Classification == "Command" && t.Length > 2 && t.Length < 35 && !t.Contains("..."))
                 {
                     // Call VoiceActivationManager to add it to SAPI commands
-                    VoiceActivationManager.LearnPhrase(t);
+                    VoiceActivationManager.LearnPhraseGlobal(t);
                     learnedCount++;
                 }
 
@@ -89,7 +89,7 @@ namespace JarvisLauncher
                 // teach SAPI the variant
                 if (record.Classification == "Wake Word" && !t.Equals("Jarvis", StringComparison.OrdinalIgnoreCase))
                 {
-                    VoiceActivationManager.LearnPhrase(t);
+                    VoiceActivationManager.LearnPhraseGlobal(t);
                     learnedCount++;
                 }
             }

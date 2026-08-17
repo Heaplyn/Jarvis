@@ -23,7 +23,7 @@ namespace JarvisLauncher
         /// </summary>
         public static async Task<string> AskAiAsync(string prompt, List<ChatTurn>? history = null, CancellationToken ct = default)
         {
-            return await LlmRouter.AskAsync(prompt, history, ct);
+            return await CoreRegistry.Llm.AskAsync(prompt, history, ct);
         }
 
         /// <summary>
@@ -32,7 +32,7 @@ namespace JarvisLauncher
         public static async Task<string> SummarizeTextAsync(string longText, int maxSentences = 3)
         {
             string prompt = $"Summarize the following text in exactly {maxSentences} sentences:\n\n{longText}";
-            return await LlmRouter.AskAsync(prompt);
+            return await CoreRegistry.Llm.AskAsync(prompt);
         }
 
         // ── VISION & IMAGE PROCESSING ───────────────────────────────────────────
@@ -65,8 +65,7 @@ namespace JarvisLauncher
         /// </summary>
         public static string TranscribeLocalAudio(string wavFilePath)
         {
-            // Implementation leveraging existing RawWavProcessor or VoskEngine
-            return "Local transcription triggered.";
+            return VoskEngine.RecognizeWavFile(wavFilePath);
         }
 
         /// <summary>
