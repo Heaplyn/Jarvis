@@ -506,7 +506,7 @@ namespace JarvisLauncher
                 string remark = await LlmRouter.AskAsync(prompt);
                 Application.Current.Dispatcher.Invoke(() => {
                     TextOverlay.Show("🤖 Jarvis: " + remark, 5000);
-                    TtsManager.Speak(remark, isShortSpeech: true);
+                    TtsManager.Speak(remark);
                 });
             });
         }

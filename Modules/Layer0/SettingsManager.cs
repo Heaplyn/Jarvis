@@ -55,6 +55,13 @@ namespace JarvisLauncher
         public string GEMINI_VOICE_DETAIL_LEVEL { get; set; } = "Concise";
         public bool PHONETIC_FUZZY_MATCHING { get; set; } = true;
 
+        // --- NEW CHAT SETTINGS ---
+        public bool CHAT_AUTO_SAVE { get; set; } = true;
+        public int CHAT_MAX_HISTORY_DISPLAY { get; set; } = 30;
+        public bool CHAT_SHOW_DEBUG_DETAILS { get; set; } = true;
+        public string CHAT_BUBBLE_COLOR { get; set; } = "#468AC6";
+        public bool CHAT_ENABLE_CONTEXT_INJECTION { get; set; } = true;
+
         public Dictionary<string, string> ALIASES { get; set; } = new Dictionary<string, string>();
 
         public string LLM_BACKEND { get; set; } = "Gemini";
@@ -64,6 +71,7 @@ namespace JarvisLauncher
         public string OPENAI_MODEL { get; set; } = "gpt-4o-mini";
         public string OLLAMA_ENDPOINT { get; set; } = "http://localhost:11434";
         public string OLLAMA_MODEL { get; set; } = "llama3";
+        public string OPENCLAW_ENDPOINT { get; set; } = "http://localhost:8080";
         public string CUSTOM_LLM_ENDPOINT { get; set; } = string.Empty;
         public string CUSTOM_LLM_KEY { get; set; } = string.Empty;
         public string CUSTOM_LLM_MODEL { get; set; } = string.Empty;
@@ -140,6 +148,21 @@ namespace JarvisLauncher
         public bool ENABLE_PC_CONTROL { get; set; } = true;
         public string OBSIDIAN_VAULT_PATH { get; set; } = string.Empty;
         public bool MINIMIZE_TO_WIDGET { get; set; } = true;
+
+        // --- CONTEXT & KNOWLEDGE SETTINGS ---
+        public string CONTEXT_NOTES_PATH { get; set; } = string.Empty;
+        public bool AUTO_SYNC_MEMORIES_TO_NOTES { get; set; } = true;
+
+        // --- GOOGLE VECTOR SEARCH SETTINGS ---
+        public string GOOGLE_CLOUD_PROJECT_ID { get; set; } = string.Empty;
+        public string GOOGLE_CLOUD_LOCATION { get; set; } = "us-central1";
+        public string GOOGLE_VECTOR_INDEX_ID { get; set; } = string.Empty;
+        public string GOOGLE_VECTOR_ENDPOINT_ID { get; set; } = string.Empty;
+
+        // --- GOOGLE CLOUD SUITE SETTINGS ---
+        public string GCLOUD_STORAGE_BUCKET { get; set; } = string.Empty;
+        public bool GCLOUD_ENABLE_CLOUD_LOGGING { get; set; } = false;
+        public string GCLOUD_DEFAULT_TARGET_LANG { get; set; } = "en";
     }
 
     public class SettingsManager : ISettingsService

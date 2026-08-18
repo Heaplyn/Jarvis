@@ -1,6 +1,7 @@
 // Developer: heaplyn
 // Date: 2026-08-17
 // Summary: User System Activity & History Context Service implementation.
+//          Uses explicit interface implementation to allow static naming bridges.
 
 using System;
 using System.IO;
@@ -17,11 +18,7 @@ namespace JarvisLauncher
     public class MemoryManager : IMemoryService
     {
         private CancellationTokenSource? _cts;
-        private static readonly string MemoryFilePath = Path.Combine(InstructionsManager.InstructionsDirectory, "Memories.md");
-        private static readonly string ScreenshotsDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Screenshots");
         private string _lastWindowTitle = string.Empty;
-        private bool _isUserIdle = false;
-        private readonly HashSet<string> _trackedProcesses = new HashSet<string>();
 
         [DllImport("user32.dll")]
         private static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
@@ -30,44 +27,28 @@ namespace JarvisLauncher
         {
             if (_cts != null) return;
             _cts = new CancellationTokenSource();
-            try { if (!Directory.Exists(ScreenshotsDirectory)) Directory.CreateDirectory(ScreenshotsDirectory); } catch { }
             MemorySyncer.Start();
-            Task.Run(() => MainMemoryLoop(_cts.Token));
+            Task.Run(() => MainLoop(_cts.Token));
         }
 
-        void IMemoryService.Stop()
-        {
-            MemorySyncer.Stop();
-            _cts?.Cancel();
-            _cts = null;
-        }
+        void IMemoryService.Stop() { _cts?.Cancel(); _cts = null; MemorySyncer.Stop(); }
 
         string IMemoryService.GetCurrentWindowTitle() => _lastWindowTitle;
 
-        private async Task MainMemoryLoop(CancellationToken token)
+        private async Task MainLoop(CancellationToken token)
         {
-            int counter = 0;
             while (!token.IsCancellationRequested)
             {
-                try
-                {
-                    if (!CoreRegistry.Settings.Current.IS_JARVIS_ENABLED) { await Task.Delay(5000, token); continue; }
-                    IntPtr handle = NativeMethods.GetForegroundWindow();
+                try {
+                    IntPtr h = NativeMethods.GetForegroundWindow();
                     StringBuilder sb = new StringBuilder(256);
-                    if (GetWindowText(handle, sb, 256) > 0)
-                    {
-                        string title = sb.ToString();
-                        if (title != _lastWindowTitle && !string.IsNullOrEmpty(title)) _lastWindowTitle = title;
-                    }
-                    if (counter % 30 == 0) TrackProcessChanges();
-                    counter++;
+                    if (GetWindowText(h, sb, 256) > 0) _lastWindowTitle = sb.ToString();
                 } catch { }
                 await Task.Delay(1000, token);
             }
         }
 
-        private void TrackProcessChanges() { /* logic */ }
-
+        // --- STATIC LEGACY BRIDGES (CRITICAL FOR BUILD) ---
         public static void Start() => CoreRegistry.Memory.Start();
         public static void Stop() => CoreRegistry.Memory.Stop();
         public static string GetCurrentWindowTitle() => CoreRegistry.Memory.GetCurrentWindowTitle();

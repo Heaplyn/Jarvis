@@ -1,7 +1,7 @@
 // Developer: heaplyn
-// Date: 2026-08-16
+// Date: 2026-08-18
 // Summary: Jarvis Native C# ML API.
-//          Exposes high-level AI orchestration for Image, Audio, and Text processing to external plugins and scripts.
+//          Exposes Godellian Brain and Layered Tensor operations to external components.
 
 using System;
 using System.Collections.Generic;
@@ -10,91 +10,48 @@ using System.Threading.Tasks;
 
 namespace JarvisLauncher
 {
-    /// <summary>
-    /// The official C# API for interacting with Jarvis's Machine Learning and AI capabilities.
-    /// Use this to process multimedia or run complex linguistic analysis.
-    /// </summary>
     public static class JarvisMLApi
     {
         // ── TEXT & LLM ──────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Sends a text prompt to the currently active LLM backend (Gemini, Groq, Ollama, etc.).
-        /// </summary>
         public static async Task<string> AskAiAsync(string prompt, List<ChatTurn>? history = null, CancellationToken ct = default)
         {
-            return await CoreRegistry.Llm.AskAsync(prompt, history, ct);
-        }
-
-        /// <summary>
-        /// Summarizes a large block of text into a concise response.
-        /// </summary>
-        public static async Task<string> SummarizeTextAsync(string longText, int maxSentences = 3)
-        {
-            string prompt = $"Summarize the following text in exactly {maxSentences} sentences:\n\n{longText}";
-            return await CoreRegistry.Llm.AskAsync(prompt);
+            return await CoreRegistry.Intelligence.Llm.AskAsync(prompt, history, ct);
         }
 
         // ── VISION & IMAGE PROCESSING ───────────────────────────────────────────
 
-        /// <summary>
-        /// Analyzes a local image file using AI vision.
-        /// </summary>
-        public static async Task<string> AnalyzeImageFileAsync(string filePath, string question = "Describe this image.")
-        {
-            if (!System.IO.File.Exists(filePath)) return "Error: File not found.";
-            byte[] bytes = System.IO.File.ReadAllBytes(filePath);
-            string base64 = Convert.ToBase64String(bytes);
-            return await AiAPI.AnalyzeImageBase64Async(question, base64);
-        }
-
-        /// <summary>
-        /// Captures the primary screen and analyzes it immediately.
-        /// </summary>
-        public static async Task<string> AnalyzeCurrentScreenAsync(string question = "What is currently visible on the screen?")
+        public static async Task<string> AnalyzeCurrentScreenAsync(string question = "What is currently visible?")
         {
             string? base64 = ScreenCaptureUtil.CapturePrimaryScreenToBase64(saveToDisk: false);
             if (string.IsNullOrEmpty(base64)) return "Error: Failed to capture screen.";
             return await AiAPI.AnalyzeImageBase64Async(question, base64);
         }
 
-        // ── AUDIO & SPEECH ──────────────────────────────────────────────────────
+        // ── LOCAL NEURAL INTELLIGENCE (LayeredIntelligence Port) ────────────────
 
         /// <summary>
-        /// Uses local Vosk engine to transcribe a short audio clip (WAV).
+        /// Creates a deep Godellian Brain with the specified layering.
         /// </summary>
-        public static string TranscribeLocalAudio(string wavFilePath)
+        public static GodellianBrain CreateGodellianBrain(int inputSize, int[] hiddenLayers)
         {
-            return VoskEngine.RecognizeWavFile(wavFilePath);
+            return new GodellianBrain(inputSize, hiddenLayers);
         }
 
         /// <summary>
-        /// Sends an audio clip to Gemini for deep semantic analysis (Multimodal).
+        /// Trains a Godellian brain on local data vectors.
         /// </summary>
-        public static async Task<string> AnalyzeAudioClipAsync(string wavFilePath, string question = "What is being said or happening in this audio?")
+        public static void TrainBrain(GodellianBrain brain, double[][] inputs, double[][] targets, int epochs = 50)
         {
-            if (!System.IO.File.Exists(wavFilePath)) return "Error: Audio file not found.";
-            byte[] bytes = System.IO.File.ReadAllBytes(wavFilePath);
-            string base64 = Convert.ToBase64String(bytes);
-            return await AiAPI.AnalyzeAudioAsync(question, base64);
-        }
-
-        // ── OUTPUT & INTERACTION ────────────────────────────────────────────────
-
-        /// <summary>
-        /// Speaks the given text using the configured Jarvis TTS engine.
-        /// </summary>
-        public static void Speak(string text)
-        {
-            TtsManager.Speak(text);
+            brain.Evolve(inputs, targets, epochs);
         }
 
         /// <summary>
-        /// Shows a HUD notification toast.
+        /// Evaluates an N-Dimensional Tensor pattern.
         /// </summary>
-        public static void Notify(string title, string message, int durationMs = 3000)
+        public static string RunNeuralEvaluation()
         {
-            TextOverlay.Show($"{title}: {message}", durationMs);
+            return LayeredIntelligenceEvaluator.EvaluateXorPattern();
         }
     }
 }

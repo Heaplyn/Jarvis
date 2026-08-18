@@ -1,6 +1,7 @@
 // Developer: heaplyn
 // Date: 2026-08-17
 // Summary: Voice Activation and Wake Word Detection Service implementation.
+//          Uses explicit interface implementation to prevent naming collisions.
 
 using System;
 using System.IO;
@@ -34,17 +35,21 @@ namespace JarvisLauncher
         void IVoiceActivationService.Stop() => _waveIn?.StopRecording();
         void IVoiceActivationService.SetSensitivity(double level) { }
 
-        public async Task EnrollVoiceAsync(string name) { await Task.CompletedTask; }
-        public async Task LearnEnvironmentalSoundAsync(string category) { await Task.CompletedTask; }
-        public async Task SaveBackgroundAudioTokenAsync(string text) { await Task.CompletedTask; }
-        public void LearnPhrase(string phrase) { }
+        Task IVoiceActivationService.EnrollVoiceAsync(string name) => Task.CompletedTask;
+        Task IVoiceActivationService.LearnEnvironmentalSoundAsync(string category) => Task.CompletedTask;
+        Task IVoiceActivationService.SaveBackgroundAudioTokenAsync(string text) => Task.CompletedTask;
+        void IVoiceActivationService.LearnPhrase(string phrase) { }
 
-        // Explicit Static Bridge
+        // --- STATIC LEGACY BRIDGES (CRITICAL FOR BUILD) ---
         public static void Start() => CoreRegistry.Voice.Start();
         public static void Stop() => CoreRegistry.Voice.Stop();
-        public static void LearnPhraseGlobal(string p) => ((VoiceActivationManager)CoreRegistry.Voice).LearnPhrase(p);
-        public static async Task EnrollVoiceGlobalAsync(string n) => await ((VoiceActivationManager)CoreRegistry.Voice).EnrollVoiceAsync(n);
-        public static async Task LearnSoundGlobalAsync(string c) => await ((VoiceActivationManager)CoreRegistry.Voice).LearnEnvironmentalSoundAsync(c);
-        public static async Task SaveAudioTokenGlobalAsync(string t) => await ((VoiceActivationManager)CoreRegistry.Voice).SaveBackgroundAudioTokenAsync(t);
+        public static void LearnPhrase(string phrase) => CoreRegistry.Voice.LearnPhrase(phrase);
+        public static void LearnPhraseGlobal(string phrase) => LearnPhrase(phrase);
+        public static Task EnrollVoiceAsync(string name) => CoreRegistry.Voice.EnrollVoiceAsync(name);
+        public static Task EnrollVoiceGlobalAsync(string name) => EnrollVoiceAsync(name);
+        public static Task LearnEnvironmentalSoundAsync(string category) => CoreRegistry.Voice.LearnEnvironmentalSoundAsync(category);
+        public static Task LearnSoundGlobalAsync(string category) => LearnEnvironmentalSoundAsync(category);
+        public static Task SaveBackgroundAudioTokenAsync(string text) => CoreRegistry.Voice.SaveBackgroundAudioTokenAsync(text);
+        public static Task SaveAudioTokenGlobalAsync(string text) => SaveBackgroundAudioTokenAsync(text);
     }
 }

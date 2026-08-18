@@ -1,155 +1,89 @@
 // Developer: heaplyn
-// Date: 2026-08-14
+// Date: 2026-08-18
 // Summary: AI Auto-Evolution & Code Self-Mutation Engine.
-// Allows Jarvis to mutate its own source code, verify compilation with MSBuild, self-heal build failures, and auto-restart to apply mutations.
+//          Enhanced to support partial code modification and full project backups.
 
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace JarvisLauncher
 {
     public static class SelfMutationEngine
     {
-        private static readonly string BackupDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Backup");
-        public static string MutationStatus { get; private set; } = "Idle. Waiting for self-mutation command.";
+        public static string MutationStatus { get; private set; } = "Idle.";
         public static string MutationLogs { get; private set; } = "";
 
-        static SelfMutationEngine()
+        public static async Task<MutationResult> ModifyCodeAsync(string relPath, string search, string replace)
         {
-            if (!Directory.Exists(BackupDir)) Directory.CreateDirectory(BackupDir);
+            string fullPath = Path.Combine(PathHandler.GetProjectRoot(), relPath);
+            if (!File.Exists(fullPath)) return new MutationResult(false, $"File not found: {relPath}");
+
+            string content = File.ReadAllText(fullPath);
+            if (!content.Contains(search)) return new MutationResult(false, "Search string not found in target file.");
+
+            string newContent = content.Replace(search, replace);
+            return await MutateCodeAsync(fullPath, newContent);
         }
 
         public static async Task<MutationResult> MutateCodeAsync(string targetFilePath, string newCodeContent)
         {
-            if (!File.Exists(targetFilePath))
-            {
-                MutationStatus = $"Error: Target file not found: {targetFilePath}";
-                return new MutationResult(false, MutationStatus);
-            }
+            if (!File.Exists(targetFilePath)) return new MutationResult(false, "Target not found.");
 
-            MutationStatus = "Evolving: Backing up file...";
-            MutationLogs = $"[Mutation] Backing up: {Path.GetFileName(targetFilePath)}\n";
+            MutationStatus = "Evolving: Creating full system backup...";
+            await SelfBackupManager.CreateBackupAsync("pre_mutation");
 
-            string backupPath = Path.Combine(BackupDir, Path.GetFileName(targetFilePath) + ".bak");
-            string originalContent = "";
+            string originalContent = File.ReadAllText(targetFilePath);
 
-            try
-            {
-                originalContent = File.ReadAllText(targetFilePath);
-                File.WriteAllText(backupPath, originalContent);
-                MutationLogs += $"[Mutation] Backup saved to: {backupPath}\n";
-            }
-            catch (Exception ex)
-            {
-                MutationStatus = $"Error writing backup: {ex.Message}";
-                return new MutationResult(false, MutationStatus);
-            }
-
-            // Apply mutation
-            MutationStatus = "Evolving: Applying code changes...";
-            MutationLogs += "[Mutation] Applying new code content...\n";
             try
             {
                 File.WriteAllText(targetFilePath, newCodeContent);
             }
             catch (Exception ex)
             {
-                MutationStatus = $"Error applying mutation: {ex.Message}";
-                // Restore immediately
-                File.WriteAllText(targetFilePath, originalContent);
-                return new MutationResult(false, MutationStatus);
+                return new MutationResult(false, $"Write failed: {ex.Message}");
             }
 
-            // Compile validation
-            MutationStatus = "Evolving: Running MSBuild validation...";
-            MutationLogs += "[Mutation] Running 'dotnet build' to verify changes...\n";
-
-            string projectDir = AppDomain.CurrentDomain.BaseDirectory;
-            // Traverse up to find sln/csproj
-            for (int i = 0; i < 5; i++)
-            {
-                if (File.Exists(Path.Combine(projectDir, "JarvisLauncher.csproj"))) break;
-                var parent = Directory.GetParent(projectDir);
-                if (parent == null) break;
-                projectDir = parent.FullName;
-            }
-
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "dotnet",
-                Arguments = "build",
-                WorkingDirectory = projectDir,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            var outputBuilder = new StringBuilder();
-            var errorBuilder = new StringBuilder();
-
-            bool buildSuccess = await Task.Run(() =>
-            {
-                try
-                {
-                    using (var process = new Process { StartInfo = startInfo })
-                    {
-                        process.OutputDataReceived += (s, e) => { if (e.Data != null) outputBuilder.AppendLine(e.Data); };
-                        process.ErrorDataReceived += (s, e) => { if (e.Data != null) errorBuilder.AppendLine(e.Data); };
-
-                        process.Start();
-                        process.BeginOutputReadLine();
-                        process.BeginErrorReadLine();
-                        process.WaitForExit(45000);
-
-                        return process.ExitCode == 0;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    errorBuilder.AppendLine($"Build Process Exception: {ex.Message}");
-                    return false;
-                }
-            });
+            MutationStatus = "Evolving: Verifying Neural Integrity (Build)...";
+            bool buildSuccess = await RunBuildCheckAsync();
 
             if (buildSuccess)
             {
-                MutationStatus = "Success! Hot-reloading...";
-                MutationLogs += "\n🎉 BUILD SUCCESS! Code evolved cleanly.\nInitiating application auto-restart to apply mutations...\n";
-                DebugConsoleOverlay.Log("AI Evolution", "Code mutated successfully. Restarting Jarvis.");
-
-                // Wait 2 seconds for logs to write, then hot-restart
-                _ = Task.Delay(2000).ContinueWith(_ =>
-                {
-                    System.Windows.Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        try { NativeMethods.Restart(); } catch { Environment.Exit(0); }
-                    });
+                DebugConsoleOverlay.Log("Evolution-Code", $"Mutation successful in {Path.GetFileName(targetFilePath)}. Sir, I'm restarting to apply changes.");
+                _ = Task.Delay(2000).ContinueWith(_ => {
+                    System.Windows.Application.Current.Dispatcher.Invoke(() => { try { NativeMethods.Restart(); } catch { Environment.Exit(0); } });
                 });
-
-                return new MutationResult(true, "Success! App is hot-restarting.");
+                return new MutationResult(true, "Evolution successful. System rebooting.");
             }
             else
             {
-                MutationStatus = "Compilation Failed. Reverting changes.";
-                MutationLogs += $"\n❌ BUILD FAILED!\nErrors:\n{outputBuilder}\n{errorBuilder}\nRestoring backup of: {Path.GetFileName(targetFilePath)}\n";
-
-                // Revert changes
-                try
-                {
-                    File.WriteAllText(targetFilePath, originalContent);
-                    MutationLogs += "[Mutation] Original code restored successfully. Ready for AI self-healing correction.\n";
-                }
-                catch (Exception ex)
-                {
-                    MutationLogs += $"[Mutation] CRITICAL: Failed to revert backup: {ex.Message}\n";
-                }
-
-                return new MutationResult(false, $"Build failed. Errors:\n{outputBuilder}\n{errorBuilder}");
+                // Revert
+                File.WriteAllText(targetFilePath, originalContent);
+                return new MutationResult(false, "Build failed. Mutation reverted for safety.");
             }
+        }
+
+        private static async Task<bool> RunBuildCheckAsync()
+        {
+            string projectDir = PathHandler.GetProjectRoot();
+            var startInfo = new ProcessStartInfo {
+                FileName = "dotnet", Arguments = "build", WorkingDirectory = projectDir,
+                RedirectStandardOutput = true, RedirectStandardError = true,
+                UseShellExecute = false, CreateNoWindow = true
+            };
+
+            return await Task.Run(() => {
+                try {
+                    using var process = Process.Start(startInfo);
+                    if (process == null) return false;
+                    process.WaitForExit(45000);
+                    return process.ExitCode == 0;
+                } catch { return false; }
+            });
         }
     }
 
@@ -157,10 +91,6 @@ namespace JarvisLauncher
     {
         public bool Success { get; }
         public string Message { get; }
-        public MutationResult(bool success, string msg)
-        {
-            Success = success;
-            Message = msg;
-        }
+        public MutationResult(bool success, string msg) { Success = success; Message = msg; }
     }
 }

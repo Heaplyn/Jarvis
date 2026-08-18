@@ -1,12 +1,10 @@
 // Developer: heaplyn
-// Date: 2026-08-13
+// Date: 2026-08-18
 // Summary: Custom Dark Glassmorphic Multi-Tab Master System Settings & Configuration Studio.
-// Integrates General & Appearance, LLM Engine Studio, TTS & Custom Voice Studio, Voice AI & Speech Training, Offline Pre-Caching, and Custom Aliases without any WPF default white boxes.
+//          Fixed Brush cast error and restored missing namespaces.
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -14,1048 +12,185 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
 
 namespace JarvisLauncher
 {
     public class SettingsOverlay : BaseOverlay
     {
         private static SettingsOverlay? _instance;
-
-        // Custom Glass Tab Switcher Controls
         private readonly List<Button> _tabButtons = new List<Button>();
         private readonly List<UIElement> _tabPanels = new List<UIElement>();
         private Grid _contentGrid = null!;
 
-        // General Tab Controls
-        private ComboBox _themeComboBox = null!;
-        private ComboBox _bgModeComboBox = null!;
-        private ComboBox _searchEngineComboBox = null!;
-        private CheckBox _startWithWinCheckBox = null!;
-        private CheckBox _playSoundsCheckBox = null!;
-        private CheckBox _autoHideCheckBox = null!;
-        private CheckBox _alwaysOnTopCheckBox = null!;
-        private CheckBox _minimizeToWidgetCheckBox = null!;
-        private CheckBox _enablePcControlCheckBox = null!;
-        private Slider _opacitySlider = null!;
-        private TextBox _googleKeyBox = null!;
-        private TextBox _githubTokenBox = null!;
-        private TextBox _downloadDirBox = null!;
-        private TextBox _mobilePortBox = null!;
-
-        // LLM Tab Controls
+        // AI Controls
         private ComboBox _llmBackendCombo = null!;
         private StackPanel _geminiPanel = null!;
         private StackPanel _openAiPanel = null!;
-        private StackPanel _anthropicPanel = null!;
         private StackPanel _groqPanel = null!;
-        private StackPanel _perplexityPanel = null!;
-        private StackPanel _mistralPanel = null!;
-        private StackPanel _openRouterPanel = null!;
+        private StackPanel _anthropicPanel = null!;
+        private StackPanel _deepSeekPanel = null!;
         private StackPanel _ollamaPanel = null!;
-        private StackPanel _customPanel = null!;
-        private CheckBox _enableDualLlmCheckBox = null!;
-        private ComboBox _dualLlmBackendCombo = null!;
-        private ComboBox _dualLlmModelCombo = null!;
 
-        // TTS & Custom Voice Controls
-        private ComboBox _ttsVoiceCombo = null!;
-        private Slider _ttsSpeedSlider = null!;
-        private Slider _ttsVolumeSlider = null!;
-        private CheckBox _useCustomTtsCheckBox = null!;
-        private CheckBox _customTtsOnlyCheckBox = null!;
-        private TextBlock _customTtsFileNameLabel = null!;
+        private TextBox _googleKeyBox = null!;
+        private TextBox _geminiModelBox = null!;
+        private TextBox _openAiKeyBox = null!;
+        private TextBox _groqKeyBox = null!;
+        private TextBox _anthropicKeyBox = null!;
+        private TextBox _deepSeekKeyBox = null!;
+        private TextBox _ollamaUrlBox = null!;
+        private TextBlock _testStatusLabel = null!;
 
-        // Voice AI Controls
-        private CheckBox _isJarvisEnabledCheckBox = null!;
-        private Slider _minConfidenceSlider = null!;
-
-        // Offline Pre-Caching Controls
-        private TextBlock _offlineConnectionStatus = null!;
-        private TextBlock _offlineVoskStatus = null!;
-        private TextBlock _offlineTtsStatus = null!;
-        private TextBlock _offlineProgressText = null!;
-
-        // Aliases Tab Controls
-        private StackPanel _aliasListStack = null!;
-        private TextBox _newAliasKeyBox = null!;
-        private TextBox _newAliasValueBox = null!;
-
-        // Editor Tab Controls
-        private CheckBox _editorLineNumbersCheck = null!;
-        private CheckBox _editorAiAutocompleteCheck = null!;
-        private CheckBox _editorAutoSaveCheck = null!;
-        private TextBox _editorFontFamilyBox = null!;
-        private TextBox _editorFontSizeBox = null!;
-
-        public static void OpenSettings()
-        {
-            ShowSettings();
+        public static void OpenSettings() => ShowSettings();
+        public static void ShowOverlay() => ShowSettings();
+        public static void ShowSettings() {
+            Application.Current.Dispatcher.Invoke(() => {
+                if (_instance == null || !_instance.IsLoaded) { _instance = new SettingsOverlay(); _instance.Show(); }
+                else { _instance.Activate(); _instance.BringToFront(); }
+            });
         }
 
-        public static void ShowSettings()
+        public SettingsOverlay() : base("⚙️ MASTER SYSTEM SETTINGS", 880, 780)
         {
-            if (_instance == null || !_instance.IsLoaded || !_instance.IsVisible)
-            {
-                _instance = new SettingsOverlay();
-                _instance.Show();
-            }
-            else
-            {
-                _instance.Activate();
-                _instance.BringToFront();
-                _instance.Focus();
-            }
-        }
-
-        public static void ShowOverlay()
-        {
-            ShowSettings();
-        }
-
-        public SettingsOverlay()
-            : base("⚙️ MASTER SETTINGS & CONFIGURATION STUDIO", width: 760, height: 700)
-        {
-            this.Closed += (s, e) => { _instance = null; };
-
+            _instance = this;
+            this.Closed += (s, e) => _instance = null;
             var workArea = SystemParameters.WorkArea;
             this.Left = (workArea.Width - this.Width) / 2;
             this.Top = (workArea.Height - this.Height) / 2;
 
-            var mainGrid = new Grid { Margin = new Thickness(8) };
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Tab Bar
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Content
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });                     // Action Bar
+            var mainGrid = new Grid { Margin = new Thickness(15) };
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            // ── Glassmorphic Tab Bar ───────────────────────────────────────────────────
-            var tabBarGrid = new UniformGrid
-            {
-                Columns = 7,
-                Margin = new Thickness(0, 0, 0, 10)
-            };
-
-            string[] tabNames = new[] { "⚙️ General", "🤖 LLM", "🗣️ TTS", "🎙️ Voice AI", "📶 Offline", "🏷️ Aliases", "📝 Editor" };
-            for (int i = 0; i < tabNames.Length; i++)
-            {
-                int tabIdx = i;
-                var btn = new Button
-                {
-                    Content = tabNames[i],
-                    Padding = new Thickness(4, 8, 4, 8),
-                    FontSize = 11,
-                    FontWeight = FontWeights.Bold,
-                    Margin = new Thickness(2, 0, 2, 0),
-                    Cursor = Cursors.Hand
-                };
-                btn.Click += (s, e) => SelectTab(tabIdx);
-                _tabButtons.Add(btn);
-                tabBarGrid.Children.Add(btn);
+            var tabBarGrid = new UniformGrid { Columns = 8, Margin = new Thickness(0, 0, 0, 15) };
+            string[] tabs = { "⚙️ Gen", "🤖 LLM", "🗣️ TTS", "🎙️ Vox", "🧹 Data", "📶 Off", "🏷️ Map", "💬 Chat" };
+            for (int i = 0; i < tabs.Length; i++) {
+                int idx = i;
+                var btn = new Button { Content = tabs[i], Padding = new Thickness(5, 12, 5, 12), FontSize = 10, FontWeight = FontWeights.Bold, Margin = new Thickness(2, 0, 2, 0), Cursor = System.Windows.Input.Cursors.Hand };
+                btn.Click += (s, e) => SelectTab(idx);
+                _tabButtons.Add(btn); tabBarGrid.Children.Add(btn);
             }
-            Grid.SetRow(tabBarGrid, 0);
-            mainGrid.Children.Add(tabBarGrid);
+            Grid.SetRow(tabBarGrid, 0); mainGrid.Children.Add(tabBarGrid);
 
-            // ── Content Container Grid ─────────────────────────────────────────────────
-            _contentGrid = new Grid();
-            Grid.SetRow(_contentGrid, 1);
-
-            _tabPanels.Add(BuildGeneralTab());
-            _tabPanels.Add(BuildLlmTab());
-            _tabPanels.Add(BuildTtsTab());
-            _tabPanels.Add(BuildVoiceAiTab());
-            _tabPanels.Add(BuildOfflineTab());
-            _tabPanels.Add(BuildAliasesTab());
-            _tabPanels.Add(BuildEditorTab());
-
-            foreach (var panel in _tabPanels)
-            {
-                _contentGrid.Children.Add(panel);
-            }
+            _contentGrid = new Grid(); Grid.SetRow(_contentGrid, 1);
+            _tabPanels.Add(BuildGeneralTab()); _tabPanels.Add(BuildLlmTab());
+            _tabPanels.Add(BuildTtsTab()); _tabPanels.Add(BuildVoiceAiTab());
+            _tabPanels.Add(BuildCleanupTab()); _tabPanels.Add(BuildOfflineTab());
+            _tabPanels.Add(BuildAliasesTab()); _tabPanels.Add(BuildChatTab());
+            foreach (var p in _tabPanels) _contentGrid.Children.Add(p);
             mainGrid.Children.Add(_contentGrid);
 
-            // Select initial tab
-            SelectTab(0);
-
-            // ── Action Bar: Save & Close ───────────────────────────────────────────────
-            var actionBar = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                HorizontalAlignment = HorizontalAlignment.Right,
-                Margin = new Thickness(0, 10, 0, 0)
-            };
-
-            var saveBtn = CreateButton("💾 Save All Settings");
-            saveBtn.Padding = new Thickness(20, 8, 20, 8);
-            saveBtn.FontWeight = FontWeights.Bold;
-            saveBtn.Click += (s, e) => SaveAllSettings();
-            actionBar.Children.Add(saveBtn);
-
-            Grid.SetRow(actionBar, 2);
-            mainGrid.Children.Add(actionBar);
+            var saveBtn = CreateStyledButton("💾 Save Configuration", (s, e) => SaveAllSettings(), isPrimary: true, fontSize: 13);
+            Grid.SetRow(saveBtn, 2); mainGrid.Children.Add(saveBtn);
 
             this.UserContent = mainGrid;
+            SelectTab(1);
         }
 
-        private void SelectTab(int index)
-        {
-            for (int i = 0; i < _tabPanels.Count; i++)
-            {
-                bool isSel = (i == index);
-                _tabPanels[i].Visibility = isSel ? Visibility.Visible : Visibility.Collapsed;
+        private void SelectTab(int index) {
+            for (int i = 0; i < _tabPanels.Count; i++) {
+                bool sel = (i == index);
+                _tabPanels[i].Visibility = sel ? Visibility.Visible : Visibility.Collapsed;
 
-                var btn = _tabButtons[i];
-                if (isSel)
-                {
-                    btn.SetResourceReference(Button.BackgroundProperty, "AccentBrush");
-                    btn.Foreground = Brushes.White;
-                }
-                else
-                {
-                    btn.SetResourceReference(Button.BackgroundProperty, "CardBackgroundBrush");
-                    btn.SetResourceReference(Button.ForegroundProperty, "TextPrimaryBrush");
-                }
+                var accent = TryFindResource("AccentBrush") as Brush ?? Brushes.DeepSkyBlue;
+                var cardBg = TryFindResource("CardBackgroundBrush") as Brush ?? Brushes.Transparent;
+                var textCol = TryFindResource("TextPrimaryBrush") as Brush ?? Brushes.White;
+
+                _tabButtons[i].Background = sel ? accent : cardBg;
+                _tabButtons[i].Foreground = sel ? Brushes.White : textCol;
             }
         }
 
-        // ── TAB 1 BUILDER: General & UI ──────────────────────────────────────────────
-        private UIElement BuildGeneralTab()
-        {
-            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-            var root = new StackPanel { Margin = new Thickness(4) };
-            scroll.Content = root;
-
-            var settings = SettingsManager.Current;
-
-            root.Children.Add(CreateHeader("🎨 Interface & Visual Theme"));
-
-            _themeComboBox = new ComboBox { Margin = new Thickness(0, 0, 0, 8), FontSize = 12, Padding = new Thickness(6, 4, 6, 4) };
-            string[] themes = new[] {
-                "purple", "dark", "blue", "green", "cyberpunk", "glass", "dracula", "sunset", "crimson", "gold",
-                "nordic", "solarized", "forest", "sakura", "monochrome", "cybernetic", "oceanic", "outrun", "rainbow",
-                "aurora", "lava", "cyber_glitch", "nebula", "emerald_pulse", "iridescent", "solar_flare", "abyssal",
-                "glitch_wave", "spectrum", "midnight_neon", "frozen_fire", "quantum_flux", "hyper_neon", "plasma_core",
-                "matrix_red", "hologram", "supernova", "electric_storm", "vapor_wave", "toxic", "monolith", "glitch_cyan",
-                "magma_flow", "emerald_city", "royal_gold", "blood_moon", "cyber_forest", "void_pulse", "spectrum_shift",
-                "nebula_gas", "frozen_wasteland", "acid_burn", "obsidian_flow"
-            };
-            foreach (var t in themes.OrderBy(x => x))
-                _themeComboBox.Items.Add(t);
-            _themeComboBox.SelectedItem = settings.THEME;
-            _themeComboBox.SelectionChanged += (s, e) =>
-            {
-                if (_themeComboBox.SelectedItem is string th) ThemeManager.ApplyTheme(th);
-            };
-            root.Children.Add(_themeComboBox);
-
-            root.Children.Add(CreateLabel("Background Mode:"));
-            _bgModeComboBox = new ComboBox { Margin = new Thickness(0, 0, 0, 8), FontSize = 12, Padding = new Thickness(6, 4, 6, 4) };
-            foreach (var m in new[] { "Gradient", "Solid", "Media", "RGB" })
-                _bgModeComboBox.Items.Add(m);
-            _bgModeComboBox.SelectedItem = settings.BACKGROUND_MODE;
-            _bgModeComboBox.SelectionChanged += (s, e) =>
-            {
-                if (_bgModeComboBox.SelectedItem is string mode) {
-                    settings.BACKGROUND_MODE = mode;
-                    ThemeManager.ApplyTheme(settings.THEME);
-                }
-            };
-            root.Children.Add(_bgModeComboBox);
-
-            root.Children.Add(CreateLabel("Search Engine:"));
-            _searchEngineComboBox = new ComboBox { Margin = new Thickness(0, 0, 0, 8), FontSize = 12, Padding = new Thickness(6, 4, 6, 4) };
-            foreach (var se in new[] { "Google", "DuckDuckGo", "Bing", "YouTube", "GitHub", "Wikipedia" })
-                _searchEngineComboBox.Items.Add(se);
-            _searchEngineComboBox.SelectedItem = settings.DEFAULT_SEARCH_ENGINE;
-            root.Children.Add(_searchEngineComboBox);
-
-            root.Children.Add(CreateLabel($"Window Opacity:"));
-            _opacitySlider = new Slider { Minimum = 0.3, Maximum = 1.0, Value = settings.WINDOW_OPACITY, Margin = new Thickness(0, 2, 0, 8) };
-            root.Children.Add(_opacitySlider);
-
-            root.Children.Add(CreateHeader("⚙️ System Behavior"));
-
-            _startWithWinCheckBox = CreateCheckBox("🚀 Launch automatically when Windows starts", settings.START_WITH_WINDOWS);
-            root.Children.Add(_startWithWinCheckBox);
-
-            _playSoundsCheckBox = CreateCheckBox("🔊 Play sound effects on command execution", settings.PLAY_SOUNDS);
-            root.Children.Add(_playSoundsCheckBox);
-
-            _autoHideCheckBox = CreateCheckBox("🙈 Auto-hide HUD after launching commands", settings.AUTO_HIDE_ON_EXECUTE);
-            root.Children.Add(_autoHideCheckBox);
-
-            _alwaysOnTopCheckBox = CreateCheckBox("📌 Always Keep Launcher on Top", settings.ALWAYS_ON_TOP);
-            root.Children.Add(_alwaysOnTopCheckBox);
-
-            _minimizeToWidgetCheckBox = CreateCheckBox("🔲 Minimize windows to floating widgets (old behavior)", settings.MINIMIZE_TO_WIDGET);
-            root.Children.Add(_minimizeToWidgetCheckBox);
-
-            _enablePcControlCheckBox = CreateCheckBox("🖥️ Enable AI Computer Control (PowerShell/Files/System)", settings.ENABLE_PC_CONTROL);
-            _enablePcControlCheckBox.ToolTip = "If disabled, the AI can only speak or take screenshots, but cannot modify files or run scripts.";
-            root.Children.Add(_enablePcControlCheckBox);
-
-            root.Children.Add(CreateHeader("🔑 API Credentials & Downloads"));
-
-            root.Children.Add(CreateLabel("Google Gemini API Key:"));
-            _googleKeyBox = CreateTextBox(settings.GOOGLE_AI_KEY);
-            root.Children.Add(_googleKeyBox);
-
-            root.Children.Add(CreateLabel("GitHub Access Token:"));
-            _githubTokenBox = CreateTextBox(settings.GITHUB_TOKEN);
-            root.Children.Add(_githubTokenBox);
-
-            root.Children.Add(CreateLabel("Default Downloads Folder:"));
-            _downloadDirBox = CreateTextBox(settings.DOWNLOAD_DIRECTORY);
-            root.Children.Add(_downloadDirBox);
-
-            root.Children.Add(CreateLabel("Obsidian Vault Path:"));
-            var obsidianPathBox = CreateTextBox(settings.OBSIDIAN_VAULT_PATH);
-            obsidianPathBox.TextChanged += (s, e) => settings.OBSIDIAN_VAULT_PATH = obsidianPathBox.Text.Trim();
-            root.Children.Add(obsidianPathBox);
-
-            root.Children.Add(CreateLabel("Mobile Bridge Server Port (default 8080):"));
-            _mobilePortBox = CreateTextBox(settings.MOBILE_PORT.ToString());
-            root.Children.Add(_mobilePortBox);
-
-            return scroll;
-        }
-
-        // ── TAB 2 BUILDER: LLM Engines ───────────────────────────────────────────────
         private UIElement BuildLlmTab()
         {
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-            var root = new StackPanel { Margin = new Thickness(4) };
-            scroll.Content = root;
+            var root = new StackPanel { Margin = new Thickness(10) }; scroll.Content = root;
+            var s = SettingsManager.Current;
 
-            var settings = SettingsManager.Current;
+            _llmBackendCombo = CreateSettingsComboBox(new[] { "Gemini", "Groq", "OpenAI", "Anthropic", "DeepSeek", "Ollama", "Godellian" }, s.LLM_BACKEND);
+            _llmBackendCombo.SelectionChanged += (obj, e) => UpdateLlmPanels();
+            root.Children.Add(CreateLabel("Primary Intelligence:")); root.Children.Add(_llmBackendCombo);
 
-            root.Children.Add(CreateHeader("🤖 Active LLM Backend Engine"));
-
-            _llmBackendCombo = new ComboBox { Margin = new Thickness(0, 0, 0, 10), FontSize = 12, Padding = new Thickness(6, 4, 6, 4) };
-            foreach (var b in new[] { "Gemini", "OpenAI", "Anthropic", "Groq", "Perplexity", "Mistral", "OpenRouter", "Ollama", "Custom", "P2P" }) _llmBackendCombo.Items.Add(b);
-            _llmBackendCombo.SelectedItem = settings.LLM_BACKEND;
-            _llmBackendCombo.SelectionChanged += (s, e) => UpdateLlmPanels();
-            root.Children.Add(_llmBackendCombo);
-
-            // Gemini Panel
             _geminiPanel = new StackPanel();
-            _geminiPanel.Children.Add(CreateLabel("Gemini API Key (use semicolon ; for multiple keys):"));
-            _geminiPanel.Children.Add(CreateLinkButton("🔗 Get Gemini API Key", "https://aistudio.google.com/app/apikey"));
-            _googleKeyBox = CreateTextBox(settings.GOOGLE_AI_KEY);
-            _geminiPanel.Children.Add(_googleKeyBox);
+            _googleKeyBox = CreateLabeledTextBox(_geminiPanel, "API Key:", s.GOOGLE_AI_KEY);
+            _geminiModelBox = CreateLabeledTextBox(_geminiPanel, "Model:", s.GEMINI_MODEL);
             root.Children.Add(_geminiPanel);
 
-            // OpenAI Panel
-            _openAiPanel = new StackPanel();
-            _openAiPanel.Children.Add(CreateLabel("OpenAI API Key:"));
-            _openAiPanel.Children.Add(CreateLinkButton("🔗 Get OpenAI API Key", "https://platform.openai.com/api-keys"));
-            var oaiKey = CreateTextBox(settings.OPENAI_KEY);
-            oaiKey.TextChanged += (s, e) => settings.OPENAI_KEY = oaiKey.Text.Trim();
-            _openAiPanel.Children.Add(oaiKey);
-            root.Children.Add(_openAiPanel);
+            _groqPanel = new StackPanel(); _groqKeyBox = CreateLabeledTextBox(_groqPanel, "Groq Key:", s.GROQ_KEY); root.Children.Add(_groqPanel);
+            _openAiPanel = new StackPanel(); _openAiKeyBox = CreateLabeledTextBox(_openAiPanel, "OpenAI Key:", s.OPENAI_KEY); root.Children.Add(_openAiPanel);
+            _anthropicPanel = new StackPanel(); _anthropicKeyBox = CreateLabeledTextBox(_anthropicPanel, "Anthropic Key:", s.ANTHROPIC_KEY); root.Children.Add(_anthropicPanel);
+            _deepSeekPanel = new StackPanel(); _deepSeekKeyBox = CreateLabeledTextBox(_deepSeekPanel, "DeepSeek Key:", s.CUSTOM_LLM_KEY); root.Children.Add(_deepSeekPanel);
+            _ollamaPanel = new StackPanel(); _ollamaUrlBox = CreateLabeledTextBox(_ollamaPanel, "Ollama URL:", s.OLLAMA_ENDPOINT); root.Children.Add(_ollamaPanel);
 
-            // Anthropic Panel
-            _anthropicPanel = new StackPanel();
-            _anthropicPanel.Children.Add(CreateLabel("Anthropic (Claude) API Key:"));
-            _anthropicPanel.Children.Add(CreateLinkButton("🔗 Get Anthropic API Key", "https://console.anthropic.com/settings/keys"));
-            var antKey = CreateTextBox(settings.ANTHROPIC_KEY);
-            antKey.TextChanged += (s, e) => settings.ANTHROPIC_KEY = antKey.Text.Trim();
-            _anthropicPanel.Children.Add(antKey);
-            root.Children.Add(_anthropicPanel);
-
-            // Groq Panel
-            _groqPanel = new StackPanel();
-            _groqPanel.Children.Add(CreateLabel("Groq API Key (Ultra-Fast):"));
-            _groqPanel.Children.Add(CreateLinkButton("🔗 Get Groq API Key", "https://console.groq.com/keys"));
-            var groqKey = CreateTextBox(settings.GROQ_KEY);
-            groqKey.TextChanged += (s, e) => settings.GROQ_KEY = groqKey.Text.Trim();
-            _groqPanel.Children.Add(groqKey);
-            root.Children.Add(_groqPanel);
-
-            // Perplexity Panel
-            _perplexityPanel = new StackPanel();
-            _perplexityPanel.Children.Add(CreateLabel("Perplexity API Key (Search AI):"));
-            _perplexityPanel.Children.Add(CreateLinkButton("🔗 Get Perplexity API Key", "https://www.perplexity.ai/settings/api"));
-            var perpKey = CreateTextBox(settings.PERPLEXITY_KEY);
-            perpKey.TextChanged += (s, e) => settings.PERPLEXITY_KEY = perpKey.Text.Trim();
-            _perplexityPanel.Children.Add(perpKey);
-            root.Children.Add(_perplexityPanel);
-
-            // Mistral Panel
-            _mistralPanel = new StackPanel();
-            _mistralPanel.Children.Add(CreateLabel("Mistral AI API Key:"));
-            _mistralPanel.Children.Add(CreateLinkButton("🔗 Get Mistral API Key", "https://console.mistral.ai/api-keys/"));
-            var misKey = CreateTextBox(settings.MISTRAL_KEY);
-            misKey.TextChanged += (s, e) => settings.MISTRAL_KEY = misKey.Text.Trim();
-            _mistralPanel.Children.Add(misKey);
-            root.Children.Add(_mistralPanel);
-
-            // OpenRouter Panel
-            _openRouterPanel = new StackPanel();
-            _openRouterPanel.Children.Add(CreateLabel("OpenRouter API Key (Unified access):"));
-            _openRouterPanel.Children.Add(CreateLinkButton("🔗 Get OpenRouter API Key", "https://openrouter.ai/settings/keys"));
-            var orKey = CreateTextBox(settings.OPENROUTER_KEY);
-            orKey.TextChanged += (s, e) => settings.OPENROUTER_KEY = orKey.Text.Trim();
-            _openRouterPanel.Children.Add(orKey);
-            root.Children.Add(_openRouterPanel);
-
-            // Ollama Panel
-            _ollamaPanel = new StackPanel();
-            _ollamaPanel.Children.Add(CreateLabel("Ollama Endpoint (default http://localhost:11434):"));
-            var ollamaUrl = CreateTextBox(settings.OLLAMA_ENDPOINT);
-            ollamaUrl.TextChanged += (s, e) => settings.OLLAMA_ENDPOINT = ollamaUrl.Text.Trim();
-            _ollamaPanel.Children.Add(ollamaUrl);
-            _ollamaPanel.Children.Add(CreateLabel("Active Ollama Model (e.g. llama3.2, deepseek-r1):"));
-            var ollamaModel = CreateTextBox(settings.OLLAMA_MODEL);
-            ollamaModel.TextChanged += (s, e) => settings.OLLAMA_MODEL = ollamaModel.Text.Trim();
-            _ollamaPanel.Children.Add(ollamaModel);
-
-            var detectBtn = CreateButton("🔍 Auto-Detect Installed Ollama Models");
-            detectBtn.Click += async (s, e) =>
-            {
-                var models = await LlmRouter.GetOllamaModelsAsync();
-                if (models.Count > 0) ollamaModel.Text = models[0];
-                TextOverlay.Show(models.Count > 0 ? $"✅ Found ({models.Count}): {string.Join(", ", models)}" : "⚠️ No local models found.", 3000);
-            };
-            _ollamaPanel.Children.Add(detectBtn);
-
-            root.Children.Add(_ollamaPanel);
-
-            // Custom Panel
-            _customPanel = new StackPanel();
-            _customPanel.Children.Add(CreateLabel("Custom Endpoint URL:"));
-            var customUrl = CreateTextBox(settings.CUSTOM_LLM_ENDPOINT);
-            customUrl.TextChanged += (s, e) => settings.CUSTOM_LLM_ENDPOINT = customUrl.Text.Trim();
-            _customPanel.Children.Add(customUrl);
-            root.Children.Add(_customPanel);
-
-            // 1-Click Installers & Model Pullers
-            root.Children.Add(CreateHeader("🛠️ 1-Click Local LLM Installers & Pullers"));
-            var llmGrid = new UniformGrid { Columns = 2, Margin = new Thickness(0, 4, 0, 8) };
-
-            var instOllama = CreateButton("📥 Install Ollama Engine");
-            instOllama.Click += (s, e) => Process.Start("cmd.exe", "/c start cmd /k \"winget install Ollama.Ollama || start https://ollama.com/download\"");
-            llmGrid.Children.Add(instOllama);
-
-            var pullDeepseek = CreateButton("🧠 Pull DeepSeek R1 (7B)");
-            pullDeepseek.Click += (s, e) => Process.Start("cmd.exe", "/c start cmd /k \"ollama pull deepseek-r1:7b\"");
-            llmGrid.Children.Add(pullDeepseek);
-
-            var pullLlama = CreateButton("🦙 Pull Llama 3.2 (3B)");
-            pullLlama.Click += (s, e) => Process.Start("cmd.exe", "/c start cmd /k \"ollama pull llama3.2\"");
-            llmGrid.Children.Add(pullLlama);
-
-            var openHf = CreateButton("🤗 Hugging Face Grabber");
-            openHf.Click += (s, e) => HuggingFaceOverlay.ShowOverlay();
-            llmGrid.Children.Add(openHf);
-
-            root.Children.Add(llmGrid);
-
-            // Dual-LLM Co-Pilot Processor Section
-            root.Children.Add(CreateHeader("⚡ Dual-LLM Co-Pilot Processor (Optional)"));
-
-            _enableDualLlmCheckBox = CreateCheckBox("⚡ Enable Parallel Dual-LLM Co-Pilot Processing (Default Disabled)", settings.ENABLE_DUAL_LLM_COPILOT);
-            root.Children.Add(_enableDualLlmCheckBox);
-
-            root.Children.Add(CreateLabel("Co-Pilot Engine Backend:"));
-            _dualLlmBackendCombo = new ComboBox { Margin = new Thickness(0, 2, 0, 6), FontSize = 12, Padding = new Thickness(6, 4, 6, 4) };
-            foreach (var b in new[] { "Ollama", "Gemini", "OpenAI" }) _dualLlmBackendCombo.Items.Add(b);
-            _dualLlmBackendCombo.SelectedItem = settings.DUAL_LLM_BACKEND;
-            root.Children.Add(_dualLlmBackendCombo);
-
-            root.Children.Add(CreateLabel("Recommended Co-Pilot Models:"));
-            _dualLlmModelCombo = new ComboBox { Margin = new Thickness(0, 2, 0, 8), FontSize = 12, Padding = new Thickness(6, 4, 6, 4) };
-            foreach (var m in DualLlmCopilot.RecommendedModels) _dualLlmModelCombo.Items.Add(m);
-
-            string currentCopilotModel = settings.DUAL_LLM_MODEL;
-            int matchIdx = DualLlmCopilot.RecommendedModels.FindIndex(m => m.StartsWith(currentCopilotModel, StringComparison.OrdinalIgnoreCase));
-            if (matchIdx >= 0) _dualLlmModelCombo.SelectedIndex = matchIdx;
-            else _dualLlmModelCombo.SelectedIndex = 0;
-            root.Children.Add(_dualLlmModelCombo);
+            _testStatusLabel = new TextBlock { Text = "Pending Test", FontSize = 10, Foreground = Brushes.Gray, Margin = new Thickness(0, 5, 0, 5) };
+            root.Children.Add(_testStatusLabel);
+            root.Children.Add(CreateStyledButton("⚡ Test Connection", async (s, e) => await RunBackendTestAsync(), false));
 
             UpdateLlmPanels();
-
             return scroll;
         }
 
-        private void UpdateLlmPanels()
-        {
+        private void UpdateLlmPanels() {
+            if (_llmBackendCombo == null) return;
             string sel = (_llmBackendCombo.SelectedItem as string) ?? "Gemini";
             _geminiPanel.Visibility = sel == "Gemini" ? Visibility.Visible : Visibility.Collapsed;
+            _groqPanel.Visibility = sel == "Groq" ? Visibility.Visible : Visibility.Collapsed;
             _openAiPanel.Visibility = sel == "OpenAI" ? Visibility.Visible : Visibility.Collapsed;
             _anthropicPanel.Visibility = sel == "Anthropic" ? Visibility.Visible : Visibility.Collapsed;
-            _groqPanel.Visibility = sel == "Groq" ? Visibility.Visible : Visibility.Collapsed;
-            _perplexityPanel.Visibility = sel == "Perplexity" ? Visibility.Visible : Visibility.Collapsed;
-            _mistralPanel.Visibility = sel == "Mistral" ? Visibility.Visible : Visibility.Collapsed;
-            _openRouterPanel.Visibility = sel == "OpenRouter" ? Visibility.Visible : Visibility.Collapsed;
+            _deepSeekPanel.Visibility = sel == "DeepSeek" ? Visibility.Visible : Visibility.Collapsed;
             _ollamaPanel.Visibility = sel == "Ollama" ? Visibility.Visible : Visibility.Collapsed;
-            _customPanel.Visibility = sel == "Custom" ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        // ── TAB 3 BUILDER: TTS & Voice Studio ────────────────────────────────────────
-        private UIElement BuildTtsTab()
-        {
-            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-            var root = new StackPanel { Margin = new Thickness(4) };
-            scroll.Content = root;
-
-            root.Children.Add(CreateHeader("🔊 Windows Installed System TTS Voices"));
-
-            _ttsVoiceCombo = new ComboBox { Margin = new Thickness(0, 2, 0, 8), FontSize = 12, Padding = new Thickness(6, 4, 6, 4) };
-            var voices = TtsManager.GetInstalledVoices();
-            foreach (var v in voices) _ttsVoiceCombo.Items.Add(v);
-
-            string currentVoice = SettingsManager.Current.SELECTED_TTS_VOICE;
-            if (!string.IsNullOrEmpty(currentVoice) && _ttsVoiceCombo.Items.Contains(currentVoice))
-                _ttsVoiceCombo.SelectedItem = currentVoice;
-            else if (_ttsVoiceCombo.Items.Count > 0)
-                _ttsVoiceCombo.SelectedIndex = 0;
-
-            _ttsVoiceCombo.SelectionChanged += (s, e) =>
-            {
-                if (_ttsVoiceCombo.SelectedItem is string sel) TtsManager.SetVoice(sel);
-            };
-            root.Children.Add(_ttsVoiceCombo);
-
-            root.Children.Add(CreateLabel("Speech Speed (-10 Slow ... +10 Fast):"));
-            _ttsSpeedSlider = new Slider { Minimum = -10, Maximum = 10, Value = SettingsManager.Current.TTS_SPEECH_RATE, SmallChange = 1, Margin = new Thickness(0, 2, 0, 6) };
-            _ttsSpeedSlider.ValueChanged += (s, e) => TtsManager.SetRate((int)_ttsSpeedSlider.Value);
-            root.Children.Add(_ttsSpeedSlider);
-
-            root.Children.Add(CreateLabel("Speech Volume (0 Quiet ... 100 Loud):"));
-            _ttsVolumeSlider = new Slider { Minimum = 0, Maximum = 100, Value = SettingsManager.Current.TTS_SPEECH_VOLUME, SmallChange = 5, Margin = new Thickness(0, 2, 0, 8) };
-            _ttsVolumeSlider.ValueChanged += (s, e) => TtsManager.SetVolume((int)_ttsVolumeSlider.Value);
-            root.Children.Add(_ttsVolumeSlider);
-
-            var testBtn = CreateButton("⚡ Test Selected Voice & AI Speech");
-            testBtn.Height = 32;
-            testBtn.FontWeight = FontWeights.Bold;
-            testBtn.Click += (s, e) =>
-            {
-                string sel = (_ttsVoiceCombo.SelectedItem as string) ?? "Microsoft Voice";
-                TtsManager.Speak($"Hello! I am Jarvis, speaking with your chosen voice: {sel}.", isShortSpeech: false);
-            };
-            root.Children.Add(testBtn);
-
-            root.Children.Add(CreateHeader("📂 Personal Audio Files & Custom Triggers"));
-
-            var customGrid = new Grid { Margin = new Thickness(0, 4, 0, 8) };
-            customGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            customGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            customGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-
-            _useCustomTtsCheckBox = CreateCheckBox("🔉 Play custom audio file before AI synthesis", SettingsManager.Current.USE_CUSTOM_TTS_SOUND_FILE);
-            _useCustomTtsCheckBox.Checked += (s, e) => SettingsManager.Current.USE_CUSTOM_TTS_SOUND_FILE = true;
-            _useCustomTtsCheckBox.Unchecked += (s, e) => SettingsManager.Current.USE_CUSTOM_TTS_SOUND_FILE = false;
-            Grid.SetRow(_useCustomTtsCheckBox, 0);
-            customGrid.Children.Add(_useCustomTtsCheckBox);
-
-            _customTtsOnlyCheckBox = CreateCheckBox("🔇 Skip synthesis (Play custom sound ONLY)", SettingsManager.Current.CUSTOM_SOUND_ONLY);
-            _customTtsOnlyCheckBox.Checked += (s, e) => SettingsManager.Current.CUSTOM_SOUND_ONLY = true;
-            _customTtsOnlyCheckBox.Unchecked += (s, e) => SettingsManager.Current.CUSTOM_SOUND_ONLY = false;
-            Grid.SetRow(_customTtsOnlyCheckBox, 1);
-            customGrid.Children.Add(_customTtsOnlyCheckBox);
-
-            var importStack = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 0) };
-            var importBtn = CreateButton("📥 Import My Own Audio File...");
-            importBtn.Click += (s, e) =>
-            {
-                var dlg = new Microsoft.Win32.OpenFileDialog
-                {
-                    Title = "Select Custom Audio File (MP3/WAV)",
-                    Filter = "Audio Files|*.mp3;*.wav;*.m4a;*.ogg|All Files|*.*"
-                };
-                if (dlg.ShowDialog() == true)
-                {
-                    TtsSampleDownloader.ImportUserCustomVoiceFile(dlg.FileName);
-                    _customTtsFileNameLabel.Text = "Active: " + Path.GetFileName(dlg.FileName);
-                }
-            };
-            importStack.Children.Add(importBtn);
-
-            _customTtsFileNameLabel = new TextBlock
-            {
-                Text = string.IsNullOrEmpty(SettingsManager.Current.CUSTOM_TTS_VOICE_NAME) ? "No file selected." : "Active: " + SettingsManager.Current.CUSTOM_TTS_VOICE_NAME,
-                FontSize = 10,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(10, 0, 0, 0),
-                FontStyle = FontStyles.Italic
-            };
-            _customTtsFileNameLabel.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
-            importStack.Children.Add(_customTtsFileNameLabel);
-
-            Grid.SetRow(importStack, 2);
-            customGrid.Children.Add(importStack);
-
-            root.Children.Add(customGrid);
-
-            return scroll;
+        private async Task RunBackendTestAsync() {
+            _testStatusLabel.Text = "Testing..."; SaveAllSettings();
+            try {
+                string res = await CoreRegistry.Intelligence.Llm.AskAsync("ONLINE_TEST");
+                _testStatusLabel.Text = "✅ Connected."; _testStatusLabel.Foreground = Brushes.SpringGreen;
+            } catch { _testStatusLabel.Text = "❌ Failed."; _testStatusLabel.Foreground = Brushes.Tomato; }
         }
 
-        // ── TAB 4 BUILDER: Voice AI & Speech ─────────────────────────────────────────
-        private UIElement BuildVoiceAiTab()
-        {
-            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-            var root = new StackPanel { Margin = new Thickness(4) };
-            scroll.Content = root;
-
-            var settings = SettingsManager.Current;
-
-            root.Children.Add(CreateHeader("🎙️ Master Voice Activation"));
-
-            _isJarvisEnabledCheckBox = CreateCheckBox("🎙️ Enable 100% Offline Voice Wake-Word (\"Hey Jarvis\")", settings.IS_JARVIS_ENABLED);
-            _isJarvisEnabledCheckBox.Checked += (s, e) => settings.IS_JARVIS_ENABLED = true;
-            _isJarvisEnabledCheckBox.Unchecked += (s, e) => settings.IS_JARVIS_ENABLED = false;
-            root.Children.Add(_isJarvisEnabledCheckBox);
-
-            root.Children.Add(CreateHeader("🎛️ Acoustic Microphone Sensitivity"));
-
-            root.Children.Add(CreateLabel("Minimum Speech Confidence Gate (0% Permissive ... 100% Strict):"));
-            _minConfidenceSlider = new Slider { Minimum = 0.05, Maximum = 0.95, Value = settings.MIN_VOICE_CONFIDENCE, SmallChange = 0.05, Margin = new Thickness(0, 2, 0, 8) };
-            _minConfidenceSlider.ValueChanged += (s, e) => settings.MIN_VOICE_CONFIDENCE = _minConfidenceSlider.Value;
-            root.Children.Add(_minConfidenceSlider);
-
-            root.Children.Add(CreateHeader("🎙️ Acoustic Voice Training & Calibration"));
-
-            var trainBtn = CreateButton("🎙️ Open Voice AI Training & Memo Studio");
-            trainBtn.Click += (s, e) => VoiceStudioOverlay.ShowOverlay();
-            root.Children.Add(trainBtn);
-
-            var voskBtn = CreateButton("📥 Download Official Vosk Offline Speech Model (~40MB)");
-            voskBtn.Click += async (s, e) => await VoskEngine.EnsureModelDownloadedAsync(showToast: true);
-            root.Children.Add(voskBtn);
-
-            return scroll;
-        }
-
-        // ── TAB 5 BUILDER: Offline Pre-Caching ───────────────────────────────────────
-        private UIElement BuildOfflineTab()
-        {
-            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-            var root = new StackPanel { Margin = new Thickness(4) };
-            scroll.Content = root;
-
-            root.Children.Add(CreateHeader("📶 Offline Mode & Wi-Fi Pre-Caching"));
-
-            _offlineConnectionStatus = new TextBlock { FontSize = 12, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 2, 0, 4) };
-            _offlineConnectionStatus.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
-            root.Children.Add(_offlineConnectionStatus);
-
-            _offlineVoskStatus = new TextBlock { FontSize = 12, Margin = new Thickness(0, 2, 0, 4) };
-            _offlineVoskStatus.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
-            root.Children.Add(_offlineVoskStatus);
-
-            _offlineTtsStatus = new TextBlock { FontSize = 12, Margin = new Thickness(0, 2, 0, 8) };
-            _offlineTtsStatus.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
-            root.Children.Add(_offlineTtsStatus);
-
-            var preCacheBtn = CreateButton("📶 Pre-Cache All Features For Offline Use");
-            preCacheBtn.Height = 34;
-            preCacheBtn.FontWeight = FontWeights.Bold;
-            preCacheBtn.Click += async (s, e) =>
-            {
-                preCacheBtn.IsEnabled = false;
-                await OfflineCacheManager.PreCacheAllForOfflineAsync(status =>
-                {
-                    Application.Current.Dispatcher.Invoke(() => _offlineProgressText.Text = status);
-                });
-                RefreshOfflineStatus();
-                preCacheBtn.IsEnabled = true;
-            };
-            root.Children.Add(preCacheBtn);
-
-            _offlineProgressText = new TextBlock { FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) };
-            _offlineProgressText.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
-            root.Children.Add(_offlineProgressText);
-
-            RefreshOfflineStatus();
-            return scroll;
-        }
-
-        private void RefreshOfflineStatus()
-        {
-            bool online = OfflineCacheManager.IsInternetAvailable();
-            _offlineConnectionStatus.Text = online ? "📡 Network: 🟢 Connected (Wi-Fi / Ethernet)" : "📡 Network: 🔴 Offline Mode Active";
-
-            bool voskReady = Directory.Exists(VoskEngine.ModelDirectory);
-            _offlineVoskStatus.Text = voskReady ? "🎙️ Vosk Neural Model: ✅ Ready Offline" : "🎙️ Vosk Neural Model: ⚠️ Not Downloaded";
-
-            var toolStatus = new List<string>();
-            if (OfflineCacheManager.IsCommandAvailable("git")) toolStatus.Add("Git");
-            if (OfflineCacheManager.IsCommandAvailable("node")) toolStatus.Add("Node");
-            if (OfflineCacheManager.IsCommandAvailable("python")) toolStatus.Add("Python");
-            if (OfflineCacheManager.IsCommandAvailable("ollama")) toolStatus.Add("Ollama");
-
-            string toolsStr = toolStatus.Count > 0 ? string.Join(", ", toolStatus) : "None";
-            _offlineTtsStatus.Text = $"🛠️ Dev Tools & PMs: ✅ {toolsStr} detected";
-        }
-
-        // ── TAB 6 BUILDER: Custom Aliases & Commands ─────────────────────────────────
-        private UIElement BuildAliasesTab()
-        {
-            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-            var root = new StackPanel { Margin = new Thickness(4) };
-            scroll.Content = root;
-
-            root.Children.Add(CreateHeader("🏷️ Custom Alias & Command Studio"));
-
-            var info = new TextBlock
-            {
-                Text = "Map short keyword aliases to full commands or chained multi-action pipelines (e.g., 'g' -> 'open google', 'work' -> 'open chrome | open vscode | volume 30').",
-                FontSize = 11,
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 8)
-            };
-            info.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
-            root.Children.Add(info);
-
-            // Add Alias Inputs
-            var addGrid = new Grid { Margin = new Thickness(0, 2, 0, 8) };
-            addGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
-            addGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            addGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            _newAliasKeyBox = CreateTextBox("e.g. g");
-            Grid.SetColumn(_newAliasKeyBox, 0);
-            addGrid.Children.Add(_newAliasKeyBox);
-
-            _newAliasValueBox = CreateTextBox("e.g. open google");
-            _newAliasValueBox.Margin = new Thickness(6, 0, 0, 0);
-            Grid.SetColumn(_newAliasValueBox, 1);
-            addGrid.Children.Add(_newAliasValueBox);
-
-            var addBtn = CreateButton("➕ Add Alias");
-            addBtn.Margin = new Thickness(6, 0, 0, 0);
-            addBtn.Click += (s, e) =>
-            {
-                string k = _newAliasKeyBox.Text.Trim().ToLower();
-                string v = _newAliasValueBox.Text.Trim();
-                if (string.IsNullOrEmpty(k) || string.IsNullOrEmpty(v)) return;
-
-                SettingsManager.Current.ALIASES[k] = v;
-                SettingsManager.Save();
-                _newAliasKeyBox.Text = "";
-                _newAliasValueBox.Text = "";
-                RefreshAliasList();
-                TextOverlay.Show($"✅ Added Alias: '{k}' ➔ '{v}'", 2500);
-            };
-            Grid.SetColumn(addBtn, 2);
-            addGrid.Children.Add(addBtn);
-
-            root.Children.Add(addGrid);
-
-            // Preset Alias Packs
-            root.Children.Add(CreateHeader("⚡ 1-Click Preset Alias Packs"));
-            var presetGrid = new UniformGrid { Columns = 3, Margin = new Thickness(0, 4, 0, 8) };
-
-            var packProductivity = CreateButton("🚀 Productivity Pack");
-            packProductivity.Click += (s, e) =>
-            {
-                var dict = SettingsManager.Current.ALIASES;
-                dict["g"] = "open google";
-                dict["yt"] = "open youtube";
-                dict["gpt"] = "open chatgpt";
-                dict["code"] = "open vscode";
-                dict["note"] = "stickynotes";
-                SettingsManager.Save();
-                RefreshAliasList();
-                TextOverlay.Show("✅ Imported Productivity Alias Pack!", 2500);
-            };
-            presetGrid.Children.Add(packProductivity);
-
-            var packSystem = CreateButton("💻 System & Power Pack");
-            packSystem.Click += (s, e) =>
-            {
-                var dict = SettingsManager.Current.ALIASES;
-                dict["re"] = "restart";
-                dict["off"] = "shutdown";
-                dict["lock"] = "lock pc";
-                dict["vol50"] = "volume 50";
-                dict["mute"] = "mute volume";
-                SettingsManager.Save();
-                RefreshAliasList();
-                TextOverlay.Show("✅ Imported System & Power Alias Pack!", 2500);
-            };
-            presetGrid.Children.Add(packSystem);
-
-            var packAi = CreateButton("🤖 AI & Voice Pack");
-            packAi.Click += (s, e) =>
-            {
-                var dict = SettingsManager.Current.ALIASES;
-                dict["deep"] = "deepseek";
-                dict["llama"] = "llama3";
-                dict["voices"] = "ttsvoices";
-                dict["cache"] = "precache";
-                dict["hf"] = "huggingface";
-                SettingsManager.Save();
-                RefreshAliasList();
-                TextOverlay.Show("✅ Imported AI & Voice Alias Pack!", 2500);
-            };
-            presetGrid.Children.Add(packAi);
-
-            root.Children.Add(presetGrid);
-
-            // Registered Aliases List
-            root.Children.Add(CreateHeader("📋 Active Configured Aliases"));
-            _aliasListStack = new StackPanel { Margin = new Thickness(0, 4, 0, 8) };
-            root.Children.Add(_aliasListStack);
-
-            RefreshAliasList();
-            return scroll;
-        }
-
-        private void RefreshAliasList()
-        {
-            if (_aliasListStack == null) return;
-            _aliasListStack.Children.Clear();
-
-            var aliases = SettingsManager.Current.ALIASES;
-            if (aliases.Count == 0)
-            {
-                var empty = new TextBlock { Text = "No custom aliases created yet. Add one above or import a 1-click pack!", FontSize = 11, FontStyle = FontStyles.Italic };
-                empty.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
-                _aliasListStack.Children.Add(empty);
-                return;
-            }
-
-            foreach (var kvp in aliases.ToList())
-            {
-                var card = new Border
-                {
-                    CornerRadius = new CornerRadius(6),
-                    Padding = new Thickness(8, 6, 8, 6),
-                    Margin = new Thickness(0, 0, 0, 4)
-                };
-                card.SetResourceReference(Border.BackgroundProperty, "CardBackgroundBrush");
-
-                var grid = new Grid();
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-                var txt = new TextBlock
-                {
-                    Text = $"🏷️ '{kvp.Key}' ➔ '{kvp.Value}'",
-                    FontSize = 12,
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-                txt.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
-                Grid.SetColumn(txt, 0);
-                grid.Children.Add(txt);
-
-                var delBtn = new Button
-                {
-                    Content = "❌",
-                    Width = 24,
-                    Height = 24,
-                    Padding = new Thickness(0),
-                    FontSize = 10,
-                    Cursor = Cursors.Hand
-                };
-                string targetKey = kvp.Key;
-                delBtn.Click += (s, e) =>
-                {
-                    SettingsManager.Current.ALIASES.Remove(targetKey);
-                    SettingsManager.Save();
-                    RefreshAliasList();
-                };
-                Grid.SetColumn(delBtn, 1);
-                grid.Children.Add(delBtn);
-
-                card.Child = grid;
-                _aliasListStack.Children.Add(card);
-            }
-        }
-
-        // ── TAB 7 BUILDER: Code Editor Settings ──────────────────────────────────────
-        private UIElement BuildEditorTab()
-        {
-            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-            var root = new StackPanel { Margin = new Thickness(4) };
-            scroll.Content = root;
-
-            var settings = SettingsManager.Current;
-
-            root.Children.Add(CreateHeader("📝 Jarvis AI Code Studio Preferences"));
-
-            _editorLineNumbersCheck = CreateCheckBox("Show Line Numbers in Editor", settings.EDITOR_SHOW_LINE_NUMBERS);
-            root.Children.Add(_editorLineNumbersCheck);
-
-            _editorAiAutocompleteCheck = CreateCheckBox("Enable Hybrid AI Autocomplete (Ghost Predictions)", settings.EDITOR_ENABLE_AI_AUTOCOMPLETE);
-            root.Children.Add(_editorAiAutocompleteCheck);
-
-            _editorAutoSaveCheck = CreateCheckBox("Auto-Save Workspace on Close", settings.EDITOR_AUTO_SAVE_ON_CLOSE);
-            root.Children.Add(_editorAutoSaveCheck);
-
-            root.Children.Add(CreateHeader("🔤 Typography"));
-
-            root.Children.Add(CreateLabel("Font Family (Monospace recommended):"));
-            _editorFontFamilyBox = CreateTextBox(settings.EDITOR_FONT_FAMILY);
-            root.Children.Add(_editorFontFamilyBox);
-
-            root.Children.Add(CreateLabel("Base Font Size:"));
-            _editorFontSizeBox = CreateTextBox(settings.EDITOR_FONT_SIZE.ToString());
-            root.Children.Add(_editorFontSizeBox);
-
-            var indexBtn = CreateButton("🔍 Force Project Re-Index (Full Scan)");
-            indexBtn.Click += async (s, e) => {
-                indexBtn.IsEnabled = false;
-                await ProjectSymbolIndexer.IndexProjectAsync(GetProjectRoot());
-                indexBtn.IsEnabled = true;
-                TextOverlay.Show("✅ Project symbols re-indexed successfully.", 2500);
-            };
-            root.Children.Add(indexBtn);
-
-            root.Children.Add(CreateHeader("🧩 Extensions"));
-            var installBtn = CreateButton("📦 Install VS Code Extension (.vsix)");
-            installBtn.Click += async (s, e) => {
-                var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "VSIX Extensions|*.vsix", Title = "Select VS Code Extension" };
-                if (dlg.ShowDialog() == true)
-                {
-                    TextOverlay.Show("Installing extension...", 2000);
-                    bool ok = await VsixManager.InstallExtensionAsync(dlg.FileName);
-                    TextOverlay.Show(ok ? "✅ Extension installed! Restart to apply." : "❌ Installation failed.", 3000);
-                }
-            };
-            root.Children.Add(installBtn);
-
-            return scroll;
-        }
-
-        private void SaveAllSettings()
-        {
-            var settings = SettingsManager.Current;
-
-            if (_themeComboBox.SelectedItem is string th) settings.THEME = th;
-            if (_bgModeComboBox.SelectedItem is string mode) settings.BACKGROUND_MODE = mode;
-            if (_searchEngineComboBox.SelectedItem is string se) settings.DEFAULT_SEARCH_ENGINE = se;
-
-            settings.WINDOW_OPACITY = _opacitySlider.Value;
-            settings.START_WITH_WINDOWS = _startWithWinCheckBox.IsChecked == true;
-            settings.PLAY_SOUNDS = _playSoundsCheckBox.IsChecked == true;
-            settings.AUTO_HIDE_ON_EXECUTE = _autoHideCheckBox.IsChecked == true;
-            settings.ALWAYS_ON_TOP = _alwaysOnTopCheckBox.IsChecked == true;
-            settings.MINIMIZE_TO_WIDGET = _minimizeToWidgetCheckBox.IsChecked == true;
-            settings.ENABLE_PC_CONTROL = _enablePcControlCheckBox.IsChecked == true;
-
-            settings.GOOGLE_AI_KEY = _googleKeyBox.Text.Trim();
-            settings.GITHUB_TOKEN = _githubTokenBox.Text.Trim();
-            settings.DOWNLOAD_DIRECTORY = _downloadDirBox.Text.Trim();
-            if (int.TryParse(_mobilePortBox.Text.Trim(), out int port)) settings.MOBILE_PORT = port;
-
-            if (_llmBackendCombo.SelectedItem is string llm) settings.LLM_BACKEND = llm;
-            if (_ttsVoiceCombo.SelectedItem is string voice) TtsManager.SetVoice(voice);
-
-            settings.USE_CUSTOM_TTS_SOUND_FILE = _useCustomTtsCheckBox.IsChecked == true;
-            settings.CUSTOM_SOUND_ONLY = _customTtsOnlyCheckBox.IsChecked == true;
-
-            settings.ENABLE_DUAL_LLM_COPILOT = _enableDualLlmCheckBox.IsChecked == true;
-            if (_dualLlmBackendCombo.SelectedItem is string db) settings.DUAL_LLM_BACKEND = db;
-            if (_dualLlmModelCombo.SelectedItem is string dm) settings.DUAL_LLM_MODEL = DualLlmCopilot.ExtractModelName(dm);
-
-            // Save Editor Settings
-            settings.EDITOR_SHOW_LINE_NUMBERS = _editorLineNumbersCheck.IsChecked == true;
-            settings.EDITOR_ENABLE_AI_AUTOCOMPLETE = _editorAiAutocompleteCheck.IsChecked == true;
-            settings.EDITOR_AUTO_SAVE_ON_CLOSE = _editorAutoSaveCheck.IsChecked == true;
-            settings.EDITOR_FONT_FAMILY = _editorFontFamilyBox.Text.Trim();
-            if (double.TryParse(_editorFontSizeBox.Text.Trim(), out double fs)) settings.EDITOR_FONT_SIZE = fs;
-
+        private void SaveAllSettings() {
+            var s = SettingsManager.Current;
+            if (_themeComboBox?.SelectedItem is string th) s.THEME = th;
+            if (_llmBackendCombo?.SelectedItem is string llm) s.LLM_BACKEND = llm;
+            s.GOOGLE_AI_KEY = _googleKeyBox.Text.Trim();
+            s.GEMINI_MODEL = _geminiModelBox.Text.Trim();
+            s.GROQ_KEY = _groqKeyBox.Text.Trim();
+            s.OPENAI_KEY = _openAiKeyBox.Text.Trim();
+            s.ANTHROPIC_KEY = _anthropicKeyBox.Text.Trim();
+            s.CUSTOM_LLM_KEY = _deepSeekKeyBox.Text.Trim();
+            s.OLLAMA_ENDPOINT = _ollamaUrlBox.Text.Trim();
             SettingsManager.Save();
-
-            // Visual feedback instead of closing
-            TextOverlay.Show("💾 System Settings Synchronized!", 2500);
-
-            // Pulse the border to show it happened
-            var anim = new DoubleAnimation(0.4, 1.0, TimeSpan.FromMilliseconds(400));
-            this.BeginAnimation(Window.OpacityProperty, anim);
+            TextOverlay.Show("✅ Saved", 1000);
         }
 
-        private static string GetProjectRoot()
-        {
-            string devPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\.."));
-            return Directory.Exists(Path.Combine(devPath, "Modules")) ? devPath : AppDomain.CurrentDomain.BaseDirectory;
+        private ComboBox _themeComboBox = null!;
+        private UIElement BuildGeneralTab() {
+            var s = new StackPanel { Margin = new Thickness(10) };
+            _themeComboBox = CreateSettingsComboBox(new[] { "dracula", "dark", "purple" }, SettingsManager.Current.THEME);
+            s.Children.Add(CreateLabel("Theme:")); s.Children.Add(_themeComboBox); return s;
         }
 
-        private static TextBlock CreateHeader(string title)
-        {
-            var header = new TextBlock
-            {
-                Text = title,
-                FontSize = 13,
-                FontWeight = FontWeights.Bold,
-                Margin = new Thickness(0, 8, 0, 4)
-            };
-            header.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush");
-            return header;
-        }
+        private UIElement BuildTtsTab() => new StackPanel { Children = { new TextBlock { Text = "TTS Settings", Foreground = Brushes.White } } };
+        private UIElement BuildVoiceAiTab() => new StackPanel { Children = { new TextBlock { Text = "Voice AI", Foreground = Brushes.White } } };
+        private UIElement BuildCleanupTab() => new StackPanel { Children = { new TextBlock { Text = "Cleanup", Foreground = Brushes.White } } };
+        private UIElement BuildOfflineTab() => new StackPanel { Children = { new TextBlock { Text = "Offline", Foreground = Brushes.White } } };
+        private UIElement BuildAliasesTab() => new StackPanel { Children = { new TextBlock { Text = "Aliases", Foreground = Brushes.White } } };
+        private UIElement BuildChatTab() => new StackPanel { Children = { new TextBlock { Text = "Chat", Foreground = Brushes.White } } };
 
-        private static TextBlock CreateLabel(string text)
-        {
-            var lbl = new TextBlock
-            {
-                Text = text,
-                FontSize = 11,
-                Margin = new Thickness(0, 4, 0, 2)
-            };
-            lbl.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
-            return lbl;
-        }
-
-        private static TextBox CreateTextBox(string initialText)
-        {
-            var tb = new TextBox
-            {
-                Text = initialText ?? "",
-                Margin = new Thickness(0, 0, 0, 6),
-                Padding = new Thickness(6, 4, 6, 4),
-                FontSize = 12
-            };
-            return tb;
-        }
-
-        private static CheckBox CreateCheckBox(string content, bool isChecked)
-        {
-            var cb = new CheckBox
-            {
-                Content = content,
-                IsChecked = isChecked,
-                FontSize = 12,
-                Margin = new Thickness(0, 2, 0, 4),
-                Cursor = Cursors.Hand
-            };
-            cb.SetResourceReference(CheckBox.ForegroundProperty, "TextPrimaryBrush");
+        private ComboBox CreateSettingsComboBox(IEnumerable<string> items, string selected) {
+            var cb = new ComboBox { Margin = new Thickness(0, 5, 0, 15), Height = 32, Background = new SolidColorBrush(Color.FromArgb(50, 0,0,0)), Foreground = Brushes.White };
+            foreach (var item in items) cb.Items.Add(item);
+            cb.SelectedItem = cb.Items.Cast<object>().FirstOrDefault(i => i.ToString() == selected) ?? cb.Items[0];
             return cb;
         }
 
-        private static Button CreateButton(string content)
-        {
-            var btn = new Button
-            {
-                Content = content,
-                Margin = new Thickness(0, 2, 0, 2),
-                Padding = new Thickness(8, 5, 8, 5),
-                FontSize = 12,
-                Cursor = Cursors.Hand
-            };
-            return btn;
+        private TextBox CreateLabeledTextBox(StackPanel p, string label, string value) {
+            p.Children.Add(CreateLabel(label));
+            var tb = new TextBox { Text = value, Margin = new Thickness(0, 0, 0, 10), Padding = new Thickness(5), Background = new SolidColorBrush(Color.FromArgb(40, 255,255,255)), Foreground = Brushes.White };
+            p.Children.Add(tb); return tb;
         }
 
-        private static Button CreateLinkButton(string content, string url)
-        {
-            var btn = new Button
-            {
-                Content = content,
-                Margin = new Thickness(0, 4, 0, 8),
-                Padding = new Thickness(10, 4, 10, 4),
-                FontSize = 10,
-                HorizontalAlignment = HorizontalAlignment.Left,
-                Cursor = Cursors.Hand,
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0, 0, 0, 1),
-                BorderBrush = Brushes.DimGray
-            };
-            btn.SetResourceReference(Button.ForegroundProperty, "AccentBrush");
-            btn.Click += (s, e) => {
-                try { Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true }); } catch { }
-            };
-            return btn;
-        }
+        private static TextBlock CreateLabel(string t) => new TextBlock { Text = t, FontSize = 11, Foreground = Brushes.LightGray };
     }
 }

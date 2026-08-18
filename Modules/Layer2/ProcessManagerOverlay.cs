@@ -17,6 +17,15 @@ namespace JarvisLauncher
     public class ProcessManagerOverlay : BaseOverlay
     {
         private static ProcessManagerOverlay? _instance;
+        public static void ShowOverlay()
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (_instance == null || !_instance.IsLoaded) _instance = new ProcessManagerOverlay();
+                _instance.Show();
+                _instance.BringToFront();
+            });
+        }
         private readonly StackPanel _processListPanel;
         private readonly DispatcherTimer _timer;
         private readonly TextBox _searchBox;

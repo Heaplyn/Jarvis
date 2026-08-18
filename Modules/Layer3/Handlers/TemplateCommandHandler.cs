@@ -80,7 +80,7 @@ namespace JarvisLauncher
                             if (success)
                             {
                                 TextOverlay.Show($"✅ Saved template '{name}' successfully!", 3000);
-                                TtsManager.Speak($"Saved template {name}.", isShortSpeech: true);
+                                TtsManager.Speak($"Saved template {name}.");
                             }
                             else
                             {

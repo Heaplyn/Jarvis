@@ -129,6 +129,16 @@ namespace JarvisLauncher
                         Args = new List<string> { "-y", "@modelcontextprotocol/server-filesystem", Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) },
                         IsEnabled = true
                     });
+
+                    Servers.Add(new McpServerConfig
+                    {
+                        Name = "GeminiCloudAssist",
+                        Transport = "STDIO",
+                        Command = "npx",
+                        Args = new List<string> { "-y", "@google-cloud/gemini-cloud-assist-mcp" },
+                        Env = new Dictionary<string, string> { { "GOOGLE_CLOUD_PROJECT", "versatile-vine-505907-t8" } },
+                        IsEnabled = true
+                    });
                     SaveConfig();
                 }
             }

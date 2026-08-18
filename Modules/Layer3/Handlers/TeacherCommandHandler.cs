@@ -37,7 +37,7 @@ namespace JarvisLauncher
                         SettingsManager.Current.IS_TEACHER_MODE_ENABLED = nextState;
                         SettingsManager.Save();
                         string msg = $"Teacher Mode is now {(nextState ? "Active" : "Inactive")}.";
-                        TtsManager.Speak(msg, isShortSpeech: true);
+                        TtsManager.Speak(msg);
                         TextOverlay.Show($"🎓 Teacher Mode: {(nextState ? "ON" : "OFF")}", 3000);
                     },
                     SIMILARITY = 8.5

@@ -47,7 +47,7 @@ namespace JarvisLauncher
             root.Children.Add(_speedSlider);
 
             var testBtn = CreateButton("⚡ Test System Voice");
-            testBtn.Click += (s, e) => TtsManager.Speak("System voice test. Online and ready.", false);
+            testBtn.Click += (s, e) => TtsManager.Speak("System voice test. Online and ready.");
             root.Children.Add(testBtn);
 
             // --- Section 2: Local Audio Files ---

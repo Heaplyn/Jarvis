@@ -69,6 +69,15 @@ namespace JarvisLauncher
             return "Documentation ingested.";
         }
 
+        public static async Task<string> SearchAiEndpointsAsync(string query)
+        {
+            try {
+                // Scrape/Search specifically for AI provider status or new endpoints
+                string searchRes = await CoreRegistry.Web.SearchWebAsync("list of public openai compatible llm endpoints " + query);
+                return $"## AUTO-DISCOVERED AI ENDPOINTS\n{searchRes}";
+            } catch { return "Discovery failed."; }
+        }
+
         public static Task<string> SearchWebAsync(string query) => CoreRegistry.Web.SearchWebAsync(query);
         public static Task<string> ScrapeWebpageAsync(string url) => CoreRegistry.Web.ScrapeWebpageAsync(url);
         public static Task<string> DownloadFileAsync(string url, string? destPath = null) => CoreRegistry.Web.DownloadFileAsync(url, destPath);

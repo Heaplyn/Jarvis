@@ -1,6 +1,7 @@
 // Developer: heaplyn
-// Date: 2026-08-09
-// Summary: Handles CLI commands to pull, fetch, and merge the latest codebase commits from the remote GitHub repository. Supports safe stashing and force syncing.
+// Date: 2026-08-18
+// Summary: Handles CLI commands to pull, fetch, and merge the latest codebase commits.
+//          Hardened with self-healing Git logic, remote re-mapping, and Fresh Sync support.
 
 using System;
 using System.Collections.Generic;
@@ -17,7 +18,8 @@ namespace JarvisLauncher
         public bool CanHandle(string query)
         {
             query = query.Trim().ToLower();
-            return query == "update" || query == "gitupdate" || query == "git pull" || query == "pull" || query == "git pull origin";
+            return query == "update" || query == "gitupdate" || query == "git pull" ||
+                   query == "pull" || query == "fresh sync" || query == "sync" || query == "freshsync";
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -27,23 +29,23 @@ namespace JarvisLauncher
 
             double similarity = Math.Max(
                 SearchUtil.GetSimilarity(query, "update"), 
-                SearchUtil.GetSimilarity(query, "pull")
+                SearchUtil.GetSimilarity(query, "sync")
             );
 
             suggestions.Add(new CommandResult
             {
-                TITLE       = "Update Code from GitHub",
-                DESCRIPTION = "Run 'git pull' safely (stashing any local uncommitted changes)",
-                SIMILARITY  = similarity + 0.5, // Priority boost for direct matches
-                EXECUTE     = () => Task.Run(async () => await PullUpdatesAsync(force: false))
+                TITLE       = "🔄 Fresh Sync (Force GitHub Pull)",
+                DESCRIPTION = "⚠️ Wipes all local modifications and forces sync with GitHub remote main",
+                SIMILARITY  = query.Contains("fresh") ? 10.0 : similarity + 0.8,
+                EXECUTE     = () => Task.Run(async () => await PullUpdatesAsync(force: true))
             });
 
             suggestions.Add(new CommandResult
             {
-                TITLE       = "Force Reset Code from GitHub",
-                DESCRIPTION = "⚠️ Wipes all local modifications and forces sync with GitHub remote main",
-                SIMILARITY  = similarity + 0.2,
-                EXECUTE     = () => Task.Run(async () => await PullUpdatesAsync(force: true))
+                TITLE       = "📥 Update Code from GitHub",
+                DESCRIPTION = "Run 'git pull' safely (stashing any local changes)",
+                SIMILARITY  = similarity + 0.5,
+                EXECUTE     = () => Task.Run(async () => await PullUpdatesAsync(force: false))
             });
 
             return suggestions;
@@ -53,236 +55,99 @@ namespace JarvisLauncher
         {
             Application.Current.Dispatcher.Invoke(() =>
             {
-                TextOverlay.Show(force ? "⚠️ Forcing codebase synchronization..." : "📥 Checking for GitHub updates...", 3000);
+                TextOverlay.Show(force ? "⚠️ Executing Fresh Sync..." : "📥 Checking for GitHub updates...", 4000);
             });
 
             string projectRoot = GetProjectRoot();
             var log = new StringBuilder();
 
             log.AppendLine("===================================================");
-            log.AppendLine(force ? "       JARVIS FORCE RESET SYNCHRONIZATION ENGINE   " : "            JARVIS CODEBASE UPDATE ENGINE          ");
+            log.AppendLine(force ? "           JARVIS FRESH SYNC ENGINE              " : "            JARVIS CODEBASE UPDATE ENGINE          ");
             log.AppendLine("===================================================");
             log.AppendLine();
             log.AppendLine($"Working directory: {projectRoot}");
-            log.AppendLine();
 
-            // Test if Git is available
+            // 1. Git Availability Check
             string gitCheck = await RunCommandAsync("git", "--version", projectRoot);
-            if (gitCheck.Contains("Error executing command") || gitCheck.Contains("cannot find the file") || string.IsNullOrWhiteSpace(gitCheck))
+            if (gitCheck.Contains("Error") || string.IsNullOrWhiteSpace(gitCheck))
             {
-                log.AppendLine("❌ ERROR: Git is not installed or was not found in your system's environment variables (PATH).");
-                log.AppendLine("👉 Please download and install Git from: https://git-scm.com/");
-                log.AppendLine("👉 After installation, restart Jarvis and try again.");
-                log.AppendLine();
-                log.AppendLine("Raw Error Detail: " + gitCheck);
-                CliOutputOverlay.Show("Codebase Update Failed", log.ToString());
+                log.AppendLine("❌ ERROR: Git not found in PATH.");
+                CliOutputOverlay.Show("Update Failed", log.ToString());
                 return;
             }
 
-            // Self-healing check: If the directory is not a Git repository (e.g. static ZIP extraction on another PC)
+            // 2. Self-Healing Initialization
             if (!Directory.Exists(Path.Combine(projectRoot, ".git")))
             {
-                log.AppendLine("⚠️ Local directory is not initialized as a Git repository!");
-                log.AppendLine("⚡ Running Git Self-Healing Initialization...");
-                
+                log.AppendLine("⚠️ Repo not initialized. Running self-healing...");
                 await RunCommandAsync("git", "init", projectRoot);
                 await RunCommandAsync("git", "remote add origin https://github.com/Heaplyn/Jarvis.git", projectRoot);
-                
-                log.AppendLine("📥 Fetching repository metadata from remote origin...");
-                string fetchResult = await RunCommandAsync("git", "fetch", projectRoot);
-                log.AppendLine(fetchResult);
-                
-                log.AppendLine("🔗 Linking local codebase files to tracking branch...");
-                string checkoutResult = await RunCommandAsync("git", "checkout -f -B main origin/main", projectRoot);
-                log.AppendLine(checkoutResult);
-                
-                await RunCommandAsync("git", "branch --set-upstream-to=origin/main main", projectRoot);
-                
-                log.AppendLine("✅ Git repository initialized and linked successfully!");
-                log.AppendLine();
+                await RunCommandAsync("git", "fetch", projectRoot);
+                await RunCommandAsync("git", "checkout -f -B main origin/main", projectRoot);
             }
 
-            log.AppendLine("--- CONFIGURING REMOTE ORIGIN ---");
-            string remoteUrl = await RunCommandAsync("git", "remote get-url origin", projectRoot);
-            remoteUrl = remoteUrl.Trim();
-            
-            if (remoteUrl.Contains("fatal:") || remoteUrl.Contains("error:") || string.IsNullOrWhiteSpace(remoteUrl))
+            // 3. Remote Remapping
+            string remoteUrl = (await RunCommandAsync("git", "remote get-url origin", projectRoot)).Trim();
+            if (!remoteUrl.Contains("Heaplyn/Jarvis"))
             {
-                log.AppendLine("ℹ️ Remote 'origin' is missing. Adding origin: https://github.com/Heaplyn/Jarvis.git");
-                await RunCommandAsync("git", "remote add origin https://github.com/Heaplyn/Jarvis.git", projectRoot);
-            }
-            else if (!remoteUrl.Contains("Heaplyn/Jarvis"))
-            {
-                log.AppendLine($"ℹ️ Relinking remote 'origin' from '{remoteUrl}' to 'https://github.com/Heaplyn/Jarvis.git'...");
+                log.AppendLine("🔗 Relinking remote to official repository...");
                 await RunCommandAsync("git", "remote set-url origin https://github.com/Heaplyn/Jarvis.git", projectRoot);
             }
-            else
-            {
-                log.AppendLine($"✅ Remote 'origin' correctly mapped to: {remoteUrl}");
-            }
-            log.AppendLine();
 
-            // Resolve local branch name
-            string branchName = await RunCommandAsync("git", "rev-parse --abbrev-ref HEAD", projectRoot);
-            branchName = branchName.Trim();
-            if (string.IsNullOrEmpty(branchName) || 
-                branchName.Contains("fatal") || 
-                branchName.Contains("error") || 
-                branchName.Equals("HEAD", StringComparison.OrdinalIgnoreCase))
-            {
-                branchName = "main"; // Fallback default
-            }
+            string branchName = (await RunCommandAsync("git", "rev-parse --abbrev-ref HEAD", projectRoot)).Trim();
+            if (string.IsNullOrEmpty(branchName) || branchName.Contains("fatal")) branchName = "main";
 
-            log.AppendLine($"Target Branch: {branchName}");
+            log.AppendLine($"Branch: {branchName}");
 
-            // Ensure branch upstream tracking is configured
-            await RunCommandAsync("git", $"branch --set-upstream-to=origin/{branchName} {branchName}", projectRoot);
-            log.AppendLine();
-
-            // Check configured GitHub Token in settings
-            string ghToken = SettingsManager.Current.GITHUB_TOKEN;
-            if (!string.IsNullOrEmpty(ghToken))
-            {
-                // Configure git extraheader for token authentication
-                string authHeader = $"http.https://github.com/.extraheader=AUTHORIZATION: basic {Convert.ToBase64String(Encoding.UTF8.GetBytes($"x-access-token:{ghToken}"))}";
-                await RunCommandAsync("git", $"config {authHeader}", projectRoot);
-            }
-
-            log.AppendLine("--- FETCHING LATEST COMMITS FROM GITHUB ---");
-            string fetchLogs = await RunCommandAsync("git", "fetch --all --prune", projectRoot);
-            log.AppendLine(fetchLogs);
-            log.AppendLine();
-
-            if (force || fetchLogs.Contains("unrelated histories") || fetchLogs.Contains("divergent"))
+            // 4. Execution
+            if (force)
             {
                 log.AppendLine("--- FORCING OVERWRITE FROM GITHUB ---");
-                log.AppendLine($"⚡ Overwriting local branch with origin/{branchName}...");
-                string resetResult = await RunCommandAsync("git", $"reset --hard origin/{branchName}", projectRoot);
-                log.AppendLine(resetResult);
-                
-                log.AppendLine("⚡ Cleaning untracked files...");
-                string cleanResult = await RunCommandAsync("git", "clean -fd", projectRoot);
-                log.AppendLine(cleanResult);
-                log.AppendLine();
-                
-                log.AppendLine("🎉 CODEBASE SYNCED AND RESTORED SUCCESSFULLY!");
-                log.AppendLine("All local files have been overwritten to match GitHub exactly.");
-                log.AppendLine("Rebuilding and restarting Jarvis launcher dynamically...");
-                
-                // Show terminal logs before restart
-                CliOutputOverlay.Show("Codebase Update", log.ToString());
-
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    TextOverlay.Show("⚡ Rebuilding & Restarting Jarvis...", 3000);
-                });
-                
-                await Task.Delay(1000);
-                NativeMethods.Restart();
-                return;
-            }
-
-            // Standard pull logic with automatic fallback to force-checkout if pull fails
-            string pullResult = await RunCommandAsync("git", $"pull origin {branchName} --allow-unrelated-histories --no-rebase", projectRoot);
-            log.AppendLine(pullResult);
-            log.AppendLine();
-
-            if (pullResult.Contains("Already up to date") || pullResult.Contains("Already up-to-date"))
-            {
-                log.AppendLine("✅ System is already up to date. No new updates found on GitHub.");
-            }
-            else if (pullResult.Contains("Updating") || pullResult.Contains("Fast-forward") || pullResult.Contains("files changed"))
-            {
-                log.AppendLine("🎉 UPDATES PULLED SUCCESSFULLY!");
-                log.AppendLine("Rebuilding and restarting Jarvis launcher dynamically...");
-                
-                // Show terminal logs before restart
-                CliOutputOverlay.Show("Codebase Update", log.ToString());
-
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    TextOverlay.Show("⚡ Rebuilding & Restarting Jarvis...", 3000);
-                });
-                
-                await Task.Delay(1000);
-                NativeMethods.Restart();
+                await RunCommandAsync("git", "fetch --all", projectRoot);
+                await RunCommandAsync("git", $"reset --hard origin/{branchName}", projectRoot);
+                await RunCommandAsync("git", "clean -fd", projectRoot);
+                log.AppendLine("🎉 FRESH SYNC COMPLETED!");
             }
             else
             {
-                // Fallback auto-recovery: If standard pull fails due to conflicts or divergence, force checkout origin/main
-                log.AppendLine("⚠️ Pull encountered conflicts or branch divergence.");
-                log.AppendLine("⚡ Executing Auto-Recovery: Syncing hard to origin/main...");
-                await RunCommandAsync("git", "reset --hard origin/main", projectRoot);
-                await RunCommandAsync("git", "clean -fd", projectRoot);
-
-                log.AppendLine("🎉 AUTO-RECOVERY COMPLETED! Codebase synced to GitHub.");
-                CliOutputOverlay.Show("Codebase Update", log.ToString());
-
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    TextOverlay.Show("⚡ Rebuilding & Restarting Jarvis...", 3000);
-                });
-
-                await Task.Delay(1000);
-                NativeMethods.Restart();
+                log.AppendLine("--- PULLING UPDATES ---");
+                string res = await RunCommandAsync("git", $"pull origin {branchName} --allow-unrelated-histories --no-rebase", projectRoot);
+                log.AppendLine(res);
             }
 
-            // Show logs inside system terminal
             CliOutputOverlay.Show("Codebase Update", log.ToString());
+
+            if (log.ToString().Contains("SUCCESS") || log.ToString().Contains("COMPLETED") || log.ToString().Contains("Updating"))
+            {
+                await Task.Delay(2000);
+                NativeMethods.Restart();
+            }
         }
 
         private static string GetProjectRoot()
         {
             string devPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\.."));
-            if (Directory.Exists(Path.Combine(devPath, "Modules")))
-            {
-                return devPath;
-            }
-            return AppDomain.CurrentDomain.BaseDirectory;
+            return Directory.Exists(Path.Combine(devPath, "Modules")) ? devPath : AppDomain.CurrentDomain.BaseDirectory;
         }
 
         private static async Task<string> RunCommandAsync(string fileName, string arguments, string workingDirectory)
         {
             var output = new StringBuilder();
-            var errors = new StringBuilder();
             var tcs = new TaskCompletionSource<string>();
-
-            var process = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName               = fileName,
-                    Arguments              = arguments,
-                    WorkingDirectory       = workingDirectory,
-                    UseShellExecute        = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError  = true,
-                    CreateNoWindow         = true,
-                    EnvironmentVariables   = { }
-                },
+            var process = new Process {
+                StartInfo = new ProcessStartInfo { FileName = fileName, Arguments = arguments, WorkingDirectory = workingDirectory, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true },
                 EnableRaisingEvents = true
             };
-
             process.OutputDataReceived += (s, e) => { if (e.Data != null) output.AppendLine(e.Data); };
-            process.ErrorDataReceived  += (s, e) => { if (e.Data != null) errors.AppendLine(e.Data); };
-
-            process.Exited += (s, e) =>
-            {
-                tcs.SetResult(output.ToString() + "\n" + errors.ToString());
-                process.Dispose();
-            };
-
-            try
-            {
-                process.Start();
-                process.BeginOutputReadLine();
-                process.BeginErrorReadLine();
-                return await tcs.Task;
-            }
-            catch (Exception ex)
-            {
-                return $"Error executing command: {ex.Message}";
-            }
+            process.ErrorDataReceived += (s, e) => { if (e.Data != null) output.AppendLine(e.Data); };
+            process.Exited += (s, e) => { tcs.SetResult(output.ToString()); process.Dispose(); };
+            try { process.Start(); process.BeginOutputReadLine(); process.BeginErrorReadLine(); } catch (Exception ex) { return ex.Message; }
+            return await tcs.Task;
         }
+
+        public List<CommandDesc> GetCommandDescriptions() => new List<CommandDesc> {
+            new CommandDesc("update", "Safely pull GitHub updates", "update"),
+            new CommandDesc("fresh sync", "Force overwrite local with remote", "fresh sync")
+        };
     }
 }

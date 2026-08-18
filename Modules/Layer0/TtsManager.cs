@@ -45,7 +45,9 @@ namespace JarvisLauncher
             _synthesizer.Volume = Math.Clamp(s.TTS_SPEECH_VOLUME, 0, 100);
         }
 
-        void ITtsService.Speak(string text)
+        void ITtsService.Speak(string text) => SpeakInternal(text);
+
+        private void SpeakInternal(string text)
         {
             if (string.IsNullOrWhiteSpace(text)) return;
             var s = CoreRegistry.Settings.Current;
@@ -123,13 +125,12 @@ namespace JarvisLauncher
             return "";
         }
 
+        // --- STATIC BRIDGES ---
         public static void Speak(string text) => CoreRegistry.Tts.Speak(text);
         public static void Stop() => CoreRegistry.Tts.Stop();
         public static bool IsSpeaking => CoreRegistry.Tts.IsSpeaking;
         public static bool IsSpeakingOrEchoing => ((TtsManager)CoreRegistry.Tts).IsSpeakingOrEchoingInternal;
 
-        // Legacy Support
-        public static void Speak(string text, bool isShortSpeech) => CoreRegistry.Tts.Speak(text);
         public static void SpeakFile(string path) { if (File.Exists(path)) Speak(File.ReadAllText(path)); }
         public static List<string> GetInstalledVoices() => ((TtsManager)CoreRegistry.Tts).GetVoicesInternal();
         public static void SetVoice(string v) => ((TtsManager)CoreRegistry.Tts).SetVoiceInternal(v);

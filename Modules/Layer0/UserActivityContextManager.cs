@@ -79,16 +79,18 @@ namespace JarvisLauncher
                 {
                     Application.Current.Dispatcher.Invoke(() =>
                     {
-                        if (Clipboard.ContainsText())
-                        {
-                            string clip = Clipboard.GetText().Trim();
-                            if (!string.IsNullOrEmpty(clip))
+                        try {
+                            if (Clipboard.ContainsText())
                             {
-                                string preview = clip.Length > 200 ? clip.Substring(0, 200) + "..." : clip;
-                                preview = preview.Replace("\r", " ").Replace("\n", " ");
-                                sb.AppendLine($"• Current Clipboard Content: \"{preview}\"");
+                                string clip = Clipboard.GetText().Trim();
+                                if (!string.IsNullOrEmpty(clip))
+                                {
+                                    string preview = clip.Length > 200 ? clip.Substring(0, 200) + "..." : clip;
+                                    preview = preview.Replace("\r", " ").Replace("\n", " ");
+                                    sb.AppendLine($"• Current Clipboard Content: \"{preview}\"");
+                                }
                             }
-                        }
+                        } catch { }
                     });
                 }
             }
