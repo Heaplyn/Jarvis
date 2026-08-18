@@ -28,7 +28,11 @@ namespace JarvisLauncher
                 {
                     var best = matches.OrderByDescending(m => m.SIMILARITY).First();
                     System.Windows.Application.Current.Dispatcher.Invoke(() => {
-                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = best.TargetPath, UseShellExecute = true });
+                        try {
+                            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = best.TargetPath, UseShellExecute = true });
+                        } catch {
+                            System.Diagnostics.Process.Start("cmd.exe", $"/c start \"\" \"{best.TargetPath}\"");
+                        }
                     });
                     return $"📱 Done. Launched {best.Name}.";
                 }

@@ -1,7 +1,8 @@
 // Developer: heaplyn
-// Date: 2026-08-16
+// Date: 2026-08-17
 // Summary: Advanced Editor Intelligence Manager.
-//          Provides local symbol extraction, language keywords, and hybrid AI autocomplete orchestration.
+//          Enhanced Assembly (NASM) support with struct/directive highlighting.
+//          Added support for C++, SQL, Lua, and more.
 
 using System;
 using System.Collections.Generic;
@@ -33,82 +34,70 @@ namespace JarvisLauncher
         public static Dictionary<string, List<SyntaxRule>> SyntaxHighlightingRules = new Dictionary<string, List<SyntaxRule>>(StringComparer.OrdinalIgnoreCase)
         {
             { ".cs", new List<SyntaxRule> {
-                new SyntaxRule { Pattern = @"\b(public|private|protected|internal|static|void|string|int|bool|var|if|else|foreach|while|return|class|namespace|using|async|await|task|override|virtual|new|get|set|value|delegate|event)\b", ColorHex = "#569CD6", IsBold = true, Category = "Keyword" },
-                new SyntaxRule { Pattern = @"\b(Console|Task|List|Dictionary|Enumerable|DateTime|Guid|Thread|Regex|HttpClient|JsonSerializer|File|Directory|Path|Math|Exception)\b", ColorHex = "#4EC9B0", Category = "Type" },
-                new SyntaxRule { Pattern = @"//.*", ColorHex = "#6A9955", Category = "Comment" },
-                new SyntaxRule { Pattern = @"@""[^""]*""|""[^""\\]*(?:\\.[^""\\]*)*""", ColorHex = "#D69D85", Category = "String" },
-                new SyntaxRule { Pattern = @"\b\d+\b", ColorHex = "#B5CEA8", Category = "Number" }
+                new SyntaxRule { Pattern = @"\b(public|private|protected|internal|static|void|string|int|bool|var|if|else|foreach|while|return|class|namespace|using|async|await|task|override|virtual|new|get|set|value|delegate|event)\b", ColorHex = "#569CD6", IsBold = true },
+                new SyntaxRule { Pattern = @"\b(Console|Task|List|Dictionary|Enumerable|DateTime|Guid|Thread|Regex|HttpClient|JsonSerializer|File|Directory|Path|Math|Exception)\b", ColorHex = "#4EC9B0" },
+                new SyntaxRule { Pattern = @"//.*", ColorHex = "#6A9955" },
+                new SyntaxRule { Pattern = @"""[^""\\]*(?:\\.[^""\\]*)*""", ColorHex = "#D69D85" },
+                new SyntaxRule { Pattern = @"\b\d+\b", ColorHex = "#B5CEA8" }
             }},
-            { ".js", new List<SyntaxRule> {
-                new SyntaxRule { Pattern = @"\b(const|let|var|function|return|if|else|for|while|import|export|default|async|await|try|catch|throw|new|this|super|class)\b", ColorHex = "#569CD6", IsBold = true, Category = "Keyword" },
-                new SyntaxRule { Pattern = @"//.*|/\*[\s\S]*?\*/", ColorHex = "#6A9955", Category = "Comment" },
-                new SyntaxRule { Pattern = @"'[^']*'|""[^""]*""|`[^`]*`", ColorHex = "#D69D85", Category = "String" }
+            { ".cpp", new List<SyntaxRule> {
+                new SyntaxRule { Pattern = @"\b(int|double|float|char|bool|void|class|struct|union|enum|public|private|protected|static|virtual|override|final|inline|constexpr|namespace|using|template|auto|new|delete|try|catch|throw|if|else|for|while|do|switch|case|default|break|continue|return|this|nullptr|true|false)\b", ColorHex = "#569CD6", IsBold = true },
+                new SyntaxRule { Pattern = @"\b(std|vector|string|map|set|list|iostream|fstream|printf|scanf|cout|cin|endl)\b", ColorHex = "#4EC9B0" },
+                new SyntaxRule { Pattern = @"//.*|/\*[\s\S]*?\*/", ColorHex = "#6A9955" },
+                new SyntaxRule { Pattern = @"#\s*(include|define|if|ifdef|ifndef|else|endif|pragma)", ColorHex = "#9B9B9B" },
+                new SyntaxRule { Pattern = @"""[^""\\]*(?:\\.[^""\\]*)*""|'[^'\\ ]*(?:\\.[^'\\ ]*)*'", ColorHex = "#D69D85" },
+                new SyntaxRule { Pattern = @"\b\d+(\.\d+)?f?\b", ColorHex = "#B5CEA8" }
             }},
-            { ".py", new List<SyntaxRule> {
-                new SyntaxRule { Pattern = @"\b(def|class|return|if|else|elif|for|while|import|from|as|try|except|with|async|await|print|yield|lambda|None|True|False)\b", ColorHex = "#569CD6", IsBold = true, Category = "Keyword" },
-                new SyntaxRule { Pattern = @"#.*", ColorHex = "#6A9955", Category = "Comment" },
-                new SyntaxRule { Pattern = @"'[^']*'|""[^""]*""", ColorHex = "#D69D85", Category = "String" }
+            { ".h", new List<SyntaxRule> {
+                new SyntaxRule { Pattern = @"\b(class|struct|public|private|protected|static|virtual|void|int|float|double|char|bool|namespace)\b", ColorHex = "#569CD6", IsBold = true },
+                new SyntaxRule { Pattern = @"//.*|/\*[\s\S]*?\*/", ColorHex = "#6A9955" },
+                new SyntaxRule { Pattern = @"#\s*(include|define|ifndef|endif|pragma)", ColorHex = "#9B9B9B" }
             }},
             { ".asm", new List<SyntaxRule> {
-                new SyntaxRule { Pattern = @"\b(mov|add|sub|inc|dec|mul|div|jmp|je|jne|jg|jl|jge|jle|cmp|push|pop|call|ret|int|syscall|nop)\b", ColorHex = "#569CD6", IsBold = true, Category = "Keyword" },
-                new SyntaxRule { Pattern = @"\b(eax|ebx|ecx|edx|esi|edi|esp|ebp|rax|rbx|rcx|rdx|rsi|rdi|rsp|rbp|al|ah|bl|bh|cl|ch|dl|dh)\b", ColorHex = "#9CDCFE", Category = "Type" },
-                new SyntaxRule { Pattern = @";.*", ColorHex = "#6A9955", Category = "Comment" },
-                new SyntaxRule { Pattern = @"'[^']*'|""[^""]*""", ColorHex = "#D69D85", Category = "String" },
-                new SyntaxRule { Pattern = @"\b(section|global|extern|db|dw|dd|dq|resb|resw|resd|resq)\b", ColorHex = "#C586C0", Category = "Keyword" },
-                new SyntaxRule { Pattern = @"\b(0x[0-9a-fA-F]+|[0-9]+)\b", ColorHex = "#B5CEA8", Category = "Number" }
+                // Instructions
+                new SyntaxRule { Pattern = @"\b(mov|add|sub|inc|dec|mul|div|jmp|je|jne|jg|jl|jge|jle|cmp|push|pop|call|ret|int|syscall|nop|lea|xor|and|or|not|shl|shr)\b", ColorHex = "#569CD6", IsBold = true },
+                // Directives
+                new SyntaxRule { Pattern = @"\b(equ|resb|resw|resd|resq|db|dw|dd|dq|bits|section|global|extern|align|times|org|struc|endstruc|struct)\b", ColorHex = "#D8A0DF" },
+                // Registers
+                new SyntaxRule { Pattern = @"\b(eax|ebx|ecx|edx|esi|edi|esp|ebp|rax|rbx|rcx|rdx|rsi|rdi|rsp|rbp|ax|bx|cx|dx|si|di|sp|bp|al|ah|bl|bh|cl|ch|dl|dh|r\d+[dbw]?|xmm\d+|ymm\d+|zmm\d+|cs|ds|es|fs|gs|ss)\b", ColorHex = "#9CDCFE" },
+                // Comments
+                new SyntaxRule { Pattern = @";.*", ColorHex = "#6A9955" },
+                // Struct members / labels starting with dot (e.g. .Type)
+                new SyntaxRule { Pattern = @"(?<=\s|^)\.\w+", ColorHex = "#4EC9B0" },
+                // Strings
+                new SyntaxRule { Pattern = @"'[^']*'|""[^""]*""", ColorHex = "#D69D85" },
+                // Numbers
+                new SyntaxRule { Pattern = @"\b(0x[0-9a-fA-F]+|[0-9]+h?)\b", ColorHex = "#B5CEA8" }
+            }},
+            { ".lua", new List<SyntaxRule> {
+                new SyntaxRule { Pattern = @"\b(and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)\b", ColorHex = "#569CD6", IsBold = true },
+                new SyntaxRule { Pattern = @"\b(print|math|string|table|require)\b", ColorHex = "#4EC9B0" },
+                new SyntaxRule { Pattern = @"--.*|--\[\[[\s\S]*?\]\]", ColorHex = "#6A9955" },
+                new SyntaxRule { Pattern = @"""[^""]*""|'[^']*'|\[\[[\s\S]*?\]\]", ColorHex = "#D69D85" }
+            }},
+            { ".sql", new List<SyntaxRule> {
+                new SyntaxRule { Pattern = @"\b(SELECT|FROM|WHERE|INSERT|INTO|UPDATE|DELETE|CREATE|TABLE|DROP|ALTER|JOIN|ON|GROUP|BY|ORDER|VALUES|AND|OR|NOT|AS|PRIMARY|KEY)\b", ColorHex = "#569CD6", IsBold = true },
+                new SyntaxRule { Pattern = @"\b(int|varchar|nvarchar|text|date|datetime|bit|decimal)\b", ColorHex = "#4EC9B0" },
+                new SyntaxRule { Pattern = @"--.*|/\*[\s\S]*?\*/", ColorHex = "#6A9955" },
+                new SyntaxRule { Pattern = @"'[^']*'", ColorHex = "#D69D85" }
             }}
         };
 
         private static readonly Dictionary<string, string[]> LanguageKeywords = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
-            { ".cs", new[] { "public", "private", "protected", "internal", "static", "void", "string", "int", "bool", "var", "if", "else", "foreach", "while", "return", "class", "namespace", "using", "async", "await", "task", "override", "virtual", "new", "get", "set", "value", "delegate", "event" } },
-            { ".js", new[] { "const", "let", "var", "function", "return", "if", "else", "for", "while", "import", "export", "default", "async", "await", "try", "catch", "throw", "new", "this", "super", "class" } },
-            { ".ts", new[] { "const", "let", "var", "function", "return", "if", "else", "for", "while", "import", "export", "default", "async", "await", "try", "catch", "interface", "type", "enum", "class", "namespace", "private", "public", "protected" } },
-            { ".py", new[] { "def", "class", "return", "if", "else", "elif", "for", "while", "import", "from", "as", "try", "except", "with", "async", "await", "print", "yield", "lambda", "None", "True", "False" } },
-            { ".json", new[] { "true", "false", "null" } },
-            { ".md", new[] { "TODO", "FIXME", "NOTE", "WARNING", "IMPORTANT", "HINT" } },
-            { ".asm", new[] { "mov", "add", "sub", "inc", "dec", "mul", "div", "jmp", "je", "jne", "jg", "jl", "jge", "jle", "cmp", "push", "pop", "call", "ret", "int", "syscall", "section", "global", "extern", "db", "dw", "dd", "dq", "resb", "resw", "resd", "resq" } },
-            { ".xaml", new[] { "Grid", "Border", "StackPanel", "TextBlock", "TextBox", "Button", "ComboBox", "CheckBox", "Canvas", "ScrollViewer", "Grid.Row", "Grid.Column", "IsVisible", "Visibility", "Background", "Foreground", "HorizontalAlignment", "VerticalAlignment", "Margin", "Padding" } }
+            { ".cs", new[] { "public", "private", "protected", "internal", "static", "void", "string", "int", "bool", "var", "if", "else", "foreach", "while", "return", "class", "namespace", "using", "async", "await", "task" } },
+            { ".cpp", new[] { "int", "double", "float", "char", "bool", "void", "class", "struct", "public", "private", "protected", "static", "virtual", "return", "if", "else", "for", "while" } },
+            { ".lua", new[] { "and", "break", "do", "else", "elseif", "end", "false", "for", "function", "if", "in", "local", "nil", "not", "or", "repeat", "return", "then", "true", "until", "while" } },
+            { ".sql", new[] { "SELECT", "FROM", "WHERE", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "TABLE", "JOIN", "VALUES" } },
+            { ".asm", new[] { "mov", "add", "sub", "inc", "dec", "jmp", "je", "jne", "cmp", "push", "pop", "call", "ret", "equ", "resb", "resw", "resd", "resq", "bits", "section", "struc", "endstruc" } }
         };
-
-        /// <summary>
-        /// Extracts local symbols (variable names, method names) from the current file text using regex.
-        /// </summary>
-        public static List<AutocompleteSuggestion> ExtractLocalSymbols(string text, string extension)
-        {
-            var symbols = new HashSet<string>();
-
-            // Generic word-based symbol extraction (variable-like strings)
-            var matches = Regex.Matches(text, @"\b[a-zA-Z_][a-zA-Z0-9_]{3,}\b");
-            foreach (Match m in matches) symbols.Add(m.Value);
-
-            // Language-specific patterns
-            if (extension.Equals(".cs", StringComparison.OrdinalIgnoreCase))
-            {
-                // Extract Method names: void MethodName(
-                var methodMatches = Regex.Matches(text, @"\b(?:public|private|protected|internal|static)?\s+\w+\s+(?<name>\w+)\s*\(");
-                foreach (Match m in methodMatches) symbols.Add(m.Groups["name"].Value);
-            }
-
-            return symbols.Select(s => new AutocompleteSuggestion
-            {
-                Text = s,
-                Description = "Local Symbol",
-                Icon = "💎"
-            }).ToList();
-        }
-
-        private static readonly string[] DotNetBaseTypes = new[] { "Task", "List", "Dictionary", "Enumerable", "Console", "StringBuilder", "DateTime", "Guid", "Thread", "Regex", "HttpClient", "JsonSerializer", "File", "Directory", "Path", "Math", "Exception" };
-        private static readonly string[] AsmRegisters = new[] { "rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rsp", "rbp", "eax", "ebx", "ecx", "edx", "esi", "edi", "esp", "ebp", "ax", "bx", "cx", "dx", "al", "ah", "bl", "bh", "cl", "ch", "dl", "dh" };
 
         public static List<AutocompleteSuggestion> GetSuggestions(string currentLinePrefix, string extension, string fullText)
         {
             var results = new List<AutocompleteSuggestion>();
             string lastWord = Regex.Match(currentLinePrefix, @"\b\w*$").Value;
-
             if (string.IsNullOrEmpty(lastWord)) return results;
 
-            // 1. Language Keywords (Top Priority)
             if (LanguageKeywords.TryGetValue(extension, out var keywords))
             {
                 foreach (var kw in keywords.Where(k => k.StartsWith(lastWord, StringComparison.OrdinalIgnoreCase)))
@@ -117,27 +106,6 @@ namespace JarvisLauncher
                 }
             }
 
-            // 2. Language Specific Extras
-            if (extension.Equals(".cs", StringComparison.OrdinalIgnoreCase))
-            {
-                foreach (var type in DotNetBaseTypes.Where(t => t.StartsWith(lastWord, StringComparison.OrdinalIgnoreCase)))
-                {
-                    results.Add(new AutocompleteSuggestion { Text = type, Description = "System Type", Icon = "🏛️", Score = 0.95 });
-                }
-            }
-            else if (extension.Equals(".asm", StringComparison.OrdinalIgnoreCase))
-            {
-                foreach (var reg in AsmRegisters.Where(r => r.StartsWith(lastWord, StringComparison.OrdinalIgnoreCase)))
-                {
-                    results.Add(new AutocompleteSuggestion { Text = reg, Description = "Register", Icon = "📟", Score = 0.95 });
-                }
-            }
-
-            // 3. Project-wide Symbols (Compiler-like behavior)
-            var projectSymbols = ProjectSymbolIndexer.GetProjectSuggestions(lastWord);
-            results.AddRange(projectSymbols);
-
-            // 4. Local Symbols (In-file variables)
             var localSymbols = ExtractLocalSymbols(fullText, extension);
             foreach (var s in localSymbols.Where(s => s.Text.StartsWith(lastWord, StringComparison.OrdinalIgnoreCase)))
             {
@@ -149,33 +117,26 @@ namespace JarvisLauncher
             return results.OrderByDescending(r => r.Score).Take(15).ToList();
         }
 
-        public static string GetOfflineGhostPrediction(string currentLine, string extension)
-        {
-            // Simple logic: if line ends with '(', suggest ')' or 'arg'
-            if (currentLine.EndsWith("(") && extension == ".cs") return ")";
-            if (currentLine.EndsWith("{") && extension == ".cs") return "\n    \n}";
-            return "";
-        }
-
-        /// <summary>
-        /// Orchestrates an AI call to get a prediction for the next block of code.
-        /// </summary>
-        public static async Task<string> GetAiAutocompleteAsync(string contextBefore, string contextAfter, string extension)
+        public static async Task<string> GetAiExplanationAsync(string symbol, string codeContext, string extension)
         {
             try
             {
-                string prompt = $"## TASK\nPredict the next 1-3 lines of code for a {extension} file.\n\n" +
-                               "## CONTEXT BEFORE CURSOR\n" + contextBefore.TakeLast(2000) + "\n" +
-                               "## CONTEXT AFTER CURSOR\n" + contextAfter.Take(500) + "\n\n" +
-                               "## RULES\n" +
-                               "1. Provide ONLY the raw code to be inserted.\n" +
-                               "2. Do NOT use markdown backticks.\n" +
-                               "3. If unsure, return an empty string.";
+                string prompt = $"### TASK\nBriefly explain what the symbol '{symbol}' does in the context of this {extension} code. " +
+                               "If it looks like a variable, describe its likely purpose. If it's a keyword, explain its function.\n\n" +
+                               "### CONTEXT\n" + codeContext.TakeLast(1000) + "\n\n" +
+                               "### RULES\n1. Be extremely concise (10 words max).\n2. No preamble.";
 
-                string prediction = await LlmRouter.AskAsync(prompt);
-                return AiAPI.SanitizeText(prediction).Trim();
+                return await LlmRouter.AskAsync(prompt);
             }
-            catch { return ""; }
+            catch { return "No explanation available."; }
+        }
+
+        public static List<AutocompleteSuggestion> ExtractLocalSymbols(string text, string extension)
+        {
+            var symbols = new HashSet<string>();
+            var matches = Regex.Matches(text, @"\b[a-zA-Z_][a-zA-Z0-9_]{3,}\b");
+            foreach (Match m in matches) symbols.Add(m.Value);
+            return symbols.Select(s => new AutocompleteSuggestion { Text = s, Description = "Local Symbol", Icon = "💎" }).ToList();
         }
     }
 }

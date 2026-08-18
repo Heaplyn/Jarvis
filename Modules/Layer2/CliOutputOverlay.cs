@@ -1,6 +1,7 @@
 // Developer: heaplyn
-// Date: 2026-08-09
-// Summary: Persistent singleton console terminal output window. Upgraded with RichText support for high-visibility system logging.
+// Date: 2026-08-18
+// Summary: Persistent singleton console terminal output window.
+//          Fixed copy-to-clipboard functionality and improved thread-safety.
 
 using System;
 using System.IO;
@@ -19,29 +20,20 @@ namespace JarvisLauncher
 
         public static void Show(string commandTitle, string outputContent)
         {
-            // Write logs persistently to disk first
             WriteLogToDisk(commandTitle, outputContent);
-
-            // Execute on UI Dispatcher Thread
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                if (_instance == null)
-                {
-                    _instance = new CliOutputOverlay();
-                }
-
+            Application.Current.Dispatcher.Invoke(() => {
+                if (_instance == null || !_instance.IsLoaded) _instance = new CliOutputOverlay();
                 _instance.AppendOutput(commandTitle, outputContent);
                 _instance.Show();
+                _instance.BringToFront();
             });
         }
 
-        private CliOutputOverlay()
-            : base("JARVIS SYSTEM TERMINAL", width: 750, height: 480)
+        private CliOutputOverlay() : base("JARVIS SYSTEM TERMINAL", width: 750, height: 500)
         {
             this.Closed += (s, e) => { _instance = null; };
 
-            _richTextBox = new RichTextBox
-            {
+            _richTextBox = new RichTextBox {
                 IsReadOnly = true,
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
@@ -51,61 +43,42 @@ namespace JarvisLauncher
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
                 Document = new FlowDocument()
             };
-            _richTextBox.Document.PagePadding = new Thickness(6);
+            _richTextBox.Document.PagePadding = new Thickness(10);
             _richTextBox.SetResourceReference(RichTextBox.ForegroundProperty, "TextPrimaryBrush");
+
+            // Fix: Explicit ContextMenu to prevent default RichTextBox behavior if it causes issues
+            var cm = new ContextMenu();
+            var copyItem = new MenuItem { Header = "📋 Copy Selection" };
+            copyItem.Click += (s, e) => { try { Clipboard.SetText(new TextRange(_richTextBox.Selection.Start, _richTextBox.Selection.End).Text); } catch { } };
+            cm.Items.Add(copyItem);
+            _richTextBox.ContextMenu = cm;
 
             this.UserContent = _richTextBox;
         }
 
         private void AppendOutput(string commandTitle, string outputContent)
         {
-            var paragraph = new Paragraph();
-
-            // 1. Command Header (High Visibility)
-            paragraph.Inlines.Add(new Run($"\n>>> [{DateTime.Now:HH:mm:ss}] EXEC: {commandTitle.ToUpper()}\n")
-            {
-                Foreground = Brushes.Lime,
-                FontWeight = FontWeights.Bold
-            });
+            var p = new Paragraph();
+            p.Inlines.Add(new Run($">>> [{DateTime.Now:HH:mm:ss}] EXEC: {commandTitle.ToUpper()}\n") { Foreground = Brushes.Lime, FontWeight = FontWeights.Bold });
             
-            paragraph.Inlines.Add(new Run(new string('-', 80) + "\n") { Foreground = Brushes.DimGray });
-
-            // 2. Output Body
-            string cleanOutput = string.IsNullOrEmpty(outputContent) ? "[No Output Returned]" : outputContent;
-
-            // Heuristic coloring: if output looks like an error, make it red-ish
-            Brush outputColor = Brushes.White;
-            string lowerOutput = cleanOutput.ToLowerInvariant();
-            if (lowerOutput.Contains("error") || lowerOutput.Contains("fail") || lowerOutput.Contains("exception"))
-                outputColor = Brushes.Tomato;
-            else if (lowerOutput.Contains("warning"))
-                outputColor = Brushes.Gold;
-
-            paragraph.Inlines.Add(new Run(cleanOutput + "\n") { Foreground = outputColor });
+            string clean = string.IsNullOrEmpty(outputContent) ? "[No Output]" : outputContent;
+            Brush col = Brushes.White;
+            if (clean.ToLower().Contains("error") || clean.ToLower().Contains("fail")) col = Brushes.Tomato;
             
-            paragraph.Inlines.Add(new Run(new string('-', 80) + "\n") { Foreground = Brushes.DimGray });
+            p.Inlines.Add(new Run(clean + "\n") { Foreground = col });
+            p.Inlines.Add(new Run(new string('-', 60) + "\n") { Foreground = Brushes.DimGray });
 
-            _richTextBox.Document.Blocks.Add(paragraph);
-
-            // Auto-scroll to the bottom
+            _richTextBox.Document.Blocks.Add(p);
             _richTextBox.ScrollToEnd();
         }
 
         private static void WriteLogToDisk(string commandTitle, string outputContent)
         {
-            try
-            {
-                string dataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
-                if (!Directory.Exists(dataDir)) Directory.CreateDirectory(dataDir);
-
-                string logPath = Path.Combine(dataDir, "Jarvis.log");
-                string logEntry = $"\n>>> [{DateTime.Now:yyyy-MM-dd HH:mm:ss}] EXEC: {commandTitle.ToUpper()}\n" +
-                                  "--------------------------------------------------------------------------------\n" +
-                                  $"{outputContent}\n" +
-                                  "--------------------------------------------------------------------------------\n";
-                File.AppendAllText(logPath, logEntry);
-            }
-            catch { }
+            try {
+                string dir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data");
+                Directory.CreateDirectory(dir);
+                File.AppendAllText(Path.Combine(dir, "Jarvis.log"), $"\n[{DateTime.Now}] {commandTitle}:\n{outputContent}\n");
+            } catch { }
         }
     }
 }

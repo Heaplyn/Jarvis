@@ -71,6 +71,7 @@ namespace JarvisLauncher
             } catch { }
         }
 
+        // --- STATIC BRIDGES ---
         public static List<AppInfo> GetMatchingApps(string query) => CoreRegistry.Apps.GetMatchingApps(query);
         public static void IndexApplicationsGlobal(bool force = false) => ((WindowsAppScanner)CoreRegistry.Apps).IndexApplications(force);
     }

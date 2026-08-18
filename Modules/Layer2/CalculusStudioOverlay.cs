@@ -1,12 +1,11 @@
 // Developer: heaplyn
 // Date: 2026-08-17
-// Summary: Advanced Calculus & Symbolic Math Studio (Purely Offline).
+// Summary: Advanced Calculus & Symbolic Math Studio.
 
 using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Threading.Tasks;
 using System.Linq;
@@ -30,7 +29,7 @@ namespace JarvisLauncher
             });
         }
 
-        private CalculusStudioOverlay() : base("JARVIS CALCULUS STUDIO (OFFLINE)", 600, 700)
+        private CalculusStudioOverlay() : base("JARVIS CALCULUS STUDIO", 600, 700)
         {
             _instance = this;
             this.Closed += (s, e) => _instance = null;
@@ -49,7 +48,7 @@ namespace JarvisLauncher
             _historyScroll = new ScrollViewer { Content = _historyPanel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             Grid.SetRow(_historyScroll, 1); layout.Children.Add(_historyScroll);
 
-            var toolbar = new UniformGrid { Columns = 5, Margin = new Thickness(0, 10, 0, 0) };
+            var toolbar = new System.Windows.Controls.Primitives.UniformGrid { Columns = 5, Margin = new Thickness(0, 10, 0, 0) };
             toolbar.Children.Add(CreateStyledButton("DIFF", (s, e) => AddCommand("diff ")));
             toolbar.Children.Add(CreateStyledButton("GRAPH", (s, e) => AddCommand("/graph ")));
             toolbar.Children.Add(CreateStyledButton("TRIG", (s, e) => AddCommand("sin(")));
@@ -62,7 +61,7 @@ namespace JarvisLauncher
 
         private void AddCommand(string cmd) { _inputBox.Text += cmd; _inputBox.CaretIndex = _inputBox.Text.Length; _inputBox.Focus(); }
 
-        private void SolveCurrent()
+        private async void SolveCurrent()
         {
             string query = _inputBox.Text.Trim(); if (string.IsNullOrEmpty(query)) return;
             _inputBox.Clear();
@@ -70,7 +69,13 @@ namespace JarvisLauncher
             if (query.StartsWith("/")) { HandleSlashCommand(query); return; }
 
             var item = AddHistoryItem(query, "Calculating...");
-            try { UpdateHistoryItem(item, CoreRegistry.Math.Evaluate(query)); }
+
+            try
+            {
+                // Run evaluation off-thread to prevent UI hang
+                string res = await Task.Run(() => CoreRegistry.Math.Evaluate(query));
+                UpdateHistoryItem(item, res);
+            }
             catch (Exception ex) { UpdateHistoryItem(item, "Error: " + ex.Message); }
         }
 
@@ -83,14 +88,22 @@ namespace JarvisLauncher
             switch (action)
             {
                 case "/graph":
-                    new GraphOverlay(args).Show();
-                    AddHistoryItem(cmd, $"Plotted graph for: {args}");
+                    if (string.IsNullOrEmpty(args)) AddHistoryItem(cmd, "Usage: /graph <expression with x>");
+                    else { new GraphOverlay(args).Show(); AddHistoryItem(cmd, $"Plotted graph: {args}"); }
                     break;
                 case "/clear":
                     _historyPanel.Children.Clear();
                     break;
+                case "/analyze":
+                    Task.Run(async () => {
+                        AddHistoryItem(cmd, "AI performing deep math analysis...");
+                        string prompt = $"Perform detailed step-by-step math analysis of: {args}";
+                        string res = await CoreRegistry.Llm.AskAsync(prompt);
+                        Application.Current.Dispatcher.Invoke(() => AddHistoryItem("AI ANALYSIS", res));
+                    });
+                    break;
                 case "/help":
-                    AddHistoryItem(cmd, "Available: /graph <expr>, /clear, /help");
+                    AddHistoryItem(cmd, "Available: /graph <expr>, /analyze <expr>, /clear, /help");
                     break;
                 default:
                     AddHistoryItem(cmd, "Unknown slash command.");
@@ -101,10 +114,17 @@ namespace JarvisLauncher
         private Border AddHistoryItem(string q, string r)
         {
             var b = new Border { Background = new SolidColorBrush(Color.FromArgb(15, 255, 255, 255)), BorderThickness = new Thickness(0, 0, 0, 1), BorderBrush = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)), Padding = new Thickness(10), Margin = new Thickness(0, 0, 0, 5) };
-            var s = new StackPanel(); s.Children.Add(new TextBlock { Text = q, Foreground = Brushes.Gray, FontSize = 11 }); s.Children.Add(new TextBlock { Text = r, Foreground = Brushes.White, FontSize = 14, TextWrapping = TextWrapping.Wrap });
+            var s = new StackPanel();
+            s.Children.Add(new TextBlock { Text = q, Foreground = Brushes.Gray, FontSize = 10, FontWeight = FontWeights.Bold });
+            s.Children.Add(new TextBlock { Text = r, Foreground = Brushes.White, FontSize = 14, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,4,0,0) });
             b.Child = s; _historyPanel.Children.Insert(0, b); return b;
         }
 
-        private void UpdateHistoryItem(Border i, string r) { var t = (TextBlock)((StackPanel)i.Child).Children[1]; t.Text = r; }
+        private void UpdateHistoryItem(Border i, string r) {
+            Application.Current.Dispatcher.Invoke(() => {
+                var t = (TextBlock)((StackPanel)i.Child).Children[1];
+                t.Text = r;
+            });
+        }
     }
 }

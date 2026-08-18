@@ -16,6 +16,15 @@ namespace JarvisLauncher
     public class SystemSpecsOverlay : BaseOverlay
     {
         private static SystemSpecsOverlay? _instance;
+        public static void ShowOverlay()
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (_instance == null || !_instance.IsLoaded) _instance = new SystemSpecsOverlay();
+                _instance.Show();
+                _instance.BringToFront();
+            });
+        }
 
         public static void ShowSpecs()
         {

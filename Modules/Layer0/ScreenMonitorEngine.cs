@@ -101,8 +101,17 @@ namespace JarvisLauncher
                 try
                 {
                     Directory.CreateDirectory(ScreenshotDir);
-                    int screenWidth = (int)SystemParameters.PrimaryScreenWidth;
-                    int screenHeight = (int)SystemParameters.PrimaryScreenHeight;
+
+                    // STA Fix: Access SystemParameters via Dispatcher
+                    int screenWidth = 1920;
+                    int screenHeight = 1080;
+
+                    if (Application.Current != null) {
+                        Application.Current.Dispatcher.Invoke(() => {
+                            screenWidth = (int)SystemParameters.PrimaryScreenWidth;
+                            screenHeight = (int)SystemParameters.PrimaryScreenHeight;
+                        });
+                    }
 
                     using var bmp = new Bitmap(screenWidth, screenHeight, PixelFormat.Format32bppArgb);
                     using (var g = Graphics.FromImage(bmp))

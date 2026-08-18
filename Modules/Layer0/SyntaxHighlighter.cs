@@ -1,7 +1,8 @@
 // Developer: heaplyn
-// Date: 2026-08-16
+// Date: 2026-08-18
 // Summary: High-performance syntax highlighter for WPF RichTextBox.
-//          Applies formatting to the EXISTING document to preserve the Undo/Redo stack.
+//          Fixes the "broken words" issue by using a robust tokenization method
+//          and avoiding offset drift caused by document tags.
 
 using System;
 using System.Collections.Generic;
@@ -20,61 +21,55 @@ namespace JarvisLauncher
         {
             if (!EditorIntelligenceManager.SyntaxHighlightingRules.TryGetValue(extension, out var rules)) return;
 
-            // Use TextRange to get and set properties without wiping the document
-            var totalRange = new TextRange(rtb.Document.ContentStart, rtb.Document.ContentEnd);
-            string text = totalRange.Text.Replace("\r\n", "\n");
+            var document = rtb.Document;
+            var totalRange = new TextRange(document.ContentStart, document.ContentEnd);
+            string text = totalRange.Text;
 
-            if (text.Length > 100000) return;
+            // Normalize line endings for regex consistency
+            string normalizedText = text.Replace("\r\n", "\n");
+            if (normalizedText.Length > 100000) return;
 
-            // 1. Clear all formatting FIRST (reset to default)
-            totalRange.ClearAllProperties();
-            totalRange.ApplyPropertyValue(TextElement.ForegroundProperty, Brushes.White);
-            totalRange.ApplyPropertyValue(TextElement.FontWeightProperty, FontWeights.Normal);
+            rtb.BeginChange();
+            try {
+                // 1. Reset all formatting to default base state
+                totalRange.ClearAllProperties();
+                totalRange.ApplyPropertyValue(TextElement.ForegroundProperty, Brushes.White);
+                totalRange.ApplyPropertyValue(TextElement.FontWeightProperty, FontWeights.Normal);
 
-            // 2. Find all matches
-            var matches = new List<(int Index, int Length, SyntaxRule Rule)>();
-            foreach (var rule in rules)
-            {
-                foreach (Match m in Regex.Matches(text, rule.Pattern, RegexOptions.Compiled | RegexOptions.Multiline))
-                {
-                    matches.Add((m.Index, m.Length, rule));
+                // 2. Map matches using indices on the normalized text
+                var matches = new List<(int Index, int Length, SyntaxRule Rule)>();
+                foreach (var rule in rules) {
+                    // Use word boundaries for keywords/registers to avoid partial matches (e.g., 'di' in 'Pointer')
+                    foreach (Match m in Regex.Matches(normalizedText, rule.Pattern, RegexOptions.Compiled | RegexOptions.Multiline)) {
+                        matches.Add((m.Index, m.Length, rule));
+                    }
                 }
-            }
 
-            // 3. Sort by position and apply forward-only
-            var sorted = matches.OrderBy(m => m.Index).ToList();
+                // 3. Apply matches in forward order using a reliable offset mapper
+                var sorted = matches.OrderBy(m => m.Index).ToList();
+                TextPointer startPos = document.ContentStart;
 
-            // To avoid quadratic performance, we use a single forward-moving pointer
-            TextPointer currentPointer = rtb.Document.ContentStart;
-            int lastOffset = 0;
+                foreach (var m in sorted) {
+                    TextPointer p1 = GetPointAtOffset(startPos, m.Index);
+                    TextPointer p2 = GetPointAtOffset(p1, m.Length);
 
-            foreach (var m in sorted)
-            {
-                // Move to start of match
-                TextPointer start = GetPointAtOffset(currentPointer, m.Index - lastOffset);
-                if (start == null) break;
-
-                // Move to end of match
-                TextPointer end = GetPointAtOffset(start, m.Length);
-                if (end == null) break;
-
-                var matchRange = new TextRange(start, end);
-                try {
-                    var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(m.Rule.ColorHex));
-                    matchRange.ApplyPropertyValue(TextElement.ForegroundProperty, brush);
-                    if (m.Rule.IsBold) matchRange.ApplyPropertyValue(TextElement.FontWeightProperty, FontWeights.Bold);
-                } catch { }
-
-                // Sync for next iteration
-                currentPointer = start;
-                lastOffset = m.Index;
-            }
+                    if (p1 != null && p2 != null) {
+                        var range = new TextRange(p1, p2);
+                        try {
+                            var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(m.Rule.ColorHex));
+                            range.ApplyPropertyValue(TextElement.ForegroundProperty, brush);
+                            if (m.Rule.IsBold) range.ApplyPropertyValue(TextElement.FontWeightProperty, FontWeights.Bold);
+                        } catch { }
+                    }
+                }
+            } finally { rtb.EndChange(); }
         }
 
         private static TextPointer GetPointAtOffset(TextPointer start, int offset)
         {
             TextPointer p = start;
             int count = 0;
+
             while (p != null && count < offset)
             {
                 var context = p.GetPointerContext(LogicalDirection.Forward);
@@ -87,9 +82,16 @@ namespace JarvisLauncher
                     }
                     count += runLength;
                 }
-                p = p.GetNextContextPosition(LogicalDirection.Forward);
+                else if (context == TextPointerContext.ElementStart || context == TextPointerContext.ElementEnd)
+                {
+                    // Symbols like paragraph tags or runs don't count towards the character offset in normalized text
+                }
+
+                TextPointer next = p.GetNextContextPosition(LogicalDirection.Forward);
+                if (next == null || next.CompareTo(p) == 0) break;
+                p = next;
             }
-            return (count == offset) ? p : null;
+            return p;
         }
     }
 }
