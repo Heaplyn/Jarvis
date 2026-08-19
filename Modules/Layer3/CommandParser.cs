@@ -16,7 +16,7 @@ namespace JarvisLauncher
 {
     public enum CommandType
     {
-        MATH, VOLUME, LOCK, RESTART, OPACITY, TIMER, SYSTEM_STATS, LOCAL_IP, BRIGHTNESS, CLI_RUNNER, APP_LAUNCHER, VIEW_FILE, SETTINGS, AI, RECYCLE_BIN, PROCESS_KILLER, POWER, ALIAS, TEXT_OPACITY, GIT_PUSH, COMMANDS, GIT_SETUP, LOGS, DOWNLOAD_PATH, EXIT, UPDATE, POWERSHELL, UPDATE_COMPUTER, SYS_INFO, SEARCH_LAUNCHER, SCREENSHOT, MUTE, CLIPBOARD, TODO, THEME, EDIT, OPEN, GRID, PRODUCTIVITY, EXTRA_FEATURES, NEW_IDEAS, MUSIC_PLAYLIST, STICKY_NOTE, GAME_DEV_TOOLBOX, FFMPEG, LLM, PHONE, DIAGNOSTICS, WEB_SCRAPING, CALENDAR, REMINDERS, FILE_ORGANIZER, SCREEN_ANALYSIS, BACKGROUND, VOICE_STUDIO, HELP_CENTER, ANIMATION_OPTIONS, EXPANDED_COMMANDS, ORGANIZATION_TOOLS, ADHD_FOCUS_SUITE, MCP, OAUTH2, CODE_ASSIST, IPA_COMPILER, INSTALL, TTS, BIOMETRICS, TEMPLATE, TEACHER, UNINSTALL, WEB_OP, DATABASE, BUILD, DEBUGGER, STORAGE, CODE_EDITOR, MOBILE, TUNNEL, FILE_GRID, CLIPBOARD_HISTORY, NETWORK, GCLOUD, GODELLIAN
+        MATH, VOLUME, LOCK, RESTART, OPACITY, TIMER, SYSTEM_STATS, LOCAL_IP, BRIGHTNESS, CLI_RUNNER, APP_LAUNCHER, VIEW_FILE, SETTINGS, AI, RECYCLE_BIN, PROCESS_KILLER, POWER, ALIAS, TEXT_OPACITY, GIT_PUSH, COMMANDS, GIT_SETUP, LOGS, DOWNLOAD_PATH, EXIT, UPDATE, POWERSHELL, UPDATE_COMPUTER, SYS_INFO, SEARCH_LAUNCHER, SCREENSHOT, MUTE, CLIPBOARD, TODO, THEME, EDIT, OPEN, GRID, PRODUCTIVITY, EXTRA_FEATURES, NEW_IDEAS, MUSIC_PLAYLIST, STICKY_NOTE, GAME_DEV_TOOLBOX, FFMPEG, LLM, PHONE, DIAGNOSTICS, WEB_SCRAPING, CALENDAR, REMINDERS, FILE_ORGANIZER, SCREEN_ANALYSIS, BACKGROUND, VOICE_STUDIO, HELP_CENTER, ANIMATION_OPTIONS, EXPANDED_COMMANDS, ORGANIZATION_TOOLS, ADHD_FOCUS_SUITE, MCP, OAUTH2, CODE_ASSIST, IPA_COMPILER, INSTALL, TTS, BIOMETRICS, TEMPLATE, TEACHER, UNINSTALL, WEB_OP, DATABASE, BUILD, DEBUGGER, STORAGE, CODE_EDITOR, MOBILE, TUNNEL, FILE_GRID, CLIPBOARD_HISTORY, NETWORK, GCLOUD, GODELLIAN, DATASET
     };
 
     public static class CommandParser
@@ -32,6 +32,7 @@ namespace JarvisLauncher
             RegisterHandler(CommandType.AI, "AI Assistant", () => new AiCommandHandler());
             RegisterHandler(CommandType.LLM, "LLM Settings", () => new LLMCommandHandler());
             RegisterHandler(CommandType.GODELLIAN, "Intelligence Core", () => new GodellianCommandHandler());
+            RegisterHandler(CommandType.DATASET, "Dataset Harvester", () => new DatasetCommandHandler());
             RegisterHandler(CommandType.GCLOUD, "Google Cloud", () => new GCloudCommandHandler());
             RegisterHandler(CommandType.HELP_CENTER, "Help Hub", () => new HelpCommandHandler());
             RegisterHandler(CommandType.DEBUGGER, "System Debugger", () => new DebuggerCommandHandler());
@@ -164,7 +165,17 @@ namespace JarvisLauncher
             foreach (var h in HANDLERS.Values)
             {
                 try {
-                    if (h.Item2.CanHandle(LowerExpanded) || h.Item2.CanHandle(NoSpacesQuery))
+                    // Optimized Proactive Gating: Call handler if it claims the query OR if query is a strong partial match for its commands
+                    bool match = h.Item2.CanHandle(LowerExpanded) || h.Item2.CanHandle(NoSpacesQuery);
+
+                    if (!match)
+                    {
+                        var descs = h.Item2.GetCommandDescriptions();
+                        if (descs != null && descs.Any(d => SearchUtil.IsClose(LowerExpanded, d.COMMAND_NAME)))
+                            match = true;
+                    }
+
+                    if (match)
                     {
                         var res = h.Item2.GetSuggestions(ExpandedQuery);
                         if (res != null) Suggestions.AddRange(res);

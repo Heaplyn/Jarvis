@@ -362,7 +362,7 @@ namespace JarvisLauncher
             string name = cmd.COMMAND_NAME.ToLower();
             string desc = (cmd.COMMAND_DESCRIPTION ?? "").ToLower();
 
-            if (name.Contains("ai") || name.Contains("gemini") || name.Contains("chat") || name.Contains("copilot") || name.Contains("mcp") || name.Contains("oauth") || name.Contains("login") || name.Contains("auth") || name.Contains("llm") || name.Contains("perplexity") || name.Contains("claude") || name.Contains("groq") || name.Contains("translate") || name.Contains("analyze"))
+            if (name.Contains("dataset") || name.Contains("harvest") || name.Contains("ai") || name.Contains("gemini") || name.Contains("chat") || name.Contains("copilot") || name.Contains("mcp") || name.Contains("oauth") || name.Contains("login") || name.Contains("auth") || name.Contains("llm") || name.Contains("perplexity") || name.Contains("claude") || name.Contains("groq") || name.Contains("translate") || name.Contains("analyze"))
             {
                 return "🤖 AI, LLM & MCP";
             }
@@ -370,7 +370,7 @@ namespace JarvisLauncher
             {
                 return "💻 Developer Tools";
             }
-            if (name.Contains("voice") || name.Contains("dataset") || name.Contains("mic") || name.Contains("silence") || name.Contains("noise") || name.Contains("confidence") || name.Contains("gate") || name.Contains("stt") || name.Contains("speech") || name.Contains("biometrics"))
+            if (name.Contains("voice") || name.Contains("mic") || name.Contains("silence") || name.Contains("noise") || name.Contains("confidence") || name.Contains("gate") || name.Contains("stt") || name.Contains("speech") || name.Contains("biometrics"))
             {
                 return "🎙️ Voice Studio";
             }

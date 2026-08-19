@@ -114,21 +114,17 @@ namespace JarvisLauncher
                 {
                     Directory.CreateDirectory(ScreenshotDir);
 
-                    // STA Fix: Access SystemParameters via Dispatcher
-                    int screenWidth = 1920;
-                    int screenHeight = 1080;
-
-                    if (Application.Current != null) {
-                        Application.Current.Dispatcher.Invoke(() => {
-                            screenWidth = (int)SystemParameters.PrimaryScreenWidth;
-                            screenHeight = (int)SystemParameters.PrimaryScreenHeight;
-                        });
-                    }
+                    // Use VirtualScreen to capture ALL monitors if present, or at least full resolution
+                    var virtualScreen = System.Windows.Forms.SystemInformation.VirtualScreen;
+                    int screenWidth = virtualScreen.Width;
+                    int screenHeight = virtualScreen.Height;
+                    int left = virtualScreen.Left;
+                    int top = virtualScreen.Top;
 
                     using var bmp = new Bitmap(screenWidth, screenHeight, PixelFormat.Format32bppArgb);
                     using (var g = Graphics.FromImage(bmp))
                     {
-                        g.CopyFromScreen(0, 0, 0, 0, bmp.Size, CopyPixelOperation.SourceCopy);
+                        g.CopyFromScreen(left, top, 0, 0, bmp.Size, CopyPixelOperation.SourceCopy);
                     }
 
                     bmp.Save(LatestScreenshotPath, ImageFormat.Png);

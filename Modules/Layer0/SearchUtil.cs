@@ -46,7 +46,15 @@ namespace JarvisLauncher
             query  = query.ToLower().Trim();
             target = target.ToLower().Trim();
 
-            if (target.StartsWith(query) || target.Contains(query))
+            // Aggressive Prefix: If typing the start of any word in the target
+            if (target.StartsWith(query) || target.Contains(" " + query))
+                return true;
+
+            if (target.Contains(query))
+                return true;
+
+            // Short string prefix boost (e.g. "l" matches "llm")
+            if (query.Length >= 1 && target.StartsWith(query))
                 return true;
 
             // Acronym shorthand: "mp" → "music playlist", "sc" → "screenshot"
@@ -58,7 +66,7 @@ namespace JarvisLauncher
                 return true;
 
             double similarity = GetSimilarity(query, target);
-            return similarity > 0.40;
+            return similarity > 0.35; // Lowered threshold for higher recall
         }
 
         // ── Scoring ──────────────────────────────────────────────────────────────
@@ -77,39 +85,46 @@ namespace JarvisLauncher
 
             // 1. Exact match
             if (query == target)
-                return 6.0;
+                return 10.0; // Boosted exact match
 
             double score = 0.0;
 
             // 2. Prefix: target starts with full query
             if (target.StartsWith(query))
-                score = Math.Max(score, 5.0 + ((double)query.Length / target.Length));
+            {
+                double ratio = (double)query.Length / target.Length;
+                score = Math.Max(score, 8.0 + ratio); // Boosted prefix
+            }
+            else if (target.Contains(" " + query)) // Word start match
+            {
+                score = Math.Max(score, 7.0);
+            }
 
             // 3. Substring: target contains full query
             if (target.Contains(query))
-                score = Math.Max(score, 4.0 + ((double)query.Length / target.Length));
+                score = Math.Max(score, 5.0 + ((double)query.Length / target.Length));
 
             // 4. Acronym match: "mp" → "music playlist"
             if (IsAcronymMatch(query, target))
-                score = Math.Max(score, 3.8);
+                score = Math.Max(score, 6.0);
 
             // 5. Word boundary: every query token starts a word in target
             double wbScore = WordBoundaryScore(query, target);
             if (wbScore > 0)
-                score = Math.Max(score, wbScore);
+                score = Math.Max(score, wbScore + 2.0);
 
             // 6. Bigram token overlap: fraction of query tokens that prefix-match target words
             double bigramScore = BigramTokenScore(query, target);
             if (bigramScore > 0)
-                score = Math.Max(score, bigramScore);
+                score = Math.Max(score, bigramScore + 1.0);
 
             // 6b. Synonym expansion boost
             double synonymBoost = GetSynonymMatchScore(query, target);
             if (synonymBoost > 0)
-                score = Math.Max(score, synonymBoost);
+                score = Math.Max(score, synonymBoost + 1.5);
 
             // 7. Fuzzy Damerau-Levenshtein with Jaro-Winkler prefix boost
-            if (score < 1.0)
+            if (score < 1.0 || query.Length > 3) // Only fuzzy if long or no match
             {
                 int distance   = DamerauLevenshteinDistance(query, target);
                 int maxLength  = Math.Max(query.Length, target.Length);
@@ -121,7 +136,7 @@ namespace JarvisLauncher
                     if (query[i] == target[i]) commonPrefix++;
                     else break;
                 }
-                fuzzy += commonPrefix * 0.15; // Increased boost
+                fuzzy += commonPrefix * 0.2; // Increased boost
                 score  = Math.Max(score, fuzzy);
             }
 
