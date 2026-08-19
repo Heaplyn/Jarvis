@@ -1,6 +1,7 @@
 // Developer: heaplyn
 // Date: 2026-08-19
-// Summary: High-Performance Glassmorphic AI Chat Companion with Tool Cascading.
+// Summary: Advanced Glassmorphic AI Chat Companion.
+//          Added: Model Selector, Markdown-ish Rich Text Support, Session Management.
 
 using System;
 using System.IO;
@@ -15,6 +16,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Windows.Documents;
 using Ellipse = System.Windows.Shapes.Ellipse;
 
 namespace JarvisLauncher
@@ -38,6 +40,8 @@ namespace JarvisLauncher
         private TextBox ConsoleTextBox = null!;
         private Button ConsoleToggleBtn = null!;
         private Border ConsoleBorder = null!;
+        private ComboBox ModelSelector = null!;
+        private Button StopBtn = null!;
         private bool IsConsoleExpanded = false;
         private readonly List<ChatTurn> ConversationHistory = new List<ChatTurn>();
 
@@ -54,7 +58,10 @@ namespace JarvisLauncher
 
         public static void LogConsoleAction(string ActionName, string Details) {
             string LogLine = $"[{DateTime.Now:HH:mm:ss}] {ActionName.ToUpper()}\n{Details}\n----------------------------------\n";
-            lock (ConsoleLog) ConsoleLog.AppendLine(LogLine);
+            lock (ConsoleLog) {
+                if (ConsoleLog.Length > 100000) ConsoleLog.Remove(0, 50000); // Prevent memory leak in logs
+                ConsoleLog.AppendLine(LogLine);
+            }
             Application.Current.Dispatcher.BeginInvoke(new Action(() => {
                 if (Instance?.ConsoleTextBox != null) {
                     Instance.ConsoleTextBox.Text = ConsoleLog.ToString();
@@ -63,14 +70,15 @@ namespace JarvisLauncher
             }));
         }
 
-        private ChatOverlay() : base("JARVIS AI COMPANION", 440, 680) {
+        private ChatOverlay() : base("JARVIS AI COMPANION", 480, 720) {
             var WorkArea = SystemParameters.WorkArea; this.Left = WorkArea.Width - this.Width - 20; this.Top = WorkArea.Top + 40;
             var root = new Grid { Margin = new Thickness(12) };
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Toolbar
+            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Chat
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Console
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Input
 
+            // --- Enhanced Toolbar ---
             var tb = new Grid { Margin = new Thickness(0, 0, 0, 10) };
             tb.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             tb.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -82,38 +90,72 @@ namespace JarvisLauncher
             st.Children.Add(StatusDot); st.Children.Add(StatusText); tb.Children.Add(st);
 
             var toolStack = new StackPanel { Orientation = Orientation.Horizontal };
-            var historyBtn = new Button { Content = "📜 Log", FontSize = 10, Padding = new Thickness(10,3,10,3), Margin = new Thickness(0,0,6,0), Cursor = Cursors.Hand, Background = new SolidColorBrush(Color.FromArgb(30, 255,255,255)), Foreground = Brushes.White };
-            historyBtn.Click += (s, e) => { RefreshHistoryList(); HistoryContainer.Visibility = HistoryContainer.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; };
+
+            ModelSelector = new ComboBox { Width = 110, Height = 22, FontSize = 10, Margin = new Thickness(0,0,8,0), Background = new SolidColorBrush(Color.FromArgb(40, 0,0,0)), Foreground = Brushes.Cyan, BorderThickness = new Thickness(1), BorderBrush = Brushes.DimGray };
+            ModelSelector.Items.Add("Gemini"); ModelSelector.Items.Add("OpenAI"); ModelSelector.Items.Add("Anthropic"); ModelSelector.Items.Add("Groq"); ModelSelector.Items.Add("Ollama");
+            ModelSelector.SelectedItem = CoreRegistry.Data.Settings.Current.LLM_BACKEND;
+            ModelSelector.SelectionChanged += (s, e) => {
+                if (ModelSelector.SelectedItem is string sel) {
+                    SettingsManager.Current.LLM_BACKEND = sel;
+                    SettingsManager.Save();
+                    DebugConsoleOverlay.Log("AI-Switch", $"Backend changed to: {sel}");
+                }
+            };
+            toolStack.Children.Add(ModelSelector);
+
+            var historyBtn = CreateToolbarButton("📜 LOGS", (s, e) => { RefreshHistoryList(); HistoryContainer.Visibility = HistoryContainer.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; });
             toolStack.Children.Add(historyBtn);
 
-            var clrBtn = new Button { Content = "✨ Clear", FontSize = 10, Padding = new Thickness(10,3,10,3), Cursor = Cursors.Hand, Background = new SolidColorBrush(Color.FromArgb(30, 255,255,255)), Foreground = Brushes.White };
-            clrBtn.Click += (s, e) => { StartNewSession(); };
-            toolStack.Children.Add(clrBtn);
+            var newChatBtn = CreateToolbarButton("🆕 NEW CHAT", (s, e) => { StartNewSession(); });
+            toolStack.Children.Add(newChatBtn);
+
+            var systemBtn = CreateToolbarButton("⚙️ SYSTEM", (s, e) => {
+                string prompt = AiAPI.GetCompactSystemPrompt();
+                MessageBox.Show(prompt, "JARVIS SYSTEM PROMPT", MessageBoxButton.OK, MessageBoxImage.Information);
+            });
+            toolStack.Children.Add(systemBtn);
 
             Grid.SetColumn(toolStack, 2); tb.Children.Add(toolStack);
             Grid.SetRow(tb, 0); root.Children.Add(tb);
 
+            // --- Chat Display ---
             var chatGrid = new Grid();
             ScrollViewerPrivate = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             ChatHistoryPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom };
             ScrollViewerPrivate.Content = ChatHistoryPanel; chatGrid.Children.Add(ScrollViewerPrivate);
 
-            HistoryContainer = new Border { Visibility = Visibility.Collapsed, Background = new SolidColorBrush(Color.FromArgb(245, 15, 15, 25)), Padding = new Thickness(12), CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(1), BorderBrush = Brushes.DimGray, Margin = new Thickness(15), VerticalAlignment = VerticalAlignment.Top };
+            HistoryContainer = new Border { Visibility = Visibility.Collapsed, Background = new SolidColorBrush(Color.FromArgb(250, 10, 10, 20)), Padding = new Thickness(12), CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(1), BorderBrush = Brushes.Cyan, Margin = new Thickness(15), VerticalAlignment = VerticalAlignment.Top };
             var historyStack = new StackPanel();
-            historyStack.Children.Add(new TextBlock { Text = "PAST SESSIONS", FontSize = 11, FontWeight = FontWeights.Bold, Foreground = Brushes.Cyan, Margin = new Thickness(0,0,0,12) });
-            HistoryListBox = new ListBox { Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = Brushes.White, MaxHeight = 350 };
+            historyStack.Children.Add(new TextBlock { Text = "ARCHIVED MISSIONS", FontSize = 11, FontWeight = FontWeights.Bold, Foreground = Brushes.Cyan, Margin = new Thickness(0,0,0,12) });
+            HistoryListBox = new ListBox { Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = Brushes.White, MaxHeight = 400 };
             HistoryListBox.SelectionChanged += (s, e) => { if (HistoryListBox.SelectedItem is string log) LoadSession(log); };
             historyStack.Children.Add(HistoryListBox); HistoryContainer.Child = historyStack;
             chatGrid.Children.Add(HistoryContainer);
 
             Grid.SetRow(chatGrid, 1); root.Children.Add(chatGrid);
 
-            ConsoleBorder = new Border { CornerRadius = new CornerRadius(4), Background = new SolidColorBrush(Color.FromArgb(40, 0,0,0)), BorderThickness = new Thickness(0,1,0,0), BorderBrush = Brushes.DimGray, Margin = new Thickness(0,10,0,0) };
+            // --- Quick Actions Panel ---
+            var quickActions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0,0,0,10) };
+            quickActions.Children.Add(CreateQuickActionChip("🚀 OPTIMIZE", "Optimize the current codebase for performance."));
+            quickActions.Children.Add(CreateQuickActionChip("🔍 AUDIT", "Run a deep security and logic audit."));
+            quickActions.Children.Add(CreateQuickActionChip("📝 DOCS", "Generate technical documentation for the current module."));
+
+            // I'll insert this into the chatGrid at the top
+            var chatStack = new Grid();
+            chatStack.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            chatStack.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+            Grid.SetRow(quickActions, 0); chatStack.Children.Add(quickActions);
+            Grid.SetRow(ScrollViewerPrivate, 1); chatStack.Children.Add(ScrollViewerPrivate);
+            chatGrid.Children.Clear(); chatGrid.Children.Add(chatStack); chatGrid.Children.Add(HistoryContainer);
+
+            // --- Sliding Debug Console ---
+            ConsoleBorder = new Border { CornerRadius = new CornerRadius(4), Background = new SolidColorBrush(Color.FromArgb(50, 0,0,0)), BorderThickness = new Thickness(0,1,0,0), BorderBrush = Brushes.DimGray, Margin = new Thickness(0,10,0,0) };
             var consoleGrid = new Grid();
             consoleGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             consoleGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
-            ConsoleToggleBtn = new Button { Content = "Show Debug Console (»)", FontSize = 9, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = Brushes.Gray, Cursor = Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Left };
+            ConsoleToggleBtn = new Button { Content = "SYSTEM LOGS (»)", FontSize = 9, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = Brushes.Gray, Cursor = Cursors.Hand, HorizontalAlignment = HorizontalAlignment.Left };
             ConsoleToggleBtn.Click += (s, e) => ToggleConsole();
             Grid.SetRow(ConsoleToggleBtn, 0); consoleGrid.Children.Add(ConsoleToggleBtn);
 
@@ -123,26 +165,32 @@ namespace JarvisLauncher
             ConsoleBorder.Child = consoleGrid;
             Grid.SetRow(ConsoleBorder, 2); root.Children.Add(ConsoleBorder);
 
+            // --- Input Area ---
             var inpStack = new StackPanel { Margin = new Thickness(0,10,0,0) };
-            AttachedFileBadge = new Border { Visibility = Visibility.Collapsed, Padding = new Thickness(8,4,8,4), Background = new SolidColorBrush(Color.FromArgb(80, 0,0,0)), Margin = new Thickness(0,0,0,8), CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(1), BorderBrush = Brushes.DimGray };
+            AttachedFileBadge = new Border { Visibility = Visibility.Collapsed, Padding = new Thickness(8,4,8,4), Background = new SolidColorBrush(Color.FromArgb(100, 0,0,0)), Margin = new Thickness(0,0,0,8), CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(1), BorderBrush = Brushes.Cyan };
             AttachedFileText = new TextBlock { FontSize = 10, Foreground = Brushes.Cyan }; AttachedFileBadge.Child = AttachedFileText;
             inpStack.Children.Add(AttachedFileBadge);
 
             var inpGrid = new Grid();
             inpGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             inpGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            inpGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            var addBtn = new Button { Content = "➕", Width = 34, Height = 34, Margin = new Thickness(0,0,8,0), Cursor = Cursors.Hand, FontSize = 16 };
-            addBtn.Click += (s, e) => { var dlg = new Microsoft.Win32.OpenFileDialog(); if(dlg.ShowDialog()==true) { AttachedFilePath = dlg.FileName; AttachedFileText.Text = "📎 " + Path.GetFileName(dlg.FileName); AttachedFileBadge.Visibility = Visibility.Visible; } };
+            var addBtn = new Button { Content = "📎", Width = 38, Height = 38, Margin = new Thickness(0,0,8,0), Cursor = Cursors.Hand, FontSize = 18, Background = new SolidColorBrush(Color.FromArgb(30, 255,255,255)), Foreground = Brushes.White, BorderThickness = new Thickness(0) };
+            addBtn.Click += (s, e) => { var dlg = new Microsoft.Win32.OpenFileDialog(); if(dlg.ShowDialog()==true) { AttachedFilePath = dlg.FileName; AttachedFileText.Text = "ATTACHED: " + Path.GetFileName(dlg.FileName).ToUpper(); AttachedFileBadge.Visibility = Visibility.Visible; } };
             Grid.SetColumn(addBtn, 0); inpGrid.Children.Add(addBtn);
 
             var boxGrid = new Grid();
-            InputTextBox = new TextBox { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 34, MaxHeight = 120, Padding = new Thickness(8,6,8,6), FontSize = 13, Background = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)), Foreground = Brushes.White, BorderBrush = Brushes.DimGray, CaretBrush = Brushes.Cyan };
-            var placeholder = new TextBlock { Text = "Ask Jarvis... (Enter to send)", Foreground = Brushes.Gray, IsHitTestVisible = false, Margin = new Thickness(12,8,0,0), FontSize = 13 };
+            InputTextBox = new TextBox { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 38, MaxHeight = 150, Padding = new Thickness(12,8,12,8), FontSize = 14, Background = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)), Foreground = Brushes.White, BorderBrush = Brushes.DimGray, CaretBrush = Brushes.Cyan, BorderThickness = new Thickness(1) };
+            var placeholder = new TextBlock { Text = "Command Jarvis...", Foreground = Brushes.Gray, IsHitTestVisible = false, Margin = new Thickness(15,10,0,0), FontSize = 14 };
             InputTextBox.TextChanged += (s, e) => placeholder.Visibility = string.IsNullOrEmpty(InputTextBox.Text) ? Visibility.Visible : Visibility.Collapsed;
-            InputTextBox.PreviewKeyDown += (s, e) => { if (e.Key == Key.Enter && Keyboard.Modifiers == ModifierKeys.None) { e.Handled = true; string m = InputTextBox.Text.Trim(); if(!string.IsNullOrEmpty(m) || AttachedFilePath != null) _ = SendUserMessage(m); InputTextBox.Text = ""; } };
+            InputTextBox.PreviewKeyDown += (s, e) => { if (e.Key == Key.Enter && Keyboard.Modifiers == ModifierKeys.None) { e.Handled = true; SendCurrentInput(); } };
             boxGrid.Children.Add(InputTextBox); boxGrid.Children.Add(placeholder);
             Grid.SetColumn(boxGrid, 1); inpGrid.Children.Add(boxGrid);
+
+            StopBtn = new Button { Content = "⏹", Width = 38, Height = 38, Margin = new Thickness(8,0,0,0), Cursor = Cursors.Hand, FontSize = 18, Background = Brushes.DarkRed, Foreground = Brushes.White, BorderThickness = new Thickness(0), Visibility = Visibility.Collapsed };
+            StopBtn.Click += (s, e) => { _activeCts?.Cancel(); };
+            Grid.SetColumn(StopBtn, 2); inpGrid.Children.Add(StopBtn);
 
             inpStack.Children.Add(inpGrid);
             Grid.SetRow(inpStack, 3); root.Children.Add(inpStack);
@@ -151,18 +199,37 @@ namespace JarvisLauncher
             LoadLastSession();
         }
 
+        private void SendCurrentInput() {
+            string m = InputTextBox.Text.Trim();
+            if(!string.IsNullOrEmpty(m) || AttachedFilePath != null) {
+                _ = SendUserMessage(m);
+                InputTextBox.Text = "";
+            }
+        }
+
+        private Button CreateQuickActionChip(string text, string prompt) {
+            var b = new Button { Content = text, FontSize = 9, Padding = new Thickness(10,4,10,4), Margin = new Thickness(0,0,8,0), Cursor = Cursors.Hand, Background = new SolidColorBrush(Color.FromArgb(50, 0, 255, 255)), Foreground = Brushes.White, BorderThickness = new Thickness(1), BorderBrush = Brushes.Cyan };
+            b.Click += (s, e) => { _ = SendUserMessage(prompt); };
+            return b;
+        }
+
+        private Button CreateToolbarButton(string text, RoutedEventHandler onClick) {
+            var b = new Button { Content = text, FontSize = 9, Padding = new Thickness(8,3,8,3), Margin = new Thickness(0,0,6,0), Cursor = Cursors.Hand, Background = new SolidColorBrush(Color.FromArgb(40, 255,255,255)), Foreground = Brushes.White, BorderThickness = new Thickness(0) };
+            b.Click += onClick; return b;
+        }
+
         private void ToggleConsole() {
             IsConsoleExpanded = !IsConsoleExpanded;
-            ConsoleTextBox.Height = IsConsoleExpanded ? 150 : 0;
+            ConsoleTextBox.Height = IsConsoleExpanded ? 200 : 0;
             ConsoleTextBox.Visibility = IsConsoleExpanded ? Visibility.Visible : Visibility.Collapsed;
-            ConsoleToggleBtn.Content = IsConsoleExpanded ? "Hide Debug Console («)" : "Show Debug Console (»)";
+            ConsoleToggleBtn.Content = IsConsoleExpanded ? "HIDE SYSTEM LOGS («)" : "SHOW SYSTEM LOGS (»)";
             ScrollViewerPrivate.ScrollToBottom();
         }
 
         private void StartNewSession() {
             if (ConversationHistory.Count > 0) SaveCurrentSession();
             ChatHistoryPanel.Children.Clear(); ConversationHistory.Clear();
-            AddMessageBubble("New session started. How can I assist, Boss?", true);
+            AddMessageBubble("Synchronized. Standing by for new instructions, Sir.", true);
         }
 
         private void RefreshHistoryList() {
@@ -186,16 +253,16 @@ namespace JarvisLauncher
         private void SaveCurrentSession() {
             try {
                 string dir = Path.Combine(PathHandler.GetDataDirectory(), "Conversations"); Directory.CreateDirectory(dir);
-                string name = $"Chat_{DateTime.Now:yyyyMMdd_HHmm}.json";
+                string name = $"Session_{DateTime.Now:yyyyMMdd_HHmm}.json";
                 File.WriteAllText(Path.Combine(dir, name), JsonSerializer.Serialize(ConversationHistory));
             } catch { }
         }
 
         private void LoadLastSession() {
             string dir = Path.Combine(PathHandler.GetDataDirectory(), "Conversations");
-            if (!Directory.Exists(dir)) { AddMessageBubble("Jarvis Systems Online. Ready.", true); return; }
+            if (!Directory.Exists(dir)) { AddMessageBubble("Jarvis Online. Operational.", true); return; }
             var last = Directory.GetFiles(dir, "*.json").OrderByDescending(File.GetLastWriteTime).FirstOrDefault();
-            if (last != null) LoadSession(Path.GetFileName(last)); else AddMessageBubble("Jarvis Systems Online. Ready.", true);
+            if (last != null) LoadSession(Path.GetFileName(last)); else AddMessageBubble("Jarvis Online. Operational.", true);
         }
 
         public static async Task SubmitTextMessage(string msg) { ShowChat(); if (Instance != null) await Instance.SendUserMessage(msg); }
@@ -205,64 +272,115 @@ namespace JarvisLauncher
             string apiMsg = msg; string displayMsg = msg;
             if (AttachedFilePath != null) {
                 apiMsg = $"[FILE: {AttachedFilePath}]\n{msg}";
-                displayMsg = $"📎 Attached: {Path.GetFileName(AttachedFilePath)}\n{msg}";
+                displayMsg = $"📎 {Path.GetFileName(AttachedFilePath).ToUpper()}\n{msg}";
                 AttachedFilePath = null; AttachedFileBadge.Visibility = Visibility.Collapsed;
             }
 
             AddMessageBubble(displayMsg, false);
             ChronoLogManager.LogEvent("Chat", $"User: {msg}");
+            ScrollViewerPrivate.ScrollToBottom();
 
-            var (bdr, tb, dbg) = AddMessageBubbleWithControls("Thinking...", true);
-            StatusText.Text = "THINKING"; StatusDot.Fill = Brushes.Yellow;
+            var (bdr, rt, dbg) = AddMessageBubbleWithControls("Thinking...", true);
+            StatusText.Text = "THINKING"; StatusDot.Fill = Brushes.Yellow; StopBtn.Visibility = Visibility.Visible;
+            ScrollViewerPrivate.ScrollToBottom();
 
             try {
                 var cts = new CancellationTokenSource(); _activeCts = cts;
                 string aiRaw = "";
 
                 if (CoreRegistry.Data.Settings.Current.LLM_BACKEND == "Ollama") {
-                    aiRaw = await CoreRegistry.Intelligence.Llm.AskOllamaStreamAsync(apiMsg, ConversationHistory, t => Application.Current.Dispatcher.Invoke(() => tb.Text = (tb.Text == "Thinking..." ? "" : tb.Text) + t), cts.Token);
+                    aiRaw = await CoreRegistry.Intelligence.Llm.AskOllamaStreamAsync(apiMsg, ConversationHistory, t => Application.Current.Dispatcher.Invoke(() => AppendToRichText(rt, t)), cts.Token);
                 } else {
                     aiRaw = await AiAPI.AskAgentAsync(apiMsg, ConversationHistory, cts.Token);
-                    tb.Text = AiAPI.SanitizeText(aiRaw);
+                    FormatRichText(rt, AiAPI.SanitizeText(aiRaw));
                 }
 
                 StatusText.Text = "EXECUTING TOOLS"; StatusDot.Fill = Brushes.Orange;
                 string processedText = await AgentExecutor.ProcessAIResponseAsync(aiRaw);
-                if (!string.IsNullOrEmpty(processedText)) tb.Text = processedText;
+                if (!string.IsNullOrEmpty(processedText)) FormatRichText(rt, processedText);
 
-                dbg.Text = "Raw AI Response:\n" + aiRaw;
-                ChronoLogManager.LogEvent("Chat", $"Jarvis: {tb.Text}");
+                dbg.Text = "INTERNAL TRACE:\n" + aiRaw;
+                ChronoLogManager.LogEvent("Chat", $"Jarvis: {aiRaw}");
 
                 ConversationHistory.Add(new ChatTurn { Role = "user", Text = msg });
-                ConversationHistory.Add(new ChatTurn { Role = "model", Text = tb.Text });
+                ConversationHistory.Add(new ChatTurn { Role = "model", Text = aiRaw });
                 SaveCurrentSession();
             } catch (Exception ex) {
                 LogConsoleAction("AI Fault", ex.ToString());
-                tb.Text = "❌ Something went wrong. Check debug console.";
+                FormatRichText(rt, "⚠️ THE MISSION HAS ENCOUNTERED AN ERROR. CHECK SYSTEM LOGS.");
             } finally {
                 StatusText.Text = "READY"; StatusDot.Fill = Brushes.LightGreen;
-                _activeCts = null; ScrollViewerPrivate.ScrollToBottom();
+                StopBtn.Visibility = Visibility.Collapsed; _activeCts = null; ScrollViewerPrivate.ScrollToBottom();
+            }
+        }
+
+        private void AppendToRichText(RichTextBox rt, string text) {
+            if (new TextRange(rt.Document.ContentStart, rt.Document.ContentEnd).Text.Trim() == "Thinking...") rt.Document.Blocks.Clear();
+
+            var p = rt.Document.Blocks.FirstBlock as Paragraph ?? new Paragraph();
+            if (rt.Document.Blocks.Count == 0) rt.Document.Blocks.Add(p);
+            p.Inlines.Add(new Run(text));
+            ScrollViewerPrivate.ScrollToBottom();
+        }
+
+        private void FormatRichText(RichTextBox rt, string text) {
+            rt.Document.Blocks.Clear();
+            if (string.IsNullOrEmpty(text)) return;
+
+            // Split by code blocks first (triple backticks)
+            var blocks = Regex.Split(text, @"(```[\s\S]*?```)");
+
+            foreach (var block in blocks) {
+                if (block.StartsWith("```") && block.EndsWith("```")) {
+                    string code = block.Trim('`').Trim();
+                    var bdr = new Border { Background = new SolidColorBrush(Color.FromArgb(60, 0,0,0)), BorderThickness = new Thickness(1), BorderBrush = Brushes.DimGray, Padding = new Thickness(10), Margin = new Thickness(0,5,0,10), CornerRadius = new CornerRadius(4) };
+                    var tb = new TextBox { Text = code, FontFamily = new FontFamily("Consolas"), FontSize = 12, Foreground = Brushes.Lime, Background = Brushes.Transparent, BorderThickness = new Thickness(0), IsReadOnly = true, TextWrapping = TextWrapping.Wrap };
+                    bdr.Child = tb;
+                    rt.Document.Blocks.Add(new BlockUIContainer(bdr));
+                } else {
+                    var p = new Paragraph { Margin = new Thickness(0,0,0,8) };
+                    string[] subParts = Regex.Split(block, @"(\*\*.*?\*\*|`.*?`)");
+                    foreach (var part in subParts) {
+                        if (part.StartsWith("**") && part.EndsWith("**")) {
+                            p.Inlines.Add(new Bold(new Run(part.Trim('*'))) { Foreground = Brushes.Cyan });
+                        } else if (part.StartsWith("`") && part.EndsWith("`")) {
+                            p.Inlines.Add(new Run(part.Trim('`')) { Background = new SolidColorBrush(Color.FromArgb(60, 0,0,0)), FontFamily = new FontFamily("Consolas"), Foreground = Brushes.Lime });
+                        } else {
+                            p.Inlines.Add(new Run(part));
+                        }
+                    }
+                    rt.Document.Blocks.Add(p);
+                }
             }
         }
 
         private void AddMessageBubble(string t, bool ai) => AddMessageBubbleWithControls(t, ai);
 
-        private (Border, TextBox, TextBox) AddMessageBubbleWithControls(string t, bool ai) {
-            var b = new Border { Background = ai ? new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(70, 138, 43, 226)), CornerRadius = new CornerRadius(12, 12, ai ? 12 : 0, ai ? 0 : 12), Padding = new Thickness(12, 10, 12, 10), Margin = new Thickness(ai ? 0 : 40, 5, ai ? 40 : 0, 5), HorizontalAlignment = ai ? HorizontalAlignment.Left : HorizontalAlignment.Right, MaxWidth = 340, BorderThickness = new Thickness(1), BorderBrush = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) };
+        private (Border, RichTextBox, TextBox) AddMessageBubbleWithControls(string t, bool ai) {
+            var b = new Border { Background = ai ? new SolidColorBrush(Color.FromArgb(35, 25, 25, 35)) : new SolidColorBrush(Color.FromArgb(90, 0, 120, 215)), CornerRadius = new CornerRadius(14, 14, ai ? 14 : 2, ai ? 2 : 14), Padding = new Thickness(16, 12, 16, 12), Margin = new Thickness(ai ? 0 : 50, 8, ai ? 50 : 0, 8), HorizontalAlignment = ai ? HorizontalAlignment.Left : HorizontalAlignment.Right, MaxWidth = 420, BorderThickness = new Thickness(1), BorderBrush = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) };
             var stack = new StackPanel();
-            var tb = new TextBox { Text = t, Foreground = Brushes.White, TextWrapping = TextWrapping.Wrap, FontSize = 12, FontFamily = new FontFamily("Segoe UI"), Background = Brushes.Transparent, BorderThickness = new Thickness(0), IsReadOnly = true, FocusVisualStyle = null };
-            stack.Children.Add(tb);
-            TextBox dbg = new TextBox { Visibility = Visibility.Collapsed, Margin = new Thickness(0,10,0,0), Background = new SolidColorBrush(Color.FromArgb(100, 0,0,0)), Foreground = Brushes.Gray, FontSize = 10, IsReadOnly = true, TextWrapping = TextWrapping.Wrap, MaxHeight = 250, BorderThickness = new Thickness(0), FontFamily = new FontFamily("Consolas") };
+
+            var rt = new RichTextBox { Background = Brushes.Transparent, BorderThickness = new Thickness(0), IsReadOnly = true, Foreground = Brushes.White, FontSize = 13.5, FontFamily = new FontFamily("Segoe UI"), VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, IsHitTestVisible = true };
+            rt.Document.PagePadding = new Thickness(0);
+            FormatRichText(rt, t);
+            stack.Children.Add(rt);
+
+            TextBox dbg = new TextBox { Visibility = Visibility.Collapsed, Margin = new Thickness(0,12,0,0), Background = new SolidColorBrush(Color.FromArgb(140, 0,0,0)), Foreground = Brushes.Gray, FontSize = 10.5, IsReadOnly = true, TextWrapping = TextWrapping.Wrap, MaxHeight = 350, BorderThickness = new Thickness(0), FontFamily = new FontFamily("Consolas"), Padding = new Thickness(8) };
+
             if (ai) {
-                var btnStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Opacity = 0.5, Margin = new Thickness(0,4,0,0) };
-                var copyBtn = new Button { Content = "📋", FontSize = 9, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = Brushes.White, Cursor = Cursors.Hand };
-                copyBtn.Click += (s, e) => { try { Clipboard.SetText(tb.Text); TextOverlay.Show("Copied", 1000); } catch { } };
-                var detailsBtn = new Button { Content = "⌄", FontSize = 9, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = Brushes.White, Cursor = Cursors.Hand, Margin = new Thickness(5,0,0,0) };
-                detailsBtn.Click += (s, e) => { dbg.Visibility = dbg.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; detailsBtn.Content = dbg.Visibility == Visibility.Visible ? "⌃" : "⌄"; if(dbg.Visibility==Visibility.Visible) ScrollViewerPrivate.ScrollToBottom(); };
+                var btnStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Opacity = 0.6, Margin = new Thickness(0,6,0,0) };
+                var copyBtn = CreateBubbleButton("📋", (s, e) => { try { Clipboard.SetText(new TextRange(rt.Document.ContentStart, rt.Document.ContentEnd).Text); TextOverlay.Show("COPIED", 1000); } catch { } });
+                var detailsBtn = CreateBubbleButton("⌄", (s, e) => { dbg.Visibility = dbg.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; (s as Button)!.Content = dbg.Visibility == Visibility.Visible ? "⌃" : "⌄"; if(dbg.Visibility==Visibility.Visible) ScrollViewerPrivate.ScrollToBottom(); });
                 btnStack.Children.Add(copyBtn); btnStack.Children.Add(detailsBtn); stack.Children.Add(btnStack); stack.Children.Add(dbg);
             }
+
             b.Child = stack; ChatHistoryPanel.Children.Add(b); ScrollViewerPrivate.ScrollToBottom();
-            return (b, tb, dbg);
+            return (b, rt, dbg);
+        }
+
+        private Button CreateBubbleButton(string icon, RoutedEventHandler click) {
+            var b = new Button { Content = icon, FontSize = 10, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = Brushes.White, Cursor = Cursors.Hand, Margin = new Thickness(8,0,0,0) };
+            b.Click += click; return b;
         }
     }
 }

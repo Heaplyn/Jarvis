@@ -7,7 +7,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace JarvisLauncher
@@ -103,10 +105,65 @@ namespace JarvisLauncher
 
         public static async Task RefreshInstallationStatusAsync()
         {
-            foreach (var tool in _tools)
+            try
             {
-                tool.IsInstalled = await CheckIfInstalledAsync(tool.WingetId);
+                // Bulk check via one winget command to avoid massive lag
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "winget",
+                    Arguments = "list",
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var proc = Process.Start(psi);
+                if (proc == null) return;
+                string output = await proc.StandardOutput.ReadToEndAsync();
+                await proc.WaitForExitAsync();
+
+                foreach (var tool in _tools)
+                {
+                    tool.IsInstalled = output.Contains(tool.WingetId, StringComparison.OrdinalIgnoreCase);
+                }
             }
+            catch
+            {
+                // Fallback to slower individual checks if bulk fails
+                foreach (var tool in _tools)
+                {
+                    tool.IsInstalled = await CheckIfInstalledAsync(tool.WingetId);
+                }
+            }
+        }
+
+        public static void InstallAllMissing()
+        {
+            var missing = _tools.Where(t => !t.IsInstalled).ToList();
+            if (!missing.Any()) { TextOverlay.Show("All tools in suite are already installed!", 3000); return; }
+
+            TextOverlay.Show($"📥 Batch-installing {missing.Count} tools in background...", 5000);
+
+            var sb = new StringBuilder();
+            sb.AppendLine("@echo off");
+            sb.AppendLine("echo [SYSTEM] Starting massive batch installation of developer tools...");
+            foreach (var tool in missing)
+            {
+                sb.AppendLine($"echo [INSTALL] {tool.Name} ({tool.WingetId})...");
+                sb.AppendLine($"winget install --id {tool.WingetId} --silent --accept-source-agreements --accept-package-agreements");
+            }
+            sb.AppendLine("echo [COMPLETE] All requested tools have been queued for installation.");
+            sb.AppendLine("pause");
+
+            string tempBat = Path.Combine(Path.GetTempPath(), "jarvis_batch_install.bat");
+            File.WriteAllText(tempBat, sb.ToString());
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = $"/c \"{tempBat}\"",
+                CreateNoWindow = false,
+                UseShellExecute = true
+            });
         }
 
         public static async Task<bool> CheckIfInstalledAsync(string wingetId)

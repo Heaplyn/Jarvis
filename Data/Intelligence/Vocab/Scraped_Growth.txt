@@ -1,0 +1,337 @@
+topological manifold
+differentiable manifold
+atlas (transition maps)
+hausdorff property
+second-countability
+tangent space
+cotangent space
+riemannian metric
+smooth structure
+diffeomorphism
+embedding
+immersion
+submanifold
+whitney embedding theorem
+manifold with boundary.
+tensor field
+contravariant/covariant indices
+smooth manifold
+tangent/cotangent bundle
+tensor product
+basis transformation
+einstein summation
+metric tensor
+levi-civita connection
+curvature tensor
+lie derivative
+pullback/pushforward
+section of fiber bundle
+coordinate invariance
+ricci tensor.
+recursion
+base case
+recursive case
+stack overflow
+tail recursion
+divide and conquer
+recurrence relation
+memoization
+dynamic programming
+recursion tree
+mutual recursion
+primitive recursion
+ackermann function
+fixed-point combinator
+structural recursion
+infinite recursion
+call stack
+recursion depth.
+divide-and-conquer
+tree recursion
+recursion depth
+termination condition
+tree traversal
+backtracking
+iterative conversion
+generative recursion
+recursion termination
+self-similarity
+fractal patterns.
+limit
+derivative
+integral
+continuity
+differentiability
+riemann sum
+chain rule
+partial derivative
+multiple integral
+vector calculus
+differential equation
+taylor series
+convergence
+optimization
+feedback_loop
+homeostasis
+negative_feedback
+positive_feedback
+cybernetic_governance
+information_theory
+black_box_model
+variety_requisite
+self_organization
+adaptation
+entropy_reduction
+control_theory
+circular_causality
+observability
+steering_mechanism
+variety_engineering
+requisite_variety
+control_signal
+error_detection
+adaptive_system
+entropy_management
+goal_seeking
+coupling
+emergence
+teleology
+gradient
+divergence
+curl
+improper integral
+feedback loops
+negative feedback
+positive feedback
+self-regulation
+control theory
+information theory
+entropy
+black box
+circular causality
+goal-seeking
+learning systems
+cybernetic hierarchy
+requisite variety
+tensor bundle
+covariant derivative
+parallel transport
+fiber bundle
+section of bundle
+symmetric/antisymmetric tensors
+ricci tensor
+bianchi identities
+geodesics
+recursive data structures
+iteration vs recursion
+functional recursion
+black box modeling
+signal processing
+system dynamics
+entropy reduction
+goal-directed behavior
+space complexity
+tensor field definition
+covariant/contravariant components
+tensor order/rank
+tensor contraction
+tensor transformation law
+tensor density
+tensor trace
+einstein summation convention
+control systems
+black-box modeling
+goal-seeking behavior
+homeostat
+self_regulation
+control_system
+black_box
+variety
+open_system
+cybernetic_hierarchy
+fractals
+cybernetic causality
+adaptive systems
+tensor rank
+einstein field equations
+stress-energy tensor
+tensor product space
+manifold/bundle structure
+tensor_contravariance
+covariance
+metric_tensor
+connection_coefficients
+curvature_tensor
+manifold_tangent_space
+coordinate_transformation
+index_contraction
+raising_lowering_indices
+parallel_transport
+geodesic_deviation
+riemann_curvature
+ricci_curvature
+scalar_curvature
+einstein_field_equations
+cybernetics
+second-order_cybernetics
+steering_governance
+contravariant vector
+covariant vector
+levi-civita symbol
+coordinate transformation
+symmetric tensor
+antisymmetric tensor
+christoffel symbols
+topological space
+manifold definition
+atlas
+chart
+transition maps
+curvature
+embedded manifold
+hausdorff condition
+tensor_rank
+covariant_components
+contravariant_components
+tensor_product
+tensor_contraction
+tensor_transformation_law
+symmetric_tensor
+antisymmetric_tensor
+tensor_field_smoothness
+partial_derivative
+covariant_derivative
+entropy_negative
+cybernetics_second_order
+purposeful_behavior
+observer_in_system
+manifold
+charts
+homeomorphism
+riemannian manifold
+coordinate neighborhood
+intrinsic geometry
+stack frame
+tail call optimization
+fibonacci sequence
+factorial
+hausdorff space
+local euclidean property
+manifold dimension
+cybernetic_systems
+black_box_modeling
+systems_theory
+adaptive_behavior
+signal_transmission
+tensor_definition
+tensor_order
+contravariance
+tensor_components
+tensor_fields
+tensor_operations
+tensor_decomposition
+tensor_symmetry
+tensor_applications
+signal transduction
+product rule
+quotient rule
+laplacian
+limits
+derivatives
+differentiation rules
+implicit differentiation
+higher-order derivatives
+indefinite integrals
+definite integrals
+integration by substitution
+integration by parts
+partial fractions
+differential equations
+multivariable calculus
+infinitesimal
+antiderivative
+fundamental theorem
+divergence theorem
+series convergence
+mean value theorem
+functional programming recursion
+tensor order
+covariance/contravariance
+riemann curvature tensor
+scalar curvature
+geodesic deviation
+manifold tangent space
+contravariant
+covariant
+riemann curvature
+nested recursion
+feedback_loops
+control_systems
+signal_processing
+system_boundaries
+goal_seeking_behavior
+regulation
+communication_channels
+emergent_behavior
+cybernetic control
+error correction
+adaptive control
+multilinear map
+covariant/contravariant indices
+geodesic
+integrals
+partial derivatives
+multiple integrals
+taylor expansion
+tensor
+vector space
+basis
+mixed tensor
+contraction
+cybernetics_definition
+entropy_negation
+second_order_cybernetics
+steering_metaphor
+interdisciplinary_synthesis
+antiderivatives
+series
+applications
+transition map
+vector field
+differential form
+cohomology
+cybernetics_origins
+purposive_behavior
+adaptive_systems
+cybernetic loop
+self-organization
+autopoiesis
+feedbackloops
+informationtheory
+controlsystems
+blackboxmodeling
+circularcausality
+entropyreduction
+adaptivebehavior
+cyberneticsepistemology
+secondordercybernetics
+purposefulbehavior
+signalprocessing
+differential
+series expansion
+real analysis
+tensor-field-definition
+covariant-contravariant-components
+tensor-rank
+index-notation
+einstein-summation
+metric-tensor
+manifold-tangent-space
+coordinate-transformations
+tensor-contraction
+tensor-product
+symmetric-antisymmetric-tensors
+tensor-differentiation-covariant
+levi-civita-connection
+tensor-density
+curvature-tensor-riemann

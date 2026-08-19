@@ -53,6 +53,7 @@ namespace JarvisLauncher
             sb.AppendLine("You can stack multiple tool calls in a single response. Use @rf to read files, @ps to run scripts, and then use that info to respond.");
             sb.AppendLine("CAPABILITY SYNTHESIS: You can create new tools at runtime! If you need a new capability, use: @new_tool{TAG}{REGEX_PATTERN}{POWERSHELL_SCRIPT}");
             sb.AppendLine("Example: @new_tool{GIPHY}{@giphy\\{(.*?)\\}}{Start-Process 'https://giphy.com/search/' + $1}");
+            sb.AppendLine("FRESH START: If you need to rebuild the entire project and restart from scratch, use the [FRESH_START] tag.");
             sb.AppendLine("Use the provided [SYSTEM CONTEXT] and [CHRONO-LOGS] to understand what the user is doing and what happened previously.");
             sb.AppendLine("Objective: Be precise, efficient, and proactive. Use 'Sir' or 'Boss' occasionally for the JARVIS persona.");
 

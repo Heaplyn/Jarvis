@@ -25,7 +25,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
             {
                 TITLE = "📖 Open Interactive Help & Documentation Center",
                 DESCRIPTION = "Browse all commands, global hotkeys, voice shortcuts, and pipeline tips",
-                SIMILARITY = 10.0, // Absolute top priority
+                SIMILARITY = 0.6, // Reduced from 10.0 to prevent overriding specific commands
                 EXECUTE = () => HelpCenterOverlay.ShowOverlay()
             });
 

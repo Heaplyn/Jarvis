@@ -1,0 +1,186 @@
+{
+  "DebugConsoleOverlay": {
+    "WindowName": "DebugConsoleOverlay",
+    "Left": 338,
+    "Top": 30,
+    "Width": 195.33333333333331,
+    "Height": 48,
+    "IsOpen": false
+  },
+  "TextOverlay": {
+    "WindowName": "TextOverlay",
+    "Left": 465.3333333333333,
+    "Top": 276,
+    "Width": 1293.3333333333333,
+    "Height": 733.3333333333333,
+    "IsOpen": true
+  },
+  "VoiceStudioOverlay": {
+    "WindowName": "VoiceStudioOverlay",
+    "Left": 442.66666666666663,
+    "Top": 38.666666666666664,
+    "Width": 820,
+    "Height": 600,
+    "IsOpen": false
+  },
+  "ChatOverlay": {
+    "WindowName": "ChatOverlay",
+    "Left": 277.3333333333333,
+    "Top": 57.33333333333333,
+    "Width": 392.66666666666663,
+    "Height": 500,
+    "IsOpen": false
+  },
+  "CommandCategoriesOverlay": {
+    "WindowName": "CommandCategoriesOverlay",
+    "Left": 290,
+    "Top": 56,
+    "Width": 700,
+    "Height": 560,
+    "IsOpen": false
+  },
+  "CliOutputOverlay": {
+    "WindowName": "CliOutputOverlay",
+    "Left": 265.3333333333333,
+    "Top": 96,
+    "Width": 750,
+    "Height": 480,
+    "IsOpen": false
+  },
+  "NoteManagerOverlay": {
+    "WindowName": "NoteManagerOverlay",
+    "Left": 215.33333333333331,
+    "Top": 36,
+    "Width": 195.33333333333331,
+    "Height": 48,
+    "IsOpen": true
+  },
+  "MusicPlaylistOverlay": {
+    "WindowName": "MusicPlaylistOverlay",
+    "Left": 73.33333333333333,
+    "Top": 182.66666666666666,
+    "Width": 195.33333333333331,
+    "Height": 48,
+    "IsOpen": false
+  },
+  "LlmSettingsOverlay": {
+    "WindowName": "LlmSettingsOverlay",
+    "Left": 380,
+    "Top": -4,
+    "Width": 520,
+    "Height": 680,
+    "IsOpen": false
+  },
+  "OfflineStudioOverlay": {
+    "WindowName": "OfflineStudioOverlay",
+    "Left": 218,
+    "Top": 28,
+    "Width": 850,
+    "Height": 680,
+    "IsOpen": false
+  },
+  "IpaCompilerOverlay": {
+    "WindowName": "IpaCompilerOverlay",
+    "Left": 320,
+    "Top": 76,
+    "Width": 640,
+    "Height": 520,
+    "IsOpen": false
+  },
+  "HuggingFaceOverlay": {
+    "WindowName": "HuggingFaceOverlay",
+    "Left": 360,
+    "Top": -4,
+    "Width": 560,
+    "Height": 680,
+    "IsOpen": false
+  },
+  "SettingsOverlay": {
+    "WindowName": "SettingsOverlay",
+    "Left": 260,
+    "Top": -14,
+    "Width": 760,
+    "Height": 700,
+    "IsOpen": false
+  },
+  "ClipboardOverlay": {
+    "WindowName": "ClipboardOverlay",
+    "Left": 450,
+    "Top": 96,
+    "Width": 380,
+    "Height": 480,
+    "IsOpen": false
+  },
+  "InputPromptOverlay": {
+    "WindowName": "InputPromptOverlay",
+    "Left": 430,
+    "Top": 271.3333333333333,
+    "Width": 420,
+    "Height": 130,
+    "IsOpen": false
+  },
+  "HelpCenterOverlay": {
+    "WindowName": "HelpCenterOverlay",
+    "Left": 250,
+    "Top": 56,
+    "Width": 195.33333333333331,
+    "Height": 48,
+    "IsOpen": true
+  },
+  "OAuth2StudioOverlay": {
+    "WindowName": "OAuth2StudioOverlay",
+    "Left": 742,
+    "Top": 62,
+    "Width": 195.33333333333331,
+    "Height": 48,
+    "IsOpen": true
+  },
+  "MobileOverlay": {
+    "WindowName": "MobileOverlay",
+    "Left": 50,
+    "Top": 22.666666666666664,
+    "Width": 460,
+    "Height": 640,
+    "IsOpen": false
+  },
+  "AnimationOptionsOverlay": {
+    "WindowName": "AnimationOptionsOverlay",
+    "Left": 300,
+    "Top": 96,
+    "Width": 680,
+    "Height": 480,
+    "IsOpen": false
+  },
+  "TextEditorOverlay": {
+    "WindowName": "TextEditorOverlay",
+    "Left": 320,
+    "Top": 168,
+    "Width": 1293.3333333333333,
+    "Height": 733.3333333333333,
+    "IsOpen": false
+  },
+  "BuildStudioOverlay": {
+    "WindowName": "BuildStudioOverlay",
+    "Left": 315.3333333333333,
+    "Top": 86,
+    "Width": 650,
+    "Height": 500,
+    "IsOpen": false
+  },
+  "CalculusStudioOverlay": {
+    "WindowName": "CalculusStudioOverlay",
+    "Left": 340,
+    "Top": -14,
+    "Width": 210,
+    "Height": 52,
+    "IsOpen": false
+  },
+  "GodellianIntelligenceOverlay": {
+    "WindowName": "GodellianIntelligenceOverlay",
+    "Left": 180,
+    "Top": -54,
+    "Width": 920,
+    "Height": 737.3333333333333,
+    "IsOpen": false
+  }
+}

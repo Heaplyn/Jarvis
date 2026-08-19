@@ -1,0 +1,1688 @@
+[
+  {
+    "Content": "Error: Service unavailable. Attempted models: gemini-1.5-flash, gemini-2.0-flash-exp, gemini-2.0-flash, gemini-1.5-flash-8b, gemini-1.5-pro, gemini-1.0-pro. Last error: Model gemini-1.0-pro returned Unauthorized: {",
+    "Timestamp": "2026-08-16T03:26:49.4337715-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u0022error\u0022: {",
+    "Timestamp": "2026-08-16T03:26:49.4391356-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u0022code\u0022: 401,",
+    "Timestamp": "2026-08-16T03:26:49.4398636-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u0022message\u0022: \u0022Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.\u0022,",
+    "Timestamp": "2026-08-16T03:26:49.4408319-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u0022status\u0022: \u0022UNAUTHENTICATED\u0022,",
+    "Timestamp": "2026-08-16T03:26:49.4413515-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u0022details\u0022: [",
+    "Timestamp": "2026-08-16T03:26:49.4658073-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "{",
+    "Timestamp": "2026-08-16T03:26:49.4668738-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u0022@type\u0022: \u0022type.googleapis.com/google.rpc.ErrorInfo\u0022,",
+    "Timestamp": "2026-08-16T03:26:49.4674277-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u0022reason\u0022: \u0022API_KEY_SERVICE_BLOCKED\u0022,",
+    "Timestamp": "2026-08-16T03:26:49.4864921-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u0022metadata\u0022: {",
+    "Timestamp": "2026-08-16T03:26:49.4872886-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u0022method\u0022: \u0022google.ai.generativelanguage.v1beta.GenerativeService.GenerateContent\u0022,",
+    "Timestamp": "2026-08-16T03:26:49.5065577-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u0022service\u0022: \u0022generativelanguage.googleapis.com\u0022",
+    "Timestamp": "2026-08-16T03:26:49.5326481-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "}",
+    "Timestamp": "2026-08-16T03:26:49.5472573-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "]",
+    "Timestamp": "2026-08-16T03:26:49.5482908-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Error: Service unavailable. Attempted models: gemini-1.5-flash, gemini-2.0-flash-exp, gemini-2.0-flash, gemini-1.5-flash-8b, gemini-1.5-pro, gemini-1.0-pro. Last error: Model gemini-1.0-pro returned Unauthorized: {",
+    "Timestamp": "2026-08-16T03:31:59.929033-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u0022error\u0022: {",
+    "Timestamp": "2026-08-16T03:31:59.9318623-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u0022code\u0022: 401,",
+    "Timestamp": "2026-08-16T03:31:59.9326867-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u0022message\u0022: \u0022Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.\u0022,",
+    "Timestamp": "2026-08-16T03:31:59.933181-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u0022status\u0022: \u0022UNAUTHENTICATED\u0022,",
+    "Timestamp": "2026-08-16T03:31:59.9507857-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u0022details\u0022: [",
+    "Timestamp": "2026-08-16T03:31:59.9513455-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "{",
+    "Timestamp": "2026-08-16T03:31:59.9642523-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u0022@type\u0022: \u0022type.googleapis.com/google.rpc.ErrorInfo\u0022,",
+    "Timestamp": "2026-08-16T03:31:59.9650078-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u0022reason\u0022: \u0022API_KEY_SERVICE_BLOCKED\u0022,",
+    "Timestamp": "2026-08-16T03:31:59.9770875-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u0022metadata\u0022: {",
+    "Timestamp": "2026-08-16T03:31:59.9929267-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u0022service\u0022: \u0022generativelanguage.googleapis.com\u0022,",
+    "Timestamp": "2026-08-16T03:31:59.9935497-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u0022method\u0022: \u0022google.ai.generativelanguage.v1beta.GenerativeService.GenerateContent\u0022",
+    "Timestamp": "2026-08-16T03:31:59.9940391-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "}",
+    "Timestamp": "2026-08-16T03:31:59.9944973-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "]",
+    "Timestamp": "2026-08-16T03:32:00.0074112-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u0022method\u0022: \u0022google.ai.generativelanguage.v1beta.GenerativeService.GenerateContent\u0022,",
+    "Timestamp": "2026-08-16T03:33:36.8990316-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u0022service\u0022: \u0022generativelanguage.googleapis.com\u0022",
+    "Timestamp": "2026-08-16T03:33:36.900937-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Error: Service unavailable. Attempted models: gemini-1.5-pro, gemini-2.0-flash-exp, gemini-2.0-flash, gemini-1.5-flash, gemini-1.5-flash-8b, gemini-1.0-pro. Last error: Model gemini-1.0-pro returned Unauthorized: {",
+    "Timestamp": "2026-08-16T03:34:07.5861616-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u274C GOOGLE API ERROR: The \u0027Generative Language API\u0027 is DISABLED.",
+    "Timestamp": "2026-08-16T03:38:36.4924204-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "1. Open: https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com",
+    "Timestamp": "2026-08-16T03:38:36.4948575-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "2. Select your project and click ENABLE.",
+    "Timestamp": "2026-08-16T03:38:36.4962303-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "3. Wait 1 minute and try again.",
+    "Timestamp": "2026-08-16T03:38:36.5161077-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Online and ready.",
+    "Timestamp": "2026-08-16T03:43:22.6769129-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u274C GOOGLE API ERROR: The \u0027Generative Language API\u0027 is DISABLED.",
+    "Timestamp": "2026-08-16T03:44:38.1124162-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "1. Open: https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com",
+    "Timestamp": "2026-08-16T03:44:38.1173867-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "2. Select your project and click ENABLE.",
+    "Timestamp": "2026-08-16T03:44:38.1191003-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "3. Wait 1 minute and try again.",
+    "Timestamp": "2026-08-16T03:44:38.1202041-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Project uses .NET",
+    "Timestamp": "2026-08-16T03:51:42.5404936-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Project file: RemotePageModel.cs",
+    "Timestamp": "2026-08-16T03:51:42.5439152-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Build status: No issues detected",
+    "Timestamp": "2026-08-16T03:51:42.5455166-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 196,23,219]",
+    "Timestamp": "2026-08-16T03:51:42.5672977-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "No user facts or project details mentioned",
+    "Timestamp": "2026-08-16T03:51:57.3977437-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 208,9,217]",
+    "Timestamp": "2026-08-16T03:51:57.4009058-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "NONE",
+    "Timestamp": "2026-08-16T03:52:13.9717559-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 191,2,193]",
+    "Timestamp": "2026-08-16T03:52:13.9741628-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u2022 Volume: 20%",
+    "Timestamp": "2026-08-16T03:56:12.6054698-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 183,7,190]",
+    "Timestamp": "2026-08-16T03:56:12.6082598-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u2022 User uses Chrome browser",
+    "Timestamp": "2026-08-16T03:56:24.3955227-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 179,6,185]",
+    "Timestamp": "2026-08-16T03:56:24.399532-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "User is testing Jarvis functionality",
+    "Timestamp": "2026-08-16T03:57:30.3983483-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "User is familiar with Jarvis shorthand commands (@)",
+    "Timestamp": "2026-08-16T03:57:30.4010285-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 189,18,207]",
+    "Timestamp": "2026-08-16T03:57:30.4021351-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u2022 CPU usage: 32%",
+    "Timestamp": "2026-08-16T03:58:03.7123528-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u2022 RAM usage: 54%",
+    "Timestamp": "2026-08-16T03:58:03.7190341-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u2022 Disk usage: 21%",
+    "Timestamp": "2026-08-16T03:58:03.7200914-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 191,22,213]",
+    "Timestamp": "2026-08-16T03:58:03.754291-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "NONE",
+    "Timestamp": "2026-08-16T03:59:26.7241083-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 185,3,188]",
+    "Timestamp": "2026-08-16T03:59:26.7283582-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "MemoryUtils.asm manages RAM for JarvisOS",
+    "Timestamp": "2026-08-16T03:59:59.9550584-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Integrates with Multi-Layer Tool System (MLTS) via API hooks",
+    "Timestamp": "2026-08-16T03:59:59.963944-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 228,27,255]",
+    "Timestamp": "2026-08-16T03:59:59.9663165-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "JarvisOS is the project name",
+    "Timestamp": "2026-08-16T04:00:28.1067409-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "ProcessManager.asm is a potential component",
+    "Timestamp": "2026-08-16T04:00:28.110034-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Task scheduling and prioritization are required features",
+    "Timestamp": "2026-08-16T04:00:28.1109283-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 194,27,221]",
+    "Timestamp": "2026-08-16T04:00:28.1120231-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Task object structure defined",
+    "Timestamp": "2026-08-16T04:00:48.5761265-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Contains id, priority, state, stack_ptr, instruction_ptr fields",
+    "Timestamp": "2026-08-16T04:00:48.5792966-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Using dword and byte data types",
+    "Timestamp": "2026-08-16T04:00:48.5808783-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 221,29,250]",
+    "Timestamp": "2026-08-16T04:00:48.6028225-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Programming language: Assembly (NASM)",
+    "Timestamp": "2026-08-16T04:00:55.8882363-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Project type: Operating System (JarvisOS)",
+    "Timestamp": "2026-08-16T04:00:55.8919492-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Structure name: TASK",
+    "Timestamp": "2026-08-16T04:00:55.8930445-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Fields: id, priority, state, stack_ptr, instruction_ptr",
+    "Timestamp": "2026-08-16T04:00:55.8938367-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 231,42,273]",
+    "Timestamp": "2026-08-16T04:00:55.8949243-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 184,2,186]",
+    "Timestamp": "2026-08-16T04:01:03.5879659-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "User is working with assembly language (nasm)",
+    "Timestamp": "2026-08-16T04:01:38.9814388-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "User is defining a TASK structure",
+    "Timestamp": "2026-08-16T04:01:38.9847912-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "User is using a Windows-based system (JarvisOS)",
+    "Timestamp": "2026-08-16T04:01:38.9864144-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 244,33,277]",
+    "Timestamp": "2026-08-16T04:01:38.9875797-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u2022 Meeting at 3pm",
+    "Timestamp": "2026-08-16T04:07:18.1119629-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 195,7,202]",
+    "Timestamp": "2026-08-16T04:07:18.1153974-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Codebase exists",
+    "Timestamp": "2026-08-16T04:08:10.3338212-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Readme file needs update",
+    "Timestamp": "2026-08-16T04:08:10.3367427-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 193,12,205]",
+    "Timestamp": "2026-08-16T04:08:10.3378576-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "NONE",
+    "Timestamp": "2026-08-16T04:20:08.656394-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 182,3,185]",
+    "Timestamp": "2026-08-16T04:20:08.6612059-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Task completed successfully",
+    "Timestamp": "2026-08-16T04:24:14.100019-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "User nickname: Boss",
+    "Timestamp": "2026-08-16T04:24:14.1034646-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 172,11,183]",
+    "Timestamp": "2026-08-16T04:24:14.105181-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "User alias: Boss",
+    "Timestamp": "2026-08-16T04:31:16.4719275-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Project involvement: Jarvis Mobile",
+    "Timestamp": "2026-08-16T04:31:16.4774369-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "User name: Kyle",
+    "Timestamp": "2026-08-16T04:31:16.4790899-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Programming language: C#",
+    "Timestamp": "2026-08-16T04:31:16.4807922-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 193,26,219]",
+    "Timestamp": "2026-08-16T04:31:16.4825911-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "NONE",
+    "Timestamp": "2026-08-16T04:45:30.6747785-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 169,2,171]",
+    "Timestamp": "2026-08-16T04:45:30.6791626-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "User nickname: Boss",
+    "Timestamp": "2026-08-16T04:47:38.7887667-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Project status: Working",
+    "Timestamp": "2026-08-16T04:47:38.8055515-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 197,12,209]",
+    "Timestamp": "2026-08-16T04:47:38.8719727-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "User calculated 50x50 = 2500",
+    "Timestamp": "2026-08-16T04:47:50.8405606-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 194,12,206]",
+    "Timestamp": "2026-08-16T04:47:50.8443487-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "User: Kyle",
+    "Timestamp": "2026-08-16T04:48:02.0822505-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Project: Jarvis",
+    "Timestamp": "2026-08-16T04:48:02.0863546-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "File: TextEditorOverlay.cs",
+    "Timestamp": "2026-08-16T04:48:02.087413-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Location: C:\\Users\\Kyle\\Downloads\\Projects\\Jarvis\\Modules\\Layer2\\",
+    "Timestamp": "2026-08-16T04:48:02.0885888-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Method: InitializeOverlay()",
+    "Timestamp": "2026-08-16T04:48:02.1151825-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 232,46,278]",
+    "Timestamp": "2026-08-16T04:48:02.1164864-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "System status: Normal parameters",
+    "Timestamp": "2026-08-16T04:48:10.4737036-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 199,13,212]",
+    "Timestamp": "2026-08-16T04:48:10.4765695-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u2022 No clear facts mentioned",
+    "Timestamp": "2026-08-16T04:55:28.0665374-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "NONE",
+    "Timestamp": "2026-08-16T04:55:28.0709189-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 219,8,227]",
+    "Timestamp": "2026-08-16T04:55:28.0721757-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 210,3,213]",
+    "Timestamp": "2026-08-16T04:55:39.7736339-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "User nickname: Boss",
+    "Timestamp": "2026-08-16T04:56:00.1744942-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Voice mode: Off",
+    "Timestamp": "2026-08-16T04:56:00.175724-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 195,12,207]",
+    "Timestamp": "2026-08-16T04:56:00.1768689-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "User is inquiring about GUI status",
+    "Timestamp": "2026-08-16T04:56:58.5437963-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "User is interacting with system commands",
+    "Timestamp": "2026-08-16T04:56:58.5475703-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 199,17,216]",
+    "Timestamp": "2026-08-16T04:56:58.5488581-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "User is checking GUI status",
+    "Timestamp": "2026-08-16T04:57:20.1176106-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Command execution attempted",
+    "Timestamp": "2026-08-16T04:57:20.1215112-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 203,12,215]",
+    "Timestamp": "2026-08-16T04:57:20.1225433-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "User likes commands GUI as part of Jarvis, not GitHub",
+    "Timestamp": "2026-08-16T04:57:50.0195082-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Current GUI version: 2.4.1",
+    "Timestamp": "2026-08-16T04:57:50.0232284-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "GUI is up to date",
+    "Timestamp": "2026-08-16T04:57:50.0242422-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 202,32,234]",
+    "Timestamp": "2026-08-16T04:57:50.0251919-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "14 out of 17 commands are listed in the help command",
+    "Timestamp": "2026-08-16T04:58:14.6426516-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "3 commands are not listed in the help command",
+    "Timestamp": "2026-08-16T04:58:14.6462329-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 187,27,214]",
+    "Timestamp": "2026-08-16T04:58:14.6559333-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "User greeted AI",
+    "Timestamp": "2026-08-16T04:59:13.1357298-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "AI confirmed normal functioning",
+    "Timestamp": "2026-08-16T04:59:13.1388363-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 198,11,209]",
+    "Timestamp": "2026-08-16T04:59:13.1401285-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "User is interacting with AI for the first time",
+    "Timestamp": "2026-08-16T04:59:29.5821539-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "User is aware of response time",
+    "Timestamp": "2026-08-16T04:59:29.5857489-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Response time: 12ms",
+    "Timestamp": "2026-08-16T04:59:29.586916-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 216,27,243]",
+    "Timestamp": "2026-08-16T04:59:29.5879228-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "User: Kyle",
+    "Timestamp": "2026-08-16T05:08:45.7485792-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "IDE: Visual Studio Code",
+    "Timestamp": "2026-08-16T05:08:45.7667457-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Project location: C:\\Users\\Kyle\\Downloads\\Projects\\Jarvis\\Modules\\Layer2",
+    "Timestamp": "2026-08-16T05:08:45.7699874-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "File: TextEditorOverlay.cs",
+    "Timestamp": "2026-08-16T05:08:45.7726502-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 212,41,253]",
+    "Timestamp": "2026-08-16T05:08:45.8147952-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "NONE",
+    "Timestamp": "2026-08-16T05:36:40.044764-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 181,2,183]",
+    "Timestamp": "2026-08-16T05:36:40.0488862-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 189,2,191]",
+    "Timestamp": "2026-08-16T05:36:50.9525836-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "NONE",
+    "Timestamp": "2026-08-16T06:00:55.2636196-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 177,2,179]",
+    "Timestamp": "2026-08-16T06:00:55.2701831-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u2022 Features added appear to be functional.",
+    "Timestamp": "2026-08-16T06:01:05.8964756-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 192,9,201]",
+    "Timestamp": "2026-08-16T06:01:05.9007516-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 185,2,187]",
+    "Timestamp": "2026-08-16T06:01:12.0649913-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 189,2,191]",
+    "Timestamp": "2026-08-16T06:02:05.5419085-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 183,2,185]",
+    "Timestamp": "2026-08-16T06:04:27.8150901-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 196,2,198]",
+    "Timestamp": "2026-08-16T06:05:45.3686818-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "NONE",
+    "Timestamp": "2026-08-16T06:06:15.8203072-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 176,2,178]",
+    "Timestamp": "2026-08-16T06:06:15.8260785-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u2022 Passoff instructions:",
+    "Timestamp": "2026-08-16T06:08:27.5675944-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Describe the project context and current state.",
+    "Timestamp": "2026-08-16T06:08:27.5714688-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Provide AI Gemini 3 Flash configuration details.",
+    "Timestamp": "2026-08-16T06:08:27.5728637-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Specify the codebase repository and version control system.",
+    "Timestamp": "2026-08-16T06:08:27.6008825-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Identify areas of focus for the AI\u0027s assistance.",
+    "Timestamp": "2026-08-16T06:08:27.6025186-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Clarify the AI\u0027s role in the development process.",
+    "Timestamp": "2026-08-16T06:08:27.6297772-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Establish communication protocols and response expectations.",
+    "Timestamp": "2026-08-16T06:08:27.6314233-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 206,74,280]",
+    "Timestamp": "2026-08-16T06:08:27.6332764-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 182,2,184]",
+    "Timestamp": "2026-08-16T06:10:15.0259005-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "NONE",
+    "Timestamp": "2026-08-16T06:27:02.3321664-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 169,2,171]",
+    "Timestamp": "2026-08-16T06:27:02.3373396-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u2022 Isis is an ancient Egyptian goddess.",
+    "Timestamp": "2026-08-16T07:35:46.1259226-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u2022 Associated with motherhood, fertility, and protection.",
+    "Timestamp": "2026-08-16T07:35:46.1315383-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 194,20,214]",
+    "Timestamp": "2026-08-16T07:35:46.1331008-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "NONE",
+    "Timestamp": "2026-08-16T07:35:55.5738941-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 187,2,189]",
+    "Timestamp": "2026-08-16T07:35:55.5785838-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "NONE",
+    "Timestamp": "2026-08-16T07:45:05.4434968-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 177,2,179]",
+    "Timestamp": "2026-08-16T07:45:05.448662-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 179,2,181]",
+    "Timestamp": "2026-08-16T07:45:14.4450111-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 184,2,186]",
+    "Timestamp": "2026-08-16T07:47:32.8035973-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 180,2,182]",
+    "Timestamp": "2026-08-16T07:47:36.8418751-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 195,2,197]",
+    "Timestamp": "2026-08-16T07:47:38.6382889-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u2022 No captured screen data found.",
+    "Timestamp": "2026-08-16T08:03:51.9903715-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u2022 No user facts or project details extracted.",
+    "Timestamp": "2026-08-16T08:03:52.0048665-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 187,17,204]",
+    "Timestamp": "2026-08-16T08:03:52.0076025-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "NONE",
+    "Timestamp": "2026-08-16T08:04:06.8832563-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 172,2,174]",
+    "Timestamp": "2026-08-16T08:04:06.8870145-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "NONE",
+    "Timestamp": "2026-08-16T08:11:44.1426875-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 169,2,171]",
+    "Timestamp": "2026-08-16T08:11:44.149338-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u2022 User prefers short commands and HUD interactions.",
+    "Timestamp": "2026-08-16T08:25:54.9013572-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 174,10,184]",
+    "Timestamp": "2026-08-16T08:25:54.9067293-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u2022 User expressed feelings of extreme tiredness.",
+    "Timestamp": "2026-08-16T14:04:58.0779315-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 193,10,203]",
+    "Timestamp": "2026-08-16T14:04:58.0823323-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "NONE",
+    "Timestamp": "2026-08-16T14:05:09.5761393-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 174,2,176]",
+    "Timestamp": "2026-08-16T14:05:09.579864-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u2022 Task: Run tasklist command.",
+    "Timestamp": "2026-08-16T15:37:35.1555856-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 175,9,184]",
+    "Timestamp": "2026-08-16T15:37:35.1593899-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "NONE",
+    "Timestamp": "2026-08-16T15:37:42.1895317-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 169,2,171]",
+    "Timestamp": "2026-08-16T15:37:42.192878-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 178,2,180]",
+    "Timestamp": "2026-08-16T15:37:50.6998442-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 183,2,185]",
+    "Timestamp": "2026-08-16T15:37:56.9283647-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 171,2,173]",
+    "Timestamp": "2026-08-16T15:38:01.2984907-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "User interested in learning assembly language",
+    "Timestamp": "2026-08-16T15:38:29.6656206-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 175,8,183]",
+    "Timestamp": "2026-08-16T15:38:29.6761929-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "NONE",
+    "Timestamp": "2026-08-16T15:46:39.5027621-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 170,2,172]",
+    "Timestamp": "2026-08-16T15:46:39.507085-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Ingested documentation from https://en.wikipedia.org/wiki/Assembly_language: \u26A0\uFE0F LLM ENGINE ERROR: All providers exhausted.\nLast error: API Error: {\u0022error\u0022:{\u0022message\u0022:\u0022Rate limit reached for model \u0060llama-3.3-70b-versatile\u0060 in organization \u0060org_01m04pq5bfexbvnh3jgpavyhkr\u0060 service tier \u0060on_demand\u0060 on tokens per day (TPD): Limit 100000, Used 98791, Requested 12709. Please try again in 2h45m36s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\u0022,\u0022type\u0022:\u0022tokens\u0022,\u0022code\u0022:\u0022rate_limit_exceeded\u0022}}\n",
+    "Timestamp": "2026-08-16T15:46:55.8164088-05:00",
+    "Category": "Knowledge",
+    "SubCategory": "Documentation",
+    "Importance": 0.8,
+    "Metadata": {
+      "url": "https://en.wikipedia.org/wiki/Assembly_language"
+    }
+  },
+  {
+    "Content": "Ingested documentation from https://en.wikipedia.org/wiki/Assembly_language: \u26A0\uFE0F LLM ENGINE ERROR: All providers exhausted.\nLast error: Ollama error 400: {\u0022error\u0022:\u0022{\\\u0022error\\\u0022:{\\\u0022code\\\u0022:400,\\\u0022message\\\u0022:\\\u0022request (11519 tokens) exceeds the available context size (8192 tokens), try increasing it\\\u0022,\\\u0022type\\\u0022:\\\u0022exceed_context_size_error\\\u0022,\\\u0022n_prompt_tokens\\\u0022:11519,\\\u0022n_ctx\\\u0022:8192}}\u0022}",
+    "Timestamp": "2026-08-16T15:47:12.8261821-05:00",
+    "Category": "Knowledge",
+    "SubCategory": "Documentation",
+    "Importance": 0.8,
+    "Metadata": {
+      "url": "https://en.wikipedia.org/wiki/Assembly_language"
+    }
+  },
+  {
+    "Content": "[METADATA_USAGE: 164,2,166]",
+    "Timestamp": "2026-08-16T15:49:58.7460408-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "Ingested documentation from https://www.tutorialspoint.com/assembly/index.htm: Error scraping page: Response status code does not indicate success: 404 (Not Found).",
+    "Timestamp": "2026-08-16T15:50:11.9657205-05:00",
+    "Category": "Knowledge",
+    "SubCategory": "Documentation",
+    "Importance": 0.8,
+    "Metadata": {
+      "url": "https://www.tutorialspoint.com/assembly/index.htm"
+    }
+  },
+  {
+    "Content": "\u2022 User prefers silence during the night.",
+    "Timestamp": "2026-08-16T16:11:16.774125-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "\u2022 User sets notification to silence every 30 minutes.",
+    "Timestamp": "2026-08-16T16:11:16.7786026-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  },
+  {
+    "Content": "[METADATA_USAGE: 186,20,206]",
+    "Timestamp": "2026-08-16T16:11:16.7801076-05:00",
+    "Category": "Personal",
+    "SubCategory": "",
+    "Importance": 0.7,
+    "Metadata": {}
+  }
+]

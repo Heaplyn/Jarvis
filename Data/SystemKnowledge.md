@@ -1,0 +1,156 @@
+## INTERNAL SYSTEM ARCHITECTURE KNOWLEDGE
+### Layer0
+- LayeredNeuralEngine.cs (Updated: 08/19 16:55)
+- LayeredTensor.cs (Updated: 08/19 16:55)
+- NativeMethods.cs (Updated: 08/19 16:44)
+- DevSuiteManager.cs (Updated: 08/19 16:32)
+- GodellianDataIngestor.cs (Updated: 08/19 16:20)
+- ProjectContextManager.cs (Updated: 08/19 16:19)
+- ChronoLogManager.cs (Updated: 08/19 16:13)
+- HuggingFaceManager.cs (Updated: 08/19 16:11)
+- EvolutionManager.cs (Updated: 08/19 15:58)
+- LawEvolutionEngine.cs (Updated: 08/19 15:58)
+- InstructionsManager.cs (Updated: 08/19 15:58)
+- SelfEvolvingToolEngine.cs (Updated: 08/19 15:51)
+- AiToolRegistry.cs (Updated: 08/19 15:51)
+- SettingsManager.cs (Updated: 08/19 15:40)
+- GodellianDataForge.cs (Updated: 08/19 15:28)
+### Layer1
+- AiAPI.cs (Updated: 08/19 16:44)
+- MobileBridgeServer.cs (Updated: 08/19 14:58)
+- VoiceIntelligenceManager.cs (Updated: 08/14 19:01)
+- ICommandHandler.cs (Updated: 08/14 19:01)
+### Layer2
+- DebugConsoleOverlay.cs (Updated: 08/19 16:57)
+- ChatOverlay.cs (Updated: 08/19 16:56)
+- GodellianIntelligenceOverlay.cs (Updated: 08/19 16:56)
+- AgentExecutor.cs (Updated: 08/19 16:44)
+- DevSuiteOverlay.cs (Updated: 08/19 16:28)
+- HelpCenterOverlay.cs (Updated: 08/19 15:53)
+- ToolManagerOverlay.cs (Updated: 08/19 15:51)
+- SettingsOverlay.cs (Updated: 08/19 15:46)
+- LlmSettingsOverlay.cs (Updated: 08/19 15:35)
+- GoogleCloudOverlay.cs (Updated: 08/18 02:49)
+- TextEditorOverlay.cs (Updated: 08/18 00:45)
+- CliOutputOverlay.cs (Updated: 08/18 00:11)
+- OfflineStudioOverlay.cs (Updated: 08/17 21:58)
+- GithubOverlay.cs (Updated: 08/17 21:41)
+- ThemeManager.cs (Updated: 08/17 21:27)
+### Layer3
+- RestartCommandHandler.cs (Updated: 08/19 16:45)
+- HelpCommandHandler.cs (Updated: 08/19 16:27)
+- CommandParser.cs (Updated: 08/19 16:27)
+- ToolCommandHandler.cs (Updated: 08/19 15:52)
+- InstallCommandHandler.cs (Updated: 08/19 15:43)
+- BackupCommandHandler.cs (Updated: 08/19 14:58)
+- DatasetCommandHandler.cs (Updated: 08/19 14:50)
+- SettingsCommandHandler.cs (Updated: 08/18 05:34)
+- GodellianCommandHandler.cs (Updated: 08/18 05:01)
+- GCloudCommandHandler.cs (Updated: 08/18 02:40)
+- GitCommandHandler.cs (Updated: 08/18 00:08)
+- UpdateCommandHandler.cs (Updated: 08/18 00:07)
+- DownloadMediaHandler.cs (Updated: 08/17 21:51)
+- DownloadCommandHandler.cs (Updated: 08/17 21:51)
+- OfflineCommandHandler.cs (Updated: 08/17 21:50)
+### Layer4
+- MainWindow.xaml.cs (Updated: 08/16 01:42)
+- LoadingWindow.xaml.cs (Updated: 08/13 15:08)
+### Command Handlers
+- AdhdFocusSuiteHandler
+- AiCommandHandler
+- AliasCommandHandler
+- AnimationCommandHandler
+- AppLauncherCommandHandler
+- BackgroundCommandHandler
+- BackupCommandHandler
+- BrightnessCommandHandler
+- BuildCommandHandler
+- CalendarCommandHandler
+- ClipboardCommandHandler
+- CliRunnerCommandHandler
+- CodeAssistCommandHandler
+- CodeEditorCommandHandler
+- CommandsCommandHandler
+- DatabaseCommandHandler
+- DatasetCommandHandler
+- DebuggerCommandHandler
+- DiagnosticsCommandHandler
+- DownloadCommandHandler
+- DownloadMediaHandler
+- DownloadPathCommandHandler
+- EditCommandHandler
+- EnrollVoiceCommandHandler
+- ExitCommandHandler
+- ExpandedCommandsHandler
+- ExtraFeaturesCommandHandler
+- FFMpegCommandHandler
+- FileOrganizerCommandHandler
+- GameDevToolboxCommandHandler
+- GCloudCommandHandler
+- GitCommandHandler
+- GitSetupCommandHandler
+- GodellianCommandHandler
+- GridCommandHandler
+- HelpCommandHandler
+- InstallCommandHandler
+- IpaCompilerCommandHandler
+- LLMCommandHandler
+- LocalIpCommandHandler
+- LockCommandHandler
+- LogCommandHandler
+- MathCommandHandler
+- McpCommandHandler
+- MusicPlaylistCommandHandler
+- MuteCommandHandler
+- NetworkCommandHandler
+- NewIdeasCommandHandler
+- OAuth2CommandHandler
+- OfflineCommandHandler
+- OpacityCommandHandler
+- OpenNativeCommandHandler
+- OrganizationCommandsHandler
+- PcUpdateCommandHandler
+- PhoneControlCommandHandler
+- PowerCommandHandler
+- PowerShellRunnerCommandHandler
+- ProcessKillerCommandHandler
+- ProductivityCommandHandler
+- RecycleBinCommandHandler
+- ReminderCommandHandler
+- RestartCommandHandler
+- ScreenAnalysisCommandHandler
+- ScreenshotCommandHandler
+- SearchLauncherCommandHandler
+- SettingsCommandHandler
+- StickyNotesCommandHandler
+- StorageCleanupCommandHandler
+- SysInfoCommandHandler
+- SystemStatsCommandHandler
+- TeacherCommandHandler
+- TemplateCommandHandler
+- TextOpacityCommandHandler
+- ThemeCommandHandler
+- TimerCommandHandler
+- TodoCommandHandler
+- ToolCommandHandler
+- TtsCommandHandler
+- UninstallCommandHandler
+- UpdateCommandHandler
+- UpdateComputerCommandHandler
+- ViewFileCommandHandler
+- VoiceStudioCommandHandler
+- VolumeCommandHandler
+- WebOperationCommandHandler
+- WebScrapingCommandHandler
+### USER SYSTEM SNAPSHOT
+- Recent Doc: desktop.ini (.ini)
+- Recent Download: lect2.pdf
+- Recent Download: LM-Studio-0.4.21-2-x64.exe
+- Recent Download: Bionic-1.0.9-2-x64.exe
+- Recent Download: 389b89a5-7317-4396-9926-080aae01ee66.png
+- Recent Download: IMG_0076.JPG
+- Recent Download: client_secret_403255865708-1h0ad5gk9vsfestml5dghtq8bhkq539r.apps.googleusercontent.com.json
+- Recent Download: Jarvis-main.zip
+- Recent Download: Models-20260817T172429Z-1-003.zip.crdownload
+- Recent Download: Models-20260817T172429Z-1-001.zip.crdownload
+- Recent Download: Models-20260817T172429Z-1-002.zip.crdownload

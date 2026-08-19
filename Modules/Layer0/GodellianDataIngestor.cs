@@ -100,23 +100,31 @@ namespace JarvisLauncher
         {
             if (!Directory.Exists(dirPath)) return;
 
-            var extensions = new[] { ".txt", ".md", ".json", ".csv", ".py", ".cs", ".js", ".html", ".yaml", ".yml", ".c", ".cpp" };
+            var extensions = new[] { ".txt", ".md", ".json", ".csv", ".py", ".cs", ".js", ".html", ".yaml", ".yml", ".c", ".cpp", ".parquet" };
             var files = Directory.GetFiles(dirPath, "*.*", SearchOption.AllDirectories)
                 .Where(f => extensions.Contains(Path.GetExtension(f).ToLower()))
                 .ToList();
 
-            DebugConsoleOverlay.Log("Neural-Ingest", $"Bulk ingestion started: {files.Count} files across multiple formats.");
+            DebugConsoleOverlay.Log("Neural-Ingest", $"Bulk ingestion started: {files.Count} files. Multi-threaded processing active.");
 
-            foreach (var f in files)
+            // Use a semaphore to control concurrent ingestion (prevent memory spikes/LLM overload)
+            var semaphore = new System.Threading.SemaphoreSlim(Environment.ProcessorCount);
+            var tasks = files.Select(async f =>
             {
-                try {
-                    // Limit file size for safety
-                    if (new FileInfo(f).Length > 1024 * 1024 * 5) continue; // 1MB limit for auto-ingest
+                await semaphore.WaitAsync();
+                try
+                {
+                    if (new FileInfo(f).Length > 1024 * 1024 * 5) return;
+                    await IngestFileAsync(f);
+                }
+                catch { }
+                finally
+                {
+                    semaphore.Release();
+                }
+            });
 
-                    string content = await File.ReadAllTextAsync(f);
-                    await ProcessContentAsync(content, Path.GetFileName(f));
-                } catch { }
-            }
+            await Task.WhenAll(tasks);
 
             DebugConsoleOverlay.Log("Neural-Ingest", "Bulk ingestion finalized.");
         }

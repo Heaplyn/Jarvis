@@ -1,0 +1,38 @@
+gradient_descent
+backpropagation
+overfitting
+regularization
+cross_validation
+supervised_learning
+unsupervised_learning
+reinforcement_learning
+neural_network
+feature_extraction
+fundamental theorem of calculus
+leibniz integral rule
+stokes' theorem
+differential forms
+implicit function theorem
+taylor series expansion
+multivariable chain rule
+green's theorem
+lagrange multipliers
+lebesgue integration
+** backpropagation
+vanishing_gradient
+convolutional_layer
+recurrent_neural_network
+long_short_term_memory
+attention_mechanism
+transformer_architecture
+dropout_regularization
+batch_normalization
+transfer_learning
+** reinforcement_learning_policy_gradients
+convolutional_neural_networks
+generative_adversarial_networks
+bayesian_inference
+support_vector_machines
+gradient_boosting
+autoencoders
+regularization_techniques

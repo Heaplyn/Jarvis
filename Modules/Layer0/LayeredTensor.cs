@@ -215,6 +215,9 @@ namespace JarvisLauncher
             Array.Fill(Grad, 1.0);
             topo.Reverse();
             foreach (var t in topo) t.Backward?.Invoke();
+
+            // CRITICAL: Clear graph to prevent massive memory leaks during backprop
+            foreach (var t in topo) { t.Prev.Clear(); t.Backward = null; }
         }
 
         public void ZeroGrad() => Array.Fill(Grad, 0);

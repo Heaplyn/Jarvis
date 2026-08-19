@@ -196,26 +196,44 @@ namespace JarvisLauncher
                 });
             }
 
-            // 4. Global Fuzzy Command Matching
+            // 4. Global Fuzzy Command Matching (Lightning Suggestions)
             var AllDescs = GetAllCommandDescriptions();
             foreach (var Cd in AllDescs)
             {
                 if (Cd == null || string.IsNullOrWhiteSpace(Cd.COMMAND_NAME)) continue;
                 string CmdName = Cd.COMMAND_NAME.ToLower();
                 double finalSim = SearchUtil.GetSimilarity(LowerExpanded, CmdName);
-                if (SearchUtil.IsAcronymMatch(LowerExpanded, CmdName)) finalSim = Math.Max(finalSim, 4.0);
+
+                // Acronym boost
+                if (SearchUtil.IsAcronymMatch(LowerExpanded, CmdName)) finalSim = Math.Max(finalSim, 6.0);
 
                 if (finalSim > 0.45)
                 {
                     if (!Suggestions.Any(s => s.TITLE.Contains(Cd.COMMAND_NAME, StringComparison.OrdinalIgnoreCase)))
                     {
                         string RunTarget = !string.IsNullOrWhiteSpace(Cd.COMMAND_EXAMPLE) ? Cd.COMMAND_EXAMPLE : Cd.COMMAND_NAME;
+
                         Suggestions.Add(new CommandResult
                         {
-                            TITLE       = $"⚡ Command: {Cd.COMMAND_NAME}",
+                            TITLE       = $"⚡ {Cd.COMMAND_NAME}",
                             DESCRIPTION = Cd.COMMAND_DESCRIPTION,
-                            SIMILARITY  = finalSim,
-                            EXECUTE     = () => ExecuteFirstSuggestion(RunTarget)
+                            SIMILARITY  = finalSim - 0.1, // Slightly lower priority than direct handler results
+                            EXECUTE     = () =>
+                            {
+                                // Instead of just calling ExecuteFirstSuggestion, we fill the box and trigger a fresh parse
+                                // to show the actual specific options for that command.
+                                System.Windows.Application.Current.Dispatcher.Invoke(() => {
+                                    var win = System.Windows.Application.Current.MainWindow;
+                                    if (win != null) {
+                                        var input = win.FindName("SearchInput") as System.Windows.Controls.TextBox;
+                                        if (input != null) {
+                                            input.Text = RunTarget;
+                                            input.CaretIndex = input.Text.Length;
+                                            input.Focus();
+                                        }
+                                    }
+                                });
+                            }
                         });
                     }
                 }

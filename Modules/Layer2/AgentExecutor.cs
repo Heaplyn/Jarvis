@@ -159,6 +159,13 @@ namespace JarvisLauncher
                 string cmd = m.Groups["cmd"].Value.Trim();
                 Application.Current.Dispatcher.Invoke(() => CommandParser.ExecuteFirstSuggestion(cmd));
             }
+
+            // 12. Handle REBUILD / FRESH START
+            if (aiResponse.Contains("[REBUILD_PROJECT]", StringComparison.OrdinalIgnoreCase) ||
+                aiResponse.Contains("[FRESH_START]", StringComparison.OrdinalIgnoreCase))
+            {
+                Application.Current.Dispatcher.Invoke(() => NativeMethods.Restart(freshBoot: true));
+            }
         }
 
         public static string StripAllInternalTags(string text)

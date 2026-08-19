@@ -1,0 +1,602 @@
+[
+  {
+    "Fact": "The exchange shows the user is in the middle of OS development (specifically a 16-bit bootloader).",
+    "DiscoveredAt": "2026-08-16T01:06:56.7814706-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "If I return \u0060NONE\u0060, it\u0027s safe.",
+    "DiscoveredAt": "2026-08-16T01:06:56.781983-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "If I return \u0022\u2022 Working on a 16-bit bootloader\u0022, it\u0027s helpful.",
+    "DiscoveredAt": "2026-08-16T01:06:56.7825878-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Let\u0027s re-read the prompt\u0027s example.",
+    "DiscoveredAt": "2026-08-16T01:06:56.7833408-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "\u0022USER: ok what utils are next for this\u0022",
+    "DiscoveredAt": "2026-08-16T01:06:56.7982749-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "There\u0027s nothing in the user\u0027s text.",
+    "DiscoveredAt": "2026-08-16T01:06:56.8103951-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Wait, look at the very first line of the prompt context: \u0060USER: wait use auth\u0060 -\u003E \u0060AI: No new facts were revealed\u0060. This implies if the user says nothing useful, return \u0060NONE\u0060.",
+    "DiscoveredAt": "2026-08-16T01:06:56.8112705-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "In \u0022ok what utils are next for this\u0022, the user provides zero information. The information comes from the AI.",
+    "DiscoveredAt": "2026-08-16T01:06:56.811798-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Therefore: \u0060NONE\u0060.",
+    "DiscoveredAt": "2026-08-16T01:06:56.8124119-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Wait, let me look closer at the \u0022USER\u0022 part of the exchange.",
+    "DiscoveredAt": "2026-08-16T01:06:56.825599-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "The user\u0027s query is just a question.",
+    "DiscoveredAt": "2026-08-16T01:06:56.8262783-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Conclusion: \u0060NONE\u0060.",
+    "DiscoveredAt": "2026-08-16T01:06:56.838107-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Hold on, I am Jarvis. The user is asking me to perform the extraction task.",
+    "DiscoveredAt": "2026-08-16T01:06:56.8500081-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "The instructions say \u0022If the user revealed any long-term facts... extract... If no new facts were revealed, return \u0027NONE\u0027.\u0022",
+    "DiscoveredAt": "2026-08-16T01:06:56.850874-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "The user *revealed* nothing.",
+    "DiscoveredAt": "2026-08-16T01:06:56.8515839-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Final Decision: \u0060NONE\u0060.NONE",
+    "DiscoveredAt": "2026-08-16T01:06:56.8669128-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Role: Jarvis Memory Extractor.",
+    "DiscoveredAt": "2026-08-16T01:07:03.2781068-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Input: A dialogue snippet where the user asks about arrays/lists in assembly, and the AI provides an explanation/code.",
+    "DiscoveredAt": "2026-08-16T01:07:03.2799762-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Goal: Extract long-term facts about the user (preferences, names, projects, etc.).",
+    "DiscoveredAt": "2026-08-16T01:07:03.2808728-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Constraint: Short bullet points or \u0027NONE\u0027.",
+    "DiscoveredAt": "2026-08-16T01:07:03.2815329-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "User: \u0022what about adding things like arrays, lists, etc.\u0022",
+    "DiscoveredAt": "2026-08-16T01:07:03.2962676-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "AI: (Explains assembly arrays/lists and provides code).",
+    "DiscoveredAt": "2026-08-16T01:07:03.296976-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Does the user mention a name? No.",
+    "DiscoveredAt": "2026-08-16T01:07:03.2978889-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Does the user mention a specific preference? No (just asking a technical question).",
+    "DiscoveredAt": "2026-08-16T01:07:03.2985878-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Does the user mention a current project? The context suggests they are working on something involving assembly/low-level programming (likely the 16-bit bootloader mentioned in the long-term memory), but the *specific exchange* doesn\u0027t reveal a *new* project. The question is about learning/implementing data structures in assembly.",
+    "DiscoveredAt": "2026-08-16T01:07:03.3080328-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Are there any new facts? No. The user is asking a clarifying question about assembly data structures.",
+    "DiscoveredAt": "2026-08-16T01:07:03.3087713-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "The user\u0027s query is a technical question. It doesn\u0027t contain personal information or new project details that aren\u0027t already implied by the context of the ongoing assembly/bootloader discussion.",
+    "DiscoveredAt": "2026-08-16T01:07:03.3094107-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Return \u0027NONE\u0027.NONE",
+    "DiscoveredAt": "2026-08-16T01:07:03.3252519-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Task: Analyze the provided exchange and extract long-term facts (preferences, names, projects, etc.).",
+    "DiscoveredAt": "2026-08-16T01:08:09.8028997-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Format: Short bullet points or \u0027NONE\u0027.",
+    "DiscoveredAt": "2026-08-16T01:08:09.8044521-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Input: A snippet of assembly code and a comment about scaffolding high-level abstractions in assembly for a loader.",
+    "DiscoveredAt": "2026-08-16T01:08:09.804846-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "User says: \u0022oh no so my idea is to basically scaffold this shit to eventually allow for high level stuff in assembly for the loader\u0022",
+    "DiscoveredAt": "2026-08-16T01:08:09.8053335-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "The rest is the technical implementation of a dynamic list in NASM macros.",
+    "DiscoveredAt": "2026-08-16T01:08:09.8147242-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Task: Analyze the provided exchange and extract long-term facts (preferences, names, projects, etc.) as short bullet points.",
+    "DiscoveredAt": "2026-08-16T01:14:52.7906996-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Input: A dialogue snippet where the user asks \u0022do you?\u0022 in reference to accessing Gemini chat history via auth.",
+    "DiscoveredAt": "2026-08-16T01:14:52.7944946-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Context from input:",
+    "DiscoveredAt": "2026-08-16T01:14:52.7951069-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "User is asking if Jarvis can get Gemini chat history with auth.",
+    "DiscoveredAt": "2026-08-16T01:14:52.8073306-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Jarvis says no.",
+    "DiscoveredAt": "2026-08-16T01:14:52.8078597-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "The clipboard shows the intent: \u0022can you get my gemini chat history w auth and update your understanding of me based on it\u0022.",
+    "DiscoveredAt": "2026-08-16T01:14:52.8082406-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "The \u0022Recent Activity\u0022 in the system prompt mentions \u0022Kyle\u0022 and \u0022TempleOS ring architecture\u0022 and \u0022C# refactor\u0022.",
+    "DiscoveredAt": "2026-08-16T01:14:52.8086828-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "The specific exchange to analyze is:",
+    "DiscoveredAt": "2026-08-16T01:14:52.8222422-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "USER: \u0022do you?\u0022",
+    "DiscoveredAt": "2026-08-16T01:14:52.8229514-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Jarvis response: \u0022No, I don\u0027t. I\u0027m walled off from your external Gemini history, so you\u0027ll just have to keep teaching me about yourself the old-fashioned way.\u0022",
+    "DiscoveredAt": "2026-08-16T01:14:52.8313911-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Does the user reveal any preferences? No.",
+    "DiscoveredAt": "2026-08-16T01:14:52.8320048-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Does the user reveal any names? No (though \u0022Kyle\u0022 is in the context, this specific exchange doesn\u0027t introduce it).",
+    "DiscoveredAt": "2026-08-16T01:14:52.8324635-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Does the user reveal any current projects? No.",
+    "DiscoveredAt": "2026-08-16T01:14:52.8330226-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Does the user reveal any facts? No.",
+    "DiscoveredAt": "2026-08-16T01:14:52.833509-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "The user\u0027s query \u0022do you?\u0022 doesn\u0027t contain any factual information about the user. It\u0027s a question about capabilities.NONE",
+    "DiscoveredAt": "2026-08-16T01:14:52.8433751-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Task: Analyze the provided exchange for long-term facts about the user (preferences, names, projects, etc.).",
+    "DiscoveredAt": "2026-08-16T01:55:35.1070818-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "User Query: \u0022You are the Jarvis Memory Extractor...\u0022",
+    "DiscoveredAt": "2026-08-16T01:55:35.1100425-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "The exchange to analyze:",
+    "DiscoveredAt": "2026-08-16T01:55:35.1111055-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "USER: \u0022can you grab from gemini or pull an oauth\u0022",
+    "DiscoveredAt": "2026-08-16T01:55:35.1119962-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "ERROR: \u0022Maximum retry limit reached. The AI service is currently unavailable.\u0022",
+    "DiscoveredAt": "2026-08-16T01:55:35.1127911-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "\u0022can you grab from gemini or pull an oauth\u0022",
+    "DiscoveredAt": "2026-08-16T01:55:35.1136215-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "This is a technical question about capabilities.",
+    "DiscoveredAt": "2026-08-16T01:55:35.1144626-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "It does *not* reveal a name.",
+    "DiscoveredAt": "2026-08-16T01:55:35.1153069-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "It does *not* reveal a specific personal preference (other than interest in Gemini/OAuth, which is functional).",
+    "DiscoveredAt": "2026-08-16T01:55:35.116104-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "It does *not* reveal a specific current project (though the context shows they are working on \u0027Jarvis Mobile\u0027, that info is in the metadata, not the user\u0027s specific sentence in the \u0022exchange below\u0022).",
+    "DiscoveredAt": "2026-08-16T01:55:35.1169186-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "It does *not* reveal any permanent facts about the person.",
+    "DiscoveredAt": "2026-08-16T01:55:35.1177332-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "The user\u0027s sentence is a query about capability.",
+    "DiscoveredAt": "2026-08-16T01:55:35.1185209-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "No personal facts found.",
+    "DiscoveredAt": "2026-08-16T01:55:35.1197351-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "The prompt asks for \u0027NONE\u0027 if no new facts are revealed.",
+    "DiscoveredAt": "2026-08-16T01:55:35.120916-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "\u0022NONE\u0022NONE",
+    "DiscoveredAt": "2026-08-16T01:55:35.1217641-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Input: A simulated conversation exchange.",
+    "DiscoveredAt": "2026-08-16T01:56:04.3581303-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Goal: Analyze if the user revealed any long-term facts about themselves (preferences, names, projects, etc.).",
+    "DiscoveredAt": "2026-08-16T01:56:04.3696325-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Output: Short bullet points of facts or \u0027NONE\u0027.",
+    "DiscoveredAt": "2026-08-16T01:56:04.3711989-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "User says: \u0022ok wb now\u0022",
+    "DiscoveredAt": "2026-08-16T01:56:04.3741581-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "The rest of the prompt is an AI\u0027s internal reasoning process (thinking about intent, persona, and potential responses) based on the user\u0027s input.",
+    "DiscoveredAt": "2026-08-16T01:56:04.3754242-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "The user\u0027s actual contribution to the exchange is just the phrase \u0022ok wb now\u0022.",
+    "DiscoveredAt": "2026-08-16T01:56:04.4181069-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "\u0022ok wb now\u0022 (likely \u0022ok welcome back now\u0022 or \u0022ok what\u0027s up now\u0022).",
+    "DiscoveredAt": "2026-08-16T01:56:04.4232761-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "No names revealed.",
+    "DiscoveredAt": "2026-08-16T01:56:04.4251682-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "No preferences revealed.",
+    "DiscoveredAt": "2026-08-16T01:56:04.4280053-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "No new projects revealed (though the AI context mentions \u0022Jarvis Mobile\u0022, the user didn\u0027t *reveal* it in this specific snippet; it was already known to the AI).",
+    "DiscoveredAt": "2026-08-16T01:56:04.4305615-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "No personal facts.",
+    "DiscoveredAt": "2026-08-16T01:56:04.4323384-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Since no new long-term facts were revealed in the user\u0027s input \u0022ok wb now\u0022, the result is \u0027NONE\u0027.NONE",
+    "DiscoveredAt": "2026-08-16T01:56:04.4334303-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "The user is asking me to act as the \u0022Jarvis Memory Extractor\u0022.",
+    "DiscoveredAt": "2026-08-16T02:01:58.7998917-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "The task is to analyze a specific exchange:",
+    "DiscoveredAt": "2026-08-16T02:01:58.8027827-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "USER: \u0022can you ingest assembly\u0022",
+    "DiscoveredAt": "2026-08-16T02:01:58.8036935-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "ERROR: \u0022Error: Maximum retry limit reached. The AI service is currently unavailable.\u0022",
+    "DiscoveredAt": "2026-08-16T02:01:58.8190496-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "The goal is to extract long-term facts (names, preferences, projects, etc.) or return \u0027NONE\u0027.",
+    "DiscoveredAt": "2026-08-16T02:01:58.8372091-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "User: \u0022can you ingest assembly\u0022 -\u003E This is a technical question about capability, not a fact about the user.",
+    "DiscoveredAt": "2026-08-16T02:01:58.851998-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Error message: Indicates a technical failure.",
+    "DiscoveredAt": "2026-08-16T02:01:58.8697349-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "No new projects revealed.",
+    "DiscoveredAt": "2026-08-16T02:01:58.8851307-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "No personal facts revealed.",
+    "DiscoveredAt": "2026-08-16T02:01:58.9007152-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Since nothing was revealed, the output should be \u0027NONE\u0027.NONE",
+    "DiscoveredAt": "2026-08-16T02:01:58.9185114-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "User wants me to act as the \u0022Jarvis Memory Extractor\u0022.",
+    "DiscoveredAt": "2026-08-16T02:02:22.8708582-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Input: A conversation where the user asks \u0022can you ingest assembly\u0022 and Jarvis responds about his capabilities.",
+    "DiscoveredAt": "2026-08-16T02:02:22.8740115-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Jarvis: [Explains capabilities regarding x86/ARM source and .NET assemblies]",
+    "DiscoveredAt": "2026-08-16T02:02:22.8749487-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "The user asked a technical question about the AI\u0027s capabilities.",
+    "DiscoveredAt": "2026-08-16T02:02:22.875823-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "No personal preferences, names, current projects, or biographical facts were revealed.NONE",
+    "DiscoveredAt": "2026-08-16T02:02:22.8766928-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Name: Kyle",
+    "DiscoveredAt": "2026-08-16T02:04:31.0158658-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Working on a project in Assembly language.",
+    "DiscoveredAt": "2026-08-16T02:36:45.8338114-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Working on an Assembly project (specifically developing \u0060Memory_Utils.asm\u0060).",
+    "DiscoveredAt": "2026-08-16T02:41:07.0146783-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Developing memory management utilities (pointer arithmetic, bulk operations, boundary guards, and endianness logic).",
+    "DiscoveredAt": "2026-08-16T02:41:07.0167991-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Name: Heaplyn",
+    "DiscoveredAt": "2026-08-16T02:42:05.8439708-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Code Signature Preference: Every new code file should autonomously include a signature containing \u0060Heaplyn\u0060, \u0060Date\u0060, and \u0060Summary\u0060.",
+    "DiscoveredAt": "2026-08-16T02:42:05.8454882-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Working on an Assembly project (\u0060Memory_Utils.asm\u0060).",
+    "DiscoveredAt": "2026-08-16T02:49:28.6906436-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Developer name/signature: Heaplyn.",
+    "DiscoveredAt": "2026-08-16T02:49:28.6978518-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Using x86-64 calling conventions (RDI, RSI, RCX) for memory utilities.",
+    "DiscoveredAt": "2026-08-16T02:49:28.7003338-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  },
+  {
+    "Fact": "Building a foundation of byte-oriented memory operations (\u0060MEM_SET\u0060, \u0060MEM_COPY\u0060, \u0060MEM_ZERO\u0060).",
+    "DiscoveredAt": "2026-08-16T02:49:28.7016387-05:00",
+    "Category": "General",
+    "Importance": 0.5
+  }
+]

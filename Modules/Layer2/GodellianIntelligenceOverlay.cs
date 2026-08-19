@@ -116,7 +116,12 @@ namespace JarvisLauncher
             this.UserContent = mainGrid;
             _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
             _timer.Tick += (s, e) => RefreshUIAsync();
-            _timer.Start();
+
+            this.IsVisibleChanged += (s, e) => {
+                if (this.IsVisible) _timer.Start();
+                else _timer.Stop();
+            };
+            if (this.IsVisible) _timer.Start();
         }
 
         private async void RefreshUIAsync()

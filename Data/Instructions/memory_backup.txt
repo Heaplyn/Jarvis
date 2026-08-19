@@ -1,0 +1,8 @@
+
+# Jarvis Memory File Backup
+- Initialized: Yes
+- Status: Ready
+- Current Objective: Assist Kyle with local system tasks, file operations, and coding projects.
+- Verified Capabilities: Direct memory persistence via file writes to the Instructions directory.
+- Memory/Context Rules: Active reading and updating of memory files from context is enabled. I can dynamically edit, expand, and structure this memory directory to retain state across sessions.
+- Notes: I can read, write, and append to my own instruction files to adapt dynamically over time.

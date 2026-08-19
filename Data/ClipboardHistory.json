@@ -1,0 +1,46 @@
+[
+  {
+    "Content": "C:\\Users\\Kyle\\Downloads\\Projects\\Jarvis\\Macros",
+    "Timestamp": "2026-08-09T20:48:48.6941947-05:00"
+  },
+  {
+    "Content": "C:\\Users\\Kyle\\Downloads\\Projects\\Jarvis",
+    "Timestamp": "2026-08-09T20:28:44.1722713-05:00"
+  },
+  {
+    "Content": "C:\\Users\\Kyle\\Downloads\\Projects\\Jarvis\\Modules\\Layer2\\ProcessManagerOverlay.cs(62,17): error CS0117: \u0027Grid\u0027 does not contain a definition for \u0027Padding\u0027\r\nC:\\Users\\Kyle\\Downloads\\Projects\\Jarvis\\Modules\\Layer3\\Handlers\\NewIdeasCommandHandler.cs(64,63): error CS0117: \u0027NativeMethods\u0027 does not contain a definition for \u0027SendKeyCombo\u0027\r\nC:\\Users\\Kyle\\Downloads\\Projects\\Jarvis\\Modules\\Layer3\\Handlers\\NewIdeasCommandHandler.cs(74,63): error CS0117: \u0027NativeMethods\u0027 does not contain a definition for \u0027SendKeyCombo\u0027\r\nC:\\Users\\Kyle\\Downloads\\Projects\\Jarvis\\Modules\\Layer3\\Handlers\\NewIdeasCommandHandler.cs(85,59): error CS0117: \u0027NativeMethods\u0027 does not contain a definition for \u0027SendKeyCombo\u0027\r\nC:\\Users\\Kyle\\Downloads\\Projects\\Jarvis\\Modules\\Layer3\\Handlers\\NewIdeasCommandHandler.cs(92,59): error CS0117: \u0027NativeMethods\u0027 does not contain a definition for \u0027SendKeyCombo\u0027",
+    "Timestamp": "2026-08-09T20:21:38.6818318-05:00"
+  },
+  {
+    "Content": "https://github.com/Heaplyn/Jarvis",
+    "Timestamp": "2026-08-09T19:29:11.1689925-05:00"
+  },
+  {
+    "Content": "https://www.youtube.com/watch?v=v4F1gFy-hqg\u0026t=13s",
+    "Timestamp": "2026-08-09T19:28:40.8774041-05:00"
+  },
+  {
+    "Content": "\u003E\u003E\u003E [19:25:00] EXEC: WEB SUMMARY: HTTPS://WWW.YOUTUBE.COM/WATCH?V=V4F1GFY-HQG\u0026T=13S\r\n--------------------------------------------------------------------------------\r\nError: All candidate Gemini models failed to respond.\nLast error details:\nModel \u0027gemini-1.5-pro-latest\u0027 returned HTTP status NotFound.\nDetails: {\n  \u0022error\u0022: {\n    \u0022code\u0022: 404,\n    \u0022message\u0022: \u0022models/gemini-1.5-pro-latest is not found for API version v1, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.\u0022,\n    \u0022status\u0022: \u0022NOT_FOUND\u0022\n  }\n}\n\r\n--------------------------------------------------------------------------------",
+    "Timestamp": "2026-08-09T19:25:08.3159083-05:00"
+  },
+  {
+    "Content": "--------------------------------------------------------------------------------\r\nError: All candidate Gemini models failed to respond.\nLast error details:\nModel \u0027gemini-1.5-flash\u0027 returned HTTP status NotFound.\nDetails: {\n  \u0022error\u0022: {\n    \u0022code\u0022: 404,\n    \u0022message\u0022: \u0022models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.\u0022,\n    \u0022status\u0022: \u0022NOT_FOUND\u0022\n  }\n}\n",
+    "Timestamp": "2026-08-09T19:24:17.811634-05:00"
+  },
+  {
+    "Content": "Error: All candidate Gemini models failed to respond.\nLast error details:\nModel \u0027gemini-1.5-pro-002\u0027 failed with status NotFound.\nResponse: {\n  \u0022error\u0022: {\n    \u0022code\u0022: 404,\n    \u0022message\u0022: \u0022models/gemini-1.5-pro-002 is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.\u0022,\n    \u0022status\u0022: \u0022NOT_FOUND\u0022\n  }\n}",
+    "Timestamp": "2026-08-09T19:18:16.7279561-05:00"
+  },
+  {
+    "Content": "Error: All candidate Gemini models failed to respond.\nLast error details:\nModel \u0027gemini-1.5-flash\u0027 failed with status NotFound.\nResponse: {\n  \u0022error\u0022: {\n    \u0022code\u0022: 404,\n    \u0022message\u0022: \u0022models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.\u0022,\n    \u0022status\u0022: \u0022NOT_FOUND\u0022\n  }\n}\n",
+    "Timestamp": "2026-08-09T19:17:28.596746-05:00"
+  },
+  {
+    "Content": "rror CS0136: A local or parameter named \u0027match\u0027 cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter\r\nC:\\Users\\Kyle\\Downloads\\Projects\\Jarvis\\Modules\\Layer2\\AgentExecutor.cs(143,28): error CS0136: A local or parameter named \u0027match\u0027 cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter\r\nC:\\Users\\Kyle\\Downloads\\Projects\\Jarvis\\Modules\\Layer2\\AgentExecutor.cs(163,28): error CS0136: A local or parameter named \u0027match\u0027 cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter\r\nC:\\Users\\Kyle\\Downloads\\Projects\\Jarvis\\Modules\\Layer2\\AgentExecutor.cs(183,28): error CS0136: A local or parameter named \u0027match\u0027 cannot be declared in this scope because that name is used in an enclosing local scope to define a local or parameter\r\nC:\\Users\\Kyle\\Downloads\\Projects\\Jarvis\\Modules\\Layer2\\AgentExecutor.cs(14,30): error CS0161: \u0027AgentExecutor.ProcessAIResponse(string)\u0027: not all code paths return a value\r\nC:\\Users\\Kyle\\Downloads\\Projects\\Jarvis\\Modules\\Layer2\\CliOutputOverlay.cs(16,41): warning CS8618: Non-nullable field \u0027_instance\u0027 must contain a non-null value when exiting constructor. Consider adding the \u0027required\u0027 modifier or declaring the field as nullable.\r\nC:\\Users\\Kyle\\Downloads\\Projects\\Jarvis\\Modules\\Layer3\\Handlers\\ScreenshotCommandHandler.cs(44,29): warning CS8602: Dereference of a possibly null reference.       \r\nC:\\Users\\Kyle\\Downloads\\Projects\\Jarvis\\Modules\\Layer3\\Handlers\\SysInfoCommandHandler.cs(71,30): warning CS8600: Converting null literal or possible null value to non-nullable type.\r\nC:\\Users\\Kyle\\Downloads\\Projects\\Jarvis\\Modules\\Layer3\\Handlers\\SysInfoCommandHandler.cs(84,34): warning CS8600: Converting null literal or possible null value to non-nullable type.\r\n\r\nThe build failed. Fix the build errors and run again.\r\nPS C:\\Users\\Kyle\\Downloads\\Projects\\Jarvis\u003E ",
+    "Timestamp": "2026-08-09T19:16:58.4044782-05:00"
+  },
+  {
+    "Content": "Menu\\Programs\\Roblox",
+    "Timestamp": "2026-08-09T19:08:05.6258839-05:00"
+  }
+]

@@ -217,19 +217,23 @@ namespace JarvisLauncher
                         string gitUpdate = pullFirst ? "git pull origin main;" : "if (Test-Path .git) { git fetch; }";
 
                         script = $@"
-                            {waitAndKill}
                             Set-Location -Path '{projectRoot}';
                             {gitUpdate}
 
-                            # Clean build to ensure fresh file alignment - Using the exact command requested
-                            dotnet build -c Debug;
-
-                            if ($LASTEXITCODE -eq 0) {{
-                                Start-Process '{projectRoot}\JarvisLauncher.exe'
+                            if (Test-Path 'run.bat') {{
+                                # Use run.bat for the complete fresh start lifecycle (Clean -> Build -> Update -> Run)
+                                Start-Process 'cmd.exe' -ArgumentList '/c run.bat' -WindowStyle Normal;
                             }} else {{
-                                # Fallback: notify user or try running without build
-                                Start-Process '{projectRoot}\JarvisLauncher.exe'
-                                Write-Error 'Rebuild failed, starting previous stable build.';
+                                {waitAndKill}
+                                # Fallback: Clean build to ensure fresh file alignment
+                                dotnet build -c Debug;
+
+                                if ($LASTEXITCODE -eq 0) {{
+                                    Start-Process '{projectRoot}\JarvisLauncher.exe'
+                                }} else {{
+                                    Start-Process '{projectRoot}\JarvisLauncher.exe'
+                                    Write-Error 'Rebuild failed, starting previous stable build.';
+                                }}
                             }}";
                     }
                     else
