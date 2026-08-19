@@ -65,6 +65,14 @@ namespace JarvisLauncher
                     await Task.Delay(TimeSpan.FromMinutes(5));
                 }
             });
+
+            // 4. DATASET HARVESTING (Every 30 mins)
+            Task.Run(async () => {
+                while (_isActive) {
+                    try { await DatasetHarvester.RunAutomaticHarvestAsync(); } catch { }
+                    await Task.Delay(TimeSpan.FromMinutes(30));
+                }
+            });
         }
 
         private static async Task ScrapeAndIngestTechnicalKnowledgeAsync()

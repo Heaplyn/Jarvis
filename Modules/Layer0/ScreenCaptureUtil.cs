@@ -12,14 +12,13 @@ namespace JarvisLauncher
         {
             try
             {
-                var screen = Screen.PrimaryScreen;
-                if (screen == null) return null;
-                Rectangle bounds = screen.Bounds;
+                // Capture the entire Virtual Screen (all monitors) to ensure Jarvis sees everything
+                var bounds = SystemInformation.VirtualScreen;
                 using (Bitmap bitmap = new Bitmap(bounds.Width, bounds.Height))
                 {
                     using (Graphics g = Graphics.FromImage(bitmap))
                     {
-                        g.CopyFromScreen(Point.Empty, Point.Empty, bounds.Size);
+                        g.CopyFromScreen(bounds.Left, bounds.Top, 0, 0, bounds.Size);
                     }
 
                     if (saveToDisk)
@@ -35,7 +34,7 @@ namespace JarvisLauncher
                     using (MemoryStream ms = new MemoryStream())
                     {
                         // Save as JPEG to reduce payload size for API
-                        bitmap.Save(ms, ImageFormat.Jpeg);
+                        bitmap.Save(ms, ImageFormat.Jpeg, new EncoderParameters { Param = new[] { new EncoderParameter(Encoder.Quality, 75L) } });
                         return ms.ToArray();
                     }
                 }

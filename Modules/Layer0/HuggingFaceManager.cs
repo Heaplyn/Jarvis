@@ -89,15 +89,16 @@ namespace JarvisLauncher
         /// <summary>
         /// Downloads a specific GGUF or model repo from Hugging Face using huggingface-cli.
         /// </summary>
-        public static void DownloadModelRepo(string repoId, string filename = "")
+        public static void DownloadModelRepo(string repoId, string filename = "", string repoType = "model")
         {
             try
             {
-                TextOverlay.Show($"📥 Downloading Hugging Face Model: {repoId}...", 4000);
+                TextOverlay.Show($"📥 Downloading Hugging Face {repoType}: {repoId}...", 4000);
 
+                string typeFlag = repoType == "dataset" ? "--repo-type dataset" : "";
                 string cmdArgs = string.IsNullOrWhiteSpace(filename)
-                    ? $"huggingface-cli download {repoId} --local-dir \"{HfModelDirectory}\""
-                    : $"huggingface-cli download {repoId} {filename} --local-dir \"{HfModelDirectory}\"";
+                    ? $"huggingface-cli download {repoId} {typeFlag} --local-dir \"{HfModelDirectory}\""
+                    : $"huggingface-cli download {repoId} {filename} {typeFlag} --local-dir \"{HfModelDirectory}\"";
 
                 Process.Start("cmd.exe", $"/c start cmd /k \"echo Downloading from Hugging Face: {repoId}... & {cmdArgs} & echo Download Complete! File saved to {HfModelDirectory} & pause\"");
             }

@@ -76,6 +76,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
             l.Add(new CommandDesc("hf", "Open Hugging Face model hub", "hf"));
             l.Add(new CommandDesc("ai clear", "Clear current chat history", "ai clear"));
             l.Add(new CommandDesc("ai fix", "AI-assisted code fixing in editor", "ai fix"));
+            l.Add(new CommandDesc("harvest datasets", "Autonomous LLM dataset discovery & download", "harvest datasets"));
 
             // System & Power (10)
             l.Add(new CommandDesc("lock", "Instantly lock your workstation", "lock"));
