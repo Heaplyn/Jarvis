@@ -148,4 +148,19 @@
         </Style.Resources>
     </Style>
 
+    <!-- Global RichTextBox Styling -->
+    <Style TargetType="{x:Type RichTextBox}">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="IsReadOnly" Value="True"/>
+        <Setter Property="VerticalScrollBarVisibility" Value="Disabled"/>
+        <Style.Resources>
+            <Style TargetType="{x:Type Paragraph}">
+                <Setter Property="Margin" Value="0,0,0,10"/>
+            </Style>
+        </Style.Resources>
+    </Style>
+
 </ResourceDictionary>

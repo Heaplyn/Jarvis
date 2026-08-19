@@ -63,28 +63,41 @@ namespace JarvisLauncher
 
             _summaries.Clear();
             int processed = 0;
+            int total = files.Count;
 
-            foreach (var file in files)
+            // Use a semaphore to control parallelism (prevent hitting LLM rate limits or crashing system)
+            var semaphore = new System.Threading.SemaphoreSlim(4);
+            var tasks = files.Select(async file =>
             {
+                await semaphore.WaitAsync();
                 try
                 {
-                    processed++;
-                    double percent = (double)processed / files.Count * 100;
-                    progressCallback?.Invoke($"Analyzing {Path.GetFileName(file)}...", percent);
-
                     string content = await File.ReadAllTextAsync(file);
-                    if (content.Length > 20000) content = content.Substring(0, 20000); // Truncate for AI
+                    if (content.Length > 20000) content = content.Substring(0, 20000);
 
                     string prompt = $"TASK: Provide a ONE-SENTENCE technical summary of this file's purpose in the project.\nFILE: {Path.GetFileName(file)}\nCONTENT:\n{content}";
 
                     string summary = await CoreRegistry.Llm.AskAsync(prompt);
-                    _summaries.Add(new FileSummary { FilePath = file, Summary = summary.Trim(), Size = new FileInfo(file).Length });
+
+                    lock (_summaries)
+                    {
+                        _summaries.Add(new FileSummary { FilePath = file, Summary = summary.Trim(), Size = new FileInfo(file).Length });
+                        processed++;
+                        double percent = (double)processed / total * 100;
+                        progressCallback?.Invoke($"Analyzing {Path.GetFileName(file)}...", percent);
+                    }
                 }
                 catch (Exception ex)
                 {
                     DebugConsoleOverlay.Log("ProjectContext", $"Failed to analyze {file}: {ex.Message}");
                 }
-            }
+                finally
+                {
+                    semaphore.Release();
+                }
+            });
+
+            await Task.WhenAll(tasks);
 
             progressCallback?.Invoke("Deep Analysis Complete.", 100);
 

@@ -72,6 +72,12 @@ namespace JarvisLauncher
             searchGrid.Children.Add(searchBtn);
             headerStack.Children.Add(searchGrid);
 
+            var batchBtn = CreateStyledButton("📥 INSTALL ALL MISSING TOOLS IN SUITE", (s, e) => {
+                DevSuiteManager.InstallAllMissing();
+            }, isPrimary: true, fontSize: 11);
+            batchBtn.Margin = new Thickness(0, 10, 0, 0);
+            headerStack.Children.Add(batchBtn);
+
             Grid.SetRow(headerStack, 0);
             mainGrid.Children.Add(headerStack);
 
@@ -135,13 +141,22 @@ namespace JarvisLauncher
         private async void RefreshListAsync()
         {
             _mainList.Children.Clear();
-            _mainList.Children.Add(new TextBlock { Text = "⌛ Probing system for installed environments...", Foreground = Brushes.Cyan, Margin = new Thickness(10), HorizontalAlignment = HorizontalAlignment.Center });
 
+            // 1. Initial Render (Quick) - show tools immediately while probing
+            RenderCategories(DevSuiteManager.GetAllTools());
+
+            _mainList.Children.Insert(0, new TextBlock { Text = "⌛ Probing system for installed environments...", Foreground = Brushes.Cyan, Margin = new Thickness(10), HorizontalAlignment = HorizontalAlignment.Center });
+
+            // 2. Background Probe (Optimized)
             await DevSuiteManager.RefreshInstallationStatusAsync();
 
-            _mainList.Children.Clear();
+            // 3. Final Render (Update statuses)
+            RefreshToolStatuses();
+        }
 
-            var tools = DevSuiteManager.GetAllTools();
+        private void RenderCategories(List<DevToolInfo> tools)
+        {
+            _mainList.Children.Clear();
             var categories = tools.Select(t => t.Category).Distinct().OrderBy(c => c);
 
             foreach (var cat in categories)
@@ -153,6 +168,11 @@ namespace JarvisLauncher
                     _mainList.Children.Add(CreateToolRow(tool));
                 }
             }
+        }
+
+        private void RefreshToolStatuses()
+        {
+            RenderCategories(DevSuiteManager.GetAllTools());
         }
 
         private UIElement CreateToolRow(DevToolInfo tool)

@@ -140,7 +140,8 @@ namespace JarvisLauncher
                             }
                         }
                     }
-                    _vocabList = cache.ToList();
+                    // CAP VOCABULARY to prevent exponential memory growth
+                    _vocabList = cache.Take(5000).ToList();
                     if (_vocabList.Count > _currentOutputDim && SettingsManager.Current.GODELLIAN_AUTO_EXPAND_FIELD)
                         GrowBrainField(0, _vocabList.Count - _currentOutputDim);
                 }
@@ -150,10 +151,14 @@ namespace JarvisLauncher
         public void IngestVocabulary(List<string> words, string category = "General")
         {
             lock (_lock) {
+                if (_vocabList.Count >= 5000) return; // Hard limit for stability
+
                 var unique = words.Select(w => w.Trim().ToLower()).Where(w => w.Length > 2 && !_vocabList.Contains(w)).ToList();
                 if (unique.Count > 0) {
                     File.AppendAllLines(Path.Combine(_vocabDir, $"{category}.txt"), unique);
                     _vocabList.AddRange(unique);
+                    if (_vocabList.Count > 5000) _vocabList = _vocabList.Take(5000).ToList();
+
                     if (_vocabList.Count > _currentOutputDim && SettingsManager.Current.GODELLIAN_AUTO_EXPAND_FIELD)
                         GrowBrainField(0, _vocabList.Count - _currentOutputDim);
                 }

@@ -42,12 +42,12 @@ namespace JarvisLauncher
             // 2. Explicit Fresh Start / Sync
             suggestions.Add(new CommandResult
             {
-                TITLE = "♻️ Fresh Start / Proj Sync",
-                DESCRIPTION = "Force a clean build and cold-start from latest source files",
+                TITLE = "♻️ Fresh Start (Run.bat)",
+                DESCRIPTION = "Clean build, update binaries, and cold-start via run.bat",
                 EXECUTE = () =>
                 {
-                    TextOverlay.Show("Initiating Fresh Sync & Rebuild...", 800);
-                    var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.4) };
+                    TextOverlay.Show("Launching run.bat lifecycle...", 1000);
+                    var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(0.5) };
                     timer.Tick += (s, ev) =>
                     {
                         timer.Stop();
@@ -55,7 +55,7 @@ namespace JarvisLauncher
                     };
                     timer.Start();
                 },
-                SIMILARITY = 8.5
+                SIMILARITY = 10.0
             });
 
             // 3. Cloud Sync & Rebuild

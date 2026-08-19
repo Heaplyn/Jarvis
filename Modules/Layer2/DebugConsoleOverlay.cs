@@ -14,6 +14,7 @@ using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Threading;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace JarvisLauncher
 {
@@ -23,7 +24,7 @@ namespace JarvisLauncher
         private static readonly List<LogEntry> _history = new List<LogEntry>();
         private static readonly int _maxHistory = 2000;
         private static readonly object _lock = new object();
-        private static string LogPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "jarvis_debug.log");
+        private static string LogDir => Path.Combine(PathHandler.GetDataDirectory(), "Logs", "Debug");
 
         private readonly RichTextBox _consoleBox;
         private readonly TextBlock _statusLabel;
@@ -57,10 +58,12 @@ namespace JarvisLauncher
             string ts = DateTime.Now.ToString("HH:mm:ss.fff");
             string upperCat = category.ToUpper();
 
-            // 1. Immediate File Log (Thread-safe, non-UI)
+            // 1. Immediate File Log (Thread-safe, date-split)
             try {
+                if (!Directory.Exists(LogDir)) Directory.CreateDirectory(LogDir);
+                string logPath = Path.Combine(LogDir, $"Debug_{DateTime.Now:yyyy-MM-dd}.log");
                 lock (_lock) {
-                    File.AppendAllText(LogPath, $"[{ts}] {(isVerbose ? "[VERBOSE] " : "")}[{upperCat}] {message}\n");
+                    File.AppendAllText(logPath, $"[{ts}] {(isVerbose ? "[VERBOSE] " : "")}[{upperCat}] {message}\n");
                 }
             } catch { }
 
@@ -123,6 +126,7 @@ namespace JarvisLauncher
             var replGrid = new Grid { Margin = new Thickness(0, 10, 0, 0) };
             replGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             replGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            replGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             _commandInputBox = new TextBox { Height = 26, FontFamily = new FontFamily("Consolas"), VerticalContentAlignment = VerticalAlignment.Center, Padding = new Thickness(5,0,5,0), Background = new SolidColorBrush(Color.FromArgb(40, 255,255,255)), Foreground = Brushes.White, BorderBrush = Brushes.DimGray };
             _commandInputBox.PreviewKeyDown += (s, e) => { if (e.Key == System.Windows.Input.Key.Enter) { ExecuteDebugCommand(); e.Handled = true; } };
@@ -131,6 +135,10 @@ namespace JarvisLauncher
             var clearBtn = new Button { Content = "🧹 Clear", Width = 80, Margin = new Thickness(8,0,0,0) };
             clearBtn.Click += (s, e) => { lock (_history) _history.Clear(); UpdateView(); };
             Grid.SetColumn(clearBtn, 1); replGrid.Children.Add(clearBtn);
+
+            var folderBtn = new Button { Content = "📂 Logs", Width = 80, Margin = new Thickness(8,0,0,0) };
+            folderBtn.Click += (s, e) => { try { if (!Directory.Exists(LogDir)) Directory.CreateDirectory(LogDir); Process.Start("explorer.exe", LogDir); } catch { } };
+            Grid.SetColumn(folderBtn, 2); replGrid.Children.Add(folderBtn);
 
             Grid.SetRow(replGrid, 2); mainGrid.Children.Add(replGrid);
             this.UserContent = mainGrid;
