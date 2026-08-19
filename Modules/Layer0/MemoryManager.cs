@@ -42,9 +42,15 @@ namespace JarvisLauncher
                 try {
                     IntPtr h = NativeMethods.GetForegroundWindow();
                     StringBuilder sb = new StringBuilder(256);
-                    if (GetWindowText(h, sb, 256) > 0) _lastWindowTitle = sb.ToString();
+                    if (GetWindowText(h, sb, 256) > 0) {
+                        string current = sb.ToString();
+                        if (current != _lastWindowTitle) {
+                            _lastWindowTitle = current;
+                            ChronoLogManager.LogEvent("Window", $"Switched to: {current}");
+                        }
+                    }
                 } catch { }
-                await Task.Delay(1000, token);
+                await Task.Delay(2000, token);
             }
         }
 

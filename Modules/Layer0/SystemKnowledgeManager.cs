@@ -114,39 +114,30 @@ namespace JarvisLauncher
                                  .OrderByDescending(f => f.LastWriteTime)
                                  .Take(15);
 
-                    foreach (var file in files)
-                    {
-                        string fileName = file.Name;
-                        // Extract brief summary from file header if available
-                        string summary = ExtractSummary(file.FullName);
-                        sb.AppendLine($"- {fileName} (Updated: {file.LastWriteTime:MM/dd HH:mm}): {summary}");
+                    foreach (var file in files) {
+                        sb.AppendLine($"- {file.Name} (Updated: {file.LastWriteTime:MM/dd HH:mm})");
                     }
                 }
             }
 
-            // 2. Map Handlers (Command capabilities)
+            // 2. Map Handlers
             var handlersDir = Path.Combine(root, "Modules", "Layer3", "Handlers");
-            if (Directory.Exists(handlersDir))
-            {
-                sb.AppendLine("### Command Handlers (Action Logic)");
-                var handlerFiles = Directory.GetFiles(handlersDir, "*Handler.cs");
-                foreach (var h in handlerFiles)
-                {
-                    sb.AppendLine($"- {Path.GetFileNameWithoutExtension(h)}");
-                }
+            if (Directory.Exists(handlersDir)) {
+                sb.AppendLine("### Command Handlers");
+                foreach (var h in Directory.GetFiles(handlersDir, "*Handler.cs")) sb.AppendLine($"- {Path.GetFileNameWithoutExtension(h)}");
             }
 
-            // 3. Extract Knowledge from Notes system (User's shared info)
-            string notesDir = Path.Combine(root, "Data", "Notes");
-            if (Directory.Exists(notesDir))
-            {
-                sb.AppendLine("### User/Session Metadata");
-                var noteFiles = Directory.GetFiles(notesDir, "*.md", SearchOption.AllDirectories);
-                foreach (var n in noteFiles.Take(5))
-                {
-                    sb.AppendLine($"- Context from {Path.GetFileName(n)} indexed.");
-                }
-            }
+            // 3. User Files Ingestion (Documents/Downloads)
+            sb.AppendLine("### USER SYSTEM SNAPSHOT");
+            try {
+                string docs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                var recentDocs = Directory.GetFiles(docs, "*.*").Select(f => new FileInfo(f)).OrderByDescending(f => f.LastWriteTime).Take(10);
+                foreach (var f in recentDocs) sb.AppendLine($"- Recent Doc: {f.Name} ({f.Extension})");
+
+                string downloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+                var recentDls = Directory.GetFiles(downloads, "*.*").Select(f => new FileInfo(f)).OrderByDescending(f => f.LastWriteTime).Take(10);
+                foreach (var f in recentDls) sb.AppendLine($"- Recent Download: {f.Name}");
+            } catch { }
 
             lock (_lock)
             {
@@ -154,10 +145,7 @@ namespace JarvisLauncher
             }
 
             DebugConsoleOverlay.Log("Knowledge-System", $"Self-teaching pass complete. Indexing {sb.Length} bytes of architecture data.");
-
-            // Log to a persistent file for the AI to read if needed
-            string knowledgeFile = Path.Combine(PathHandler.GetDataDirectory(), "SystemKnowledge.md");
-            await File.WriteAllTextAsync(knowledgeFile, _cachedKnowledgeSummary);
+            await File.WriteAllTextAsync(Path.Combine(PathHandler.GetDataDirectory(), "SystemKnowledge.md"), _cachedKnowledgeSummary);
         }
 
         private static string ExtractSummary(string filePath)

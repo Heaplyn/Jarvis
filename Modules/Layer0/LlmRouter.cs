@@ -1,7 +1,8 @@
 // Developer: heaplyn
 // Date: 2026-08-18
 // Summary: Central LLM dispatcher with EXHAUSTIVE Failover.
-//          Unified gateway for all AI requests including streaming and diagnostics.
+//          Supports: Gemini, Groq, OpenAI, Anthropic, Mistral, OpenRouter, DeepSeek, X-AI (Grok), Ollama.
+//          Enhanced error parsing and robust JSON navigation.
 
 using System;
 using System.Collections.Generic;
@@ -18,24 +19,29 @@ namespace JarvisLauncher
 {
     public static class LlmRouter
     {
-        private static readonly HttpClient _http = new HttpClient { Timeout = TimeSpan.FromSeconds(45) };
+        private static readonly HttpClient _http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
 
         public static async Task<bool> IsOllamaAvailableAsync()
         {
-            try
-            {
+            try {
                 using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
                 string endpoint = CoreRegistry.Data.Settings.Current.OLLAMA_ENDPOINT.TrimEnd('/');
                 var resp = await _http.GetAsync($"{endpoint}/api/tags", cts.Token);
                 return resp.IsSuccessStatusCode;
-            }
-            catch { return false; }
+            } catch { return false; }
         }
 
         public static async Task<string> AskAsync(string prompt, List<ChatTurn>? history = null, CancellationToken ct = default)
         {
             var timer = Stopwatch.StartNew();
-            DebugConsoleOverlay.Log("AI-Router", ">>> Starting GLOBAL Failover sequence.");
+            DebugConsoleOverlay.Log("AI-Router", ">>> GLOBAL Failover active.");
+
+            // SPECIAL CASE: History retrieval
+            string lowerPrompt = prompt.ToLower();
+            if (lowerPrompt.Contains("yesterday") || lowerPrompt.Contains("history") || lowerPrompt.Contains("did i do")) {
+                string historyContext = ChronoLogManager.GetHistoryForDate(DateTime.Now.AddDays(-1));
+                prompt = $"[SYSTEM CONTEXT: USER HISTORY LOGS]\n{historyContext}\n\n### USER REQUEST\n{prompt}";
+            }
 
             try {
                 string? local = await HeuristicIntentParser.TryHandleLocallyAsync(prompt);
@@ -43,38 +49,29 @@ namespace JarvisLauncher
             } catch { }
 
             var s = CoreRegistry.Data.Settings.Current;
-            string primary = s.LLM_BACKEND;
-
-            // 1. Prioritized chain: User primary -> Trusted Cloud -> Local -> Heuristic Fallback
             var chain = new List<string> {
-                primary, "Gemini", "Groq", "OpenAI", "Anthropic",
-                "Mistral", "OpenRouter", "Perplexity", "DeepSeek",
-                "OpenClaw", "Ollama", "Godellian"
+                s.LLM_BACKEND, "Gemini", "Groq", "DeepSeek", "OpenAI", "Anthropic",
+                "Mistral", "OpenRouter", "X-AI", "Ollama", "Godellian"
             }.Distinct().ToList();
 
             string lastError = "No providers attempted.";
             foreach (var backend in chain)
             {
-                try
-                {
+                try {
                     if (!IsBackendConfigured(backend)) continue;
-
                     DebugConsoleOverlay.Log("AI-Router", $"Attempting: {backend}");
                     string result = await CallBackendInternalAsync(backend, prompt, history, ct);
 
-                    if (!string.IsNullOrEmpty(result) && !result.Contains("Error") && !result.Contains("fail")) {
-                        DebugConsoleOverlay.Log("AI-Router", $"Success via {backend} ({timer.ElapsedMilliseconds}ms)");
+                    if (!string.IsNullOrEmpty(result) && !result.StartsWith("⚠️")) {
+                        DebugConsoleOverlay.Log("AI-Router", $"Success: {backend} ({timer.ElapsedMilliseconds}ms)");
                         return result;
                     }
-                }
-                catch (Exception ex)
-                {
+                } catch (Exception ex) {
                     lastError = ex.Message;
-                    DebugConsoleOverlay.Log("AI-Fail", $"[{backend}] Failed: {ex.Message}");
+                    DebugConsoleOverlay.Log("AI-Fail", $"[{backend}]: {ex.Message}");
                 }
             }
-
-            return $"⚠️ [PIPELINE CRASH] All AI models failed.\nLast Error: {lastError}";
+            return $"⚠️ [FATAL] AI Pipeline collapsed. Last Error: {lastError}";
         }
 
         private static bool IsBackendConfigured(string b) {
@@ -84,73 +81,157 @@ namespace JarvisLauncher
                 "Groq" => !string.IsNullOrEmpty(s.GROQ_KEY),
                 "OpenAI" => !string.IsNullOrEmpty(s.OPENAI_KEY),
                 "Anthropic" => !string.IsNullOrEmpty(s.ANTHROPIC_KEY),
-                "Ollama" => true,
-                "Godellian" => true,
+                "DeepSeek" => !string.IsNullOrEmpty(s.CUSTOM_LLM_KEY),
+                "X-AI" => !string.IsNullOrEmpty(s.CUSTOM_LLM_KEY),
                 _ => true
             };
         }
 
         private static async Task<string> CallBackendInternalAsync(string backend, string prompt, List<ChatTurn>? history, CancellationToken ct)
         {
-            return backend switch
-            {
+            return backend switch {
+                "Gemini"     => await AskGeminiAsync(prompt, history, ct),
                 "OpenAI"     => await AskOpenAIAsync(prompt, history, ct),
                 "DeepSeek"   => await AskDeepSeekAsync(prompt, history, ct),
                 "Anthropic"  => await AskAnthropicAsync(prompt, history, ct),
                 "Groq"       => await AskGroqAsync(prompt, history, ct),
-                "Perplexity" => await AskPerplexityAsync(prompt, history, ct),
+                "X-AI"       => await AskGrokAsync(prompt, history, ct),
                 "Mistral"    => await AskMistralAsync(prompt, history, ct),
                 "OpenRouter" => await AskOpenRouterAsync(prompt, history, ct),
-                "OpenClaw"   => await AskOpenClawAsync(prompt, history, ct),
                 "Ollama"     => await AskOllamaAsync(prompt, history, ct),
+                "LM Studio"  => await AskLMStudioAsync(prompt, history, ct),
+                "Bionic"     => await AskBionicAsync(prompt, history, ct),
                 "Godellian"  => await AskGodellianAsync(prompt),
-                _            => await AiAPI.AskGeminiInternalStatic(prompt, history, ct)
+                _            => await AskGeminiAsync(prompt, history, ct)
             };
         }
 
-        private static async Task<string> AskGodellianAsync(string prompt)
+        public static async Task<string> AskLMStudioAsync(string p, List<ChatTurn>? h, CancellationToken ct)
+            => await AskGenericOpenAICompatibleAsync("http://localhost:1234/v1", "", "local-model", p, h, ct);
+
+        public static async Task<string> AskBionicAsync(string p, List<ChatTurn>? h, CancellationToken ct)
+            => await AskGenericOpenAICompatibleAsync("http://localhost:18080/v1", "", "bionic-model", p, h, ct);
+
+        public static async Task<string> AskGeminiAsync(string prompt, List<ChatTurn>? history, CancellationToken ct)
         {
-            DebugConsoleOverlay.Log("Godellian", "Last-Resort Symbolic Logic active.");
-            double[] v = new double[16];
-            for (int i = 0; i < Math.Min(prompt.Length, 100); i++) v[i % 16] += (double)prompt[i] / 255.0;
-            var brain = CoreRegistry.Intelligence.MainBrain;
-            return brain.ThinkInWords(v);
+            var s = CoreRegistry.Data.Settings.Current;
+            string key = s.GOOGLE_AI_KEY;
+            if (string.IsNullOrEmpty(key)) throw new Exception("Gemini API Key missing.");
+
+            string model = s.GEMINI_MODEL ?? "gemini-1.5-flash";
+            string url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}";
+
+            var contents = new List<object>();
+            if (history != null) {
+                foreach (var t in history.TakeLast(10))
+                    contents.Add(new { role = (t.Role == "model" ? "model" : "user"), parts = new[] { new { text = t.Text } } });
+            }
+            contents.Add(new { role = "user", parts = new[] { new { text = prompt } } });
+
+            var payload = new { contents, generationConfig = new { temperature = 0.7, maxOutputTokens = 2048 } };
+            var json = JsonSerializer.Serialize(payload);
+
+            DebugConsoleOverlay.Log("AI-Gemini", $"Querying {model}...");
+
+            using var resp = await _http.PostAsync(url, new StringContent(json, Encoding.UTF8, "application/json"), ct);
+            string body = await resp.Content.ReadAsStringAsync();
+
+            if (!resp.IsSuccessStatusCode) throw new Exception($"Gemini Error {resp.StatusCode}: {body}");
+
+            using var doc = JsonDocument.Parse(body);
+            return doc.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString() ?? "";
+        }
+
+        private static async Task<string> AskGodellianAsync(string prompt) {
+            double[] v = NeuralVectorizationKernels.VectorizeSystemState(prompt, "", "");
+            return CoreRegistry.Intelligence.MainBrain.ThinkInWords(v);
         }
 
         public static async Task<string> AskDeepSeekAsync(string p, List<ChatTurn>? h, CancellationToken ct)
             => await AskGenericOpenAICompatibleAsync("https://api.deepseek.com", CoreRegistry.Data.Settings.Current.CUSTOM_LLM_KEY, "deepseek-chat", p, h, ct);
 
-        public static async Task<string> AskGroqAsync(string prompt, List<ChatTurn>? history, CancellationToken ct)
+        public static async Task<string> AskGrokAsync(string p, List<ChatTurn>? h, CancellationToken ct)
+            => await AskGenericOpenAICompatibleAsync("https://api.x.ai/v1", CoreRegistry.Data.Settings.Current.CUSTOM_LLM_KEY, "grok-beta", p, h, ct);
+
+        public static async Task<string> AskGroqAsync(string p, List<ChatTurn>? h, CancellationToken ct)
         {
-            var s = CoreRegistry.Data.Settings.Current;
-            var models = new[] { "llama-3.3-70b-versatile", "mixtral-8x7b-32768", "llama-3.1-8b-instant" };
-            foreach (var m in models) {
-                try { return await AskGenericOpenAICompatibleAsync("https://api.groq.com/openai/v1", s.GROQ_KEY, m, prompt, history, ct); } catch { }
-            }
+            var models = new[] { "llama-3.3-70b-versatile", "mixtral-8x7b-32768" };
+            foreach (var m in models) { try { return await AskGenericOpenAICompatibleAsync("https://api.groq.com/openai/v1", CoreRegistry.Data.Settings.Current.GROQ_KEY, m, p, h, ct); } catch { } }
             throw new Exception("Groq failed.");
         }
 
         private static async Task<string> AskGenericOpenAICompatibleAsync(string baseUrl, string key, string model, string prompt, List<ChatTurn>? history, CancellationToken ct)
         {
             var msgs = new List<object> { new { role = "system", content = AiAPI.GetCompactSystemPrompt() } };
-            if (history != null) foreach (var t in history.TakeLast(3)) msgs.Add(new { role = t.Role == "model" ? "assistant" : "user", content = t.Text });
+            if (history != null) {
+                foreach (var t in history.TakeLast(5))
+                    msgs.Add(new { role = (t.Role == "model" ? "assistant" : "user"), content = t.Text ?? "" });
+            }
             msgs.Add(new { role = "user", content = prompt });
 
+            var payload = new { model, messages = msgs, temperature = 0.5 };
             var req = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl.TrimEnd('/')}/chat/completions") {
-                Content = new StringContent(JsonSerializer.Serialize(new { model, messages = msgs, temperature = 0.5 }), Encoding.UTF8, "application/json")
+                Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
             };
             if (!string.IsNullOrEmpty(key)) req.Headers.Add("Authorization", $"Bearer {key}");
-
             var resp = await _http.SendAsync(req, ct);
-            if (!resp.IsSuccessStatusCode) throw new Exception($"HTTP {(int)resp.StatusCode}");
-            using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+            string body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode) throw new Exception($"{resp.StatusCode}");
+            using var doc = JsonDocument.Parse(body);
             return doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? "";
+        }
+
+        public static async Task<string> AskAnthropicAsync(string prompt, List<ChatTurn>? history, CancellationToken ct)
+        {
+            var s = CoreRegistry.Data.Settings.Current;
+            var msgs = new List<object>();
+            if (history != null) {
+                foreach (var t in history.TakeLast(3))
+                    msgs.Add(new { role = (t.Role == "model" ? "assistant" : "user"), content = t.Text ?? "" });
+            }
+            msgs.Add(new { role = "user", content = prompt });
+            var payload = new { model = "claude-3-5-sonnet-latest", system = AiAPI.GetCompactSystemPrompt(), messages = msgs, max_tokens = 1024 };
+            var req = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages") {
+                Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
+            };
+            req.Headers.Add("x-api-key", s.ANTHROPIC_KEY);
+            req.Headers.Add("anthropic-version", "2023-06-01");
+            var resp = await _http.SendAsync(req, ct);
+            string body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode) throw new Exception($"Anthropic {resp.StatusCode}: {body}");
+            using var doc = JsonDocument.Parse(body);
+            return doc.RootElement.GetProperty("content")[0].GetProperty("text").GetString() ?? "";
+        }
+
+        public static async Task<string> AskOllamaAsync(string prompt, List<ChatTurn>? history, CancellationToken ct)
+        {
+            var s = CoreRegistry.Data.Settings.Current;
+            var msgs = new List<object>();
+            if (history != null) {
+                foreach (var t in history.TakeLast(10))
+                    msgs.Add(new { role = (t.Role == "model" ? "assistant" : "user"), content = t.Text ?? "" });
+            }
+            msgs.Add(new { role = "user", content = prompt });
+
+            var payload = new { model = s.OLLAMA_MODEL, messages = msgs, stream = false };
+            var resp = await _http.PostAsync($"{s.OLLAMA_ENDPOINT.TrimEnd('/')}/api/chat", new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json"), ct);
+            string body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode) throw new Exception($"Ollama {resp.StatusCode}: {body}");
+            using var doc = JsonDocument.Parse(body);
+            return doc.RootElement.GetProperty("message").GetProperty("content").GetString() ?? "";
         }
 
         public static async Task<string> AskOllamaStreamAsync(string prompt, List<ChatTurn>? history, Action<string> onToken, CancellationToken ct)
         {
             var s = CoreRegistry.Data.Settings.Current;
-            var payload = new { model = s.OLLAMA_MODEL, messages = history?.Select(t => new { role = t.Role == "model" ? "assistant" : "user", content = t.Text }).ToList(), stream = true };
+            var msgs = new List<object>();
+            if (history != null) {
+                foreach (var t in history)
+                    msgs.Add(new { role = (t.Role == "model" ? "assistant" : "user"), content = t.Text ?? "" });
+            }
+            msgs.Add(new { role = "user", content = prompt });
+
+            var payload = new { model = s.OLLAMA_MODEL, messages = msgs, stream = true };
             var req = new HttpRequestMessage(HttpMethod.Post, $"{s.OLLAMA_ENDPOINT.TrimEnd('/')}/api/chat") {
                 Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
             };
@@ -161,12 +242,14 @@ namespace JarvisLauncher
             while (!reader.EndOfStream) {
                 var line = await reader.ReadLineAsync();
                 if (string.IsNullOrEmpty(line)) continue;
-                using var doc = JsonDocument.Parse(line);
-                if (doc.RootElement.TryGetProperty("message", out var msg)) {
-                    string t = msg.GetProperty("content").GetString() ?? "";
-                    sb.Append(t); onToken(t);
-                }
-                if (doc.RootElement.TryGetProperty("done", out var done) && done.GetBoolean()) break;
+                try {
+                    using var doc = JsonDocument.Parse(line);
+                    if (doc.RootElement.TryGetProperty("message", out var msg)) {
+                        string t = msg.GetProperty("content").GetString() ?? "";
+                        sb.Append(t); onToken(t);
+                    }
+                    if (doc.RootElement.TryGetProperty("done", out var done) && done.GetBoolean()) break;
+                } catch { }
             }
             return sb.ToString();
         }
@@ -179,45 +262,6 @@ namespace JarvisLauncher
 
         public static async Task<string> AskOpenRouterAsync(string p, List<ChatTurn>? h, CancellationToken ct)
             => await AskGenericOpenAICompatibleAsync("https://openrouter.ai/api/v1", CoreRegistry.Data.Settings.Current.OPENROUTER_KEY, CoreRegistry.Data.Settings.Current.OPENROUTER_MODEL, p, h, ct);
-
-        public static async Task<string> AskPerplexityAsync(string p, List<ChatTurn>? h, CancellationToken ct)
-            => await AskGenericOpenAICompatibleAsync("https://api.perplexity.ai", CoreRegistry.Data.Settings.Current.PERPLEXITY_KEY, "llama-3-sonar-large-32k-online", p, h, ct);
-
-        public static async Task<string> AskAnthropicAsync(string prompt, List<ChatTurn>? history, CancellationToken ct)
-        {
-            var s = CoreRegistry.Data.Settings.Current;
-            var msgs = new List<object>();
-            if (history != null) foreach (var t in history.TakeLast(3)) msgs.Add(new { role = t.Role == "model" ? "assistant" : "user", content = t.Text });
-            msgs.Add(new { role = "user", content = prompt });
-            var req = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages") {
-                Content = new StringContent(JsonSerializer.Serialize(new { model = "claude-3-5-sonnet-20240620", system = AiAPI.GetCompactSystemPrompt(), messages = msgs, max_tokens = 1000 }), Encoding.UTF8, "application/json")
-            };
-            req.Headers.Add("x-api-key", s.ANTHROPIC_KEY);
-            req.Headers.Add("anthropic-version", "2023-06-01");
-            var resp = await _http.SendAsync(req, ct);
-            using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
-            return doc.RootElement.GetProperty("content")[0].GetProperty("text").GetString() ?? "";
-        }
-
-        public static async Task<string> AskOllamaAsync(string prompt, List<ChatTurn>? history, CancellationToken ct)
-        {
-            var s = CoreRegistry.Data.Settings.Current;
-            var payload = new { model = s.OLLAMA_MODEL, messages = history?.Select(t => new { role = t.Role == "model" ? "assistant" : "user", content = t.Text }).ToList(), stream = false };
-            var resp = await _http.PostAsync($"{s.OLLAMA_ENDPOINT.TrimEnd('/')}/api/chat", new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json"), ct);
-            using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
-            return doc.RootElement.GetProperty("message").GetProperty("content").GetString() ?? "";
-        }
-
-        public static async Task<string> AskOpenClawAsync(string prompt, List<ChatTurn>? history, CancellationToken ct)
-        {
-            var s = CoreRegistry.Data.Settings.Current;
-            var resp = await _http.PostAsync($"{s.OPENCLAW_ENDPOINT.TrimEnd('/')}/sessions", null, ct);
-            var sid = JsonDocument.Parse(await resp.Content.ReadAsStringAsync()).RootElement.GetProperty("session_id").GetString()!;
-            await _http.PostAsync($"{s.OPENCLAW_ENDPOINT}/sessions/{sid}/message", new StringContent(JsonSerializer.Serialize(new { message = prompt }), Encoding.UTF8, "application/json"), ct);
-            await Task.Delay(1500);
-            var res = await _http.GetAsync($"{s.OPENCLAW_ENDPOINT}/sessions/{sid}", ct);
-            return JsonDocument.Parse(await res.Content.ReadAsStringAsync()).RootElement.GetProperty("session").GetProperty("messages").EnumerateArray().Last().GetProperty("content").GetProperty("text").GetString()!;
-        }
 
         public static async Task<List<string>> GetOllamaModelsAsync()
         {

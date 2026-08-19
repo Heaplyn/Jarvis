@@ -16,7 +16,7 @@ namespace JarvisLauncher
 {
     public enum CommandType
     {
-        MATH, VOLUME, LOCK, RESTART, OPACITY, TIMER, SYSTEM_STATS, LOCAL_IP, BRIGHTNESS, CLI_RUNNER, APP_LAUNCHER, VIEW_FILE, SETTINGS, AI, RECYCLE_BIN, PROCESS_KILLER, POWER, ALIAS, TEXT_OPACITY, GIT_PUSH, COMMANDS, GIT_SETUP, LOGS, DOWNLOAD_PATH, EXIT, UPDATE, POWERSHELL, UPDATE_COMPUTER, SYS_INFO, SEARCH_LAUNCHER, SCREENSHOT, MUTE, CLIPBOARD, TODO, THEME, EDIT, OPEN, GRID, PRODUCTIVITY, EXTRA_FEATURES, NEW_IDEAS, MUSIC_PLAYLIST, STICKY_NOTE, GAME_DEV_TOOLBOX, FFMPEG, LLM, PHONE, DIAGNOSTICS, WEB_SCRAPING, CALENDAR, REMINDERS, FILE_ORGANIZER, SCREEN_ANALYSIS, BACKGROUND, VOICE_STUDIO, HELP_CENTER, ANIMATION_OPTIONS, EXPANDED_COMMANDS, ORGANIZATION_TOOLS, ADHD_FOCUS_SUITE, MCP, OAUTH2, CODE_ASSIST, IPA_COMPILER, INSTALL, TTS, BIOMETRICS, TEMPLATE, TEACHER, UNINSTALL, WEB_OP, DATABASE, BUILD, DEBUGGER, STORAGE, CODE_EDITOR, MOBILE, TUNNEL, FILE_GRID, CLIPBOARD_HISTORY, NETWORK, GCLOUD
+        MATH, VOLUME, LOCK, RESTART, OPACITY, TIMER, SYSTEM_STATS, LOCAL_IP, BRIGHTNESS, CLI_RUNNER, APP_LAUNCHER, VIEW_FILE, SETTINGS, AI, RECYCLE_BIN, PROCESS_KILLER, POWER, ALIAS, TEXT_OPACITY, GIT_PUSH, COMMANDS, GIT_SETUP, LOGS, DOWNLOAD_PATH, EXIT, UPDATE, POWERSHELL, UPDATE_COMPUTER, SYS_INFO, SEARCH_LAUNCHER, SCREENSHOT, MUTE, CLIPBOARD, TODO, THEME, EDIT, OPEN, GRID, PRODUCTIVITY, EXTRA_FEATURES, NEW_IDEAS, MUSIC_PLAYLIST, STICKY_NOTE, GAME_DEV_TOOLBOX, FFMPEG, LLM, PHONE, DIAGNOSTICS, WEB_SCRAPING, CALENDAR, REMINDERS, FILE_ORGANIZER, SCREEN_ANALYSIS, BACKGROUND, VOICE_STUDIO, HELP_CENTER, ANIMATION_OPTIONS, EXPANDED_COMMANDS, ORGANIZATION_TOOLS, ADHD_FOCUS_SUITE, MCP, OAUTH2, CODE_ASSIST, IPA_COMPILER, INSTALL, TTS, BIOMETRICS, TEMPLATE, TEACHER, UNINSTALL, WEB_OP, DATABASE, BUILD, DEBUGGER, STORAGE, CODE_EDITOR, MOBILE, TUNNEL, FILE_GRID, CLIPBOARD_HISTORY, NETWORK, GCLOUD, GODELLIAN
     };
 
     public static class CommandParser
@@ -31,6 +31,7 @@ namespace JarvisLauncher
             // --- CORE AI & DOCS ---
             RegisterHandler(CommandType.AI, "AI Assistant", () => new AiCommandHandler());
             RegisterHandler(CommandType.LLM, "LLM Settings", () => new LLMCommandHandler());
+            RegisterHandler(CommandType.GODELLIAN, "Intelligence Core", () => new GodellianCommandHandler());
             RegisterHandler(CommandType.GCLOUD, "Google Cloud", () => new GCloudCommandHandler());
             RegisterHandler(CommandType.HELP_CENTER, "Help Hub", () => new HelpCommandHandler());
             RegisterHandler(CommandType.DEBUGGER, "System Debugger", () => new DebuggerCommandHandler());
@@ -230,6 +231,10 @@ namespace JarvisLauncher
         public static void ExecuteFirstSuggestion(string Query)
         {
             if (string.IsNullOrWhiteSpace(Query)) return;
+
+            // Log command execution for Jarvis memory
+            ChronoLogManager.LogEvent("Command", Query);
+
             string lower = Query.ToLower();
             if (lower.Contains("shutdown") || lower.Contains("restart") || lower.Contains("reboot") || lower.Contains("sleep"))
             {

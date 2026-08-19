@@ -230,6 +230,8 @@ namespace JarvisLauncher
             }
 
             AddMessageBubble(displayMsg, false);
+            ChronoLogManager.LogEvent("Chat", $"User: {msg}");
+
             var (bdr, tb, dbg) = AddMessageBubbleWithControls("🧠 Thinking...", true);
             StatusText.Text = "THINKING"; StatusDot.Fill = Brushes.Yellow;
 
@@ -244,14 +246,39 @@ namespace JarvisLauncher
                 }
 
                 tb.Text = AiAPI.SanitizeText(response);
-                dbg.Text = response;
+                ChronoLogManager.LogEvent("Chat", $"Jarvis: {tb.Text}");
+
+                // Extract debug log if present
+                if (response.Contains("### DEBUG LOG")) {
+                    dbg.Text = response.Split("### DEBUG LOG")[1].Trim();
+                } else {
+                    dbg.Text = "Raw Response:\n" + response;
+                }
 
                 ConversationHistory.Add(new ChatTurn { Role = "user", Text = msg });
                 ConversationHistory.Add(new ChatTurn { Role = "model", Text = tb.Text });
                 SaveCurrentSession();
             } catch (Exception ex) {
-                tb.Text = "❌ Error: " + ex.Message;
+                // Log the full technical detail to the debug console.
                 LogConsoleAction("AI Fault", ex.ToString());
+
+                // Show a clean, readable message in the chat bubble.
+                string friendly;
+                string errMsg = ex.Message;
+                if (errMsg.Contains("invalid") || errMsg.Contains("API key") || errMsg.Contains("INVALID_ARGUMENT") || errMsg.Contains("restricted"))
+                    friendly = "⚠️ API key issue — your Gemini key may be invalid or missing. Go to Settings → API Keys to update it.";
+                else if (errMsg.Contains("not found") || errMsg.Contains("NOT_FOUND") || errMsg.Contains("deprecated") || errMsg.Contains("exhausted"))
+                    friendly = "⚠️ The configured AI model is unavailable. Jarvis tried all fallbacks. Check Settings → LLM to pick a working model.";
+                else if (errMsg.Contains("timed out") || errMsg.Contains("TaskCanceled") || errMsg.Contains("OperationCanceled"))
+                    friendly = "⏱️ Request timed out. Check your internet connection and try again.";
+                else if (errMsg.Contains("No providers") || errMsg.Contains("FATAL") || errMsg.Contains("collapsed"))
+                    friendly = "🔴 All AI providers failed. Check that at least one API key is valid in Settings → API Keys.";
+                else if (errMsg.Contains("Unauthorized") || errMsg.Contains("Forbidden"))
+                    friendly = "🔐 Access denied — the API key may be expired or blocked. Please refresh it in Settings → API Keys.";
+                else
+                    friendly = "❌ Something went wrong. Tap ⌄ below for technical details.";
+
+                tb.Text = friendly;
             } finally {
                 StatusText.Text = "READY"; StatusDot.Fill = Brushes.LightGreen;
                 _activeCts = null;

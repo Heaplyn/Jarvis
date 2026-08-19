@@ -76,6 +76,7 @@ namespace JarvisLauncher
             else Start(IntervalSeconds);
         }
 
+        private static int _aiAnalysisCounter = 0;
         private static void OnMonitorTick(object? state)
         {
             try
@@ -86,6 +87,17 @@ namespace JarvisLauncher
                 if (!string.IsNullOrEmpty(capturePath))
                 {
                     OnScreenCaptured?.Invoke(capturePath, ActiveWindowTitle);
+                }
+
+                // Periodically perform deep AI analysis (every 3 mins)
+                _aiAnalysisCounter++;
+                if (_aiAnalysisCounter >= 36) // 36 * 5s = 180s = 3m
+                {
+                    _aiAnalysisCounter = 0;
+                    Task.Run(async () => {
+                        string summary = await AnalyzeScreenWithAiAsync();
+                        ChronoLogManager.LogEvent("Vision", $"Screen Analysis: {summary}");
+                    });
                 }
             }
             catch (Exception ex)

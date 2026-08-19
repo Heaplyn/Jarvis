@@ -305,6 +305,16 @@ namespace JarvisLauncher
             }
         }
 
+        public static void ClearCache()
+        {
+            try {
+                if (Directory.Exists(OfflineDataDirectory)) {
+                    foreach (var file in Directory.GetFiles(OfflineDataDirectory)) File.Delete(file);
+                    foreach (var dir in Directory.GetDirectories(OfflineDataDirectory)) Directory.Delete(dir, true);
+                }
+            } catch { }
+        }
+
         /// <summary>
         /// Checks if an application is installed, looking in PATH and standard installation paths.
         /// </summary>
