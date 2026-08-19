@@ -1,9 +1,9 @@
 // Developer: heaplyn
 // Date: 2026-08-18
-// Summary: Centralized Evolution Manager for Jarvis.
-//          Continuously harvests data from Voice, Screen, Code, and System Files.
-//          Performs constant background neural training on the Godellian Brain.
-//          Uses Collaborative LLM Consensus (Gemini, Groq, etc.) to generate Synthetic Training Data.
+// Summary: Godellian Intelligence Evolution Orchestrator v19 (Ultra-Turbo).
+//          Turbo Mode: Supports sub-second training cycles (500ms default).
+//          Parallel Knowledge Forge: Scrapes, Vectorizes, and Trains in parallel.
+//          Symbolic Hardening: Constantly refines the symbolic calculus bridge.
 
 using System;
 using System.Collections.Generic;
@@ -12,94 +12,118 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Diagnostics;
 
 namespace JarvisLauncher
 {
     public static class EvolutionManager
     {
         private static bool _isActive = false;
-        private static readonly Random _rng = new Random();
+        private static readonly List<string> _scrapeSources = new List<string> {
+            "https://en.wikipedia.org/wiki/Calculus",
+            "https://en.wikipedia.org/wiki/Tensor_field",
+            "https://en.wikipedia.org/wiki/Manifold",
+            "https://en.wikipedia.org/wiki/Cybernetics",
+            "https://en.wikipedia.org/wiki/Recursion"
+        };
 
         public static void StartContinuousEvolution()
         {
             if (_isActive) return;
             _isActive = true;
 
-            // 1. Meta-Architectural Loop (Every 2 mins)
+            // Start Data Forge
+            GodellianDataForge.StartBackgroundForging();
+
+            // 1. TURBO TRAINING LOOP (Millisecond Aware)
             Task.Run(async () => {
-                DebugConsoleOverlay.Log("Evolution-Core", "Neural Evolution Loop: ACTIVE");
+                DebugConsoleOverlay.Log("Evolution-Turbo", "Godellian Ultra-Turbo Training: ACTIVE");
                 while (_isActive) {
-                    try { await RunEvolutionCycleAsync(); } catch { }
-                    await Task.Delay(TimeSpan.FromMinutes(2));
+                    try {
+                        var settings = SettingsManager.Current;
+                        int interval = settings.GODELLIAN_TURBO_MODE ? Math.Max(100, settings.GODELLIAN_TURBO_INTERVAL_MS) : 30000;
+
+                        await PerformHighFidelityExpansionAsync();
+                        await Task.Delay(interval);
+                    } catch { }
                 }
             });
 
-            // 2. Background Neural Training pass (Every 45s)
+            // 2. CONSTANT WEB SCOUR (Every 2 mins in turbo)
             Task.Run(async () => {
                 while (_isActive) {
-                    try { await PerformAutonomousNeuralExpansionAsync(); } catch { }
-                    await Task.Delay(TimeSpan.FromSeconds(45));
+                    try { await ScrapeAndIngestTechnicalKnowledgeAsync(); } catch { }
+                    int delay = SettingsManager.Current.GODELLIAN_TURBO_MODE ? 2 : 10;
+                    await Task.Delay(TimeSpan.FromMinutes(delay));
+                }
+            });
+
+            // 3. KERNEL REFINEMENT (Every 5 mins)
+            Task.Run(async () => {
+                while (_isActive) {
+                    try { await PerformDeepKernelRefinementAsync(); } catch { }
+                    await Task.Delay(TimeSpan.FromMinutes(5));
                 }
             });
         }
 
-        private static async Task RunEvolutionCycleAsync()
+        private static async Task ScrapeAndIngestTechnicalKnowledgeAsync()
         {
-            // 1. Harvest Context
-            string screen = await HarvestScreenContextAsync();
-            string chat = await SemanticMemoryManager.GetRecentChatContextAsync();
-            string code = HarvestActiveCodeContext();
-            string sys = HarvestSystemState();
+            if (!SettingsManager.Current.DATA_ENABLE_AUTO_SCRAPE) return;
 
-            // 2. Update Memory MD Files
-            await WriteInsightsToMemoryAsync(screen, code, sys, chat);
+            string url = _scrapeSources[Random.Shared.Next(_scrapeSources.Count)];
+            try {
+                string prompt = $"### KNOWLEDGE HARVEST: {url}\n" +
+                                "Sir, extract 15 high-level technical concepts and provide 8 synthetic 16-dim training vectors.\n" +
+                                "Format: [CONCEPTS]: c1,c2... [VECTORS]: [IN]:v...[OUT]:v...";
 
-            // 3. Meta-Review: Fix algorithms if faulty or inefficient
-            await PerformMetaArchitecturalReview(screen, chat, code);
+                string harvest = await LlmRouter.AskAsync(prompt);
+
+                if (harvest.Contains("[CONCEPTS]:")) {
+                    var list = harvest.Split("[CONCEPTS]:")[1].Split('\n')[0].Split(',').Select(s => s.Trim()).ToList();
+                    CoreRegistry.Intelligence.MainBrain.IngestVocabulary(list, "Scraped_Growth");
+                }
+
+                var pairs = ParseSyntheticVectors(harvest, NeuralVectorizationKernels.CurrentDimension);
+                if (pairs.Count > 0)
+                    CoreRegistry.Intelligence.MainBrain.BatchTrain(pairs.Select(p => p.Key).ToList(), pairs.Select(p => p.Value).ToList(), epochs: 50);
+            } catch { }
         }
 
-        private static async Task PerformAutonomousNeuralExpansionAsync()
+        private static async Task PerformHighFidelityExpansionAsync()
         {
             var brain = CoreRegistry.Intelligence.MainBrain;
+            int dim = NeuralVectorizationKernels.CurrentDimension;
 
-            // --- SYNTHETIC DATA GENERATION via LLM Consensus ---
-            // We use Gemini and Groq to "imagine" possible future system states and correct neural targets.
+            // Collect Environment Logic
+            string screen = await HarvestScreenContextAsync();
+            string chat = await SemanticMemoryManager.GetRecentChatContextAsync();
 
-            var screenInsight = await HarvestScreenContextAsync();
-            var systemReport = HarvestSystemState();
-
-            string prompt = "### SYNTHETIC NEURAL DATA GENERATION\n" +
-                            "Sir, I am training my local Godellian Brain.\n" +
-                            $"CONTEXT: {screenInsight} | {systemReport}\n\n" +
+            string prompt = $"### TURBO TRAINING (DIM: {dim})\n" +
+                            $"CONTEXT: {screen}\n" +
                             "### TASK\n" +
-                            "Generate 3 pairs of (Input_Vector, Target_Vector) for my 16-dimensional feature space.\n" +
-                            "Focus on optimizing mathematical logic and UI focus stability.\n" +
-                            "Each vector is 16 comma-separated floats (-1.0 to 1.0).\n" +
-                            "Format: [IN]: v1,v2... [OUT]: t1,t2...\n" +
-                            "Output only the 6 vectors.";
+                            "Generate 10 complex symbolic-to-logic training pairs.\n" +
+                            "Format: [IN]: v1,v2... [OUT]: t1,t2...";
 
             try {
                 string result = await LlmRouter.AskAsync(prompt);
-                var trainingPairs = ParseSyntheticVectors(result);
+                var pairs = ParseSyntheticVectors(result, dim);
+                if (pairs.Count > 0)
+                    brain.BatchTrain(pairs.Select(p => p.Key).ToList(), pairs.Select(p => p.Value).ToList(), epochs: SettingsManager.Current.GODELLIAN_TURBO_MODE ? 80 : 30);
 
-                if (trainingPairs.Count > 0)
-                {
-                    var inputs = trainingPairs.Select(p => p.Key).ToList();
-                    var targets = trainingPairs.Select(p => p.Value).ToList();
-
-                    brain.BatchTrain(inputs, targets, epochs: 5);
-                    DebugConsoleOverlay.Log("Neural-Consensus", $"Successfully trained on {trainingPairs.Count} synthetic delta pairs generated by global LLMs.");
-                }
-
-                // Also apply a small synaptic drift mutation
                 brain.MutateTopology();
-
-            } catch (Exception ex) {
-                DebugConsoleOverlay.Log("Neural-Train-Error", ex.Message);
-            }
+            } catch { }
         }
 
-        private static List<KeyValuePair<double[], double[]>> ParseSyntheticVectors(string raw)
+        private static async Task PerformDeepKernelRefinementAsync()
+        {
+            try {
+                string advice = await LlmRouter.AskAsync("### OPTIMIZE KERNEL\nReview 'NeuralVectorizationKernels.cs'. Provide @mod_code to improve manifold projection density.");
+                if (advice.Contains("@mod_code")) await AiAPI.ExecuteAgentLoopAsync(advice);
+            } catch { }
+        }
+
+        private static List<KeyValuePair<double[], double[]>> ParseSyntheticVectors(string raw, int dim)
         {
             var pairs = new List<KeyValuePair<double[], double[]>>();
             try {
@@ -108,10 +132,12 @@ namespace JarvisLauncher
                 foreach (var line in lines) {
                     var clean = line.Trim();
                     if (clean.Contains("[IN]:")) {
-                        currentIn = clean.Split(':')[1].Split(',').Select(s => double.TryParse(s.Trim(), out double d) ? d : 0.0).Take(16).ToArray();
+                        var parts = clean.Split("[IN]:")[1].Split(',');
+                        currentIn = parts.Select(s => double.TryParse(s.Trim(), out double d) ? d : 0.0).Take(dim).ToArray();
                     } else if (clean.Contains("[OUT]:") && currentIn != null) {
-                        var target = clean.Split(':')[1].Split(',').Select(s => double.TryParse(s.Trim(), out double d) ? d : 0.0).Take(16).ToArray();
-                        if (currentIn.Length == 16 && target.Length == 16) pairs.Add(new KeyValuePair<double[], double[]>(currentIn, target));
+                        var parts = clean.Split("[OUT]:")[1].Split(',');
+                        var target = parts.Select(s => double.TryParse(s.Trim(), out double d) ? d : 0.0).ToArray();
+                        pairs.Add(new KeyValuePair<double[], double[]>(currentIn, target));
                         currentIn = null;
                     }
                 }
@@ -119,49 +145,13 @@ namespace JarvisLauncher
             return pairs;
         }
 
-        private static async Task WriteInsightsToMemoryAsync(string screen, string code, string sys, string chat)
-        {
-            try {
-                string prompt = "### DATA CONSOLIDATION TASK\n" +
-                                "Analyze these streams and update my memory banks. Use @note{title}{content}.\n" +
-                                $"SCREEN: {screen}\nCODE: {code}\nSYS: {sys}\nCHAT: {chat}\n" +
-                                "Files: Visual_Intelligence.md, Chronology.md, Neural_Architecture.md.\n" +
-                                "Output tags only.";
-                string result = await LlmRouter.AskAsync(prompt);
-                await AiAPI.ExecuteAgentLoopAsync(result);
-            } catch { }
-        }
-
-        private static async Task PerformMetaArchitecturalReview(string screen, string chat, string code)
-        {
-            string prompt = "### META-RECURSIVE NEURAL REVIEW\n" +
-                            "Sir, review my internal performance and code.\n" +
-                            $"SCREEN: {screen}\nCHAT: {chat}\nCODE: {code}\n" +
-                            "Use @mod_code{path}{search}{replace} to optimize my training algorithms or architecture in 'LayeredNeuralEngine.cs'.\n" +
-                            "Output tags or 'STABLE'.";
-            try {
-                string advice = await LlmRouter.AskAsync(prompt);
-                if (advice.Contains("@mod_code")) await AiAPI.ExecuteAgentLoopAsync(advice);
-            } catch { }
-        }
-
         private static async Task<string> HarvestScreenContextAsync()
         {
-            string? b64 = ScreenCaptureUtil.CapturePrimaryScreenToBase64(false);
-            if (string.IsNullOrEmpty(b64)) return "Screen unavailable.";
-            return await AiAPI.AnalyzeImageBase64Async("Describe current focus and UI state.", b64);
-        }
-
-        private static string HarvestActiveCodeContext()
-        {
             try {
-                string root = PathHandler.GetProjectRoot();
-                var files = Directory.GetFiles(root, "*.cs", SearchOption.AllDirectories)
-                    .OrderByDescending(f => new FileInfo(f).LastWriteTime).Take(3);
-                return string.Join(", ", files.Select(Path.GetFileName));
-            } catch { return "No code."; }
+                string? b64 = ScreenCaptureUtil.CapturePrimaryScreenToBase64(false);
+                if (string.IsNullOrEmpty(b64)) return "Idle.";
+                return await AiAPI.AnalyzeImageBase64Async("Summary.", b64, "image/png");
+            } catch { return "Static."; }
         }
-
-        private static string HarvestSystemState() => $"Mem: {GC.GetTotalMemory(false)/1024/1024}MB, Time: {DateTime.Now:T}";
     }
 }

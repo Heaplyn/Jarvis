@@ -46,6 +46,9 @@ namespace JarvisLauncher
                     DebugConsoleOverlay.Log("Sound-Analyzer", $"Detected: {category} ({confidence:P0})");
                     OnSoundDetected?.Invoke(category, confidence);
 
+                    // Log to chronology for history understanding
+                    ChronoLogManager.LogEvent("Sound", $"Detected {category} (Conf: {confidence:P0})");
+
                     // Ingest into predictive stream
                     PredictiveStreamManager.IngestEvent("SOUND", $"{category} ({confidence:P0})");
                 }

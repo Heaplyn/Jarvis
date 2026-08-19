@@ -33,7 +33,7 @@ namespace JarvisLauncher
                     TITLE = "⚙️ Open Master Settings Studio",
                     DESCRIPTION = "Configure AI, Themes, Voice ID, and HUD behavior",
                     SIMILARITY = 10.0,
-                    EXECUTE = () => SettingsOverlay.OpenSettings()
+                    EXECUTE = () => SettingsOverlay.ShowOverlay()
                 });
                 return suggestions;
             }

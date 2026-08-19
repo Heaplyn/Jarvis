@@ -35,8 +35,8 @@ namespace JarvisLauncher
         {
             public string Category { get; set; } = string.Empty;
             public string Message { get; set; } = string.Empty;
-            public string Timestamp { get; set; } = DateTime.Now.ToString("HH:mm:ss.fff");
-            public Brush Color { get; set; } = Brushes.White;
+            public string Timestamp { get; set; } = string.Empty;
+            public bool IsVerbose { get; set; }
         }
 
         public static void ShowOverlay()
@@ -64,21 +64,25 @@ namespace JarvisLauncher
                 }
             } catch { }
 
-            // 2. Dispatch to UI for Visual Console
+            // 2. Dispatch to UI for Visual Console (Throttled)
+            var entry = new LogEntry { Category = category, Message = message, Timestamp = ts, IsVerbose = isVerbose };
+            lock (_history) {
+                _history.Add(entry);
+                if (_history.Count > _maxHistory) _history.RemoveAt(0);
+            }
+
+            if (_instance != null) {
+                _instance.RequestUpdate();
+            }
+        }
+
+        private bool _updateRequested = false;
+        private void RequestUpdate() {
+            if (_updateRequested) return;
+            _updateRequested = true;
             Application.Current?.Dispatcher?.BeginInvoke(new Action(() => {
-                Brush col = isVerbose ? Brushes.Gray : Brushes.White;
-                if (upperCat.Contains("ERROR") || upperCat.Contains("FAIL") || upperCat.Contains("FAULT")) col = Brushes.Tomato;
-                else if (upperCat.Contains("AI") || upperCat.Contains("NEURAL")) col = Brushes.SpringGreen;
-                else if (upperCat.Contains("ACTION")) col = Brushes.Lime;
-                else if (upperCat.Contains("BRIDGE")) col = Brushes.Plum;
-
-                var entry = new LogEntry { Category = category, Message = message, Color = col, Timestamp = ts };
-                lock (_history) {
-                    _history.Add(entry);
-                    if (_history.Count > _maxHistory) _history.RemoveAt(0);
-                }
-
-                _instance?.UpdateView();
+                _updateRequested = false;
+                UpdateView();
             }), DispatcherPriority.Background);
         }
 
@@ -147,21 +151,26 @@ namespace JarvisLauncher
         private void UpdateView() {
             if (_consoleBox == null) return;
             string filter = _searchBox?.Text.ToLower() ?? "";
-            string cat = _categoryFilterCombo?.SelectedItem as string ?? "ALL";
+            string catFilter = _categoryFilterCombo?.SelectedItem as string ?? "ALL";
 
             _consoleBox.Document.Blocks.Clear();
             var p = new Paragraph();
 
-            lock (_lock) {
-                lock (_history) {
-                    foreach (var entry in _history.TakeLast(500)) {
-                        if (cat != "ALL" && !entry.Category.ToUpper().Contains(cat)) continue;
-                        if (!string.IsNullOrEmpty(filter) && !entry.Message.ToLower().Contains(filter)) continue;
+            lock (_history) {
+                foreach (var entry in _history.TakeLast(500)) {
+                    string upperCat = entry.Category.ToUpper();
+                    if (catFilter != "ALL" && !upperCat.Contains(catFilter)) continue;
+                    if (!string.IsNullOrEmpty(filter) && !entry.Message.ToLower().Contains(filter)) continue;
 
-                        p.Inlines.Add(new Run($"[{entry.Timestamp}] ") { Foreground = Brushes.DimGray });
-                        p.Inlines.Add(new Run($"[{entry.Category.ToUpper()}] ") { Foreground = entry.Color, FontWeight = FontWeights.Bold });
-                        p.Inlines.Add(new Run(entry.Message + "\n") { Foreground = entry.Color });
-                    }
+                    Brush col = entry.IsVerbose ? Brushes.Gray : Brushes.White;
+                    if (upperCat.Contains("ERROR") || upperCat.Contains("FAIL") || upperCat.Contains("FAULT")) col = Brushes.Tomato;
+                    else if (upperCat.Contains("AI") || upperCat.Contains("NEURAL")) col = Brushes.SpringGreen;
+                    else if (upperCat.Contains("ACTION")) col = Brushes.Lime;
+                    else if (upperCat.Contains("BRIDGE")) col = Brushes.Plum;
+
+                    p.Inlines.Add(new Run($"[{entry.Timestamp}] ") { Foreground = Brushes.DimGray });
+                    p.Inlines.Add(new Run($"[{upperCat}] ") { Foreground = col, FontWeight = FontWeights.Bold });
+                    p.Inlines.Add(new Run(entry.Message + "\n") { Foreground = col });
                 }
             }
             _consoleBox.Document.Blocks.Add(p); _consoleBox.ScrollToEnd();

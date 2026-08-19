@@ -47,7 +47,7 @@ namespace JarvisLauncher
                     File.WriteAllText(fullPath, header);
                 }
             }
-            DebugConsoleOverlay.Log("ContextNotes", "Knowledge base re-initialized, Sir.");
+            DebugConsoleOverlay.Log("ContextNotes", "Knowledge base re-initialized.");
         }
 
         public static async Task SyncMemoryToNotesAsync(MemoryNode memory)

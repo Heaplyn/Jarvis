@@ -71,6 +71,8 @@ namespace JarvisLauncher
         public string OPENAI_MODEL { get; set; } = "gpt-4o-mini";
         public string OLLAMA_ENDPOINT { get; set; } = "http://localhost:11434";
         public string OLLAMA_MODEL { get; set; } = "llama3";
+        public string LM_STUDIO_ENDPOINT { get; set; } = "http://localhost:1234/v1";
+        public string BIONIC_ENDPOINT { get; set; } = "http://localhost:18080/v1";
         public string OPENCLAW_ENDPOINT { get; set; } = "http://localhost:8080";
         public string CUSTOM_LLM_ENDPOINT { get; set; } = string.Empty;
         public string CUSTOM_LLM_KEY { get; set; } = string.Empty;
@@ -163,6 +165,32 @@ namespace JarvisLauncher
         public string GCLOUD_STORAGE_BUCKET { get; set; } = string.Empty;
         public bool GCLOUD_ENABLE_CLOUD_LOGGING { get; set; } = false;
         public string GCLOUD_DEFAULT_TARGET_LANG { get; set; } = "en";
+
+        // --- GODELLIAN INTELLIGENCE SETTINGS ---
+        public bool GODELLIAN_ENABLE_BACKGROUND_TRAINING { get; set; } = true;
+        public int GODELLIAN_INITIAL_CLUSTERS { get; set; } = 8;
+        public int GODELLIAN_MAX_CLUSTERS { get; set; } = 48;
+        public int GODELLIAN_RECURSION_DEPTH { get; set; } = 2;
+        public bool GODELLIAN_AUTO_EXPAND_FIELD { get; set; } = true;
+        public double GODELLIAN_THROTTLE_THRESHOLD { get; set; } = 0.8;
+        public bool GODELLIAN_TURBO_MODE { get; set; } = false;
+        public int GODELLIAN_TURBO_INTERVAL_MS { get; set; } = 500;
+        public double GODELLIAN_MUTATION_RATE { get; set; } = 0.05;
+        public bool GODELLIAN_SYMBOLIC_ENABLED { get; set; } = true;
+
+        // --- EXTENDED TTS SETTINGS ---
+        public string TTS_ENGINE { get; set; } = "System";
+        public bool TTS_PITCH_SHIFT_ENABLED { get; set; } = false;
+        public double TTS_PITCH_VALUE { get; set; } = 1.0;
+
+        // --- EXTENDED VOX SETTINGS ---
+        public bool VOX_USE_LOCAL_WHISPER { get; set; } = false;
+        public string VOX_WHISPER_MODEL { get; set; } = "base";
+
+        // --- EXTENDED DATA SETTINGS ---
+        public bool DATA_ENABLE_AUTO_SCRAPE { get; set; } = true;
+        public int DATA_SCRAPE_DEPTH { get; set; } = 2;
+        public string KNOWLEDGE_GRAPH_PATH { get; set; } = string.Empty;
     }
 
     public class SettingsManager : ISettingsService

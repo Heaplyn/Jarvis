@@ -1,150 +1,306 @@
 // Developer: heaplyn
 // Date: 2026-08-18
-// Summary: High-performance Godellian Neural Engine with Meta-Recursive Autograd.
-//          Enhanced with a "Symbolic Decoder" and real-time interaction ingestion.
+// Summary: Godellian Hybrid "Meta-Neural" Engine v19 (Ultra-Turbo).
+//          High-Capacity Cluster Evolution: Parallel training on all cores.
+//          Symbolic Synergy: Constant synthesis of calculus equations.
+//          Hardened Guardrails: Clamping and NaN protection at high speed.
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
+using System.Diagnostics;
 using System.Threading.Tasks;
 
 namespace JarvisLauncher
 {
-    public class GodellianLayer
+    public enum CellSpecialization { General, Vision, Audio, Search, Logic, Performance, Benchmark, Symbolic }
+
+    public class GodellianModule
     {
+        public Guid Id { get; } = Guid.NewGuid();
         public LayeredTensor Weights;
         public LayeredTensor Bias;
-        public LayeredTensor? LastMentalState;
+        public LayeredTensor LR_Tensor;
+        public LayeredTensor? RecurrentState;
 
-        public GodellianLayer(int nin, int nout)
+        public CellSpecialization Specialization { get; set; }
+        public double Confidence { get; set; } = 0.5;
+        public double AvgLatencyMs { get; set; } = 0.0;
+
+        public int InputDim { get; }
+        public int OutputDim { get; }
+
+        public GodellianModule(int nin, int nout, CellSpecialization spec = CellSpecialization.General)
         {
+            InputDim = nin;
+            OutputDim = nout;
+            Specialization = spec;
             Weights = LayeredTensor.Random(new[] { nin + nout, nout });
             Bias = new LayeredTensor(new[] { 1, nout });
+            LR_Tensor = new LayeredTensor(Weights.Shape);
+            Array.Fill(LR_Tensor.Data, 0.05);
         }
 
-        public LayeredTensor Forward(LayeredTensor input)
+        public LayeredTensor Forward(LayeredTensor input, bool training = false)
         {
-            var recursiveInput = input;
-            if (LastMentalState != null) {
-                var combined = new LayeredTensor(new[] { 1, input.Size + LastMentalState.Size });
-                Array.Copy(input.Data, 0, combined.Data, 0, input.Size);
-                Array.Copy(LastMentalState.Data, 0, combined.Data, input.Size, LastMentalState.Size);
-                recursiveInput = combined;
-            } else {
-                var padded = new LayeredTensor(new[] { 1, input.Size + Bias.Shape[1] });
-                Array.Copy(input.Data, 0, padded.Data, 0, input.Size);
-                recursiveInput = padded;
+            var sw = Stopwatch.StartNew();
+            LayeredTensor projectedInput = (input.Size != InputDim)
+                ? new LayeredTensor(new[] { 1, InputDim }, NeuralVectorizationKernels.ProjectVector(input.Data, InputDim), track: training)
+                : input;
+
+            var recursiveIn = projectedInput;
+            if (RecurrentState != null && RecurrentState.Size == OutputDim)
+            {
+                var combined = new LayeredTensor(new[] { 1, InputDim + OutputDim }, track: training);
+                Buffer.BlockCopy(projectedInput.Data, 0, combined.Data, 0, InputDim * 8);
+                Buffer.BlockCopy(RecurrentState.Data, 0, combined.Data, InputDim * 8, OutputDim * 8);
+                recursiveIn = combined;
+            }
+            else
+            {
+                var padded = new LayeredTensor(new[] { 1, InputDim + OutputDim }, track: training);
+                Buffer.BlockCopy(projectedInput.Data, 0, padded.Data, 0, InputDim * 8);
+                recursiveIn = padded;
             }
 
-            var res = (LayeredTensor.MatMul(recursiveInput, Weights) + Bias).Tanh();
-            LastMentalState = res;
+            var res = (LayeredTensor.MatMul(recursiveIn, Weights) + Bias).Tanh();
+            res.Clamp(-1.0, 1.0);
+            RecurrentState = new LayeredTensor(res.Shape, res.Data.ToArray());
+
+            AvgLatencyMs = (AvgLatencyMs * 0.9) + (sw.Elapsed.TotalMilliseconds * 0.1);
             return res;
+        }
+
+        public void ApplyStabilityGuard()
+        {
+            bool corrupted = false;
+            for (int i = 0; i < Weights.Size; i++) {
+                if (double.IsNaN(Weights.Data[i]) || double.IsInfinity(Weights.Data[i])) { corrupted = true; break; }
+            }
+            if (corrupted) {
+                Weights = LayeredTensor.Random(Weights.Shape);
+                Confidence *= 0.5;
+            }
+            Weights.Clamp(-2.5, 2.5);
+            Bias.Clamp(-1.2, 1.2);
+        }
+
+        public GodellianModule Replicate()
+        {
+            var child = new GodellianModule(InputDim, OutputDim, Specialization);
+            double rate = SettingsManager.Current.GODELLIAN_MUTATION_RATE;
+            for (int i = 0; i < Weights.Size; i++) {
+                child.Weights.Data[i] = Weights.Data[i] + (Random.Shared.NextDouble() * 2 - 1) * rate;
+            }
+            return child;
         }
     }
 
     public class GodellianBrain
     {
-        public List<GodellianLayer> Layers = new List<GodellianLayer>();
-        public LayeredTensor MetaLearningRate;
+        private List<GodellianModule> _clusters = new List<GodellianModule>();
+        private int _currentInputDim;
+        private int _currentOutputDim;
+        private readonly object _lock = new object();
 
-        private static readonly string[] _vocab = {
-            "stability", "entropy", "focus", "alert", "optimal", "latency",
-            "processing", "isolated", "connected", "evolution", "mutation",
-            "logic", "heuristic", "signal", "noise", "recursing"
-        };
+        public double LastAccuracy { get; private set; } = 0.0;
+        public string LastTrainingSource { get; private set; } = "Initializing...";
+        public List<double> AccuracyHistory { get; private set; } = new List<double>();
+        private List<string> _vocabList = new List<string>();
+        private readonly string _vocabDir;
 
         public GodellianBrain(int nin, int[] nouts)
         {
-            int currentIn = nin;
-            foreach (var nout in nouts) {
-                Layers.Add(new GodellianLayer(currentIn, nout));
-                currentIn = nout;
+            _currentInputDim = nin;
+            _currentOutputDim = nouts.Last();
+            _vocabDir = Path.Combine(PathHandler.GetDataDirectory(), "Intelligence", "Vocab");
+            if (!Directory.Exists(_vocabDir)) Directory.CreateDirectory(_vocabDir);
+
+            ReloadVocabulary();
+
+            int initCount = CoreRegistry.Settings.Current.GODELLIAN_INITIAL_CLUSTERS;
+            foreach (CellSpecialization spec in Enum.GetValues(typeof(CellSpecialization)))
+                for (int i = 0; i < Math.Max(3, initCount / 8); i++)
+                    _clusters.Add(new GodellianModule(_currentInputDim, _currentOutputDim, spec));
+        }
+
+        public void ReloadVocabulary()
+        {
+            try {
+                var files = Directory.GetFiles(_vocabDir, "*.txt");
+                lock (_lock) {
+                    var cache = new HashSet<string>();
+                    foreach (var f in files) {
+                        foreach (var l in File.ReadAllLines(f)) {
+                            foreach (var p in l.Split(new[] { ',', '|', ';' }, StringSplitOptions.RemoveEmptyEntries)) {
+                                string word = p.Trim().ToLower();
+                                if (word.Length > 2) cache.Add(word);
+                            }
+                        }
+                    }
+                    _vocabList = cache.ToList();
+                    if (_vocabList.Count > _currentOutputDim && SettingsManager.Current.GODELLIAN_AUTO_EXPAND_FIELD)
+                        GrowBrainField(0, _vocabList.Count - _currentOutputDim);
+                }
+            } catch { }
+        }
+
+        public void IngestVocabulary(List<string> words, string category = "General")
+        {
+            lock (_lock) {
+                var unique = words.Select(w => w.Trim().ToLower()).Where(w => w.Length > 2 && !_vocabList.Contains(w)).ToList();
+                if (unique.Count > 0) {
+                    File.AppendAllLines(Path.Combine(_vocabDir, $"{category}.txt"), unique);
+                    _vocabList.AddRange(unique);
+                    if (_vocabList.Count > _currentOutputDim && SettingsManager.Current.GODELLIAN_AUTO_EXPAND_FIELD)
+                        GrowBrainField(0, _vocabList.Count - _currentOutputDim);
+                }
             }
-            MetaLearningRate = new LayeredTensor(new[] { 1 }, new[] { 0.01 });
+        }
+
+        public void GrowBrainField(int inExp, int outExp)
+        {
+            lock (_lock) {
+                _currentInputDim += inExp; _currentOutputDim += outExp;
+                NeuralVectorizationKernels.CurrentDimension = _currentInputDim;
+                foreach (CellSpecialization spec in Enum.GetValues(typeof(CellSpecialization)))
+                    _clusters.Add(new GodellianModule(_currentInputDim, _currentOutputDim, spec));
+            }
         }
 
         public LayeredTensor Think(double[] flatInput)
         {
-            var x = new LayeredTensor(new[] { 1, flatInput.Length }, flatInput);
-            foreach (var layer in Layers) x = layer.Forward(x);
-
-            // Auto-Evolve on every thought
-            _ = Task.Run(() => IngestDelta(flatInput, x.Data));
-
-            return x;
+            LayeredTensor.ComputeGrad = false;
+            try {
+                double[] inputData = (flatInput.Length != _currentInputDim) ? NeuralVectorizationKernels.ProjectVector(flatInput, _currentInputDim) : flatInput;
+                var x = new LayeredTensor(new[] { 1, _currentInputDim }, inputData);
+                LayeredTensor refinement = new LayeredTensor(new[] { 1, _currentOutputDim });
+                int passes = NeuralResourceManager.RecursionDepth;
+                for (int p = 0; p < passes; p++) refinement = RunConsensusPass(x, refinement, false);
+                return refinement;
+            } finally { LayeredTensor.ComputeGrad = true; }
         }
 
-        private void IngestDelta(double[] input, double[] output)
+        private LayeredTensor RunConsensusPass(LayeredTensor input, LayeredTensor bias, bool training)
         {
-            double[][] inputs = { input };
-            double[][] targets = { output.Select(v => v * 0.98 + 0.02).ToArray() };
-            Evolve(inputs, targets, epochs: 2);
+            List<GodellianModule> active;
+            lock (_lock) active = _clusters.Where(c => c.OutputDim == _currentOutputDim).ToList();
+            if (active.Count == 0) return bias;
+
+            var topActive = active.OrderByDescending(c => c.Confidence).Take(training ? 32 : 16).ToList();
+            var results = topActive.Select(c => c.Forward(input, training)).ToList();
+            var confidences = new LayeredTensor(new[] { results.Count }, topActive.Select(c => c.Confidence).ToArray(), track: training);
+            var attention = confidences.Softmax();
+
+            var aggregate = new LayeredTensor(new[] { 1, _currentOutputDim }, track: training);
+            for (int i = 0; i < results.Count; i++) {
+                double w = attention.Data[i];
+                for (int j = 0; j < _currentOutputDim; j++) aggregate.Data[j] += results[i].Data[j] * w;
+            }
+            return (aggregate + bias).Tanh();
+        }
+
+        public void BatchTrain(List<double[]> inputs, List<double[]> targets, int epochs = 40, string source = "Forge")
+        {
+            if (inputs.Count == 0) return;
+            LastTrainingSource = source;
+            NeuralResourceManager.MonitorResources();
+
+            List<GodellianModule> current;
+            lock (_lock) current = _clusters.Where(c => c.OutputDim == _currentOutputDim).ToList();
+
+            Parallel.ForEach(current, new ParallelOptions { MaxDegreeOfParallelism = SettingsManager.Current.GODELLIAN_TURBO_MODE ? -1 : 1 }, m => {
+                m.ApplyStabilityGuard();
+                TrainModuleSurgical(m, inputs, targets, epochs);
+                double mLoss = CalculateModuleLoss(m, inputs, targets);
+                if (mLoss < 0.1 && _clusters.Count < SettingsManager.Current.GODELLIAN_MAX_CLUSTERS) {
+                    lock(_lock) _clusters.Add(m.Replicate());
+                } else if (mLoss > 0.98 && _clusters.Count > 10) {
+                    lock(_lock) _clusters.Remove(m);
+                }
+            });
+
+            double totalLoss = CalculateLoss(inputs, targets);
+            LastAccuracy = Math.Max(0.0, 100.0 * Math.Exp(-totalLoss * 0.4));
+            lock (_lock) {
+                AccuracyHistory.Add(LastAccuracy);
+                if (AccuracyHistory.Count > 150) AccuracyHistory.RemoveAt(0);
+            }
+        }
+
+        private void TrainModuleSurgical(GodellianModule m, List<double[]> inputs, List<double[]> targets, int epochs)
+        {
+            LayeredTensor.ComputeGrad = true;
+            for (int e = 0; e < epochs; e++) {
+                foreach (var (inp, tgt) in inputs.Zip(targets)) {
+                    var x = new LayeredTensor(new[] { 1, m.InputDim }, NeuralVectorizationKernels.ProjectVector(inp, m.InputDim), track: true);
+                    var pred = m.Forward(x, training: true);
+                    var loss = (pred + (new LayeredTensor(pred.Shape, NeuralVectorizationKernels.ProjectVector(tgt, m.OutputDim)) * new LayeredTensor(pred.Shape, new[] { -1.0 }))).Tanh();
+                    m.Weights.ZeroGrad(); m.Bias.ZeroGrad();
+                    loss.BackwardPass();
+                    for (int i = 0; i < m.Weights.Size; i++) {
+                        m.Weights.Data[i] -= m.LR_Tensor.Data[i] * Math.Clamp(m.Weights.Grad[i], -0.5, 0.5);
+                        m.LR_Tensor.Data[i] = Math.Clamp(m.LR_Tensor.Data[i] * (1.0 + 0.005 * Math.Sign(-m.Weights.Grad[i])), 0.0001, 0.3);
+                    }
+                }
+            }
+        }
+
+        private double CalculateLoss(List<double[]> inputs, List<double[]> targets)
+        {
+            double total = 0;
+            foreach (var (inp, tgt) in inputs.Zip(targets)) {
+                var pred = Think(inp);
+                for (int i = 0; i < Math.Min(pred.Size, tgt.Length); i++) total += Math.Abs(pred.Data[i] - tgt[i]);
+            }
+            return total / (inputs.Count + 0.0001);
+        }
+
+        private double CalculateModuleLoss(GodellianModule m, List<double[]> inputs, List<double[]> targets)
+        {
+            double total = 0;
+            foreach (var (inp, tgt) in inputs.Zip(targets)) {
+                var pred = m.Forward(new LayeredTensor(new[] { 1, m.InputDim }, NeuralVectorizationKernels.ProjectVector(inp, m.InputDim)));
+                for (int i = 0; i < Math.Min(pred.Size, tgt.Length); i++) total += Math.Abs(pred.Data[i] - tgt[i]);
+            }
+            return total / (inputs.Count + 0.0001);
         }
 
         public string ThinkInWords(double[] flatInput)
         {
             var output = Think(flatInput);
-            var sb = new StringBuilder("[GODELLIAN THOUGHT] ");
-            for (int i = 0; i < Math.Min(output.Size, _vocab.Length); i++) {
-                if (output.Data[i] > 0.3) sb.Append(_vocab[i] + " ");
-                else if (output.Data[i] < -0.3) sb.Append("non-" + _vocab[i] + " ");
+            string equation = SettingsManager.Current.GODELLIAN_SYMBOLIC_ENABLED ? SymbolicMathKernel.SynthesizeEquation(output.Data) : "N/A";
+            var acts = output.Data.Select((v, i) => new { v, i }).OrderByDescending(x => Math.Abs(x.v)).Take(8);
+            var sb = new StringBuilder($"[SYMBOLIC]: {equation}\n[LOGIC]: ");
+            lock (_lock) {
+                foreach (var a in acts) if (a.i < _vocabList.Count) sb.Append((a.v > 0.1 ? "" : "non-") + _vocabList[a.i] + " ");
             }
-            if (sb.Length < 25) sb.Append("state neutral.");
             return sb.ToString().Trim() + ".";
         }
 
-        public void Evolve(double[][] inputs, double[][] targets, int epochs = 10)
+        public string GetDiagnosticReport() => $"[GI-V19] Acc: {LastAccuracy:F1}% | Pop: {_clusters.Count} | Field: {_currentInputDim}x{_currentOutputDim}";
+
+        public async Task<string> PerformDeepEvolutionaryAnalysisAsync()
         {
-            BatchTrain(inputs.ToList(), targets.ToList(), epochs);
+            string prompt = "### GODELLIAN DEEP ANALYSIS\n" +
+                            "Sir, perform a deep audit of your current neural state. Review the symbolic logic manifold " +
+                            "and suggest 5 specific hyper-parameter adjustments or topology mutations to reach v20 intelligence.";
+            try {
+                return await LlmRouter.AskAsync(prompt);
+            } catch { return "Analysis buffer overflow, Sir."; }
         }
 
-        public void BatchTrain(List<double[]> inputs, List<double[]> targets, int epochs = 5)
-        {
-            if (inputs.Count == 0 || inputs.Count != targets.Count) return;
-            for (int e = 0; e < epochs; e++)
-            {
-                foreach (var (inp, tgt) in inputs.Zip(targets))
-                {
-                    var pred = ThinkInternal(inp);
-                    var targetTensor = new LayeredTensor(pred.Shape, tgt);
-                    var diff = pred + (targetTensor * new LayeredTensor(pred.Shape, new[] { -1.0 }));
-                    var loss = (diff * diff);
-                    ZeroGrads();
-                    loss.BackwardPass();
-                    UpdateParams(MetaLearningRate.Data[0]);
-                }
+        public void MutateTopology() {
+            lock (_lock) {
+                if (_clusters.Count == 0) return;
+                var target = _clusters[Random.Shared.Next(_clusters.Count)];
+                int idx = Random.Shared.Next(target.Weights.Size);
+                target.Weights.Data[idx] += (Random.Shared.NextDouble() * 2 - 1) * 0.1;
+                target.ApplyStabilityGuard();
             }
         }
-
-        public void MutateTopology()
-        {
-            // Autonomous algorithm adjustment: Randomly perturb a weight to simulate synaptic drift
-            var layer = Layers[_rng.Next(Layers.Count)];
-            int idx = _rng.Next(layer.Weights.Size);
-            layer.Weights.Data[idx] += (_rng.NextDouble() * 2 - 1) * 0.05;
-            DebugConsoleOverlay.Log("Neural-Topology", "Synaptic drift mutation applied.");
-        }
-
-        private static readonly Random _rng = new Random();
-
-        private LayeredTensor ThinkInternal(double[] flatInput)
-        {
-            var x = new LayeredTensor(new[] { 1, flatInput.Length }, flatInput);
-            foreach (var layer in Layers) x = layer.Forward(x);
-            return x;
-        }
-
-        private void ZeroGrads() {
-            foreach (var l in Layers) { l.Weights.ZeroGrad(); l.Bias.ZeroGrad(); }
-            MetaLearningRate.ZeroGrad();
-        }
-
-        private void UpdateParams(double lr) {
-            foreach (var l in Layers) {
-                for (int i = 0; i < l.Weights.Size; i++) l.Weights.Data[i] -= lr * l.Weights.Grad[i];
-                for (int i = 0; i < l.Bias.Size; i++) l.Bias.Data[i] -= lr * l.Bias.Grad[i];
-            }
-        }
+        public void Evolve(double[][] inputs, double[][] targets, int epochs = 10) => BatchTrain(inputs.ToList(), targets.ToList(), epochs);
     }
 }
