@@ -145,6 +145,22 @@ namespace JarvisLauncher
                         return;
                     }
 
+                    // Security Check: If a secret is configured, all API requests must include it
+                    string? providedSecret = null;
+                    foreach (var header in Lines) {
+                        if (header.StartsWith("X-Jarvis-Secret:", StringComparison.OrdinalIgnoreCase))
+                            providedSecret = header.Substring(16).Trim();
+                    }
+
+                    bool isLocalhost = RemoteEp?.ToString()?.Contains("127.0.0.1") == true;
+                    if (!string.IsNullOrEmpty(SettingsManager.Current.BACKUP_PC_SECRET) &&
+                        providedSecret != SettingsManager.Current.BACKUP_PC_SECRET &&
+                        !PathString.Equals("/") && !isLocalhost)
+                    {
+                        await SendResponseAsync(Stream, 401, "Unauthorized", Encoding.UTF8.GetBytes("Invalid Secret"), "text/plain");
+                        return;
+                    }
+
                     if (PathString == "/" || PathString.Equals("/index.html", StringComparison.OrdinalIgnoreCase))
                     {
                         string Html = GetMobileAppHtml();
@@ -647,6 +663,49 @@ namespace JarvisLauncher
                             await SendResponseAsync(Stream, 400, "Bad Request", Encoding.UTF8.GetBytes("Invalid path"), "text/plain");
                         }
                     }
+                    else if (PathString.Equals("/api/backup/manifest", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!SettingsManager.Current.IS_BACKUP_PC)
+                        {
+                            await SendResponseAsync(Stream, 403, "Forbidden", Encoding.UTF8.GetBytes("This PC is not configured as a Backup PC."), "text/plain");
+                            return;
+                        }
+                        var manifest = BackupSyncManager.GenerateManifest();
+                        string json = JsonSerializer.Serialize(manifest);
+                        await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes(json), "application/json");
+                    }
+                    else if (PathString.Equals("/api/backup/download", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!SettingsManager.Current.IS_BACKUP_PC)
+                        {
+                            await SendResponseAsync(Stream, 403, "Forbidden", Encoding.UTF8.GetBytes("This PC is not configured as a Backup PC."), "text/plain");
+                            return;
+                        }
+                        Query.TryGetValue("path", out string? relPath);
+                        if (string.IsNullOrEmpty(relPath))
+                        {
+                            await SendResponseAsync(Stream, 400, "Bad Request", Encoding.UTF8.GetBytes("Path parameter missing."), "text/plain");
+                            return;
+                        }
+
+                        string fullPath = Path.GetFullPath(Path.Combine(PathHandler.GetDataDirectory(), relPath));
+                        // Security check: ensure path is within Data directory
+                        if (!fullPath.StartsWith(PathHandler.GetDataDirectory(), StringComparison.OrdinalIgnoreCase))
+                        {
+                            await SendResponseAsync(Stream, 403, "Forbidden", Encoding.UTF8.GetBytes("Path escape detected."), "text/plain");
+                            return;
+                        }
+
+                        if (!File.Exists(fullPath))
+                        {
+                            await SendResponseAsync(Stream, 404, "Not Found", Encoding.UTF8.GetBytes("File not found."), "text/plain");
+                            return;
+                        }
+
+                        byte[] bytes = File.ReadAllBytes(fullPath);
+                        var headers = new Dictionary<string, string> { { "X-Last-Modified", File.GetLastWriteTimeUtc(fullPath).ToString("O") } };
+                        await SendResponseWithHeadersAsync(Stream, 200, "OK", bytes, "application/octet-stream", headers);
+                    }
                     else
                     {
                         await SendResponseAsync(Stream, 200, "OK", Encoding.UTF8.GetBytes("Jarvis Bridge Active"), "text/plain");
@@ -681,6 +740,11 @@ namespace JarvisLauncher
 
         private static async Task SendResponseAsync(Stream StreamParam, int Code, string Status, byte[]? Body, string ContentType)
         {
+            await SendResponseWithHeadersAsync(StreamParam, Code, Status, Body, ContentType, null);
+        }
+
+        private static async Task SendResponseWithHeadersAsync(Stream StreamParam, int Code, string Status, byte[]? Body, string ContentType, Dictionary<string, string>? ExtraHeaders)
+        {
             try
             {
                 var HeaderBuilder = new StringBuilder();
@@ -690,6 +754,13 @@ namespace JarvisLauncher
                 HeaderBuilder.Append("Access-Control-Allow-Headers: Content-Type, X-Jarvis-Secret\r\n");
                 HeaderBuilder.Append($"Content-Type: {ContentType}\r\n");
                 HeaderBuilder.Append($"Content-Length: {(Body?.Length ?? 0)}\r\n");
+
+                if (ExtraHeaders != null)
+                {
+                    foreach (var kvp in ExtraHeaders)
+                        HeaderBuilder.Append($"{kvp.Key}: {kvp.Value}\r\n");
+                }
+
                 HeaderBuilder.Append("Connection: close\r\n");
                 HeaderBuilder.Append("\r\n");
 

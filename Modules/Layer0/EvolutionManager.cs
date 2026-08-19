@@ -29,7 +29,7 @@ namespace JarvisLauncher
 
         public static void StartContinuousEvolution()
         {
-            if (_isActive) return;
+            if (_isActive || !SettingsManager.Current.ENABLE_GODELLIAN_ENGINE) return;
             _isActive = true;
 
             // Start Data Forge
@@ -66,11 +66,30 @@ namespace JarvisLauncher
                 }
             });
 
-            // 4. DATASET HARVESTING (Every 30 mins)
+            // 4. DATASET HARVESTING & GODELLIAN HF GRAB (Every 30 mins)
             Task.Run(async () => {
                 while (_isActive) {
-                    try { await DatasetHarvester.RunAutomaticHarvestAsync(); } catch { }
+                    try {
+                        await DatasetHarvester.RunAutomaticHarvestAsync();
+                        await GodellianHuggingFaceEngine.RunAutoGrabCycleAsync();
+                    } catch { }
                     await Task.Delay(TimeSpan.FromMinutes(30));
+                }
+            });
+
+            // 5. AUTONOMIC LLM LOGIC EXCHANGE (User Configurable)
+            Task.Run(async () => {
+                while (_isActive) {
+                    try {
+                        var settings = SettingsManager.Current;
+                        if (settings.GODELLIAN_AUTO_LLM_EXCHANGE) {
+                            await CoreRegistry.Intelligence.MainBrain.ExchangeLogicWithLlmAsync();
+                        }
+                        int interval = Math.Max(10, settings.GODELLIAN_EXCHANGE_INTERVAL_SEC);
+                        await Task.Delay(TimeSpan.FromSeconds(interval));
+                    } catch {
+                        await Task.Delay(TimeSpan.FromSeconds(30)); // Safety delay on error
+                    }
                 }
             });
         }
@@ -94,13 +113,14 @@ namespace JarvisLauncher
 
                 var pairs = ParseSyntheticVectors(harvest, NeuralVectorizationKernels.CurrentDimension);
                 if (pairs.Count > 0)
-                    CoreRegistry.Intelligence.MainBrain.BatchTrain(pairs.Select(p => p.Key).ToList(), pairs.Select(p => p.Value).ToList(), epochs: 50);
+                    CoreRegistry.Intelligence.MainBrain.BatchTrain(pairs.Select(p => p.Key).ToList(), pairs.Select(p => p.Value).ToList(), epochs: SettingsManager.Current.GODELLIAN_TRAINING_EPOCHS, source: "Scraped_Growth");
             } catch { }
         }
 
         private static async Task PerformHighFidelityExpansionAsync()
         {
             var brain = CoreRegistry.Intelligence.MainBrain;
+            var settings = SettingsManager.Current;
             int dim = NeuralVectorizationKernels.CurrentDimension;
 
             // Collect Environment Logic
@@ -117,7 +137,7 @@ namespace JarvisLauncher
                 string result = await LlmRouter.AskAsync(prompt);
                 var pairs = ParseSyntheticVectors(result, dim);
                 if (pairs.Count > 0)
-                    brain.BatchTrain(pairs.Select(p => p.Key).ToList(), pairs.Select(p => p.Value).ToList(), epochs: SettingsManager.Current.GODELLIAN_TURBO_MODE ? 80 : 30);
+                    brain.BatchTrain(pairs.Select(p => p.Key).ToList(), pairs.Select(p => p.Value).ToList(), epochs: settings.GODELLIAN_TRAINING_EPOCHS);
 
                 brain.MutateTopology();
             } catch { }

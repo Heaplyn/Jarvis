@@ -238,14 +238,24 @@ namespace JarvisLauncher
             try {
                 var cts = new CancellationTokenSource();
                 _activeCts = cts;
-                string response = "";
+                tb.Text = "Thinking..."; // Placeholder
+
+                string aiRaw;
                 if (CoreRegistry.Data.Settings.Current.LLM_BACKEND == "Ollama") {
-                    response = await CoreRegistry.Intelligence.Llm.AskOllamaStreamAsync(apiMsg, ConversationHistory, t => Application.Current.Dispatcher.Invoke(() => tb.Text = (tb.Text == "🧠 Thinking..." ? "" : tb.Text) + t), cts.Token);
+                    aiRaw = await CoreRegistry.Intelligence.Llm.AskOllamaStreamAsync(apiMsg, ConversationHistory, t => Application.Current.Dispatcher.Invoke(() => tb.Text = (tb.Text == "Thinking..." ? "" : tb.Text) + t), cts.Token);
                 } else {
-                    response = await AiAPI.AskAgentAsync(apiMsg, ConversationHistory, cts.Token);
+                    aiRaw = await AiAPI.AskAgentAsync(apiMsg, ConversationHistory, cts.Token);
+                    tb.Text = AiAPI.SanitizeText(aiRaw);
                 }
 
-                tb.Text = AiAPI.SanitizeText(response);
+                // --- TOOL EXECUTION PHASE ---
+                StatusText.Text = "EXECUTING TOOLS"; StatusDot.Fill = Brushes.Orange;
+                string processedText = await AgentExecutor.ProcessAIResponseAsync(aiRaw);
+
+                if (!string.IsNullOrEmpty(processedText)) tb.Text = processedText;
+
+                dbg.Text = "Raw AI Response:\n" + aiRaw;
+
                 ChronoLogManager.LogEvent("Chat", $"Jarvis: {tb.Text}");
 
                 // Extract debug log if present

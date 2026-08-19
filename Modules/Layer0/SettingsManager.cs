@@ -167,6 +167,7 @@ namespace JarvisLauncher
         public string GCLOUD_DEFAULT_TARGET_LANG { get; set; } = "en";
 
         // --- GODELLIAN INTELLIGENCE SETTINGS ---
+        public bool ENABLE_GODELLIAN_ENGINE { get; set; } = false;
         public bool GODELLIAN_ENABLE_BACKGROUND_TRAINING { get; set; } = true;
         public int GODELLIAN_INITIAL_CLUSTERS { get; set; } = 8;
         public int GODELLIAN_MAX_CLUSTERS { get; set; } = 48;
@@ -174,7 +175,10 @@ namespace JarvisLauncher
         public bool GODELLIAN_AUTO_EXPAND_FIELD { get; set; } = true;
         public double GODELLIAN_THROTTLE_THRESHOLD { get; set; } = 0.8;
         public bool GODELLIAN_TURBO_MODE { get; set; } = false;
+        public bool GODELLIAN_AUTO_LLM_EXCHANGE { get; set; } = true;
+        public int GODELLIAN_EXCHANGE_INTERVAL_SEC { get; set; } = 900;
         public int GODELLIAN_TURBO_INTERVAL_MS { get; set; } = 500;
+        public int GODELLIAN_TRAINING_EPOCHS { get; set; } = 30;
         public double GODELLIAN_MUTATION_RATE { get; set; } = 0.05;
         public bool GODELLIAN_SYMBOLIC_ENABLED { get; set; } = true;
 
@@ -191,6 +195,13 @@ namespace JarvisLauncher
         public bool DATA_ENABLE_AUTO_SCRAPE { get; set; } = true;
         public int DATA_SCRAPE_DEPTH { get; set; } = 2;
         public string KNOWLEDGE_GRAPH_PATH { get; set; } = string.Empty;
+
+        // --- BACKUP & SYNC SETTINGS ---
+        public bool IS_BACKUP_PC { get; set; } = false;
+        public string BACKUP_PC_URL { get; set; } = string.Empty;
+        public string BACKUP_PC_SECRET { get; set; } = string.Empty;
+        public bool AUTO_SYNC_WITH_BACKUP { get; set; } = false;
+        public int AUTO_SYNC_INTERVAL_MINUTES { get; set; } = 60;
     }
 
     public class SettingsManager : ISettingsService

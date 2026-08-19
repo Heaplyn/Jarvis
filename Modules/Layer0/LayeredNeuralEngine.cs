@@ -106,7 +106,7 @@ namespace JarvisLauncher
         private readonly object _lock = new object();
 
         public double LastAccuracy { get; private set; } = 0.0;
-        public string LastTrainingSource { get; private set; } = "Initializing...";
+        public string LastTrainingSource { get; private set; } = "Standby (Idle)";
         public List<double> AccuracyHistory { get; private set; } = new List<double>();
         private List<string> _vocabList = new List<string>();
         private readonly string _vocabDir;
@@ -202,11 +202,13 @@ namespace JarvisLauncher
             return (aggregate + bias).Tanh();
         }
 
-        public void BatchTrain(List<double[]> inputs, List<double[]> targets, int epochs = 40, string source = "Forge")
+        public void BatchTrain(List<double[]> inputs, List<double[]> targets, int epochs = -1, string source = "Forge")
         {
             if (inputs.Count == 0) return;
+            if (epochs <= 0) epochs = SettingsManager.Current.GODELLIAN_TRAINING_EPOCHS;
             LastTrainingSource = source;
             NeuralResourceManager.MonitorResources();
+            LogTraining($"Batch training session: {source} ({inputs.Count} samples, {epochs} epochs)");
 
             List<GodellianModule> current;
             lock (_lock) current = _clusters.Where(c => c.OutputDim == _currentOutputDim).ToList();
@@ -281,6 +283,52 @@ namespace JarvisLauncher
         }
 
         public string GetDiagnosticReport() => $"[GI-V19] Acc: {LastAccuracy:F1}% | Pop: {_clusters.Count} | Field: {_currentInputDim}x{_currentOutputDim}";
+
+        public List<string> TrainingLog { get; private set; } = new List<string>();
+
+        private void LogTraining(string msg)
+        {
+            lock (_lock)
+            {
+                TrainingLog.Insert(0, $"[{DateTime.Now:HH:mm:ss}] {msg}");
+                if (TrainingLog.Count > 50) TrainingLog.RemoveAt(50);
+            }
+        }
+
+        public async Task<string> ExchangeLogicWithLlmAsync()
+        {
+            string thought = ThinkInWords(new double[_currentInputDim]);
+            string report = GetDiagnosticReport();
+
+            string prompt = $"### GODELLIAN SYNAPTIC EXCHANGE\n" +
+                            $"CURRENT STATE: {report}\n" +
+                            $"CURRENT THOUGHT: {thought}\n\n" +
+                            $"### TASK\n" +
+                            $"1. Analyze the symbolic manifold for logical inconsistencies.\n" +
+                            $"2. Provide a massive batch of 25-40 new high-level technical, scientific, or philosophical terms to expand our vocabulary.\n" +
+                            $"3. Generate a 16-dim 'Knowledge Vector' representing a high-level breakthrough in AI ethics, multi-dimensional calculus, or recursive logic.\n" +
+                            $"Format: [CRITIQUE]: ... [NEW_VOCAB]: term1, term2, term3... [VECTOR]: v1,v2...";
+
+            try {
+                string response = await LlmRouter.AskAsync(prompt);
+
+                // Parse and Ingest
+                if (response.Contains("[NEW_VOCAB]:")) {
+                    var terms = response.Split("[NEW_VOCAB]:")[1].Split('\n')[0].Split(',').Select(t => t.Trim()).ToList();
+                    IngestVocabulary(terms, "LLM_Exchange");
+                    LogTraining($"Exchanged logic with LLM. Absorbed {terms.Count} new terms.");
+                }
+
+                if (response.Contains("[VECTOR]:")) {
+                    var vStr = response.Split("[VECTOR]:")[1].Split('\n')[0];
+                    var vec = vStr.Split(',').Select(s => double.TryParse(s.Trim(), out double d) ? d : 0.0).Take(_currentInputDim).ToArray();
+                    // Self-training on the LLM's suggested breakthrough vector
+                    BatchTrain(new List<double[]> { new double[_currentInputDim] }, new List<double[]> { vec }, epochs: 10, source: "LLM_Exchange");
+                }
+
+                return response;
+            } catch (Exception ex) { return $"Exchange failed: {ex.Message}"; }
+        }
 
         public async Task<string> PerformDeepEvolutionaryAnalysisAsync()
         {

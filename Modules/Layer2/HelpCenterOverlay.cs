@@ -366,7 +366,7 @@ namespace JarvisLauncher
             {
                 return "🤖 AI, LLM & MCP";
             }
-            if (name.Contains("git") || name.Contains("powershell") || name.Contains("ps") || name.Contains("roblox") || name.Contains("blender") || name.Contains("vector") || name.Contains("r1") || name.Contains("coder") || name.Contains("tile") || name.Contains("tiling") || name.Contains("ipa") || name.Contains("ios") || name.Contains("cli") || name.Contains("build") || name.Contains("push") || name.Contains("asm") || name.Contains("edit") || name.Contains("workspace"))
+            if (name.Contains("git") || name.Contains("tool") || name.Contains("orchestrator") || name.Contains("suite") || name.Contains("devsuite") || name.Contains("powershell") || name.Contains("ps") || name.Contains("roblox") || name.Contains("blender") || name.Contains("vector") || name.Contains("r1") || name.Contains("coder") || name.Contains("tile") || name.Contains("tiling") || name.Contains("ipa") || name.Contains("ios") || name.Contains("cli") || name.Contains("build") || name.Contains("push") || name.Contains("asm") || name.Contains("edit") || name.Contains("workspace"))
             {
                 return "💻 Developer Tools";
             }

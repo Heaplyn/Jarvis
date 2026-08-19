@@ -14,13 +14,26 @@ namespace JarvisLauncher
         public bool CanHandle(string query)
         {
             query = query.Trim().ToLower();
-            return query.StartsWith("install ") || query == "install";
+            return query.StartsWith("install ") || query == "install" || query == "suite" || query == "devsuite" || query == "developer suite";
         }
 
         public List<CommandResult> GetSuggestions(string query)
         {
             var suggestions = new List<CommandResult>();
+            string trimmed = query.Trim().ToLower();
             string args = query.Length > 8 ? query.Substring(8).Trim() : "";
+
+            if (trimmed == "suite" || trimmed == "devsuite" || trimmed == "developer suite" || trimmed == "install")
+            {
+                suggestions.Add(new CommandResult
+                {
+                    TITLE = "🛠️ Open Universal Developer & Offline Suite",
+                    DESCRIPTION = "One-click setup for Languages, Game Engines, and Package Managers.",
+                    SIMILARITY = 10.0,
+                    EXECUTE = () => DevSuiteOverlay.ShowOverlay()
+                });
+                if (trimmed != "install") return suggestions;
+            }
 
             if (string.IsNullOrEmpty(args))
             {
