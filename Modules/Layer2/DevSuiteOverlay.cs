@@ -98,19 +98,22 @@ namespace JarvisLauncher
 
                 var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries).Skip(2); // Skip headers
                 bool found = false;
-                foreach (var line in lines.Take(20))
+                if (lines != null)
                 {
-                    var parts = System.Text.RegularExpressions.Regex.Split(line.Trim(), @"\s{2,}");
-                    if (parts.Length >= 2)
+                    foreach (var line in lines.Take(20))
                     {
-                        string name = parts[0];
-                        string id = parts[1];
-                        string version = parts.Length > 2 ? parts[2] : "";
+                        var parts = System.Text.RegularExpressions.Regex.Split(line.Trim(), @"\s{2,}");
+                        if (parts != null && parts.Length >= 2)
+                        {
+                            string name = parts[0];
+                            string id = parts[1];
+                            string version = parts.Length > 2 ? parts[2] : "";
 
-                        var tool = new DevToolInfo { Name = name, WingetId = id, Description = $"Version: {version}", Category = "Search Results" };
-                        tool.IsInstalled = await DevSuiteManager.CheckIfInstalledAsync(id);
-                        _mainList.Children.Add(CreateToolRow(tool));
-                        found = true;
+                            var tool = new DevToolInfo { Name = name, WingetId = id, Description = $"Version: {version}", Category = "Search Results" };
+                            tool.IsInstalled = await DevSuiteManager.CheckIfInstalledAsync(id);
+                            _mainList.Children.Add(CreateToolRow(tool));
+                            found = true;
+                        }
                     }
                 }
 

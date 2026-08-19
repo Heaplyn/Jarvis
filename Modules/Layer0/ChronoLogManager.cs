@@ -1,8 +1,7 @@
 // Developer: heaplyn
 // Date: 2026-08-19
 // Summary: Master Chronology and Activity Logging Manager.
-//          Automatically records user actions, window transitions, commands, and major system events
-//          into a persistent "External Brain" history to allow Jarvis to answer "What did I do yesterday?".
+//          Automatically records user actions, window transitions, commands, and major system events.
 
 using System;
 using System.Collections.Generic;
@@ -36,7 +35,6 @@ namespace JarvisLauncher
                         File.AppendAllText(dateFile, entry + Environment.NewLine);
                     }
 
-                    // Also sync to the master Chronology.md for AI visibility
                     var memory = new MemoryNode {
                         Category = "Activity",
                         Content = $"User Activity: {category} - {detail}",
@@ -45,6 +43,22 @@ namespace JarvisLauncher
                     await ContextNotesManager.SyncMemoryToNotesAsync(memory);
                 } catch { }
             });
+        }
+
+        public static string GetRecentLogs(int count = 20)
+        {
+            try
+            {
+                string dateFile = Path.Combine(LogDir, $"{DateTime.Now:yyyy-MM-dd}.log");
+                if (!File.Exists(dateFile)) return "No logs recorded today.";
+
+                lock (_lock)
+                {
+                    var lines = File.ReadAllLines(dateFile);
+                    return string.Join(Environment.NewLine, lines.TakeLast(count));
+                }
+            }
+            catch { return "Error fetching recent logs."; }
         }
 
         public static string GetHistoryForDate(DateTime date)
@@ -73,7 +87,7 @@ namespace JarvisLauncher
                             lastWin = currentWin;
                         }
                     } catch { }
-                    await Task.Delay(10000); // Check every 10s
+                    await Task.Delay(10000);
                 }
             });
         }
