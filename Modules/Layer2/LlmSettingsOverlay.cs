@@ -193,7 +193,7 @@ namespace JarvisLauncher
         private static TextBlock CreateLabel(string t) => new TextBlock { Text = t, FontSize = 11, Margin = new Thickness(0, 4, 0, 2), Foreground = Brushes.LightGray };
         private static TextBox CreateTextBox(string? t) => new TextBox { Text = t ?? "", Margin = new Thickness(0, 0, 0, 6), Padding = new Thickness(6, 4, 6, 4), FontSize = 12, Background = new SolidColorBrush(Color.FromArgb(20, 255, 255, 255)), Foreground = Brushes.White, BorderBrush = Brushes.DimGray };
         private static ComboBox CreateEditableComboBox(string[] items, string? current) { 
-            var cb = new ComboBox { IsEditable = true, Margin = new Thickness(0, 0, 0, 8), FontSize = 12 }; 
+            var cb = new ComboBox { IsEditable = true, Margin = new Thickness(0, 0, 0, 8), FontSize = 12, VerticalContentAlignment = VerticalAlignment.Center };
             foreach (var x in items) cb.Items.Add(x); 
             if (!string.IsNullOrEmpty(current)) cb.Text = current; 
             return cb; 

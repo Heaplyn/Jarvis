@@ -1,7 +1,7 @@
 // Developer: heaplyn
-// Date: 2026-08-15
-// Summary: Script-Centric AI Action Orchestrator.
-// Offloads system operations to PowerShell scripts and handles UI commands.
+// Date: 2026-08-19
+// Summary: Universal AI Action Orchestrator with Autonomous Evolution.
+//          Supports stacked/cascading tool calls and real-time capability synthesis.
 
 using System;
 using System.IO;
@@ -12,210 +12,170 @@ using System.Threading.Tasks;
 using System.Linq;
 using System.Collections.Generic;
 using System.Diagnostics;
+using JarvisLauncher.AiTools;
 
 namespace JarvisLauncher
 {
     public static class AgentExecutor
     {
-        public static string ProcessAIResponse(string aiResponse)
+        private const int MAX_TOOL_RECURSION = 5;
+
+        public static async Task<string> ProcessAIResponseAsync(string aiResponse)
         {
             if (string.IsNullOrEmpty(aiResponse)) return aiResponse;
             aiResponse = AiAPI.CleanScratchpadText(aiResponse);
 
+            // 1. Check for autonomous tool creation (Capability Synthesis)
+            string synthesisResult = await SelfEvolvingToolEngine.ProcessToolSynthesisAsync(aiResponse);
+            if (!string.IsNullOrEmpty(synthesisResult))
+            {
+                 DebugConsoleOverlay.Log("Ai-Agent", "Synthesized new capabilities.");
+            }
+
             if (!SettingsManager.Current.ENABLE_PC_CONTROL)
             {
-                // In safety mode, AgentExecutor only processes non-intrusive UI/Audio tags
                 ProcessSafeIntents(aiResponse);
                 return StripAllInternalTags(aiResponse);
             }
 
-            var psScript = new StringBuilder();
-            psScript.AppendLine("$ErrorActionPreference = 'SilentlyContinue'"); // Non-blocking
-            psScript.AppendLine("$ProgressPreference = 'SilentlyContinue'");
-            psScript.AppendLine("# AI Generated Action Script");
+            string currentContext = aiResponse;
+            var executedTags = new HashSet<string>();
+            int iteration = 0;
 
-            bool hasPsActions = false;
-
-            // 1. Process WRITE_FILE tags: [WRITE_FILE:] or @wf{}{}
-            var writeRegex = new Regex(@"(?:\[WRITE_FILE:\s*(?<path>.+?)\](?<content>.*?)\[END_WRITE\]|@wf\{(?<path>.+?)\}\{(?<content>.*?)\})", RegexOptions.Singleline);
-            foreach (Match match in writeRegex.Matches(aiResponse))
+            // --- UNIVERSAL TOOL LOOP (Supports Stacking/Chaining) ---
+            while (iteration < MAX_TOOL_RECURSION)
             {
-                string path = match.Groups["path"].Value.Trim().Trim('"', '\'');
-                string content = match.Groups["content"].Value.Replace("'", "''");
-                psScript.AppendLine($"$dir = Split-Path '{path}'; if (!(Test-Path $dir)) {{ New-Item -ItemType Directory -Force -Path $dir }}; Set-Content -Path '{path}' -Value @'\n{content}\n'@ -Force");
-                hasPsActions = true;
-            }
+                var tools = AiToolRegistry.GetAllTools();
+                var toolResults = new StringBuilder();
+                bool anyExecuted = false;
 
-            // 2. Process DELETE_PATH tags: [DELETE_PATH:]
-            var deleteRegex = new Regex(@"\[DELETE_PATH:\s*(?<path>.+?)\]", RegexOptions.IgnoreCase);
-            foreach (Match match in deleteRegex.Matches(aiResponse))
-            {
-                string path = match.Groups["path"].Value.Trim().Trim('"', '\'');
-                psScript.AppendLine($"if (Test-Path '{path}') {{ Remove-Item -Path '{path}' -Recurse -Force }}");
-                hasPsActions = true;
-            }
-
-            // 3. Process EXEC_PS tags: [EXEC_PS:] or @ps{}
-            var psRegex = new Regex(@"(?:\[EXEC_PS:\s*(?<cmd>[\s\S]+?)\]|@ps\{(?<cmd>.+?)\})", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-            foreach (Match m in psRegex.Matches(aiResponse))
-            {
-                psScript.AppendLine(m.Groups["cmd"].Value.Trim());
-                hasPsActions = true;
-            }
-
-            // 4. Process KILL_PROCESS tags
-            var killRegex = new Regex(@"\[KILL_PROCESS:\s*(.+?)\]", RegexOptions.IgnoreCase);
-            foreach (Match m in killRegex.Matches(aiResponse))
-            {
-                string target = m.Groups[1].Value.Trim().Trim('"', '\'');
-                psScript.AppendLine($"Stop-Process -Name '{target}' -Force -ErrorAction SilentlyContinue");
-                hasPsActions = true;
-            }
-
-            // 5. Process SPEECH tags: [SPEECH:] or @say{}
-            var speechRegex = new Regex(@"(?:\[SPEECH:\s*(?<text>.+?)\]|@say\{(?<text>.+?)\})", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-            foreach (Match m in speechRegex.Matches(aiResponse))
-            {
-                string text = m.Groups["text"].Value.Trim().Trim('"', '\'');
-                TtsManager.Speak(text);
-            }
-
-            // 6. Process SET_CLIPBOARD tags
-            var clipRegex = new Regex(@"\[SET_CLIPBOARD:\s*(.+?)\]", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-            foreach (Match m in clipRegex.Matches(aiResponse))
-            {
-                string text = m.Groups[1].Value.Trim().Trim('"', '\'');
-                Application.Current.Dispatcher.Invoke(() => Clipboard.SetText(text));
-            }
-
-            // 7. Process OPEN_IN_IDE / VSCODE tags
-            var ideRegex = new Regex(@"\[(?:OPEN_IN_IDE|OPEN_IN_VSCODE|OPEN_EDITOR):\s*(.+?)\]", RegexOptions.IgnoreCase);
-            foreach (Match m in ideRegex.Matches(aiResponse))
-            {
-                string path = m.Groups[1].Value.Trim().Trim('"', '\'');
-                psScript.AppendLine($"if (Test-Path '{path}') {{ code '{path}' }} else {{ Start-Process '{path}' }}");
-                hasPsActions = true;
-            }
-
-            // 8. Process REBUILD_PROJECT tags
-            if (aiResponse.Contains("[REBUILD_PROJECT]", StringComparison.OrdinalIgnoreCase))
-            {
-                Application.Current.Dispatcher.Invoke(() => NativeMethods.Restart(freshBoot: true));
-            }
-
-            // 9. Process GIT_PUSH tags
-            var pushRegex = new Regex(@"\[GIT_PUSH:\s*(.+?)\]", RegexOptions.IgnoreCase);
-            foreach (Match m in pushRegex.Matches(aiResponse))
-            {
-                string msg = m.Groups[1].Value.Trim().Trim('"', '\'');
-                Application.Current.Dispatcher.Invoke(() => CommandParser.ExecuteFirstSuggestion($"push {msg}"));
-            }
-
-            // 10. Process DOWNLOAD_MEDIA tags
-            var dlMediaRegex = new Regex(@"\[DOWNLOAD_MEDIA:\s*(.+?),\s*(.+?)\]", RegexOptions.IgnoreCase);
-            foreach (Match m in dlMediaRegex.Matches(aiResponse))
-            {
-                string url = m.Groups[1].Value.Trim().Trim('"', '\'');
-                string format = m.Groups[2].Value.Trim().Trim('"', '\'');
-                _ = Task.Run(async () => await WebOperationManager.DiscoverAndDownloadMediaAsync(url, format == "mp4" ? "video" : "audio"));
-            }
-
-            // 10a. Process INGEST_DOCS tags (Backup execution)
-            var ingestRegex = new Regex(@"(?:\[INGEST_DOCS:\s*(?<url>.+?)\]|@ingest\{(?<url>.+?)\})", RegexOptions.IgnoreCase);
-            foreach (Match m in ingestRegex.Matches(aiResponse))
-            {
-                string url = m.Groups["url"].Value.Trim().Trim('"', '\'');
-                _ = Task.Run(async () => await WebOperationManager.IngestDocumentationAsync(url));
-            }
-
-            if (hasPsActions)
-            {
-                string script = psScript.ToString();
-                string output = ExecutePowerShellDirect(script);
-                ChatOverlay.LogConsoleAction("Script Executed", $"Actions offloaded to PowerShell.\nOutput:\n{output}");
-            }
-
-            // 11. Handling non-scriptable UI actions: [RUN_COMMAND:] or @run{} or @run
-            var cmdRegex = new Regex(@"(?:\[RUN_COMMAND:\s*(?<cmd>.+?)\]|@run\{(?<cmd>.+?)\}|@run\s+(?<cmd>.+?)(?:\n|@|$))", RegexOptions.IgnoreCase);
-            var cmdMatches = cmdRegex.Matches(aiResponse);
-            foreach (Match m in cmdMatches)
-            {
-                string cmd = m.Groups["cmd"].Value.Trim();
-
-                if (cmd.Contains("git push") || cmd.StartsWith("push"))
+                foreach (var tool in tools)
                 {
-                    Application.Current.Dispatcher.Invoke(() => CommandParser.ExecuteFirstSuggestion("push Sync update"));
+                    try
+                    {
+                        var regex = new Regex(tool.RegexPattern, RegexOptions.Singleline | RegexOptions.IgnoreCase);
+                        var matches = regex.Matches(currentContext);
+
+                        foreach (Match match in matches)
+                        {
+                            string result = await tool.ExecuteAsync(match, executedTags);
+                            if (!string.IsNullOrEmpty(result))
+                            {
+                                toolResults.AppendLine(result);
+                                anyExecuted = true;
+                                ChatOverlay.LogConsoleAction("Tool Executed", $"[{tool.Tag}]: {match.Value}");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        DebugConsoleOverlay.Log("Tool-Error", $"[{tool.Tag}]: {ex.Message}");
+                    }
                 }
-                else
+
+                // Process legacy hardcoded tags that return context
+                string legacyOutput = await ProcessLegacyTagsWithContextAsync(currentContext, executedTags);
+                if (!string.IsNullOrEmpty(legacyOutput))
                 {
-                    Application.Current.Dispatcher.Invoke(() => CommandParser.ExecuteFirstSuggestion(cmd));
+                    toolResults.AppendLine(legacyOutput);
+                    anyExecuted = true;
                 }
+
+                if (!anyExecuted) break;
+
+                // Stacked execution: The output of these tools is fed back to the orchestrator
+                // This allows the AI to react to file contents, command results, etc.
+                currentContext = toolResults.ToString();
+                iteration++;
+
+                DebugConsoleOverlay.Log("Ai-Agent", $"Cascading tool chain depth: {iteration}");
             }
 
-            // 12. Process OPEN_APP tags: [OPEN_APP:] or @app{} or @app
-            var appRegex = new Regex(@"(?:\[OPEN_APP:\s*(?<name>.+?)\]|@app\{(?<name>.+?)\}|@app\s+(?<name>.+?)(?:\n|@|$))", RegexOptions.IgnoreCase);
-            foreach (Match m in appRegex.Matches(aiResponse))
-            {
-                string name = m.Groups["name"].Value.Trim().Trim('"', '\'');
-                Application.Current.Dispatcher.Invoke(() => CommandParser.ExecuteFirstSuggestion($"app {name}"));
-            }
+            // Final pass for side-effect-only tags (Speech, UI)
+            ProcessSafeIntents(aiResponse);
 
             return StripAllInternalTags(aiResponse);
         }
 
-        private static void ProcessSafeIntents(string aiResponse)
+        private static async Task<string> ProcessLegacyTagsWithContextAsync(string response, HashSet<string> executed)
         {
-            // Only process Speech and Clipboard in safety mode
-            var speechRegex = new Regex(@"(?:\[SPEECH:\s*(.+?)\]|@say\{(.+?)\})", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-            foreach (Match m in speechRegex.Matches(aiResponse))
+            var sb = new StringBuilder();
+
+            // 1. Process EXEC_PS tags
+            var psRegex = new Regex(@"(?:\[EXEC_PS:\s*(?<cmd>[\s\S]+?)\]|@ps\{(?<cmd>.+?)\})", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            foreach (Match m in psRegex.Matches(response))
             {
-                string text = (m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value).Trim().Trim('"', '\'');
-                TtsManager.Speak(text);
+                string cmd = m.Groups["cmd"].Value.Trim();
+                if (executed.Add("PS:" + cmd))
+                {
+                    string res = ExecutePowerShellDirect(cmd);
+                    sb.AppendLine($"[POWERSHELL OUTPUT]:\n{res}\n");
+                }
             }
 
-            var clipRegex = new Regex(@"\[SET_CLIPBOARD:\s*(.+?)\]", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            // 2. Process INGEST_DOCS
+            var ingestRegex = new Regex(@"(?:\[INGEST_DOCS:\s*(?<url>.+?)\]|@ingest\{(?<url>.+?)\})", RegexOptions.IgnoreCase);
+            foreach (Match m in ingestRegex.Matches(response))
+            {
+                string url = m.Groups["url"].Value.Trim();
+                if (executed.Add("INGEST:" + url))
+                {
+                    _ = Task.Run(() => WebOperationManager.IngestDocumentationAsync(url));
+                    sb.AppendLine($"[SYSTEM]: Triggered documentation ingestion for {url}");
+                }
+            }
+
+            return sb.ToString();
+        }
+
+        public static string ProcessAIResponse(string aiResponse)
+        {
+             var task = Task.Run(() => ProcessAIResponseAsync(aiResponse));
+             task.Wait();
+             return task.Result;
+        }
+
+        private static void ProcessSafeIntents(string aiResponse)
+        {
+            // 5. Process SPEECH tags
+            var speechRegex = new Regex(@"(?:\[SPEECH:\s*(?<text>[\s\S]+?)\]|@say\{(?<text>.*?)\})", RegexOptions.IgnoreCase | RegexOptions.Singleline);
+            foreach (Match m in speechRegex.Matches(aiResponse))
+            {
+                TtsManager.Speak(m.Groups["text"].Value.Trim().Trim('"', '\''));
+            }
+
+            // 6. Process SET_CLIPBOARD tags
+            var clipRegex = new Regex(@"\[SET_CLIPBOARD:\s*(?<text>[\s\S]+?)\]", RegexOptions.IgnoreCase | RegexOptions.Singleline);
             foreach (Match m in clipRegex.Matches(aiResponse))
             {
-                string text = m.Groups[1].Value.Trim().Trim('"', '\'');
+                string text = m.Groups["text"].Value.Trim().Trim('"', '\'');
                 Application.Current.Dispatcher.Invoke(() => Clipboard.SetText(text));
+            }
+
+            // 11. Handling UI commands
+            var cmdRegex = new Regex(@"(?:\[RUN_COMMAND:\s*(?<cmd>.+?)\]|@run\{(?<cmd>.+?)\})", RegexOptions.IgnoreCase);
+            foreach (Match m in cmdRegex.Matches(aiResponse))
+            {
+                string cmd = m.Groups["cmd"].Value.Trim();
+                Application.Current.Dispatcher.Invoke(() => CommandParser.ExecuteFirstSuggestion(cmd));
             }
         }
 
         public static string StripAllInternalTags(string text)
         {
             if (string.IsNullOrWhiteSpace(text)) return string.Empty;
-
             string cleaned = text;
 
-            // 1. Extract content from APP_RESPONSE block if present
             var appResponseRegex = new Regex(@"\{\{\{\{APP_RESPONSE:::(?<content>.*?):::APP_RESPONSE\}\}\}\}", RegexOptions.IgnoreCase | RegexOptions.Singleline);
             var match = appResponseRegex.Match(cleaned);
-            if (match.Success)
-            {
-                cleaned = match.Groups["content"].Value.Trim();
-            }
+            if (match.Success) cleaned = match.Groups["content"].Value.Trim();
 
-            // 2. Remove multi-line code-like action blocks
             cleaned = Regex.Replace(cleaned, @"\[WRITE_FILE:\s*.+?\][\s\S]*?\[END_WRITE\]", "", RegexOptions.IgnoreCase);
-            cleaned = Regex.Replace(cleaned, @"\[APPEND_FILE:\s*.+?\][\s\S]*?\[END_APPEND\]", "", RegexOptions.IgnoreCase);
-
-            // 3. Remove all standard square-bracket tags (Actions & Context)
             cleaned = Regex.Replace(cleaned, @"\[[A-Z0-9_]{3,}(?::\s*[\s\S]*?)?\]", "", RegexOptions.IgnoreCase);
-
-            // 4. Remove Shorthand tags (@tag{...})
             cleaned = Regex.Replace(cleaned, @"@[a-z0-9_]{2,}\{.*?\}(\{.*?\})?", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
 
-            // 5. Remove metadata prefixes
-            cleaned = Regex.Replace(cleaned, @"^(Response|Jarvis|Assistant|Assistant Response):\s*", "", RegexOptions.IgnoreCase | RegexOptions.Multiline);
-
-            // 6. Filter for any line that is just punctuation or dots
             var lines = cleaned.Split('\n').Where(l => !string.IsNullOrWhiteSpace(l) && !Regex.IsMatch(l, @"^[\.\s\?\!]+$"));
-            cleaned = string.Join("\n", lines);
-
-            // Final cleanup of wrapper fragments
-            cleaned = cleaned.Replace("{{{{APP_RESPONSE:::", "").Replace(":::APP_RESPONSE}}}}", "");
-
-            return cleaned.Trim();
+            return string.Join("\n", lines).Trim();
         }
 
         public static string ExecutePowerShellDirect(string cmd)
@@ -224,34 +184,17 @@ namespace JarvisLauncher
             {
                 string tempFile = Path.Combine(Path.GetTempPath(), $"jarvis_script_{Guid.NewGuid():N}.ps1");
                 File.WriteAllText(tempFile, cmd, new UTF8Encoding(false));
-
-                var psi = new ProcessStartInfo
-                {
-                    FileName = "powershell.exe",
-                    Arguments = $"-NoProfile -ExecutionPolicy Bypass -File \"{tempFile}\"",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-
-                using var proc = System.Diagnostics.Process.Start(psi);
-                if (proc != null)
-                {
+                var psi = new ProcessStartInfo { FileName = "powershell.exe", Arguments = $"-NoProfile -ExecutionPolicy Bypass -File \"{tempFile}\"", RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
+                using var proc = Process.Start(psi);
+                if (proc != null) {
                     string outText = proc.StandardOutput.ReadToEnd();
                     string errText = proc.StandardError.ReadToEnd();
-                    proc.WaitForExit(15000); // 15s timeout
+                    proc.WaitForExit(15000);
                     try { File.Delete(tempFile); } catch { }
                     return (outText + "\n" + errText).Trim();
                 }
                 return "[ERROR] Failed to launch script runner.";
-            }
-            catch (Exception ex) { return $"[ERROR] {ex.Message}"; }
-        }
-
-        public static string ExecuteShellDirect(string cmd)
-        {
-            return ExecutePowerShellDirect($"cmd.exe /c {cmd}");
+            } catch (Exception ex) { return $"[ERROR] {ex.Message}"; }
         }
     }
 }

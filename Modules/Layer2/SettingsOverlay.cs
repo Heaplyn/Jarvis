@@ -37,7 +37,11 @@ namespace JarvisLauncher
         private Slider _giMaxClustersSlider = null!;
         private Slider _giDepthSlider = null!;
         private Slider _giThrottleSlider = null!;
+        private Slider _giEpochsSlider = null!;
         private CheckBox _giTurboModeCheck = null!;
+        private CheckBox _giEnableEngineCheck = null!;
+        private CheckBox _giAutoExchangeCheck = null!;
+        private Slider _giExchangeIntervalSlider = null!;
         private Slider _giTurboIntervalSlider = null!;
         private Slider _ttsRateSlider = null!;
         private Slider _ttsVolumeSlider = null!;
@@ -48,6 +52,13 @@ namespace JarvisLauncher
         private TextBox _chatBubbleColorBox = null!;
         private Slider _chatHistorySlider = null!;
         private CheckBox _chatDebugCheck = null!;
+
+        // Backup Sync Controls
+        private CheckBox _isBackupPcCheck = null!;
+        private TextBox _backupPcUrlBox = null!;
+        private TextBox _backupPcSecretBox = null!;
+        private CheckBox _autoSyncCheck = null!;
+        private Slider _syncIntervalSlider = null!;
 
         private ListBox _aliasList = null!;
         private TextBox _aliasNameBox = null!;
@@ -62,18 +73,19 @@ namespace JarvisLauncher
             });
         }
 
-        private SettingsOverlay() : base("⚙️ MASTER SYSTEM SETTINGS", 880, 780)
+        private SettingsOverlay() : base("⚙️ MASTER SYSTEM SETTINGS", 820, 640)
         {
             _instance = this;
             this.Closed += (s, e) => _instance = null;
+            this.ResizeMode = ResizeMode.CanResizeWithGrip; // Allow user to resize if needed
 
             var mainGrid = new Grid { Margin = new Thickness(15) };
             mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            var tabBarGrid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 9, Margin = new Thickness(0, 0, 0, 15) };
-            string[] tabs = { "⚙️ Gen", "🤖 LLM", "🧠 GI", "🗣️ TTS", "🎙️ Vox", "🧹 Data", "📶 Off", "🏷️ Map", "💬 Chat" };
+            var tabBarGrid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 10, Margin = new Thickness(0, 0, 0, 15) };
+            string[] tabs = { "⚙️ Gen", "🤖 LLM", "🧠 GI", "🗣️ TTS", "🎙️ Vox", "🧹 Data", "🔄 Sync", "📶 Off", "🏷️ Map", "💬 Chat" };
             for (int i = 0; i < tabs.Length; i++) {
                 int idx = i;
                 var btn = new Button { Content = tabs[i], Padding = new Thickness(5, 12, 5, 12), FontSize = 11, FontWeight = FontWeights.Bold, Margin = new Thickness(2, 0, 2, 0), Cursor = Cursors.Hand };
@@ -89,6 +101,7 @@ namespace JarvisLauncher
             _tabPanels.Add(BuildTtsTab());
             _tabPanels.Add(BuildVoiceAiTab());
             _tabPanels.Add(BuildDataTab());
+            _tabPanels.Add(BuildSyncTab());
             _tabPanels.Add(BuildOfflineTab());
             _tabPanels.Add(BuildAliasesTab());
             _tabPanels.Add(BuildChatTab());
@@ -191,10 +204,23 @@ namespace JarvisLauncher
             var set = SettingsManager.Current;
 
             s.Children.Add(CreateHeader("Godellian Neural Engine Evolution"));
+            _giEnableEngineCheck = CreateCheckBox("🧠 ENABLE GODELLIAN INTELLIGENCE CORE", set.ENABLE_GODELLIAN_ENGINE, v => set.ENABLE_GODELLIAN_ENGINE = v);
+            _giEnableEngineCheck.Foreground = Brushes.Cyan;
+            _giEnableEngineCheck.FontWeight = FontWeights.Bold;
+            s.Children.Add(_giEnableEngineCheck);
+
             _giTurboModeCheck = CreateCheckBox("🚀 ENABLE ULTRA-TURBO TRAINING MODE", set.GODELLIAN_TURBO_MODE, v => set.GODELLIAN_TURBO_MODE = v);
             _giTurboModeCheck.Foreground = Brushes.Gold;
             _giTurboModeCheck.FontWeight = FontWeights.ExtraBold;
             s.Children.Add(_giTurboModeCheck);
+
+            _giAutoExchangeCheck = CreateCheckBox("📡 AUTONOMIC LLM LOGIC EXCHANGE", set.GODELLIAN_AUTO_LLM_EXCHANGE, v => set.GODELLIAN_AUTO_LLM_EXCHANGE = v);
+            _giAutoExchangeCheck.Foreground = Brushes.Cyan;
+            s.Children.Add(_giAutoExchangeCheck);
+
+            s.Children.Add(CreateLabel("Exchange Frequency (Seconds):"));
+            _giExchangeIntervalSlider = CreateSettingsSlider(10, 1800, set.GODELLIAN_EXCHANGE_INTERVAL_SEC, 10);
+            s.Children.Add(_giExchangeIntervalSlider);
 
             s.Children.Add(CreateLabel("Turbo Evolutionary Interval (ms):"));
             _giTurboIntervalSlider = CreateSettingsSlider(100, 2000, set.GODELLIAN_TURBO_INTERVAL_MS, 100);
@@ -211,6 +237,10 @@ namespace JarvisLauncher
             s.Children.Add(CreateLabel("Synaptic Recursion Depth (Logic Passes):"));
             _giDepthSlider = CreateSettingsSlider(1, 10, set.GODELLIAN_RECURSION_DEPTH, 1);
             s.Children.Add(_giDepthSlider);
+
+            s.Children.Add(CreateLabel("Neural Training Epochs (1 = Instant, 500 = Deep):"));
+            _giEpochsSlider = CreateSettingsSlider(1, 500, set.GODELLIAN_TRAINING_EPOCHS, 5);
+            s.Children.Add(_giEpochsSlider);
 
             s.Children.Add(CreateLabel("Neural Processor Throttle Guard (% CPU):"));
             _giThrottleSlider = CreateSettingsSlider(0.05, 1.0, set.GODELLIAN_THROTTLE_THRESHOLD, 0.05);
@@ -342,6 +372,46 @@ namespace JarvisLauncher
             });
             s.Children.Add(clearCacheBtn);
 
+            s.Children.Add(CreateHeader("Environment Management"));
+            var suiteBtn = CreateStyledButton("🛠️ OPEN UNIVERSAL DEV SUITE", (obj, e) => {
+                DevSuiteOverlay.ShowOverlay();
+            }, isPrimary: true);
+            s.Children.Add(suiteBtn);
+
+            return scroll;
+        }
+
+        private UIElement BuildSyncTab() {
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var s = new StackPanel { Margin = new Thickness(15) }; scroll.Content = s;
+            var set = SettingsManager.Current;
+
+            s.Children.Add(CreateHeader("PC-to-PC Data Synchronization"));
+            _isBackupPcCheck = CreateCheckBox("🖥️ DESIGNATE THIS COMPUTER AS BACKUP PC", set.IS_BACKUP_PC, v => set.IS_BACKUP_PC = v);
+            _isBackupPcCheck.Foreground = Brushes.Cyan;
+            s.Children.Add(_isBackupPcCheck);
+
+            s.Children.Add(CreateLabel("If this is a Backup PC, other Jarvis instances can connect here to sync files."));
+
+            s.Children.Add(CreateHeader("Remote Backup PC Connection"));
+            _backupPcUrlBox = CreateLabeledTextBox(s, "Backup PC Bridge URL (e.g. http://192.168.1.10:9000):", set.BACKUP_PC_URL);
+            _backupPcSecretBox = CreateLabeledTextBox(s, "Synchronization Secret (Shared Key):", set.BACKUP_PC_SECRET);
+
+            s.Children.Add(CreateHeader("Automation"));
+            _autoSyncCheck = CreateCheckBox("🔄 Enable Background Training Sync", set.AUTO_SYNC_WITH_BACKUP, v => set.AUTO_SYNC_WITH_BACKUP = v);
+            s.Children.Add(_autoSyncCheck);
+
+            s.Children.Add(CreateLabel("Sync Interval (Minutes):"));
+            _syncIntervalSlider = CreateSettingsSlider(5, 720, set.AUTO_SYNC_INTERVAL_MINUTES, 5);
+            s.Children.Add(_syncIntervalSlider);
+
+            var pullBtn = CreateStyledButton("📥 PULL DATA FROM BACKUP NOW", async (obj, e) => {
+                TextOverlay.Show("Initiating manual data pull...", 3000);
+                string res = await BackupSyncManager.RunSyncCycleAsync();
+                MessageBox.Show(res, "Sync Status");
+            }, isPrimary: true);
+            s.Children.Add(pullBtn);
+
             return scroll;
         }
 
@@ -369,6 +439,12 @@ namespace JarvisLauncher
                 MessageBox.Show(res, "Discovery Service");
             });
             s.Children.Add(discBtn);
+
+            s.Children.Add(CreateHeader("Offline Tooling"));
+            var suiteBtn = CreateStyledButton("🛠️ OPEN UNIVERSAL DEV SUITE", (obj, e) => {
+                DevSuiteOverlay.ShowOverlay();
+            }, isPrimary: true);
+            s.Children.Add(suiteBtn);
 
             return scroll;
         }
@@ -479,8 +555,18 @@ namespace JarvisLauncher
                 if (_lmStudioUrlBox != null) s.LM_STUDIO_ENDPOINT = _lmStudioUrlBox.Text.Trim();
                 if (_bionicUrlBox != null) s.BIONIC_ENDPOINT = _bionicUrlBox.Text.Trim();
 
+                if (_backupPcUrlBox != null) s.BACKUP_PC_URL = _backupPcUrlBox.Text.Trim();
+                if (_backupPcSecretBox != null) s.BACKUP_PC_SECRET = _backupPcSecretBox.Text.Trim();
+                if (_isBackupPcCheck != null) s.IS_BACKUP_PC = _isBackupPcCheck.IsChecked == true;
+                if (_autoSyncCheck != null) s.AUTO_SYNC_WITH_BACKUP = _autoSyncCheck.IsChecked == true;
+                if (_syncIntervalSlider != null) s.AUTO_SYNC_INTERVAL_MINUTES = (int)_syncIntervalSlider.Value;
+
+                if (_giEnableEngineCheck != null) s.ENABLE_GODELLIAN_ENGINE = _giEnableEngineCheck.IsChecked == true;
                 if (_giMaxClustersSlider != null) s.GODELLIAN_MAX_CLUSTERS = (int)_giMaxClustersSlider.Value;
                 if (_giDepthSlider != null) s.GODELLIAN_RECURSION_DEPTH = (int)_giDepthSlider.Value;
+                if (_giEpochsSlider != null) s.GODELLIAN_TRAINING_EPOCHS = (int)_giEpochsSlider.Value;
+                if (_giAutoExchangeCheck != null) s.GODELLIAN_AUTO_LLM_EXCHANGE = _giAutoExchangeCheck.IsChecked == true;
+                if (_giExchangeIntervalSlider != null) s.GODELLIAN_EXCHANGE_INTERVAL_SEC = (int)_giExchangeIntervalSlider.Value;
                 if (_giThrottleSlider != null) s.GODELLIAN_THROTTLE_THRESHOLD = _giThrottleSlider.Value;
                 if (_giTurboModeCheck != null) s.GODELLIAN_TURBO_MODE = _giTurboModeCheck.IsChecked == true;
                 if (_giTurboIntervalSlider != null) s.GODELLIAN_TURBO_INTERVAL_MS = (int)_giTurboIntervalSlider.Value;
@@ -508,24 +594,8 @@ namespace JarvisLauncher
         private ComboBox CreateSettingsComboBox(IEnumerable<string> items, string selected) {
             var cb = new ComboBox {
                 Margin = new Thickness(0, 5, 0, 15), Height = 35,
-                Background = new SolidColorBrush(Color.FromRgb(30,30,40)),
-                Foreground = Brushes.White,
-                BorderBrush = Brushes.DimGray, Padding = new Thickness(5),
-                HorizontalContentAlignment = HorizontalAlignment.Left,
                 VerticalContentAlignment = VerticalAlignment.Center
             };
-
-            // FORCE DARK THEME ON POPUP
-            cb.Resources.Add(SystemColors.WindowBrushKey, new SolidColorBrush(Color.FromRgb(40, 40, 50)));
-            cb.Resources.Add(SystemColors.WindowTextBrushKey, Brushes.White);
-            cb.Resources.Add(SystemColors.HighlightBrushKey, (Brush)FindResource("SelectedBackgroundBrush"));
-            cb.Resources.Add(SystemColors.HighlightTextBrushKey, Brushes.White);
-
-            var style = new Style(typeof(ComboBoxItem));
-            style.Setters.Add(new Setter(ComboBoxItem.BackgroundProperty, Brushes.Transparent));
-            style.Setters.Add(new Setter(ComboBoxItem.ForegroundProperty, Brushes.White));
-            style.Setters.Add(new Setter(ComboBoxItem.BorderThicknessProperty, new Thickness(0)));
-            cb.ItemContainerStyle = style;
 
             foreach (var i in items) cb.Items.Add(i);
             cb.SelectedItem = cb.Items.Cast<object>().FirstOrDefault(x => x.ToString() == selected) ?? (cb.Items.Count > 0 ? cb.Items[0] : null);

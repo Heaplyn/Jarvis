@@ -64,6 +64,8 @@ namespace JarvisLauncher
             System.Apps.StartScan();
             Interaction.Autonomous.Start();
             Interaction.Voice.Start();
+            GodellianDataIngestor.InitializeAutoWatcher();
+            BackupSyncManager.StartAutoSync();
 
             Task.Run(async () => {
                 try {

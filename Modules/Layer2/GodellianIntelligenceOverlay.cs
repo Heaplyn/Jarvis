@@ -1,8 +1,7 @@
 // Developer: heaplyn
-// Date: 2026-08-18
-// Summary: Godellian Intelligence Interface v6 (Symbolic-Enabled).
-//          Interactive monitoring with Accuracy Over Time and Symbolic Calculus Output.
-//          Robust async UI refreshing with spark visualization.
+// Date: 2026-08-19
+// Summary: Godellian Intelligence Interface v7 (Tabbed & Training-Aware).
+//          Interactive monitoring with Live Training Logs and Cross-Model Exchange Bridge.
 
 using System;
 using System.Collections.Generic;
@@ -25,6 +24,8 @@ namespace JarvisLauncher
         private readonly StackPanel _conceptPanel;
         private readonly Canvas _accuracyCanvas;
         private readonly Canvas _clusterCanvas;
+        private readonly ListBox _logList;
+        private readonly TextBlock _feedbackBlock;
         private readonly DispatcherTimer _timer;
         private bool _isRefreshing = false;
 
@@ -40,19 +41,18 @@ namespace JarvisLauncher
             });
         }
 
-        private GodellianIntelligenceOverlay() : base("GODELLIAN CORE MONITOR [SYMBOLIC]", 850, 700)
+        private GodellianIntelligenceOverlay() : base("GODELLIAN CORE MONITOR [SYMBOLIC]", 920, 780)
         {
             _instance = this;
             this.Closed += (s, e) => { _instance = null; _timer.Stop(); };
             WindowPositionManager.RegisterWindow(this, nameof(GodellianIntelligenceOverlay));
 
-            var mainGrid = new Grid { Margin = new Thickness(20) };
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var mainGrid = new Grid { Margin = new Thickness(15) };
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Telemetry
             mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(100) }); // Accuracy Graph
             mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(80) }); // Symbolic Equation
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Mid
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(140) }); // Cluster Map
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Controls
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Tabs
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Toolbar
 
             // 1. Telemetry
             _telemetryBlock = new TextBlock { Foreground = Brushes.Cyan, FontSize = 12, FontFamily = new FontFamily("Consolas"), Margin = new Thickness(0,0,0,10) };
@@ -83,36 +83,76 @@ namespace JarvisLauncher
             symbolicBorder.Child = _symbolicBlock;
             Grid.SetRow(symbolicBorder, 2); mainGrid.Children.Add(symbolicBorder);
 
-            // 4. Thoughts & Concepts
-            var visualizationGrid = new Grid();
-            visualizationGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            visualizationGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(320) });
+            // 4. Tabs for deeper features
+            var tc = new TabControl { Background = Brushes.Transparent, BorderThickness = new Thickness(0) };
+            BaseOverlay.StyleTabControl(tc);
 
-            _thoughtBlock = new TextBlock { Foreground = Brushes.White, FontSize = 14, FontStyle = FontStyles.Italic, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Top, Text = "Monitoring synaptic stream...", LineHeight = 22 };
-            visualizationGrid.Children.Add(_thoughtBlock);
+            // Tab A: Synaptic Live Feed
+            var feedTab = new TabItem { Header = "📡 LIVE FEED" };
+            var feedGrid = new Grid();
+            feedGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            feedGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
+
+            var feedLeft = new StackPanel { Margin = new Thickness(0,0,10,0) };
+            _thoughtBlock = new TextBlock { Foreground = Brushes.White, FontSize = 14, FontStyle = FontStyles.Italic, TextWrapping = TextWrapping.Wrap, Text = "Monitoring synaptic stream...", LineHeight = 22 };
+            feedLeft.Children.Add(_thoughtBlock);
+
+            _logList = new ListBox
+            {
+                Background = new SolidColorBrush(Color.FromArgb(45, 0, 0, 0)),
+                Foreground = Brushes.Cyan,
+                BorderThickness = new Thickness(1),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)),
+                FontSize = 10,
+                FontFamily = new FontFamily("Consolas"),
+                Margin = new Thickness(0,10,0,0),
+                Height = 240
+            };
+            feedLeft.Children.Add(new TextBlock { Text = "TRAINING LOG:", FontSize = 9, Foreground = Brushes.Gray, Margin = new Thickness(0,10,0,2) });
+            feedLeft.Children.Add(_logList);
+            Grid.SetColumn(feedLeft, 0); feedGrid.Children.Add(feedLeft);
 
             _conceptPanel = new StackPanel();
             var conceptScroll = new ScrollViewer { Content = _conceptPanel, VerticalScrollBarVisibility = ScrollBarVisibility.Hidden };
-            Grid.SetColumn(conceptScroll, 1);
-            visualizationGrid.Children.Add(conceptScroll);
+            Grid.SetColumn(conceptScroll, 1); feedGrid.Children.Add(conceptScroll);
+            feedTab.Content = feedGrid;
+            tc.Items.Add(feedTab);
 
-            Grid.SetRow(visualizationGrid, 3);
-            mainGrid.Children.Add(visualizationGrid);
-
-            // 4b. Cluster Map Visualization
-            var clusterBorder = new Border { Background = new SolidColorBrush(Color.FromArgb(15, 255, 255, 255)), BorderThickness = new Thickness(1), BorderBrush = Brushes.DimGray, Margin = new Thickness(0,10,0,10) };
+            // Tab B: Cluster Map
+            var clusterTab = new TabItem { Header = "🧬 CLUSTERS" };
+            var clusterBorder = new Border { Background = new SolidColorBrush(Color.FromArgb(15, 255, 255, 255)), BorderThickness = new Thickness(1), BorderBrush = Brushes.DimGray, Margin = new Thickness(5) };
             _clusterCanvas = new Canvas { ClipToBounds = true };
             clusterBorder.Child = _clusterCanvas;
-            Grid.SetRow(clusterBorder, 4); mainGrid.Children.Add(clusterBorder);
+            clusterTab.Content = clusterBorder;
+            tc.Items.Add(clusterTab);
+
+            // Tab C: LLM Exchange
+            var exchangeTab = new TabItem { Header = "🤝 LLM EXCHANGE" };
+            var exStack = new StackPanel { Margin = new Thickness(15) };
+            exStack.Children.Add(CreateHeaderBlock("Autonomic Logic Consensus Bridge"));
+            _feedbackBlock = new TextBlock { Foreground = Brushes.White, FontSize = 12, TextWrapping = TextWrapping.Wrap, Text = "Press 'EXCHANGE' to sync logic with distributed LLMs...", Opacity = 0.7 };
+            var scrollFeedback = new ScrollViewer { Content = _feedbackBlock, Height = 300, Margin = new Thickness(0,10,0,15) };
+            exStack.Children.Add(scrollFeedback);
+            var exchangeBtn = CreateStyledButton("🚀 INITIATE CROSS-MODEL EXCHANGE", async (s, e) => {
+                _feedbackBlock.Text = "Synchronizing manifold state with cloud failover nodes...";
+                _feedbackBlock.Opacity = 1.0;
+                string res = await CoreRegistry.Intelligence.MainBrain.ExchangeLogicWithLlmAsync();
+                _feedbackBlock.Text = res;
+            }, isPrimary: true);
+            exStack.Children.Add(exchangeBtn);
+            exchangeTab.Content = exStack;
+            tc.Items.Add(exchangeTab);
+
+            Grid.SetRow(tc, 3); mainGrid.Children.Add(tc);
 
             // 5. Toolbar
-            var toolbar = new System.Windows.Controls.Primitives.UniformGrid { Columns = 4, Height = 36, Margin = new Thickness(0,10,0,0) };
+            var toolbar = new System.Windows.Controls.Primitives.UniformGrid { Columns = 5, Height = 42, Margin = new Thickness(0,15,0,0) };
             toolbar.Children.Add(CreateStyledButton("INJECT", (s, e) => ManualVocabInjection()));
             toolbar.Children.Add(CreateStyledButton("MUTATE", (s, e) => Task.Run(() => CoreRegistry.Intelligence.MainBrain.MutateTopology())));
+            toolbar.Children.Add(CreateStyledButton("EXCHANGE", async (s, e) => await CoreRegistry.Intelligence.MainBrain.ExchangeLogicWithLlmAsync()));
             toolbar.Children.Add(CreateStyledButton("RELOAD", (s, e) => Task.Run(() => CoreRegistry.Intelligence.MainBrain.ReloadVocabulary())));
             toolbar.Children.Add(CreateStyledButton("CLOSE", (s, e) => this.Close()));
-            Grid.SetRow(toolbar, 4);
-            mainGrid.Children.Add(toolbar);
+            Grid.SetRow(toolbar, 4); mainGrid.Children.Add(toolbar);
 
             this.UserContent = mainGrid;
 
@@ -143,8 +183,9 @@ namespace JarvisLauncher
                         var output = brain.Think(input);
                         string report = brain.GetDiagnosticReport() + $"\nSRC: {brain.LastTrainingSource} | " + NeuralResourceManager.GetResourceReport();
                         var history = brain.AccuracyHistory.ToList();
+                        var log = brain.TrainingLog.ToList();
 
-                        return new { equation, logic, output, report, history };
+                        return new { equation, logic, output, report, history, log };
                     } catch { return null; }
                 });
 
@@ -159,12 +200,14 @@ namespace JarvisLauncher
                     UpdateAccuracyGraph(result.history);
                     UpdateClusterMap();
 
+                    _logList.ItemsSource = result.log;
+
                     _conceptPanel.Children.Clear();
                     for (int i = 0; i < Math.Min(result.output.Size, 15); i++)
                     {
                         double val = Math.Abs(result.output.Data[i]);
                         var pb = new ProgressBar {
-                            Width = 250, Height = 5, Value = val * 100, Margin = new Thickness(0,2,0,2),
+                            Width = 280, Height = 6, Value = val * 100, Margin = new Thickness(0,2,0,2),
                             Foreground = val > 0.7 ? Brushes.Lime : (val > 0.4 ? Brushes.Cyan : Brushes.DimGray),
                             Background = new SolidColorBrush(Color.FromArgb(10, 255, 255, 255)), BorderThickness = new Thickness(0)
                         };
@@ -210,32 +253,36 @@ namespace JarvisLauncher
             if (w <= 0 || h <= 0) return;
 
             // Draw cluster groups
-            int groups = 6;
+            int groups = 8;
             for (int g = 0; g < groups; g++) {
                  double cx = rand.NextDouble() * w;
                  double cy = rand.NextDouble() * h;
-                 for (int j = 0; j < 5; j++) {
+                 var color = g % 3 == 0 ? Brushes.Cyan : (g % 3 == 1 ? Brushes.Lime : Brushes.Fuchsia);
+                 for (int j = 0; j < 6; j++) {
                      var line = new Line {
                          X1 = cx, Y1 = cy,
-                         X2 = cx + (rand.NextDouble() * 40 - 20),
-                         Y2 = cy + (rand.NextDouble() * 40 - 20),
-                         Stroke = Brushes.Cyan, StrokeThickness = 0.5, Opacity = 0.3
+                         X2 = cx + (rand.NextDouble() * 50 - 25),
+                         Y2 = cy + (rand.NextDouble() * 50 - 25),
+                         Stroke = color, StrokeThickness = 0.6, Opacity = 0.4
                      };
                      _clusterCanvas.Children.Add(line);
                  }
             }
 
             // Draw active "firing" neurons
-            for (int i = 0; i < 30; i++)
+            for (int i = 0; i < 40; i++)
             {
-                var dot = new Ellipse { Width = 4, Height = 4, Fill = rand.NextDouble() > 0.8 ? Brushes.Lime : Brushes.Cyan, Opacity = rand.NextDouble() };
+                var dot = new Ellipse { Width = 5, Height = 5, Fill = rand.NextDouble() > 0.7 ? Brushes.White : Brushes.Cyan, Opacity = rand.NextDouble() };
                 Canvas.SetLeft(dot, rand.NextDouble() * w);
                 Canvas.SetTop(dot, rand.NextDouble() * h);
                 _clusterCanvas.Children.Add(dot);
             }
 
-            _clusterCanvas.Children.Add(new TextBlock { Text = "LIVE SYNAPTIC CLUSTER EVOLUTION MAP", FontSize = 9, Foreground = Brushes.Gray, Margin = new Thickness(10) });
+            _clusterCanvas.Children.Add(new TextBlock { Text = "LIVE SYNAPTIC CLUSTER EVOLUTION MAP (MULTIPLE SPECIALIZATIONS)", FontSize = 9, Foreground = Brushes.Gray, Margin = new Thickness(10) });
         }
+
+        private static TextBlock CreateHeaderBlock(string text) => new TextBlock { Text = text, FontSize = 13, FontWeight = FontWeights.Bold, Foreground = Brushes.Cyan, Margin = new Thickness(0, 0, 0, 10) };
+
         private void ManualVocabInjection()
         {
             var win = new Window { Title = "Knowledge Ingestion", Width = 400, Height = 200, WindowStyle = WindowStyle.ToolWindow, Background = Brushes.Black, Foreground = Brushes.White, WindowStartupLocation = WindowStartupLocation.CenterScreen, Topmost = true };

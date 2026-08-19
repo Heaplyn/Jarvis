@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace JarvisLauncher
@@ -34,7 +35,11 @@ namespace JarvisLauncher
                     using (MemoryStream ms = new MemoryStream())
                     {
                         // Save as JPEG to reduce payload size for API
-                        bitmap.Save(ms, ImageFormat.Jpeg, new EncoderParameters { Param = new[] { new EncoderParameter(Encoder.Quality, 75L) } });
+                        var encoderParams = new EncoderParameters(1);
+                        encoderParams.Param[0] = new EncoderParameter(Encoder.Quality, 75L);
+                        var jpegCodec = ImageCodecInfo.GetImageEncoders().First(c => c.FormatID == ImageFormat.Jpeg.Guid);
+
+                        bitmap.Save(ms, jpegCodec, encoderParams);
                         return ms.ToArray();
                     }
                 }

@@ -125,6 +125,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
             l.Add(new CommandDesc("organize", "Open Visual File Organizer", "organize"));
             l.Add(new CommandDesc("view <file>", "Quick view any file content", "view readme.md"));
             l.Add(new CommandDesc("templates", "Open code template library", "templates"));
+            l.Add(new CommandDesc("suite", "Open Universal Dev & Offline Suite", "suite"));
 
             // Customization & Web (10)
             l.Add(new CommandDesc("theme <name>", "Switch HUD visual theme", "theme cyberpunk"));

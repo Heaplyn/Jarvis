@@ -60,7 +60,7 @@ namespace JarvisLauncher
                     CoreRegistry.Intelligence.MainBrain.BatchTrain(
                         pairs.Select(p => p.Key).ToList(),
                         pairs.Select(p => p.Value).ToList(),
-                        epochs: 25,
+                        epochs: SettingsManager.Current.GODELLIAN_TRAINING_EPOCHS,
                         source: $"Consensus_{model}"
                     );
                     DebugConsoleOverlay.Log("Neural-Forge", $"Consensus Ingested: {domain} via {model}");

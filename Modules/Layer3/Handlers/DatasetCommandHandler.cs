@@ -35,10 +35,18 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
                     DESCRIPTION = "Use AI to discover new datasets on Hugging Face based on current trends.",
                     SIMILARITY = 0.8,
                     EXECUTE = () => {
-                        string q = query.Replace("dataset", "").Replace("search", "").Trim();
-                        if (string.IsNullOrEmpty(q)) q = "fine-tuning";
-                        Task.Run(async () => await DatasetHarvester.RunAutomaticHarvestAsync()); // Trigger full harvest as it includes AI search
+                        Task.Run(async () => {
+                            await DatasetHarvester.RunAutomaticHarvestAsync();
+                            await GodellianHuggingFaceEngine.RunAutoGrabCycleAsync();
+                        });
                     }
+                },
+                new CommandResult
+                {
+                    TITLE = "🧠 Godellian HF Ingest",
+                    DESCRIPTION = "Force autonomic knowledge ingestion from Hugging Face for the Godellian brain.",
+                    SIMILARITY = 0.9,
+                    EXECUTE = () => Task.Run(async () => await GodellianHuggingFaceEngine.RunAutoGrabCycleAsync())
                 }
             };
         }
