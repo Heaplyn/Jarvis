@@ -92,6 +92,18 @@ namespace JarvisLauncher
                     }
                 }
             });
+
+            // 6. NORMATIVE LAW EVOLUTION (Every 60 mins)
+            Task.Run(async () => {
+                while (_isActive) {
+                    try {
+                        if (SettingsManager.Current.ENABLE_GODELLIAN_ENGINE) {
+                            await LawEvolutionEngine.RunLawEvolutionCycleAsync();
+                        }
+                    } catch { }
+                    await Task.Delay(TimeSpan.FromMinutes(60));
+                }
+            });
         }
 
         private static async Task ScrapeAndIngestTechnicalKnowledgeAsync()

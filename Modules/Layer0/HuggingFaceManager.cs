@@ -1,7 +1,7 @@
 // Developer: heaplyn
 // Date: 2026-08-13
 // Summary: Hugging Face Hub Integration Manager.
-// Features huggingface-cli auto-installer, live model search API, 1-click GGUF/model downloader, and Ollama GGUF importer.
+// Features hf-cli auto-installer, live model search API, 1-click GGUF/model downloader, and Ollama GGUF importer.
 
 using System;
 using System.Collections.Generic;
@@ -42,18 +42,18 @@ namespace JarvisLauncher
         {
             try
             {
-                TextOverlay.Show("📥 Auto-Installing Hugging Face CLI via pip...", 4000);
+                TextOverlay.Show("📥 Background-Installing Hugging Face CLI...", 4000);
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = "cmd.exe",
-                    Arguments = "/k \"echo Installing Hugging Face Hub CLI... && pip install -U huggingface_hub[cli] && echo Finished! && pause\"",
-                    CreateNoWindow = false,
-                    UseShellExecute = true
+                    Arguments = "/c pip install -U \"huggingface_hub[cli]\"",
+                    CreateNoWindow = true,
+                    UseShellExecute = false
                 });
             }
             catch (Exception ex)
             {
-                TextOverlay.Show($"⚠️ Hugging Face CLI Install error: {ex.Message}", 3000);
+                DebugConsoleOverlay.Log("HF-Error", $"Auto-install failed: {ex.Message}");
             }
         }
 
@@ -87,24 +87,42 @@ namespace JarvisLauncher
         }
 
         /// <summary>
-        /// Downloads a specific GGUF or model repo from Hugging Face using huggingface-cli.
+        /// Downloads a specific GGUF or model repo from Hugging Face using hf-cli.
         /// </summary>
         public static void DownloadModelRepo(string repoId, string filename = "", string repoType = "model")
         {
             try
             {
-                TextOverlay.Show($"📥 Downloading Hugging Face {repoType}: {repoId}...", 4000);
+                TextOverlay.Show($"📥 Checking and downloading {repoType} in background...", 4000);
 
                 string typeFlag = repoType == "dataset" ? "--repo-type dataset" : "";
                 string cmdArgs = string.IsNullOrWhiteSpace(filename)
-                    ? $"huggingface-cli download {repoId} {typeFlag} --local-dir \"{HfModelDirectory}\""
-                    : $"huggingface-cli download {repoId} {filename} {typeFlag} --local-dir \"{HfModelDirectory}\"";
+                    ? $"hf-cli download {repoId} {typeFlag} --local-dir \"{HfModelDirectory}\""
+                    : $"hf-cli download {repoId} {filename} {typeFlag} --local-dir \"{HfModelDirectory}\"";
 
-                Process.Start("cmd.exe", $"/c start cmd /k \"echo Downloading from Hugging Face: {repoId}... & {cmdArgs} & echo Download Complete! File saved to {HfModelDirectory} & pause\"");
+                // Improved silent background script
+                string script = $@"
+@echo off
+where hf-cli >nul 2>&1
+if %errorlevel% neq 0 (
+    pip install -U ""huggingface_hub[cli]"" >nul 2>&1
+)
+{cmdArgs} >nul 2>&1
+";
+                string tempBat = Path.Combine(Path.GetTempPath(), "hf_download_bg.bat");
+                File.WriteAllText(tempBat, script);
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = $"/c \"{tempBat}\"",
+                    CreateNoWindow = true,
+                    UseShellExecute = false
+                });
             }
             catch (Exception ex)
             {
-                TextOverlay.Show($"⚠️ Download error: {ex.Message}", 3000);
+                DebugConsoleOverlay.Log("HF-Error", $"Background download failed: {ex.Message}");
             }
         }
 

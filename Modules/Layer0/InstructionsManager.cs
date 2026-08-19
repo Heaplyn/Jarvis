@@ -22,6 +22,7 @@ namespace JarvisLauncher
         {
             if (!Directory.Exists(InstructionsDir))
             {
+                Directory.CreateDirectory(InstructionsDir);
                 return string.Empty;
             }
 
@@ -51,6 +52,18 @@ namespace JarvisLauncher
             }
 
             return builder.ToString();
+        }
+
+        public static void SaveInstructionFile(string fileName, string content)
+        {
+            try
+            {
+                if (!Directory.Exists(InstructionsDir)) Directory.CreateDirectory(InstructionsDir);
+                string path = Path.Combine(InstructionsDir, fileName);
+                File.WriteAllText(path, content);
+                DebugConsoleOverlay.Log("Instructions", $"Law updated and persisted: {fileName}");
+            }
+            catch { }
         }
     }
 }

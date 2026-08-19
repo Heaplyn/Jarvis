@@ -1,9 +1,6 @@
-
 // Developer: heaplyn
-// Date: 2026-08-18
-// Summary: High-Performance Glassmorphic AI Chat Companion.
-//          Enabled text selection/highlighting in bubbles using Read-Only TextBox.
-//          Restored sliding debug console with deep development logs.
+// Date: 2026-08-19
+// Summary: High-Performance Glassmorphic AI Chat Companion with Tool Cascading.
 
 using System;
 using System.IO;
@@ -69,12 +66,11 @@ namespace JarvisLauncher
         private ChatOverlay() : base("JARVIS AI COMPANION", 440, 680) {
             var WorkArea = SystemParameters.WorkArea; this.Left = WorkArea.Width - this.Width - 20; this.Top = WorkArea.Top + 40;
             var root = new Grid { Margin = new Thickness(12) };
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Toolbar
-            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Chat
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Console
-            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Input
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            // --- Toolbar ---
             var tb = new Grid { Margin = new Thickness(0, 0, 0, 10) };
             tb.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             tb.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -97,7 +93,6 @@ namespace JarvisLauncher
             Grid.SetColumn(toolStack, 2); tb.Children.Add(toolStack);
             Grid.SetRow(tb, 0); root.Children.Add(tb);
 
-            // --- Chat Display ---
             var chatGrid = new Grid();
             ScrollViewerPrivate = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             ChatHistoryPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom };
@@ -113,7 +108,6 @@ namespace JarvisLauncher
 
             Grid.SetRow(chatGrid, 1); root.Children.Add(chatGrid);
 
-            // --- Sliding Debug Console ---
             ConsoleBorder = new Border { CornerRadius = new CornerRadius(4), Background = new SolidColorBrush(Color.FromArgb(40, 0,0,0)), BorderThickness = new Thickness(0,1,0,0), BorderBrush = Brushes.DimGray, Margin = new Thickness(0,10,0,0) };
             var consoleGrid = new Grid();
             consoleGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -129,7 +123,6 @@ namespace JarvisLauncher
             ConsoleBorder.Child = consoleGrid;
             Grid.SetRow(ConsoleBorder, 2); root.Children.Add(ConsoleBorder);
 
-            // --- Input Area ---
             var inpStack = new StackPanel { Margin = new Thickness(0,10,0,0) };
             AttachedFileBadge = new Border { Visibility = Visibility.Collapsed, Padding = new Thickness(8,4,8,4), Background = new SolidColorBrush(Color.FromArgb(80, 0,0,0)), Margin = new Thickness(0,0,0,8), CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(1), BorderBrush = Brushes.DimGray };
             AttachedFileText = new TextBlock { FontSize = 10, Foreground = Brushes.Cyan }; AttachedFileBadge.Child = AttachedFileText;
@@ -168,8 +161,7 @@ namespace JarvisLauncher
 
         private void StartNewSession() {
             if (ConversationHistory.Count > 0) SaveCurrentSession();
-            ChatHistoryPanel.Children.Clear();
-            ConversationHistory.Clear();
+            ChatHistoryPanel.Children.Clear(); ConversationHistory.Clear();
             AddMessageBubble("New session started. How can I assist, Boss?", true);
         }
 
@@ -177,32 +169,23 @@ namespace JarvisLauncher
             HistoryListBox.Items.Clear();
             string dir = Path.Combine(PathHandler.GetDataDirectory(), "Conversations");
             if (!Directory.Exists(dir)) return;
-            foreach (var f in Directory.GetFiles(dir, "*.json").OrderByDescending(File.GetLastWriteTime)) {
-                HistoryListBox.Items.Add(Path.GetFileName(f));
-            }
+            foreach (var f in Directory.GetFiles(dir, "*.json").OrderByDescending(File.GetLastWriteTime)) HistoryListBox.Items.Add(Path.GetFileName(f));
         }
 
         private void LoadSession(string fileName) {
             string path = Path.Combine(PathHandler.GetDataDirectory(), "Conversations", fileName);
             if (!File.Exists(path)) return;
-            ChatHistoryPanel.Children.Clear();
-            ConversationHistory.Clear();
+            ChatHistoryPanel.Children.Clear(); ConversationHistory.Clear();
             try {
                 var turns = JsonSerializer.Deserialize<List<ChatTurn>>(File.ReadAllText(path));
-                if (turns != null) {
-                    foreach (var turn in turns) {
-                        ConversationHistory.Add(turn);
-                        AddMessageBubble(turn.Text, turn.Role == "model");
-                    }
-                }
+                if (turns != null) foreach (var turn in turns) { ConversationHistory.Add(turn); AddMessageBubble(turn.Text, turn.Role == "model"); }
             } catch { }
             HistoryContainer.Visibility = Visibility.Collapsed;
         }
 
         private void SaveCurrentSession() {
             try {
-                string dir = Path.Combine(PathHandler.GetDataDirectory(), "Conversations");
-                Directory.CreateDirectory(dir);
+                string dir = Path.Combine(PathHandler.GetDataDirectory(), "Conversations"); Directory.CreateDirectory(dir);
                 string name = $"Chat_{DateTime.Now:yyyyMMdd_HHmm}.json";
                 File.WriteAllText(Path.Combine(dir, name), JsonSerializer.Serialize(ConversationHistory));
             } catch { }
@@ -212,17 +195,14 @@ namespace JarvisLauncher
             string dir = Path.Combine(PathHandler.GetDataDirectory(), "Conversations");
             if (!Directory.Exists(dir)) { AddMessageBubble("Jarvis Systems Online. Ready.", true); return; }
             var last = Directory.GetFiles(dir, "*.json").OrderByDescending(File.GetLastWriteTime).FirstOrDefault();
-            if (last != null) LoadSession(Path.GetFileName(last));
-            else AddMessageBubble("Jarvis Systems Online. Ready.", true);
+            if (last != null) LoadSession(Path.GetFileName(last)); else AddMessageBubble("Jarvis Systems Online. Ready.", true);
         }
 
         public static async Task SubmitTextMessage(string msg) { ShowChat(); if (Instance != null) await Instance.SendUserMessage(msg); }
         public static async Task SubmitVoiceCommand(string msg, bool showUi = true) { if (showUi) ShowChat(); if (Instance != null) await Instance.SendUserMessage(msg); }
 
         private async Task SendUserMessage(string msg) {
-            DebugConsoleOverlay.Log("Chat-UI", $">>> SendUserMessage triggered. Msg length: {msg?.Length ?? 0}");
-            string apiMsg = msg;
-            string displayMsg = msg;
+            string apiMsg = msg; string displayMsg = msg;
             if (AttachedFilePath != null) {
                 apiMsg = $"[FILE: {AttachedFilePath}]\n{msg}";
                 displayMsg = $"📎 Attached: {Path.GetFileName(AttachedFilePath)}\n{msg}";
@@ -232,15 +212,13 @@ namespace JarvisLauncher
             AddMessageBubble(displayMsg, false);
             ChronoLogManager.LogEvent("Chat", $"User: {msg}");
 
-            var (bdr, tb, dbg) = AddMessageBubbleWithControls("🧠 Thinking...", true);
+            var (bdr, tb, dbg) = AddMessageBubbleWithControls("Thinking...", true);
             StatusText.Text = "THINKING"; StatusDot.Fill = Brushes.Yellow;
 
             try {
-                var cts = new CancellationTokenSource();
-                _activeCts = cts;
-                tb.Text = "Thinking..."; // Placeholder
+                var cts = new CancellationTokenSource(); _activeCts = cts;
+                string aiRaw = "";
 
-                string aiRaw;
                 if (CoreRegistry.Data.Settings.Current.LLM_BACKEND == "Ollama") {
                     aiRaw = await CoreRegistry.Intelligence.Llm.AskOllamaStreamAsync(apiMsg, ConversationHistory, t => Application.Current.Dispatcher.Invoke(() => tb.Text = (tb.Text == "Thinking..." ? "" : tb.Text) + t), cts.Token);
                 } else {
@@ -248,53 +226,23 @@ namespace JarvisLauncher
                     tb.Text = AiAPI.SanitizeText(aiRaw);
                 }
 
-                // --- TOOL EXECUTION PHASE ---
                 StatusText.Text = "EXECUTING TOOLS"; StatusDot.Fill = Brushes.Orange;
                 string processedText = await AgentExecutor.ProcessAIResponseAsync(aiRaw);
-
                 if (!string.IsNullOrEmpty(processedText)) tb.Text = processedText;
 
                 dbg.Text = "Raw AI Response:\n" + aiRaw;
-
                 ChronoLogManager.LogEvent("Chat", $"Jarvis: {tb.Text}");
-
-                // Extract debug log if present
-                if (response.Contains("### DEBUG LOG")) {
-                    dbg.Text = response.Split("### DEBUG LOG")[1].Trim();
-                } else {
-                    dbg.Text = "Raw Response:\n" + response;
-                }
 
                 ConversationHistory.Add(new ChatTurn { Role = "user", Text = msg });
                 ConversationHistory.Add(new ChatTurn { Role = "model", Text = tb.Text });
                 SaveCurrentSession();
             } catch (Exception ex) {
-                // Log the full technical detail to the debug console.
                 LogConsoleAction("AI Fault", ex.ToString());
-
-                // Show a clean, readable message in the chat bubble.
-                string friendly;
-                string errMsg = ex.Message;
-                if (errMsg.Contains("invalid") || errMsg.Contains("API key") || errMsg.Contains("INVALID_ARGUMENT") || errMsg.Contains("restricted"))
-                    friendly = "⚠️ API key issue — your Gemini key may be invalid or missing. Go to Settings → API Keys to update it.";
-                else if (errMsg.Contains("not found") || errMsg.Contains("NOT_FOUND") || errMsg.Contains("deprecated") || errMsg.Contains("exhausted"))
-                    friendly = "⚠️ The configured AI model is unavailable. Jarvis tried all fallbacks. Check Settings → LLM to pick a working model.";
-                else if (errMsg.Contains("timed out") || errMsg.Contains("TaskCanceled") || errMsg.Contains("OperationCanceled"))
-                    friendly = "⏱️ Request timed out. Check your internet connection and try again.";
-                else if (errMsg.Contains("No providers") || errMsg.Contains("FATAL") || errMsg.Contains("collapsed"))
-                    friendly = "🔴 All AI providers failed. Check that at least one API key is valid in Settings → API Keys.";
-                else if (errMsg.Contains("Unauthorized") || errMsg.Contains("Forbidden"))
-                    friendly = "🔐 Access denied — the API key may be expired or blocked. Please refresh it in Settings → API Keys.";
-                else
-                    friendly = "❌ Something went wrong. Tap ⌄ below for technical details.";
-
-                tb.Text = friendly;
+                tb.Text = "❌ Something went wrong. Check debug console.";
             } finally {
                 StatusText.Text = "READY"; StatusDot.Fill = Brushes.LightGreen;
-                _activeCts = null;
+                _activeCts = null; ScrollViewerPrivate.ScrollToBottom();
             }
-
-            ScrollViewerPrivate.ScrollToBottom();
         }
 
         private void AddMessageBubble(string t, bool ai) => AddMessageBubbleWithControls(t, ai);
@@ -302,13 +250,9 @@ namespace JarvisLauncher
         private (Border, TextBox, TextBox) AddMessageBubbleWithControls(string t, bool ai) {
             var b = new Border { Background = ai ? new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)) : new SolidColorBrush(Color.FromArgb(70, 138, 43, 226)), CornerRadius = new CornerRadius(12, 12, ai ? 12 : 0, ai ? 0 : 12), Padding = new Thickness(12, 10, 12, 10), Margin = new Thickness(ai ? 0 : 40, 5, ai ? 40 : 0, 5), HorizontalAlignment = ai ? HorizontalAlignment.Left : HorizontalAlignment.Right, MaxWidth = 340, BorderThickness = new Thickness(1), BorderBrush = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) };
             var stack = new StackPanel();
-
-            // Using ReadOnly TextBox for selection/highlighting
             var tb = new TextBox { Text = t, Foreground = Brushes.White, TextWrapping = TextWrapping.Wrap, FontSize = 12, FontFamily = new FontFamily("Segoe UI"), Background = Brushes.Transparent, BorderThickness = new Thickness(0), IsReadOnly = true, FocusVisualStyle = null };
             stack.Children.Add(tb);
-
             TextBox dbg = new TextBox { Visibility = Visibility.Collapsed, Margin = new Thickness(0,10,0,0), Background = new SolidColorBrush(Color.FromArgb(100, 0,0,0)), Foreground = Brushes.Gray, FontSize = 10, IsReadOnly = true, TextWrapping = TextWrapping.Wrap, MaxHeight = 250, BorderThickness = new Thickness(0), FontFamily = new FontFamily("Consolas") };
-
             if (ai) {
                 var btnStack = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Opacity = 0.5, Margin = new Thickness(0,4,0,0) };
                 var copyBtn = new Button { Content = "📋", FontSize = 9, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = Brushes.White, Cursor = Cursors.Hand };
@@ -317,7 +261,6 @@ namespace JarvisLauncher
                 detailsBtn.Click += (s, e) => { dbg.Visibility = dbg.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; detailsBtn.Content = dbg.Visibility == Visibility.Visible ? "⌃" : "⌄"; if(dbg.Visibility==Visibility.Visible) ScrollViewerPrivate.ScrollToBottom(); };
                 btnStack.Children.Add(copyBtn); btnStack.Children.Add(detailsBtn); stack.Children.Add(btnStack); stack.Children.Add(dbg);
             }
-
             b.Child = stack; ChatHistoryPanel.Children.Add(b); ScrollViewerPrivate.ScrollToBottom();
             return (b, tb, dbg);
         }
