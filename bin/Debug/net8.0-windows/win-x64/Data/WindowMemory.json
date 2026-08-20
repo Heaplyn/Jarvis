@@ -16,5 +16,77 @@
     "IsMinimized": false,
     "IsMaximized": false,
     "IsMiniMode": false
+  },
+  "JARVIS SYSTEM TERMINAL": {
+    "Left": 265.3333333333333,
+    "Top": 86,
+    "Width": 750,
+    "Height": 500,
+    "IsMinimized": false,
+    "IsMaximized": false,
+    "IsMiniMode": false
+  },
+  "\u2699\uFE0F MASTER SYSTEM SETTINGS": {
+    "Left": 230,
+    "Top": 16,
+    "Width": 820,
+    "Height": 640,
+    "IsMinimized": false,
+    "IsMaximized": false,
+    "IsMiniMode": false
+  },
+  "\uD83D\uDCF9 AI SCREEN VISION \u0026 CONTINUOUS MONITORING STUDIO": {
+    "Left": 250,
+    "Top": 6,
+    "Width": 780,
+    "Height": 660,
+    "IsMinimized": false,
+    "IsMaximized": false,
+    "IsMiniMode": false
+  },
+  "\uD83C\uDFB5 JARVIS MUSIC PLAYER \u0026 PLAYLIST ORGANIZER": {
+    "Left": 300,
+    "Top": 76,
+    "Width": 855.3333333333333,
+    "Height": 520,
+    "IsMinimized": false,
+    "IsMaximized": false,
+    "IsMiniMode": false
+  },
+  "\uD83D\uDCCB CLIPBOARD HISTORY MANAGER": {
+    "Left": 450,
+    "Top": 96,
+    "Width": 210,
+    "Height": 52,
+    "IsMinimized": false,
+    "IsMaximized": false,
+    "IsMiniMode": true
+  },
+  "\u2728 JARVIS ANIMATIONS \u0026 VISUAL EFFECTS OPTIONS": {
+    "Left": 300,
+    "Top": 96,
+    "Width": 680,
+    "Height": 480,
+    "IsMinimized": false,
+    "IsMaximized": false,
+    "IsMiniMode": false
+  },
+  "\uD83D\uDCD6 JARVIS HELP \u0026 DOCUMENTATION CENTER": {
+    "Left": 250,
+    "Top": 56,
+    "Width": 780,
+    "Height": 560,
+    "IsMinimized": false,
+    "IsMaximized": false,
+    "IsMiniMode": false
+  },
+  "\uD83D\uDD0D SEARCH SONGS ON THE WEB": {
+    "Left": 265.3333333333333,
+    "Top": 86,
+    "Width": 750,
+    "Height": 500,
+    "IsMinimized": false,
+    "IsMaximized": false,
+    "IsMiniMode": false
   }
 }
