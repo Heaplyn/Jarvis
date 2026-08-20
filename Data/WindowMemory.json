@@ -29,11 +29,11 @@
   "JARVIS AI COMPANION": {
     "Left": 330,
     "Top": 0,
-    "Width": 480,
-    "Height": 720,
+    "Width": 210,
+    "Height": 52,
     "IsMinimized": false,
     "IsMaximized": false,
-    "IsMiniMode": false
+    "IsMiniMode": true
   },
   "JARVIS SYSTEM TERMINAL": {
     "Left": 265.3333333333333,

@@ -27,3 +27,21 @@
 [19:51:42.765] [AI-FAIL] [Ollama]: Ollama NotFound: {"error":"model 'llama3' not found"}
 [19:51:42.765] [AI-ROUTER] Attempting: Godellian
 [19:51:43.668] [AI-ROUTER] Success: Godellian (1370ms)
+[19:52:34.032] [AI-ROUTER] >>> GLOBAL Failover active.
+[19:52:34.032] [AI-ROUTER] Attempting: Mistral
+[19:52:34.407] [AI-FAIL] [Mistral]: Unauthorized
+[19:52:34.407] [AI-ROUTER] Attempting: OpenRouter
+[19:52:34.487] [AI-FAIL] [OpenRouter]: Unauthorized
+[19:52:34.488] [AI-ROUTER] Attempting: Ollama
+[19:52:34.491] [AI-FAIL] [Ollama]: Ollama NotFound: {"error":"model 'llama3' not found"}
+[19:52:34.491] [AI-ROUTER] Attempting: Godellian
+[19:52:35.070] [AI-ROUTER] Success: Godellian (1037ms)
+[19:52:35.143] [AI-ROUTER] >>> GLOBAL Failover active.
+[19:52:35.144] [AI-ROUTER] Attempting: Mistral
+[19:52:35.454] [AI-FAIL] [Mistral]: Unauthorized
+[19:52:35.454] [AI-ROUTER] Attempting: OpenRouter
+[19:52:35.626] [AI-FAIL] [OpenRouter]: Unauthorized
+[19:52:35.626] [AI-ROUTER] Attempting: Ollama
+[19:52:35.634] [AI-FAIL] [Ollama]: Ollama NotFound: {"error":"model 'llama3' not found"}
+[19:52:35.635] [AI-ROUTER] Attempting: Godellian
+[19:52:36.179] [AI-ROUTER] Success: Godellian (1035ms)
