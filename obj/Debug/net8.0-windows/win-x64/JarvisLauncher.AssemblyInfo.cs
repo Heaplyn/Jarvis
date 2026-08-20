@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("JarvisLauncher")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f6992192c738863e71a3746e14a07bb7aebcd621")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ec47028ca3f5e079580d161b9f9722531e32e659")]
 [assembly: System.Reflection.AssemblyProductAttribute("JarvisLauncher")]
 [assembly: System.Reflection.AssemblyTitleAttribute("JarvisLauncher")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -45,3 +45,100 @@
 [19:52:35.634] [AI-FAIL] [Ollama]: Ollama NotFound: {"error":"model 'llama3' not found"}
 [19:52:35.635] [AI-ROUTER] Attempting: Godellian
 [19:52:36.179] [AI-ROUTER] Success: Godellian (1035ms)
+[19:53:11.012] [MEMORYSYNCER] Synced memories from external AI coding apps successfully.
+[19:54:57.399] [AI-ROUTER] >>> GLOBAL Failover active.
+[19:54:57.400] [AI-ROUTER] Attempting: Mistral
+[19:54:57.995] [AI-FAIL] [Mistral]: Unauthorized
+[19:54:57.996] [AI-ROUTER] Attempting: OpenRouter
+[19:54:58.430] [AI-FAIL] [OpenRouter]: Unauthorized
+[19:54:58.431] [AI-ROUTER] Attempting: Ollama
+[19:54:58.438] [AI-FAIL] [Ollama]: Ollama NotFound: {"error":"model 'llama3' not found"}
+[19:54:58.438] [AI-ROUTER] Attempting: Godellian
+[19:54:58.978] [AI-ROUTER] Success: Godellian (1578ms)
+[19:55:06.621] [AI-ROUTER] >>> GLOBAL Failover active.
+[19:55:06.622] [AI-ROUTER] Attempting: Mistral
+[19:55:06.975] [AI-FAIL] [Mistral]: Unauthorized
+[19:55:06.976] [AI-ROUTER] Attempting: OpenRouter
+[19:55:07.167] [AI-FAIL] [OpenRouter]: Unauthorized
+[19:55:07.168] [AI-ROUTER] Attempting: Ollama
+[19:55:07.174] [AI-FAIL] [Ollama]: Ollama NotFound: {"error":"model 'llama3' not found"}
+[19:55:07.174] [AI-ROUTER] Attempting: Godellian
+[19:55:07.834] [AI-ROUTER] Success: Godellian (1212ms)
+[19:55:11.013] [MEMORYSYNCER] Synced memories from external AI coding apps successfully.
+[19:56:11.224] [AI-ROUTER] >>> GLOBAL Failover active.
+[19:56:11.225] [AI-ROUTER] Attempting: Mistral
+[19:56:11.527] [AI-FAIL] [Mistral]: Unauthorized
+[19:56:11.527] [AI-ROUTER] Attempting: OpenRouter
+[19:56:12.348] [AI-ROUTER] >>> GLOBAL Failover active.
+[19:56:12.349] [AI-ROUTER] Attempting: Mistral
+[19:56:12.355] [AI-FAIL] [OpenRouter]: Unauthorized
+[19:56:12.355] [AI-ROUTER] Attempting: Ollama
+[19:56:13.370] [AI-ROUTER] >>> GLOBAL Failover active.
+[19:56:13.371] [AI-ROUTER] Attempting: Mistral
+[19:56:13.381] [AI-FAIL] [Ollama]: Ollama NotFound: {"error":"model 'llama3' not found"}
+[19:56:13.382] [AI-ROUTER] Attempting: Godellian
+[19:56:14.171] [AI-ROUTER] Success: Godellian (2946ms)
+[19:56:14.172] [AI-FAIL] [Mistral]: Unauthorized
+[19:56:14.172] [AI-ROUTER] Attempting: OpenRouter
+[19:56:14.179] [AI-FAIL] [Mistral]: Unauthorized
+[19:56:14.180] [AI-ROUTER] Attempting: OpenRouter
+[19:56:15.025] [AI-ROUTER] >>> GLOBAL Failover active.
+[19:56:15.026] [AI-ROUTER] Attempting: Mistral
+[19:56:15.033] [AI-FAIL] [OpenRouter]: Unauthorized
+[19:56:15.033] [AI-ROUTER] Attempting: Ollama
+[19:56:15.034] [AI-FAIL] [OpenRouter]: Unauthorized
+[19:56:15.035] [AI-ROUTER] Attempting: Ollama
+[19:56:15.052] [AI-FAIL] [Ollama]: Ollama NotFound: {"error":"model 'llama3' not found"}
+[19:56:15.053] [AI-ROUTER] Attempting: Godellian
+[19:56:15.723] [AI-ROUTER] Success: Godellian (2352ms)
+[19:56:15.725] [AI-FAIL] [Ollama]: Ollama NotFound: {"error":"model 'llama3' not found"}
+[19:56:15.725] [AI-ROUTER] Attempting: Godellian
+[19:56:16.421] [AI-ROUTER] Success: Godellian (4073ms)
+[19:56:16.422] [AI-FAIL] [Mistral]: Unauthorized
+[19:56:16.423] [AI-ROUTER] Attempting: OpenRouter
+[19:56:16.770] [AI-FAIL] [OpenRouter]: Unauthorized
+[19:56:16.770] [AI-ROUTER] Attempting: Ollama
+[19:56:16.774] [AI-FAIL] [Ollama]: Ollama NotFound: {"error":"model 'llama3' not found"}
+[19:56:16.774] [AI-ROUTER] Attempting: Godellian
+[19:56:17.352] [AI-ROUTER] Success: Godellian (2326ms)
+[19:56:39.877] [AI-ROUTER] >>> GLOBAL Failover active.
+[19:56:39.878] [AI-ROUTER] Attempting: Mistral
+[19:56:40.217] [AI-FAIL] [Mistral]: Unauthorized
+[19:56:40.218] [AI-ROUTER] Attempting: OpenRouter
+[19:56:40.586] [AI-FAIL] [OpenRouter]: Unauthorized
+[19:56:40.587] [AI-ROUTER] Attempting: Ollama
+[19:56:40.591] [AI-FAIL] [Ollama]: Ollama NotFound: {"error":"model 'llama3' not found"}
+[19:56:40.592] [AI-ROUTER] Attempting: Godellian
+[19:56:41.350] [AI-ROUTER] Success: Godellian (1473ms)
+[19:57:11.015] [MEMORYSYNCER] Synced memories from external AI coding apps successfully.
+[19:59:11.017] [MEMORYSYNCER] Synced memories from external AI coding apps successfully.
+[19:59:59.539] [AI VISION ANALYSIS] Analyzing screen image (415 KB)...
+[19:59:59.571] [AI-ROUTER] >>> GLOBAL Failover active.
+[19:59:59.574] [AI-ROUTER] Attempting: Mistral
+[20:00:00.383] [AI-FAIL] [Mistral]: Unauthorized
+[20:00:00.383] [AI-ROUTER] Attempting: OpenRouter
+[20:00:01.012] [AI-FAIL] [OpenRouter]: Unauthorized
+[20:00:01.013] [AI-ROUTER] Attempting: Ollama
+[20:00:01.021] [AI-FAIL] [Ollama]: Ollama NotFound: {"error":"model 'llama3' not found"}
+[20:00:01.022] [AI-ROUTER] Attempting: Godellian
+[20:00:03.183] [AI-ROUTER] Success: Godellian (3611ms)
+[20:01:11.019] [MEMORYSYNCER] Synced memories from external AI coding apps successfully.
+[20:01:29.413] [KNOWLEDGE-SYSTEM] Self-teaching pass complete. Indexing 5459 bytes of architecture data.
+[20:02:52.991] [AI-ROUTER] >>> GLOBAL Failover active.
+[20:02:52.992] [AI-ROUTER] Attempting: Mistral
+[20:02:53.658] [AI-FAIL] [Mistral]: Unauthorized
+[20:02:53.658] [AI-ROUTER] Attempting: OpenRouter
+[20:02:54.075] [AI-FAIL] [OpenRouter]: Unauthorized
+[20:02:54.076] [AI-ROUTER] Attempting: Ollama
+[20:02:54.083] [AI-FAIL] [Ollama]: Ollama NotFound: {"error":"model 'llama3' not found"}
+[20:02:54.084] [AI-ROUTER] Attempting: Godellian
+[20:02:54.879] [AI-ROUTER] Success: Godellian (1888ms)
+[20:02:54.967] [AI-ROUTER] >>> GLOBAL Failover active.
+[20:02:54.968] [AI-ROUTER] Attempting: Mistral
+[20:02:55.255] [AI-FAIL] [Mistral]: Unauthorized
+[20:02:55.256] [AI-ROUTER] Attempting: OpenRouter
+[20:02:55.476] [AI-FAIL] [OpenRouter]: Unauthorized
+[20:02:55.476] [AI-ROUTER] Attempting: Ollama
+[20:02:55.480] [AI-FAIL] [Ollama]: Ollama NotFound: {"error":"model 'llama3' not found"}
+[20:02:55.481] [AI-ROUTER] Attempting: Godellian
+[20:02:55.969] [AI-ROUTER] Success: Godellian (1001ms)

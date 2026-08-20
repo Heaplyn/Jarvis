@@ -177,10 +177,10 @@
   },
   "GodellianIntelligenceOverlay": {
     "WindowName": "GodellianIntelligenceOverlay",
-    "Left": 180,
-    "Top": -54,
-    "Width": 920,
-    "Height": 737.3333333333333,
+    "Left": 72.66666666666666,
+    "Top": 65.33333333333333,
+    "Width": 799.3333333333333,
+    "Height": 611.3333333333333,
     "IsOpen": false
   }
 }

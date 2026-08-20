@@ -125,7 +125,7 @@ namespace JarvisLauncher {
                 return;
             }
             _contentLoaded = true;
-            System.Uri resourceLocater = new System.Uri("/JarvisLauncher;V1.0.0.0;component/modules/layer4/mainwindow.xaml", System.UriKind.Relative);
+            System.Uri resourceLocater = new System.Uri("/JarvisLauncher;component/modules/layer4/mainwindow.xaml", System.UriKind.Relative);
             
             #line 1 "..\..\..\..\..\..\Modules\Layer4\MainWindow.xaml"
             System.Windows.Application.LoadComponent(this, resourceLocater);

@@ -103,32 +103,36 @@ namespace JarvisLauncher
             if (force)
             {
                 log.AppendLine("--- FORCING OVERWRITE FROM GITHUB ---");
+                log.AppendLine("🛡️ Data Preservation: Protecting 'Data/' and 'Downloads/'...");
+
                 await RunCommandAsync("git", "fetch --all", projectRoot);
                 await RunCommandAsync("git", $"reset --hard origin/{branchName}", projectRoot);
-                await RunCommandAsync("git", "clean -fd", projectRoot);
-                log.AppendLine("🎉 FRESH SYNC COMPLETED!");
+
+                // -e excludes a pattern from being deleted. This ensures local-only Data stays.
+                await RunCommandAsync("git", "clean -fd -e Data/ -e Downloads/", projectRoot);
+
+                log.AppendLine("🎉 FRESH SYNC COMPLETED! (Local settings preserved)");
             }
             else
             {
-                log.AppendLine("--- PULLING UPDATES ---");
+                log.AppendLine("--- PULLING UPDATES SAFELY ---");
+                // Stash local changes to project files so pull doesn't fail, but keep untracked data
+                await RunCommandAsync("git", "stash", projectRoot);
                 string res = await RunCommandAsync("git", $"pull origin {branchName} --allow-unrelated-histories --no-rebase", projectRoot);
+                await RunCommandAsync("git", "stash pop", projectRoot);
                 log.AppendLine(res);
             }
 
             CliOutputOverlay.Show("Codebase Update", log.ToString());
 
-            if (log.ToString().Contains("SUCCESS") || log.ToString().Contains("COMPLETED") || log.ToString().Contains("Updating"))
+            if (log.ToString().Contains("SUCCESS") || log.ToString().Contains("COMPLETED") || log.ToString().Contains("Updating") || log.ToString().Contains("Already up to date"))
             {
                 await Task.Delay(2000);
-                NativeMethods.Restart();
+                NativeMethods.Restart(freshBoot: true);
             }
         }
 
-        private static string GetProjectRoot()
-        {
-            string devPath = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\.."));
-            return Directory.Exists(Path.Combine(devPath, "Modules")) ? devPath : AppDomain.CurrentDomain.BaseDirectory;
-        }
+        private static string GetProjectRoot() => PathHandler.GetProjectRoot();
 
         private static async Task<string> RunCommandAsync(string fileName, string arguments, string workingDirectory)
         {

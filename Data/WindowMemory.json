@@ -29,11 +29,11 @@
   "JARVIS AI COMPANION": {
     "Left": 330,
     "Top": 0,
-    "Width": 210,
-    "Height": 52,
+    "Width": 480,
+    "Height": 720,
     "IsMinimized": false,
     "IsMaximized": false,
-    "IsMiniMode": true
+    "IsMiniMode": false
   },
   "JARVIS SYSTEM TERMINAL": {
     "Left": 265.3333333333333,
@@ -59,7 +59,7 @@
     "Width": 520,
     "Height": 737.3333333333333,
     "IsMinimized": false,
-    "IsMaximized": false,
+    "IsMaximized": true,
     "IsMiniMode": false
   },
   "MOBILE \u0026 TUNNEL HUB": {
@@ -198,10 +198,10 @@
     "IsMiniMode": false
   },
   "GODELLIAN CORE MONITOR [SYMBOLIC]": {
-    "Left": 180,
-    "Top": -54,
-    "Width": 920,
-    "Height": 737.3333333333333,
+    "Left": 72.66666666666666,
+    "Top": 65.33333333333333,
+    "Width": 799.3333333333333,
+    "Height": 611.3333333333333,
     "IsMinimized": false,
     "IsMaximized": false,
     "IsMiniMode": false

@@ -1,5 +1,6 @@
 ## INTERNAL SYSTEM ARCHITECTURE KNOWLEDGE
 ### Layer0
+- NativeMethods.cs (Updated: 08/19 19:56)
 - WorkspaceMemoryManager.cs (Updated: 08/19 19:48)
 - WindowsAppScanner.cs (Updated: 08/19 19:48)
 - WindowPositionManager.cs (Updated: 08/19 19:48)
@@ -14,7 +15,6 @@
 - VectorSearchManager.cs (Updated: 08/19 19:48)
 - UserActivityContextManager.cs (Updated: 08/19 19:48)
 - UniversalInstaller.cs (Updated: 08/19 19:48)
-- TtsSampleDownloader.cs (Updated: 08/19 19:48)
 ### Layer1
 - MobileBridgeServer.cs (Updated: 08/19 19:48)
 - ICommandHandler.cs (Updated: 08/19 19:48)
@@ -37,6 +37,7 @@
 - CliOutputOverlay.cs (Updated: 08/19 19:48)
 - CalendarOverlay.cs (Updated: 08/19 19:48)
 ### Layer3
+- UpdateCommandHandler.cs (Updated: 08/19 19:56)
 - RestartCommandHandler.cs (Updated: 08/19 16:45)
 - HelpCommandHandler.cs (Updated: 08/19 16:27)
 - CommandParser.cs (Updated: 08/19 16:27)
@@ -48,7 +49,6 @@
 - GodellianCommandHandler.cs (Updated: 08/18 05:01)
 - GCloudCommandHandler.cs (Updated: 08/18 02:40)
 - GitCommandHandler.cs (Updated: 08/18 00:08)
-- UpdateCommandHandler.cs (Updated: 08/18 00:07)
 - DownloadMediaHandler.cs (Updated: 08/17 21:51)
 - DownloadCommandHandler.cs (Updated: 08/17 21:51)
 - OfflineCommandHandler.cs (Updated: 08/17 21:50)
