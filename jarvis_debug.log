@@ -1,0 +1,32 @@
+[19:48:35.269] [CONTEXTNOTES] Knowledge base re-initialized.
+[19:48:35.315] [MEMORYSYNCER] Synced memories from external AI coding apps successfully.
+[19:48:38.034] [NEURAL-INGEST] Autonomic Data Watcher active on Downloads.
+[19:48:38.050] [PREDICTIVE-SYSTEM] Continuous Data Stream active (60s cycle).
+[19:48:38.053] [KNOWLEDGE-SYSTEM] Autonomous System Harvester active.
+[19:48:38.093] [PERSONALITY-SYSTEM] Personality Evolution Engine active.
+[19:48:38.096] [SCREEN MONITOR] Continuous Screen Monitoring STARTED (15s interval)
+[19:48:38.098] [BRIDGE] Starting Dual-Stack TCP Server on port 9000...
+[19:48:38.106] [BRIDGE] Server LIVE on all interfaces at port 9000.
+[19:48:38.247] [PLUGIN-SYSTEM] Scanning for external modules in /Plugins...
+[19:48:53.086] [KNOWLEDGE-SYSTEM] Self-teaching pass complete. Indexing 5465 bytes of architecture data.
+[19:49:46.116] [AI-ROUTER] >>> GLOBAL Failover active.
+[19:49:46.121] [AI-ROUTER] Attempting: Mistral
+[19:49:46.945] [AI-FAIL] [Mistral]: Unauthorized
+[19:49:46.947] [AI-ROUTER] Attempting: OpenRouter
+[19:49:47.442] [AI-FAIL] [OpenRouter]: Unauthorized
+[19:49:47.444] [AI-ROUTER] Attempting: Ollama
+[19:49:47.458] [AI-FAIL] [Ollama]: Ollama NotFound: {"error":"model 'llama3' not found"}
+[19:49:47.459] [AI-ROUTER] Attempting: Godellian
+[19:49:48.102] [CONTEXTNOTES-ERROR] Failed to sync: The process cannot access the file 'C:\Users\Kyle\Downloads\Projects\Jarvis\Data\Context\Chronology.md' because it is being used by another process.
+[19:49:48.123] [AI-ROUTER] >>> GLOBAL Failover active.
+[19:49:48.125] [AI-ROUTER] Attempting: Mistral
+[19:49:48.529] [AI-FAIL] [Mistral]: Unauthorized
+[19:49:48.533] [AI-ROUTER] Attempting: OpenRouter
+[19:49:48.766] [AI-FAIL] [OpenRouter]: Unauthorized
+[19:49:48.767] [AI-ROUTER] Attempting: Ollama
+[19:49:48.779] [AI-FAIL] [Ollama]: Ollama NotFound: {"error":"model 'llama3' not found"}
+[19:49:48.780] [AI-ROUTER] Attempting: Godellian
+[19:50:18.053] [AI-ROUTER] Success: Godellian (29929ms)
+[19:50:18.084] [CONTEXTNOTES] Restructured Chronology.md.
+[19:50:18.209] [AI-ROUTER] Success: Godellian (32093ms)
+[19:50:18.213] [CONTEXTNOTES] Restructured Chronology.md.
