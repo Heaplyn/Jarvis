@@ -214,7 +214,7 @@ namespace JarvisLauncher
                     if (isDev)
                     {
                         // If it's a Git repo, we'll do a pull if requested, OR at least a fetch to see if we're behind
-                        string gitUpdate = pullFirst ? "git pull origin main;" : "if (Test-Path .git) { git fetch; }";
+                        string gitUpdate = pullFirst ? "git stash; git pull origin main; git stash pop;" : "if (Test-Path .git) { git fetch; }";
 
                         script = $@"
                             Set-Location -Path '{projectRoot}';
