@@ -1,0 +1,20 @@
+{
+  "JARVIS AI COMPANION": {
+    "Left": 400,
+    "Top": -24,
+    "Width": 480,
+    "Height": 720,
+    "IsMinimized": false,
+    "IsMaximized": false,
+    "IsMiniMode": false
+  },
+  "NOTIFICATION": {
+    "Left": 465.3333333333333,
+    "Top": 276,
+    "Width": 350,
+    "Height": 120,
+    "IsMinimized": false,
+    "IsMaximized": false,
+    "IsMiniMode": false
+  }
+}

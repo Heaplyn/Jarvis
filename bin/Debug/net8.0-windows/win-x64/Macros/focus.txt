@@ -1,0 +1,4 @@
+# Self-Healed Default Focus Macro
+theme dark
+vol 10
+remind 45m Take a break
