@@ -122,7 +122,7 @@ namespace JarvisLauncher
             var chatGrid = new Grid();
             ScrollViewerPrivate = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             ChatHistoryPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom };
-            ScrollViewerPrivate.Content = ChatHistoryPanel; chatGrid.Children.Add(ScrollViewerPrivate);
+            ScrollViewerPrivate.Content = ChatHistoryPanel;
 
             HistoryContainer = new Border { Visibility = Visibility.Collapsed, Background = new SolidColorBrush(Color.FromArgb(250, 10, 10, 20)), Padding = new Thickness(12), CornerRadius = new CornerRadius(8), BorderThickness = new Thickness(1), BorderBrush = Brushes.Cyan, Margin = new Thickness(15), VerticalAlignment = VerticalAlignment.Top };
             var historyStack = new StackPanel();
@@ -130,9 +130,6 @@ namespace JarvisLauncher
             HistoryListBox = new ListBox { Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = Brushes.White, MaxHeight = 400 };
             HistoryListBox.SelectionChanged += (s, e) => { if (HistoryListBox.SelectedItem is string log) LoadSession(log); };
             historyStack.Children.Add(HistoryListBox); HistoryContainer.Child = historyStack;
-            chatGrid.Children.Add(HistoryContainer);
-
-            Grid.SetRow(chatGrid, 1); root.Children.Add(chatGrid);
 
             // --- Quick Actions Panel ---
             var quickActions = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0,0,0,10) };
@@ -140,14 +137,17 @@ namespace JarvisLauncher
             quickActions.Children.Add(CreateQuickActionChip("🔍 AUDIT", "Run a deep security and logic audit."));
             quickActions.Children.Add(CreateQuickActionChip("📝 DOCS", "Generate technical documentation for the current module."));
 
-            // I'll insert this into the chatGrid at the top
             var chatStack = new Grid();
             chatStack.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             chatStack.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
             Grid.SetRow(quickActions, 0); chatStack.Children.Add(quickActions);
             Grid.SetRow(ScrollViewerPrivate, 1); chatStack.Children.Add(ScrollViewerPrivate);
-            chatGrid.Children.Clear(); chatGrid.Children.Add(chatStack); chatGrid.Children.Add(HistoryContainer);
+
+            chatGrid.Children.Add(chatStack);
+            chatGrid.Children.Add(HistoryContainer);
+
+            Grid.SetRow(chatGrid, 1); root.Children.Add(chatGrid);
 
             // --- Sliding Debug Console ---
             ConsoleBorder = new Border { CornerRadius = new CornerRadius(4), Background = new SolidColorBrush(Color.FromArgb(50, 0,0,0)), BorderThickness = new Thickness(0,1,0,0), BorderBrush = Brushes.DimGray, Margin = new Thickness(0,10,0,0) };
