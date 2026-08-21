@@ -1,0 +1,56 @@
+{
+  "JARVIS AI COMPANION": {
+    "Left": 400,
+    "Top": -24,
+    "Width": 210,
+    "Height": 52,
+    "IsMinimized": false,
+    "IsMaximized": false,
+    "IsMiniMode": true
+  },
+  "NOTIFICATION": {
+    "Left": 465.3333333333333,
+    "Top": 276,
+    "Width": 350,
+    "Height": 120,
+    "IsMinimized": false,
+    "IsMaximized": false,
+    "IsMiniMode": false
+  },
+  "\uD83D\uDCD6 JARVIS HELP \u0026 DOCUMENTATION CENTER": {
+    "Left": 250,
+    "Top": 56,
+    "Width": 780,
+    "Height": 560,
+    "IsMinimized": false,
+    "IsMaximized": false,
+    "IsMiniMode": false
+  },
+  "JARVIS LIVE SYSTEM MONITOR": {
+    "Left": 470,
+    "Top": 176,
+    "Width": 340,
+    "Height": 320,
+    "IsMinimized": false,
+    "IsMaximized": false,
+    "IsMiniMode": false
+  },
+  "\uD83D\uDCAC DISCORD MESSAGE LOGGER \u0026 EXPORTER": {
+    "Left": 32,
+    "Top": 72,
+    "Width": 820,
+    "Height": 550,
+    "IsMinimized": false,
+    "IsMaximized": false,
+    "IsMiniMode": false
+  },
+  "\uD83D\uDEE0\uFE0F JARVIS DISASSEMBLER SUITE": {
+    "Left": 180,
+    "Top": 11.333333333333332,
+    "Width": 210,
+    "Height": 52,
+    "IsMinimized": false,
+    "IsMaximized": false,
+    "IsMiniMode": true
+  }
+}
