@@ -1,56 +1,101 @@
 {
-  "JARVIS AI COMPANION": {
-    "Left": 400,
-    "Top": -24,
-    "Width": 210,
+  "\uD83D\uDEE0\uFE0F JARVIS DISASSEMBLER SUITE": {
+    "Left": 308,
+    "Top": 83.2,
+    "Width": 210.4,
     "Height": 52,
     "IsMinimized": false,
     "IsMaximized": false,
     "IsMiniMode": true
   },
+  "\uD83C\uDFA8 JARVIS VISUAL STUDIO [PRO]": {
+    "Left": 180,
+    "Top": 12,
+    "Width": 800,
+    "Height": 800,
+    "IsMinimized": false,
+    "IsMaximized": false,
+    "IsMiniMode": false
+  },
   "NOTIFICATION": {
-    "Left": 465.3333333333333,
-    "Top": 276,
-    "Width": 350,
+    "Left": 592.8000000000001,
+    "Top": 348,
+    "Width": 350.40000000000003,
     "Height": 120,
     "IsMinimized": false,
     "IsMaximized": false,
     "IsMiniMode": false
   },
-  "\uD83D\uDCD6 JARVIS HELP \u0026 DOCUMENTATION CENTER": {
-    "Left": 250,
-    "Top": 56,
-    "Width": 780,
-    "Height": 560,
+  "\uD83C\uDFA8 COLOR PICKER": {
+    "Left": 558.4,
+    "Top": 178.4,
+    "Width": 420,
+    "Height": 460,
     "IsMinimized": false,
     "IsMaximized": false,
     "IsMiniMode": false
   },
-  "JARVIS LIVE SYSTEM MONITOR": {
-    "Left": 470,
-    "Top": 176,
-    "Width": 340,
-    "Height": 320,
-    "IsMinimized": false,
-    "IsMaximized": false,
-    "IsMiniMode": false
-  },
-  "\uD83D\uDCAC DISCORD MESSAGE LOGGER \u0026 EXPORTER": {
-    "Left": 32,
-    "Top": 72,
+  "\u2699\uFE0F MASTER SYSTEM SETTINGS": {
+    "Left": 358.40000000000003,
+    "Top": 68,
     "Width": 820,
-    "Height": 550,
+    "Height": 680,
     "IsMinimized": false,
     "IsMaximized": false,
     "IsMiniMode": false
   },
-  "\uD83D\uDEE0\uFE0F JARVIS DISASSEMBLER SUITE": {
-    "Left": 180,
-    "Top": 11.333333333333332,
-    "Width": 210,
+  "\u2728 JARVIS ANIMATIONS \u0026 VISUAL EFFECTS OPTIONS": {
+    "Left": 652.8000000000001,
+    "Top": 64.8,
+    "Width": 820,
+    "Height": 680,
+    "IsMinimized": false,
+    "IsMaximized": false,
+    "IsMiniMode": false
+  },
+  "JARVIS AI CODE STUDIO": {
+    "Left": 278.40000000000003,
+    "Top": 68,
+    "Width": 210.4,
     "Height": 52,
     "IsMinimized": false,
     "IsMaximized": false,
     "IsMiniMode": true
+  },
+  "LLM ENGINE \u0026 INSTALLER STUDIO": {
+    "Left": 508,
+    "Top": 32.800000000000004,
+    "Width": 520,
+    "Height": 750.4000000000001,
+    "IsMinimized": false,
+    "IsMaximized": false,
+    "IsMiniMode": false
+  },
+  "CONTENT PREVIEW": {
+    "Left": 343.20000000000005,
+    "Top": 108,
+    "Width": 850.4000000000001,
+    "Height": 600,
+    "IsMinimized": false,
+    "IsMaximized": false,
+    "IsMiniMode": false
+  },
+  "\uD83C\uDFA8 JARVIS VISUALS [MASTER SUITE]": {
+    "Left": 378.40000000000003,
+    "Top": 68.8,
+    "Width": 850.4000000000001,
+    "Height": 780,
+    "IsMinimized": false,
+    "IsMaximized": false,
+    "IsMiniMode": false
+  },
+  "JARVIS AI COMPANION": {
+    "Left": 528,
+    "Top": 48,
+    "Width": 480,
+    "Height": 720,
+    "IsMinimized": false,
+    "IsMaximized": false,
+    "IsMiniMode": false
   }
 }
