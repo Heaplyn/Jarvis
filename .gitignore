@@ -11,6 +11,7 @@
 # ── Visual Studio / Rider ──────────────────────────────────────────────────────
 .vs/
 .idea/
+.artifacts/
 *.rsuser
 *.DotSettings.user
 
