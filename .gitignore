@@ -39,6 +39,7 @@ Modules/Layer0/DownloadMedia/user_data/
 # ── Large local data directories ──────────────────────────────────────────────
 Data/
 Downloads/
+Data/*
 
 # ── API keys / secrets ─────────────────────────────────────────────────────────
 *.env
