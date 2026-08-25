@@ -40,6 +40,7 @@ Modules/Layer0/DownloadMedia/user_data/
 Data/
 Downloads/
 Data/*
+!Data/.gitkeep
 
 # ── API keys / secrets ─────────────────────────────────────────────────────────
 *.env
@@ -50,3 +51,48 @@ SystemSettings.json
 Thumbs.db
 .DS_Store
 Desktop.ini
+
+# Jarvis System Ignore Rules
+bin/
+obj/
+*.exe
+*.dll
+*.pdb
+*.user
+*.suo
+*.sln.docstates
+
+# Secrets & Local Config (CRITICAL)
+Data/SystemSettings.json
+Data/Notes/Credentials/
+*.key
+*.token
+*.pem
+google-services.json
+
+# Data & Large Tooling
+Data/Tools/
+Data/Models/
+Data/Conversations/
+Data/Instructions/Evolved_Laws.md
+Data/Context/History/
+Data/Training/
+Data/VoiceDataset/
+
+# Media & Downloads
+Downloads/
+Modules/Layer0/DownloadMedia/flaresolverr/
+Modules/Layer0/DownloadMedia/node_modules/
+
+# OS Specific
+.vs/
+.idea/
+.vscode/
+*.log
+*.mp3
+*.wav
+*.zip
+*.7z
+*.rar
+*.jpg
+*.png
