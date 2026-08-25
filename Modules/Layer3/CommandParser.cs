@@ -1,133 +1,62 @@
 // Developer: heaplyn
-// Date: 2026-08-17
-// Summary: Router dispatcher coordinating handler resolutions and aggregations.
-//          Fully restored with 80+ integrated command handlers.
+// Date: 2026-08-22
+// Summary: Dynamic router dispatcher coordinating handler resolutions and aggregations.
+//          Uses reflection to dynamically register all concrete implementations of ICommandHandler.
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using JarvisLauncher.Modules.Layer3.Handlers;
-
-using CommandDictType = System.Tuple<string, JarvisLauncher.ICommandHandler>;
 
 namespace JarvisLauncher
 {
-    public enum CommandType
-    {
-        MATH, VOLUME, LOCK, RESTART, OPACITY, TIMER, SYSTEM_STATS, LOCAL_IP, BRIGHTNESS, CLI_RUNNER, APP_LAUNCHER, VIEW_FILE, SETTINGS, AI, RECYCLE_BIN, PROCESS_KILLER, POWER, ALIAS, TEXT_OPACITY, GIT_PUSH, COMMANDS, GIT_SETUP, LOGS, DOWNLOAD_PATH, EXIT, UPDATE, POWERSHELL, UPDATE_COMPUTER, SYS_INFO, SEARCH_LAUNCHER, SCREENSHOT, MUTE, CLIPBOARD, TODO, THEME, EDIT, OPEN, GRID, PRODUCTIVITY, EXTRA_FEATURES, NEW_IDEAS, MUSIC_PLAYLIST, STICKY_NOTE, GAME_DEV_TOOLBOX, FFMPEG, LLM, PHONE, DIAGNOSTICS, WEB_SCRAPING, CALENDAR, REMINDERS, FILE_ORGANIZER, SCREEN_ANALYSIS, BACKGROUND, VOICE_STUDIO, HELP_CENTER, ANIMATION_OPTIONS, EXPANDED_COMMANDS, ORGANIZATION_TOOLS, ADHD_FOCUS_SUITE, MCP, OAUTH2, CODE_ASSIST, IPA_COMPILER, INSTALL, TTS, BIOMETRICS, TEMPLATE, TEACHER, UNINSTALL, WEB_OP, DATABASE, BUILD, DEBUGGER, STORAGE, CODE_EDITOR, MOBILE, TUNNEL, FILE_GRID, CLIPBOARD_HISTORY, NETWORK, GCLOUD, GODELLIAN, DATASET, BACKUP, TOOLS
-    };
-
     public static class CommandParser
     {
         public static event Action<double>? OnTextOpacityChanged;
         public static void TriggerTextOpacityChange(double o) => OnTextOpacityChanged?.Invoke(o);
 
-        public static Dictionary<CommandType, CommandDictType> HANDLERS = new Dictionary<CommandType, CommandDictType>();
+        // Keyed by class name to maintain Dictionary shape for compatibility
+        public static readonly Dictionary<string, System.Tuple<string, ICommandHandler>> HANDLERS = new();
+        private static readonly Dictionary<ICommandHandler, List<CommandDesc>> _descCache = new();
+        private static readonly List<CommandDesc> _allDescsCache = new();
 
         static CommandParser()
         {
-            // --- CORE AI & DOCS ---
-            RegisterHandler(CommandType.AI, "AI Assistant", () => new AiCommandHandler());
-            RegisterHandler(CommandType.LLM, "LLM Settings", () => new LLMCommandHandler());
-            RegisterHandler(CommandType.GODELLIAN, "Intelligence Core", () => new GodellianCommandHandler());
-            RegisterHandler(CommandType.DATASET, "Dataset Harvester", () => new DatasetCommandHandler());
-            RegisterHandler(CommandType.BACKUP, "Backup & Sync", () => new BackupCommandHandler());
-            RegisterHandler(CommandType.TOOLS, "AI Tool Manager", () => new ToolCommandHandler());
-            RegisterHandler(CommandType.GCLOUD, "Google Cloud", () => new GCloudCommandHandler());
-            RegisterHandler(CommandType.HELP_CENTER, "Help Hub", () => new HelpCommandHandler());
-            RegisterHandler(CommandType.DEBUGGER, "System Debugger", () => new DebuggerCommandHandler());
+            try
+            {
+                var handlerTypes = typeof(CommandParser).Assembly.GetTypes()
+                    .Where(t => typeof(ICommandHandler).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
 
-            // --- SYSTEM & POWER ---
-            RegisterHandler(CommandType.LOCK, "Lock Workstation", () => new LockCommandHandler());
-            RegisterHandler(CommandType.RESTART, "Restart PC", () => new RestartCommandHandler());
-            RegisterHandler(CommandType.POWER, "Power Suite", () => new PowerCommandHandler());
-            RegisterHandler(CommandType.EXIT, "Exit Jarvis", () => new ExitCommandHandler());
-            RegisterHandler(CommandType.SETTINGS, "System Settings", () => new SettingsCommandHandler());
-            RegisterHandler(CommandType.SYS_INFO, "System Specs", () => new SysInfoCommandHandler());
-            RegisterHandler(CommandType.SYSTEM_STATS, "Resource Hub", () => new SystemStatsCommandHandler());
-            RegisterHandler(CommandType.PROCESS_KILLER, "Task Killer", () => new ProcessKillerCommandHandler());
-            RegisterHandler(CommandType.LOGS, "Execution Logs", () => new LogCommandHandler());
-            RegisterHandler(CommandType.DIAGNOSTICS, "Diagnostics", () => new DiagnosticsCommandHandler());
-            RegisterHandler(CommandType.BRIGHTNESS, "Brightness", () => new BrightnessCommandHandler());
-            RegisterHandler(CommandType.OPACITY, "HUD Opacity", () => new OpacityCommandHandler());
-            RegisterHandler(CommandType.UPDATE, "Code Updates", () => new UpdateCommandHandler());
-            RegisterHandler(CommandType.UPDATE_COMPUTER, "Windows Update", () => new UpdateComputerCommandHandler());
-
-            // --- PRODUCTIVITY ---
-            RegisterHandler(CommandType.TODO, "Tasks & Todo", () => new TodoCommandHandler());
-            RegisterHandler(CommandType.REMINDERS, "Reminders", () => new ReminderCommandHandler());
-            RegisterHandler(CommandType.TIMER, "Timers", () => new TimerCommandHandler());
-            RegisterHandler(CommandType.STICKY_NOTE, "Sticky Notes", () => new StickyNotesCommandHandler());
-            RegisterHandler(CommandType.ADHD_FOCUS_SUITE, "ADHD Focus", () => new AdhdFocusSuiteHandler());
-            RegisterHandler(CommandType.PRODUCTIVITY, "Productivity", () => new ProductivityCommandHandler());
-            RegisterHandler(CommandType.CALENDAR, "Calendar", () => new CalendarCommandHandler());
-            RegisterHandler(CommandType.CLIPBOARD, "Clipboard Hub", () => new ClipboardCommandHandler());
-            RegisterHandler(CommandType.MATH, "Calculus Solver", () => new MathCommandHandler());
-            RegisterHandler(CommandType.STORAGE, "Storage Cleanup", () => new StorageCleanupCommandHandler());
-
-            // --- FILES & DEV ---
-            RegisterHandler(CommandType.EDIT, "AI Code Studio", () => new EditCommandHandler());
-            RegisterHandler(CommandType.GIT_PUSH, "GitHub Studio", () => new GitCommandHandler());
-            RegisterHandler(CommandType.GIT_SETUP, "Git Config", () => new GitSetupCommandHandler());
-            RegisterHandler(CommandType.BUILD, "Universal Builder", () => new BuildCommandHandler());
-            RegisterHandler(CommandType.CODE_ASSIST, "Code Helper", () => new CodeAssistCommandHandler());
-            RegisterHandler(CommandType.TEMPLATE, "Code Templates", () => new TemplateCommandHandler());
-            RegisterHandler(CommandType.VIEW_FILE, "File QuickView", () => new ViewFileCommandHandler());
-            RegisterHandler(CommandType.FILE_ORGANIZER, "File Janitor", () => new FileOrganizerCommandHandler());
-            RegisterHandler(CommandType.IPA_COMPILER, "IPA Compiler", () => new IpaCompilerCommandHandler());
-            RegisterHandler(CommandType.DATABASE, "SQL Studio", () => new DatabaseCommandHandler());
-            RegisterHandler(CommandType.POWERSHELL, "PowerShell Shell", () => new PowerShellRunnerCommandHandler());
-            RegisterHandler(CommandType.CLI_RUNNER, "CLI Engine", () => new CliRunnerCommandHandler());
-            RegisterHandler(CommandType.RECYCLE_BIN, "Recycle Bin", () => new RecycleBinCommandHandler());
-            RegisterHandler(CommandType.OPEN, "File Opener", () => new OpenNativeCommandHandler());
-            RegisterHandler(CommandType.CODE_EDITOR, "Lite Editor", () => new CodeEditorCommandHandler());
-
-            // --- APPS & WEB ---
-            RegisterHandler(CommandType.APP_LAUNCHER, "App Launcher", () => new AppLauncherCommandHandler());
-            RegisterHandler(CommandType.SEARCH_LAUNCHER, "Global Search", () => new SearchLauncherCommandHandler());
-            RegisterHandler(CommandType.WEB_SCRAPING, "Web Scraper", () => new WebScrapingCommandHandler());
-            RegisterHandler(CommandType.WEB_OP, "Web Ops", () => new WebOperationCommandHandler());
-            RegisterHandler(CommandType.OAUTH2, "OAuth Studio", () => new OAuth2CommandHandler());
-            RegisterHandler(CommandType.MCP, "MCP Bridge", () => new McpCommandHandler());
-
-            // --- MEDIA & CUSTOMIZATION ---
-            RegisterHandler(CommandType.VOLUME, "Volume Control", () => new VolumeCommandHandler());
-            RegisterHandler(CommandType.MUTE, "Mute Engine", () => new MuteCommandHandler());
-            RegisterHandler(CommandType.TTS, "Voice Synth", () => new TtsCommandHandler());
-            RegisterHandler(CommandType.VOICE_STUDIO, "Acoustic Studio", () => new VoiceStudioCommandHandler());
-            RegisterHandler(CommandType.BIOMETRICS, "Voice ID", () => new EnrollVoiceCommandHandler());
-            RegisterHandler(CommandType.FFMPEG, "FFMpeg Suite", () => new FFMpegCommandHandler());
-            RegisterHandler(CommandType.MUSIC_PLAYLIST, "Jukebox", () => new MusicPlaylistCommandHandler());
-            RegisterHandler(CommandType.THEME, "Theme Engine", () => new ThemeCommandHandler());
-            RegisterHandler(CommandType.ANIMATION_OPTIONS, "VFX Config", () => new AnimationCommandHandler());
-            RegisterHandler(CommandType.BACKGROUND, "HUD Background", () => new BackgroundCommandHandler());
-            RegisterHandler(CommandType.SCREENSHOT, "Screen Capture", () => new ScreenshotCommandHandler());
-            RegisterHandler(CommandType.SCREEN_ANALYSIS, "Vision AI", () => new ScreenAnalysisCommandHandler());
-
-            // --- ADVANCED ---
-            RegisterHandler(CommandType.TEACHER, "Code Teacher", () => new TeacherCommandHandler());
-            RegisterHandler(CommandType.NEW_IDEAS, "Idea Lab", () => new NewIdeasCommandHandler());
-            RegisterHandler(CommandType.EXPANDED_COMMANDS, "Pro Commands", () => new ExpandedCommandsHandler());
-            RegisterHandler(CommandType.ORGANIZATION_TOOLS, "File AI", () => new OrganizationCommandsHandler());
-            RegisterHandler(CommandType.ALIAS, "Alias Manager", () => new AliasCommandHandler());
-            RegisterHandler(CommandType.LOCAL_IP, "Net Diagnostics", () => new LocalIpCommandHandler());
-            RegisterHandler(CommandType.INSTALL, "Installer Hub", () => new InstallCommandHandler());
-            RegisterHandler(CommandType.UNINSTALL, "Cleanup Hub", () => new UninstallCommandHandler());
-            RegisterHandler(CommandType.COMMANDS, "Command Browser", () => new CommandsCommandHandler());
-        }
-
-        private static void RegisterHandler(CommandType Type, string Description, Func<ICommandHandler> Factory)
-        {
-            try { HANDLERS[Type] = new CommandDictType(Description, Factory()); } catch { }
+                foreach (var type in handlerTypes)
+                {
+                    try
+                    {
+                        var handler = (ICommandHandler)Activator.CreateInstance(type)!;
+                        string desc = type.Name.Replace("CommandHandler", "");
+                        var descs = handler.GetCommandDescriptions() ?? new List<CommandDesc>();
+                        _descCache[handler] = descs;
+                        _allDescsCache.AddRange(descs);
+                        if (descs.Count > 0)
+                        {
+                            desc = descs[0].COMMAND_NAME;
+                        }
+                        HANDLERS[type.Name] = new System.Tuple<string, ICommandHandler>(desc, handler);
+                    }
+                    catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"CommandParser dynamic loader error: {ex.Message}");
+            }
         }
 
         public static bool IsKnownLocalCommand(string Query)
         {
             string Q = Query.Trim().ToLower();
             foreach (var Pair in HANDLERS.Values) if (Pair.Item2.CanHandle(Q)) return true;
-            return CoreRegistry.Apps.GetMatchingApps(Q).Any();
+            return CoreRegistry.System.Apps.GetMatchingApps(Q).Any();
         }
 
         public static List<CommandResult> GetSuggestions(string Query)
@@ -152,7 +81,7 @@ namespace JarvisLauncher
             var Parts = Query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             if (Parts.Length > 0)
             {
-                var Aliases = CoreRegistry.Settings.Current.ALIASES;
+                var Aliases = CoreRegistry.Data.Settings.Current.ALIASES;
                 if (Aliases != null && Aliases.TryGetValue(Parts[0].ToLower(), out string? Expansion))
                 {
                     string Remainder = Query.Substring(Parts[0].Length).Trim();
@@ -167,14 +96,15 @@ namespace JarvisLauncher
             foreach (var h in HANDLERS.Values)
             {
                 try {
-                    // Optimized Proactive Gating: Call handler if it claims the query OR if query is a strong partial match for its commands
                     bool match = h.Item2.CanHandle(LowerExpanded) || h.Item2.CanHandle(NoSpacesQuery);
 
                     if (!match)
                     {
-                        var descs = h.Item2.GetCommandDescriptions();
-                        if (descs != null && descs.Any(d => SearchUtil.IsClose(LowerExpanded, d.COMMAND_NAME)))
-                            match = true;
+                        if (_descCache.TryGetValue(h.Item2, out var descs))
+                        {
+                            if (descs.Any(d => SearchUtil.IsClose(LowerExpanded, d.COMMAND_NAME)))
+                                match = true;
+                        }
                     }
 
                     if (match)
@@ -186,7 +116,7 @@ namespace JarvisLauncher
             }
 
             // 3. App Suggestions
-            var apps = CoreRegistry.Apps.GetMatchingApps(LowerExpanded);
+            var apps = CoreRegistry.System.Apps.GetMatchingApps(LowerExpanded);
             foreach (var a in apps) {
                 Suggestions.Add(new CommandResult {
                     TITLE = "📱 App: " + a.Name,
@@ -204,7 +134,6 @@ namespace JarvisLauncher
                 string CmdName = Cd.COMMAND_NAME.ToLower();
                 double finalSim = SearchUtil.GetSimilarity(LowerExpanded, CmdName);
 
-                // Acronym boost
                 if (SearchUtil.IsAcronymMatch(LowerExpanded, CmdName)) finalSim = Math.Max(finalSim, 6.0);
 
                 if (finalSim > 0.45)
@@ -217,11 +146,9 @@ namespace JarvisLauncher
                         {
                             TITLE       = $"⚡ {Cd.COMMAND_NAME}",
                             DESCRIPTION = Cd.COMMAND_DESCRIPTION,
-                            SIMILARITY  = finalSim - 0.1, // Slightly lower priority than direct handler results
+                            SIMILARITY  = finalSim - 0.1,
                             EXECUTE     = () =>
                             {
-                                // Instead of just calling ExecuteFirstSuggestion, we fill the box and trigger a fresh parse
-                                // to show the actual specific options for that command.
                                 System.Windows.Application.Current.Dispatcher.Invoke(() => {
                                     var win = System.Windows.Application.Current.MainWindow;
                                     if (win != null) {
@@ -263,7 +190,6 @@ namespace JarvisLauncher
         {
             if (string.IsNullOrWhiteSpace(Query)) return;
 
-            // Log command execution for Jarvis memory
             ChronoLogManager.LogEvent("Command", Query);
 
             string lower = Query.ToLower();
@@ -285,11 +211,7 @@ namespace JarvisLauncher
         }
 
         public static List<CommandDesc> GetAllCommandDescriptions() {
-            var l = new List<CommandDesc>();
-            foreach (var h in HANDLERS.Values) {
-                try { var d = h.Item2.GetCommandDescriptions(); if (d != null) l.AddRange(d); } catch { }
-            }
-            return l;
+            return _allDescsCache;
         }
 
         public static List<string> CategoryOrder => new List<string> { "AI & Automation", "System & Power", "Files & Editing", "Apps & Launcher", "Audio & Media", "Productivity", "Utilities" };
@@ -299,23 +221,34 @@ namespace JarvisLauncher
             foreach (var cat in CategoryOrder) res[cat] = new List<CommandDesc>();
 
             foreach (var kvp in HANDLERS) {
-                string cat = GetCategoryForType(kvp.Key);
+                string cat = GetCategoryForHandler(kvp.Value.Item2);
                 if (!res.ContainsKey(cat)) res[cat] = new List<CommandDesc>();
-                try { var d = kvp.Value.Item2.GetCommandDescriptions(); if (d != null) res[cat].AddRange(d); } catch { }
+                if (_descCache.TryGetValue(kvp.Value.Item2, out var descs))
+                {
+                    res[cat].AddRange(descs);
+                }
             }
             return res;
         }
 
-        private static string GetCategoryForType(CommandType type) {
-            return type switch {
-                CommandType.AI or CommandType.LLM or CommandType.GCLOUD or CommandType.CODE_ASSIST or CommandType.TEACHER => "AI & Automation",
-                CommandType.LOCK or CommandType.POWER or CommandType.RESTART or CommandType.EXIT or CommandType.SYS_INFO or CommandType.DEBUGGER or CommandType.SYSTEM_STATS or CommandType.PROCESS_KILLER or CommandType.LOGS or CommandType.UPDATE or CommandType.UPDATE_COMPUTER or CommandType.DIAGNOSTICS or CommandType.SETTINGS => "System & Power",
-                CommandType.EDIT or CommandType.OPEN or CommandType.VIEW_FILE or CommandType.GIT_PUSH or CommandType.BUILD or CommandType.TEMPLATE or CommandType.GIT_SETUP or CommandType.FILE_ORGANIZER or CommandType.RECYCLE_BIN or CommandType.CODE_EDITOR => "Files & Editing",
-                CommandType.APP_LAUNCHER or CommandType.GRID or CommandType.SEARCH_LAUNCHER or CommandType.POWERSHELL or CommandType.CLI_RUNNER => "Apps & Launcher",
-                CommandType.VOLUME or CommandType.MUTE or CommandType.TTS or CommandType.VOICE_STUDIO or CommandType.FFMPEG or CommandType.MUSIC_PLAYLIST or CommandType.BIOMETRICS or CommandType.BACKGROUND or CommandType.THEME or CommandType.ANIMATION_OPTIONS or CommandType.SCREENSHOT or CommandType.SCREEN_ANALYSIS => "Audio & Media",
-                CommandType.TODO or CommandType.REMINDERS or CommandType.TIMER or CommandType.STICKY_NOTE or CommandType.ADHD_FOCUS_SUITE or CommandType.CALENDAR or CommandType.PRODUCTIVITY or CommandType.NEW_IDEAS or CommandType.EXPANDED_COMMANDS or CommandType.ORGANIZATION_TOOLS or CommandType.STORAGE => "Productivity",
-                _ => "Utilities"
-            };
+        private static string GetCategoryForHandler(ICommandHandler handler) {
+            string ns = handler.GetType().Namespace ?? "";
+            if (ns.EndsWith(".AI") || ns.Contains(".AI")) return "AI & Automation";
+            if (ns.EndsWith(".System") || ns.Contains(".System")) return "System & Power";
+            if (ns.EndsWith(".Dev") || ns.Contains(".Dev")) return "Files & Editing";
+            if (ns.EndsWith(".Apps") || ns.Contains(".Apps")) return "Apps & Launcher";
+            if (ns.EndsWith(".Media") || ns.Contains(".Media")) return "Audio & Media";
+            if (ns.EndsWith(".Productivity") || ns.Contains(".Productivity")) return "Productivity";
+            
+            string name = handler.GetType().Name;
+            if (name.Contains("Ai") || name.Contains("Llm") || name.Contains("Teacher") || name.Contains("Assistant") || name.Contains("Gcloud") || name.Contains("Claw")) return "AI & Automation";
+            if (name.Contains("Lock") || name.Contains("Restart") || name.Contains("Power") || name.Contains("Exit") || name.Contains("Stats") || name.Contains("Brightness") || name.Contains("Opacity") || name.Contains("Diagnostics") || name.Contains("Update")) return "System & Power";
+            if (name.Contains("Edit") || name.Contains("Open") || name.Contains("View") || name.Contains("Git") || name.Contains("Build") || name.Contains("Template") || name.Contains("Organizer") || name.Contains("Obfuscator") || name.Contains("Obf") || name.Contains("Compiler") || name.Contains("Disassembler") || name.Contains("Bin")) return "Files & Editing";
+            if (name.Contains("Launcher") || name.Contains("Grid") || name.Contains("Search") || name.Contains("Powershell") || name.Contains("Cli")) return "Apps & Launcher";
+            if (name.Contains("Volume") || name.Contains("Mute") || name.Contains("Tts") || name.Contains("Voice") || name.Contains("Ffmpeg") || name.Contains("Music") || name.Contains("Playlist") || name.Contains("Biometrics") || name.Contains("Theme") || name.Contains("Animation") || name.Contains("Background") || name.Contains("Screenshot") || name.Contains("Vision") || name.Contains("Visuals")) return "Audio & Media";
+            if (name.Contains("Todo") || name.Contains("Reminder") || name.Contains("Timer") || name.Contains("Note") || name.Contains("Focus") || name.Contains("Calendar") || name.Contains("Storage") || name.Contains("Clean")) return "Productivity";
+            
+            return "Utilities";
         }
 
         public static void Initialize() { }

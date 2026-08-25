@@ -79,6 +79,8 @@
 
     <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('chat')">💬 Chat</button>
+        <button class="tab-btn" onclick="switchTab('clipboard')">📋 Clip</button>
+        <button class="tab-btn" onclick="switchTab('files')">📁 Files</button>
         <button class="tab-btn" onclick="switchTab('terminal')">💻 Terminal</button>
         <button class="tab-btn" onclick="switchTab('commands')">⚡ Commands</button>
         <button class="tab-btn" onclick="switchTab('screen')">📸 Screen</button>
@@ -97,6 +99,66 @@
             <div class="input-bar">
                 <input type="text" id="chat-input" placeholder="Type command (e.g. vol, app, theme, lock)..." onkeydown="if(event.key==='Enter') sendChat()">
                 <button onclick="sendChat()">➔</button>
+            </div>
+        </div>
+
+        <!-- Clipboard Sync View -->
+        <div id="view-clipboard" class="view" style="padding: 14px; gap: 10px; overflow-y: auto;">
+            <div class="stat-box">
+                <div class="stat-label">PC Clipboard Content</div>
+                <textarea id="pc-clip-text" style="width:100%; height:120px; background:rgba(30,41,59,0.8); border:1px solid rgba(255,255,255,0.12); border-radius:10px; padding:10px 14px; color:#fff; font-size:0.85rem; outline:none; margin-bottom: 10px; resize:none;" readonly></textarea>
+                
+                <div style="display:flex; gap:10px; margin-bottom:12px;">
+                    <button class="btn-action" style="flex:1;" onclick="pullPcClipboard()">📥 Get PC Clipboard</button>
+                    <button class="stream-btn" style="flex:1; padding: 10px;" onclick="copyPcClipToPhone()">📋 Copy to Phone</button>
+                </div>
+            </div>
+
+            <div class="stat-box">
+                <div class="stat-label">Push to PC Clipboard</div>
+                <textarea id="phone-clip-text" placeholder="Type text here or paste to send to PC..." style="width:100%; height:120px; background:rgba(30,41,59,0.8); border:1px solid rgba(255,255,255,0.12); border-radius:10px; padding:10px 14px; color:#fff; font-size:0.85rem; outline:none; margin-bottom: 10px; resize:none;"></textarea>
+                
+                <div style="display:flex; gap:10px; margin-bottom:8px;">
+                    <button class="btn-action" style="flex:1;" onclick="pushPhoneClipboard()">📤 Push to PC</button>
+                    <button class="stream-btn" style="flex:1; padding: 10px;" onclick="readPhoneClip()">📋 Paste from Phone</button>
+                </div>
+                
+                <div style="display:flex; align-items:center; gap:8px; margin-top: 6px;">
+                    <input type="checkbox" id="clip-autosync" style="accent-color:#38bdf8; cursor:pointer;" onchange="toggleClipAutoSync(this.checked)">
+                    <label for="clip-autosync" style="font-size:0.75rem; color:#94a3b8; cursor:pointer;">🔄 Auto-Sync Clipboards (Poll every 3s)</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- File Manager View -->
+        <div id="view-files" class="view" style="padding: 14px; gap: 10px; overflow-y: auto;">
+            <div class="stat-box">
+                <div class="stat-label">PC Directory Path</div>
+                <div style="display:flex; gap:8px; margin-bottom:10px;">
+                    <input type="text" id="files-path" style="flex:1; background:rgba(30,41,59,0.8); border:1px solid rgba(255,255,255,0.12); border-radius:10px; padding:10px 14px; color:#fff; font-size:0.85rem; outline:none;">
+                    <button class="stream-btn" style="padding:10px;" onclick="loadFilesList()">Go</button>
+                    <button class="stream-btn" style="padding:10px;" onclick="loadFilesRoot()">Root</button>
+                </div>
+                
+                <div style="display:flex; gap:8px;">
+                    <button class="stream-btn" style="flex:1; font-size:0.75rem;" onclick="navigateUp()">Parent Directory</button>
+                </div>
+            </div>
+
+            <div class="stat-box" style="display:flex; flex-direction:column; gap:8px;">
+                <div class="stat-label">Upload File to PC</div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <input type="file" id="upload-file-input" style="display:none;" onchange="uploadSelectedFile()">
+                    <button class="btn-action" onclick="document.getElementById('upload-file-input').click()">📤 Choose & Upload File</button>
+                </div>
+                <div id="upload-status" style="font-size:0.72rem; color:#38bdf8;">Ready.</div>
+            </div>
+
+            <div class="stat-box" style="flex:1; display:flex; flex-direction:column; overflow:hidden; min-height: 250px;">
+                <div class="stat-label">Directory Content</div>
+                <div id="files-list" style="flex:1; overflow-y:auto; background:#050811; border-radius:10px; margin-top:6px; border:1px solid rgba(255,255,255,0.06); padding:6px; display:flex; flex-direction:column; gap:4px;">
+                    <!-- Files will render here -->
+                </div>
             </div>
         </div>
 
@@ -329,6 +391,9 @@ Type any command below (e.g. dir, git status, ping, ipconfig)
                     <option value="duplicate">👥 Detect identical MD5 duplicates</option>
                     <option value="large">🔍 Audit large files (>100MB)</option>
                     <option value="empty">🧹 Purge empty directories</option>
+                    <option value="fuzzy">👥 Detect fuzzy duplicate filenames (similar/copies)</option>
+                    <option value="junk">🧹 Clean system junk, logs, temp, and cache files</option>
+                    <option value="stale">⏳ Audit stale unused files (>180 days)</option>
                 </select>
                 
                 <div style="display:flex; gap:10px;">
@@ -347,14 +412,242 @@ Type any command below (e.g. dir, git status, ping, ipconfig)
     <script>
         let streamTimer = null;
 
+        let clipSyncInterval = null;
+        let lastPcClip = "";
+
         function switchTab(name) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            event.target.classList.add('active');
+            
+            // Highlight the active tab button
+            const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick').includes(`'${name}'`));
+            if (btn) btn.classList.add('active');
+            else if (event && event.currentTarget) event.currentTarget.classList.add('active');
+            
             document.getElementById('view-' + name).classList.add('active');
+            
             if (name === 'stats') fetchStats();
             if (name === 'screen') { refreshScreenshot(); fetchScreenStats(); }
+            if (name === 'clipboard') { pullPcClipboard(); }
+            if (name === 'files') { loadFilesRoot(); }
             if (name !== 'screen') setStreamInterval(0);
+        }
+
+        // --- Clipboard Helper Functions ---
+        async function pullPcClipboard() {
+            try {
+                const res = await fetch('/api/clipboard');
+                const data = await res.json();
+                document.getElementById('pc-clip-text').value = data.text || '';
+                lastPcClip = data.text || '';
+            } catch (e) {
+                console.error("Failed to pull PC clipboard", e);
+            }
+        }
+
+        async function pushPhoneClipboard() {
+            const text = document.getElementById('phone-clip-text').value;
+            try {
+                const res = await fetch('/api/clipboard', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ text: text })
+                });
+                if (res.ok) {
+                    pullPcClipboard();
+                }
+            } catch (e) {
+                alert("Clipboard push failed: " + e.message);
+            }
+        }
+
+        function copyPcClipToPhone() {
+            const text = document.getElementById('pc-clip-text').value;
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(() => {
+                alert("Copied to phone's clipboard!");
+            }).catch(err => {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                alert("Copied to phone's clipboard (fallback)!");
+            });
+        }
+
+        async function readPhoneClip() {
+            try {
+                const text = await navigator.clipboard.readText();
+                document.getElementById('phone-clip-text').value = text;
+            } catch (e) {
+                alert("Please paste text manually into the input box.");
+            }
+        }
+
+        function toggleClipAutoSync(enabled) {
+            if (clipSyncInterval) clearInterval(clipSyncInterval);
+            if (enabled) {
+                clipSyncInterval = setInterval(async () => {
+                    await pullPcClipboard();
+                }, 3000);
+            }
+        }
+
+        // --- Files Helper Functions ---
+        async function loadFilesRoot() {
+            try {
+                const res = await fetch('/api/files/root');
+                const data = await res.json();
+                document.getElementById('files-path').value = data.root;
+                loadFilesList();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function loadFilesList() {
+            const path = document.getElementById('files-path').value;
+            const container = document.getElementById('files-list');
+            container.innerHTML = '<div style="color:#cbd5e1; font-size:0.8rem; padding:8px;">Loading...</div>';
+            
+            try {
+                const res = await fetch('/api/files/list?path=' + encodeURIComponent(path));
+                if (!res.ok) throw new Error("Directory not found or access denied.");
+                const items = await res.json();
+                container.innerHTML = '';
+                
+                if (items.length === 0) {
+                    container.innerHTML = '<div style="color:#64748b; font-size:0.8rem; padding:8px; font-style:italic;">Empty directory.</div>';
+                    return;
+                }
+
+                items.sort((a,b) => b.isDirectory - a.isDirectory);
+
+                items.forEach(item => {
+                    const row = document.createElement('div');
+                    row.style.display = 'flex';
+                    row.style.justify = 'space-between';
+                    row.style.alignItems = 'center';
+                    row.style.padding = '8px';
+                    row.style.background = 'rgba(255,255,255,0.02)';
+                    row.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                    row.style.borderRadius = '6px';
+                    
+                    const nameSpan = document.createElement('span');
+                    nameSpan.style.fontSize = '0.8rem';
+                    nameSpan.style.cursor = 'pointer';
+                    nameSpan.style.color = item.isDirectory ? '#38bdf8' : '#e2e8f0';
+                    nameSpan.style.fontWeight = item.isDirectory ? '600' : '400';
+                    nameSpan.innerText = (item.isDirectory ? '📁 ' : '📄 ') + item.name;
+                    if (item.isDirectory) {
+                        nameSpan.onclick = () => {
+                            document.getElementById('files-path').value = item.path;
+                            loadFilesList();
+                        };
+                    } else {
+                        nameSpan.onclick = () => {
+                            downloadFile(item.path);
+                        };
+                    }
+                    row.appendChild(nameSpan);
+
+                    const actionsDiv = document.createElement('div');
+                    actionsDiv.style.display = 'flex';
+                    actionsDiv.style.gap = '8px';
+
+                    if (!item.isDirectory) {
+                        const dlBtn = document.createElement('button');
+                        dlBtn.innerText = '📥';
+                        dlBtn.style.background = 'none';
+                        dlBtn.style.border = 'none';
+                        dlBtn.style.cursor = 'pointer';
+                        dlBtn.onclick = () => downloadFile(item.path);
+                        actionsDiv.appendChild(dlBtn);
+                    }
+
+                    const delBtn = document.createElement('button');
+                    delBtn.innerText = '❌';
+                    delBtn.style.background = 'none';
+                    delBtn.style.border = 'none';
+                    delBtn.style.cursor = 'pointer';
+                    delBtn.onclick = () => deleteFileItem(item.path);
+                    actionsDiv.appendChild(delBtn);
+
+                    row.appendChild(actionsDiv);
+                    container.appendChild(row);
+                });
+            } catch (err) {
+                container.innerHTML = '<div style="color:#ef4444; font-size:0.8rem; padding:8px;">⚠️ ' + err.message + '</div>';
+            }
+        }
+
+        function navigateUp() {
+            const current = document.getElementById('files-path').value;
+            if (!current) return;
+            const parts = current.split(/[\\/]/);
+            if (parts.length <= 1) return;
+            parts.pop();
+            if (parts[parts.length-1] === '') parts.pop();
+            const parent = parts.join('\\') + '\\';
+            document.getElementById('files-path').value = parent;
+            loadFilesList();
+        }
+
+        function downloadFile(fullPath) {
+            window.open('/api/files/download?path=' + encodeURIComponent(fullPath), '_blank');
+        }
+
+        async function deleteFileItem(fullPath) {
+            if (!confirm("Are you sure you want to delete this item?")) return;
+            try {
+                const res = await fetch('/api/files/delete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ path: fullPath })
+                });
+                if (res.ok) {
+                    loadFilesList();
+                }
+            } catch(e) {
+                alert("Failed to delete item.");
+            }
+        }
+
+        async function uploadSelectedFile() {
+            const fileInput = document.getElementById('upload-file-input');
+            const targetDir = document.getElementById('files-path').value;
+            const status = document.getElementById('upload-status');
+            
+            if (fileInput.files.length === 0) return;
+            const file = fileInput.files[0];
+            
+            status.innerText = "⏳ Uploading '" + file.name + "'...";
+            
+            try {
+                const buffer = await file.arrayBuffer();
+                const url = '/api/files/upload?path=' + encodeURIComponent(targetDir) + '&name=' + encodeURIComponent(file.name);
+                
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Length': buffer.byteLength
+                    },
+                    body: buffer
+                });
+                
+                if (res.ok) {
+                    status.innerText = "✅ Uploaded '" + file.name + "' successfully!";
+                    fileInput.value = '';
+                    loadFilesList();
+                } else {
+                    const text = await res.text();
+                    status.innerText = "❌ Upload failed: " + text;
+                }
+            } catch(e) {
+                status.innerText = "❌ Upload failed: " + e.message;
+            }
         }
 
         function setStreamInterval(ms) {

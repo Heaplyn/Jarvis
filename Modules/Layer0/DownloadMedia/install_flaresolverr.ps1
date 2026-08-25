@@ -27,4 +27,5 @@ if (Test-Path $extractedDir) {
 Write-Host "🧹 Cleaning up temp files..." -ForegroundColor Cyan
 Remove-Item -Path $zipFile -Force
 
-Write-Host "✅ FlareSolverr installed successfully in: $targetDir" -ForegroundColor Green
+Write-Host "FlareSolverr installed successfully in: $targetDir" -ForegroundColor Green
+

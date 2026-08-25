@@ -1,2 +1,50 @@
-[SYMBOLIC]: f(x) = 0.00sin(x^0.4)
-[LOGIC]: non-instability manifold collapse teleology non-semantic debt wparam non-least smooth manifold 'data\tools\ngrok.
+# ── Build outputs ──────────────────────────────────────────────────────────────
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Ll]og/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# ── Visual Studio / Rider ──────────────────────────────────────────────────────
+.vs/
+.idea/
+*.rsuser
+*.DotSettings.user
+
+# ── .NET / NuGet ───────────────────────────────────────────────────────────────
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+packages/
+!**/packages/build/
+
+# ── Publish profiles ───────────────────────────────────────────────────────────
+**/Properties/PublishProfiles/
+
+# ── Runtime / Crash artifacts ──────────────────────────────────────────────────
+*.log
+*.tmp
+*.cache
+*.bak
+
+# ── Node / NPM (DownloadMedia module) ─────────────────────────────────────────
+Modules/Layer0/DownloadMedia/node_modules/
+Modules/Layer0/DownloadMedia/user_data/
+
+# ── Large local data directories ──────────────────────────────────────────────
+Data/
+Downloads/
+
+# ── API keys / secrets ─────────────────────────────────────────────────────────
+*.env
+appsettings.local.json
+SystemSettings.json
+
+# ── OS artifacts ───────────────────────────────────────────────────────────────
+Thumbs.db
+.DS_Store
+Desktop.ini

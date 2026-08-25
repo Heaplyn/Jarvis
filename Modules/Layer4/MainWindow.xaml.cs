@@ -30,14 +30,65 @@ namespace JarvisLauncher
         private IntPtr PreviousForegroundWindow = IntPtr.Zero;
         private bool IsHiding = false;
         private DateTime StartupTime = DateTime.Now;
+        private CancellationTokenSource _searchCts = new();
 
         public MainWindow()
         {
             InitializeComponent();
         }
 
+        public void RefreshBackgroundMedia()
+        {
+            try
+            {
+                BackgroundMedia.Opacity = SettingsManager.Current.BACKGROUND_GIF_OPACITY;
+                string localGifPath = SettingsManager.Current.BACKGROUND_GIF_PATH;
+
+                if (!string.IsNullOrEmpty(localGifPath) && System.IO.File.Exists(localGifPath))
+                {
+                    var uri = new Uri(localGifPath, UriKind.Absolute);
+                    var imageSource = new System.Windows.Media.Imaging.BitmapImage(uri);
+                    WpfAnimatedGif.ImageBehavior.SetAnimatedSource(BackgroundMedia, imageSource);
+                    WpfAnimatedGif.ImageBehavior.SetRepeatBehavior(BackgroundMedia, System.Windows.Media.Animation.RepeatBehavior.Forever);
+                }
+                else if (Application.Current.Resources["WindowBackgroundMediaSource"] is System.Windows.Media.ImageSource imgSource)
+                {
+                    WpfAnimatedGif.ImageBehavior.SetAnimatedSource(BackgroundMedia, imgSource);
+                    WpfAnimatedGif.ImageBehavior.SetRepeatBehavior(BackgroundMedia, System.Windows.Media.Animation.RepeatBehavior.Forever);
+                }
+            }
+            catch { }
+        }
+
+        public void ApplyGuiScale()
+        {
+            try
+            {
+                var s = SettingsManager.Current;
+                double scale = s.GUI_SCALE;
+
+                if (s.AUTO_GUI_SCALE_TO_SCREEN)
+                {
+                    double screenHeight = SystemParameters.PrimaryScreenHeight;
+                    scale = (screenHeight / 1080.0) * s.GUI_SCALE;
+                }
+
+                if (scale < 0.3) scale = 0.3;
+                if (scale > 4.0) scale = 4.0;
+
+                var scaleTransform = new System.Windows.Media.ScaleTransform(scale, scale);
+                MainBorder.LayoutTransform = scaleTransform;
+
+                // Recenter after scale
+                PositionWindowAtTopCenter();
+            }
+            catch { }
+        }
+
         private void Window_Loaded(object Sender, RoutedEventArgs E)
         {
+            ApplyGuiScale();
+            RefreshBackgroundMedia();
             PositionWindowAtTopCenter();
             try { StartMenuRegistrar.EnsureStartMenuShortcut(); } catch { }
 
@@ -126,19 +177,54 @@ namespace JarvisLauncher
             else { this.Visibility = Visibility.Collapsed; IsHiding = false; }
         }
 
-        private void SearchInput_TextChanged(object Sender, TextChangedEventArgs E)
+        private async void SearchInput_TextChanged(object Sender, TextChangedEventArgs E)
         {
             string Query = SearchInput.Text;
             PlaceholderText.Visibility = string.IsNullOrEmpty(Query) ? Visibility.Visible : Visibility.Collapsed;
-            var Suggestions = CommandParser.GetSuggestions(Query);
-            if (Suggestions.Count > 0)
+
+            // Cancel any pending search from a previous keystroke
+            _searchCts.Cancel();
+            _searchCts.Dispose();
+            _searchCts = new CancellationTokenSource();
+            var token = _searchCts.Token;
+
+            if (string.IsNullOrWhiteSpace(Query))
             {
-                ResultsList.ItemsSource = Suggestions;
-                ResultsList.Visibility = Visibility.Visible;
-                DividerLine.Visibility = Visibility.Visible;
-                ResultsList.SelectedIndex = 0;
+                ResultsList.ItemsSource = null;
+                ResultsList.Visibility = Visibility.Collapsed;
+                DividerLine.Visibility = Visibility.Collapsed;
+                return;
             }
-            else { ResultsList.ItemsSource = null; ResultsList.Visibility = Visibility.Collapsed; DividerLine.Visibility = Visibility.Collapsed; }
+
+            try
+            {
+                // 60ms debounce: wait for a pause in typing before computing suggestions
+                await Task.Delay(60, token);
+
+                // Run the suggestion matching off the UI thread
+                var Suggestions = await Task.Run(() => CommandParser.GetSuggestions(Query), token);
+
+                if (token.IsCancellationRequested) return;
+
+                // Push results back at Background priority so input/animations stay fluid
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    if (Suggestions.Count > 0)
+                    {
+                        ResultsList.ItemsSource = Suggestions;
+                        ResultsList.Visibility = Visibility.Visible;
+                        DividerLine.Visibility = Visibility.Visible;
+                        ResultsList.SelectedIndex = 0;
+                    }
+                    else
+                    {
+                        ResultsList.ItemsSource = null;
+                        ResultsList.Visibility = Visibility.Collapsed;
+                        DividerLine.Visibility = Visibility.Collapsed;
+                    }
+                }, System.Windows.Threading.DispatcherPriority.Background);
+            }
+            catch (OperationCanceledException) { /* Keystroke superseded — expected */ }
         }
 
         private void SearchInput_PreviewKeyDown(object Sender, KeyEventArgs E)

@@ -14,5 +14,9 @@
     "@types/node": "^20.14.9",
     "tsx": "^4.15.7",
     "typescript": "^5.5.2"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "ytdlp-nodejs@3.4.5": true
   }
 }

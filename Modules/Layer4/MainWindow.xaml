@@ -7,6 +7,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:gif="http://wpfanimatedgif.codeplex.com"
+        xmlns:local="clr-namespace:JarvisLauncher"
         mc:Ignorable="d"
         Title="Jarvis Launcher" 
         Width="680"
@@ -83,7 +84,7 @@
                                  TextChanged="SearchInput_TextChanged"
                                  PreviewKeyDown="SearchInput_PreviewKeyDown"/>
 
-                        <TextBlock x:Name="PlaceholderText"
+                        <local:OutlinedText x:Name="PlaceholderText"
                                    Text="Type a command, math, or app name..."
                                    Foreground="{DynamicResource TextPlaceholderBrush}"
                                    FontSize="20"
@@ -93,7 +94,7 @@
                                    VerticalAlignment="Top"/>
 
                         <!-- Autocomplete ghost suffix (Tab to accept) -->
-                        <TextBlock x:Name="AutocompleteGhost"
+                        <local:OutlinedText x:Name="AutocompleteGhost"
                                    Foreground="{DynamicResource TextPlaceholderBrush}"
                                    FontSize="20"
                                    FontFamily="{DynamicResource ActiveFontFamily}"
@@ -122,6 +123,10 @@
                              ItemContainerStyle="{StaticResource ResultItemStyle}"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             ScrollViewer.CanContentScroll="True"
+                             VirtualizingStackPanel.IsVirtualizing="True"
+                             VirtualizingStackPanel.VirtualizationMode="Recycling"
+                             VirtualizingPanel.ScrollUnit="Item"
                              SelectionMode="Single"
                              Visibility="Collapsed"
                              MouseDoubleClick="ResultsList_MouseDoubleClick"
@@ -131,12 +136,12 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <StackPanel Orientation="Vertical">
-                                    <TextBlock Text="{Binding TITLE}"
+                                    <local:OutlinedText Text="{Binding TITLE}"
                                                Foreground="{DynamicResource TextPrimaryBrush}"
                                                FontSize="15"
                                                FontWeight="SemiBold"
                                                FontFamily="{DynamicResource ActiveFontFamily}"/>
-                                    <TextBlock Text="{Binding DESCRIPTION}"
+                                    <local:OutlinedText Text="{Binding DESCRIPTION}"
                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                FontSize="12"
                                                Margin="0,2,0,0"
