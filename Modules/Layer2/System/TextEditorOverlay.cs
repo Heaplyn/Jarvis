@@ -28,7 +28,7 @@ namespace JarvisLauncher
         public string FileName => Path.GetFileName(FilePath);
         public string OriginalText { get; set; } = string.Empty;
         public RichTextBox Editor { get; set; } = null!;
-        public Telerik.Windows.Controls.RadTabItem TabItem { get; set; } = null!;
+        public TabItem TabItem { get; set; } = null!;
         public bool IsModified => GetText(Editor) != OriginalText;
 
         public static string GetText(RichTextBox rtb) { var range = new TextRange(rtb.Document.ContentStart, rtb.Document.ContentEnd); return range.Text.Replace("\r\n", "\n").TrimEnd('\n'); }
@@ -39,7 +39,6 @@ namespace JarvisLauncher
     {
         private static TextEditorOverlay? _instance;
         private readonly List<EditorTab> _openTabs = new();
-        private readonly Telerik.Windows.Controls.RadTabControl _editorTabControl;
         private readonly TreeView _fileTreeView;
         private readonly ListBox _errorListBox;
         private readonly Border _errorPanel;
@@ -49,6 +48,7 @@ namespace JarvisLauncher
         private readonly Border _autocompletePopup;
         private readonly ListBox _autocompleteListBox;
         private readonly TextBlock _explanationLabel;
+        private readonly TabControl _editorTabControl;
         private CancellationTokenSource? _highlightCts;
 
         public static void ShowOverlay() {
@@ -118,7 +118,8 @@ namespace JarvisLauncher
             _fileTreeView.SelectedItemChanged += (s, e) => { if (_fileTreeView.SelectedItem is TreeViewItem t && t.Tag is string p && File.Exists(p)) LoadFile(p); };
             Grid.SetColumn(_fileTreeView, 0); mainContainer.Children.Add(_fileTreeView);
 
-            _editorTabControl = CreateRadTabControl();
+            _editorTabControl = new TabControl();
+            StyleTabControl(_editorTabControl);
             Grid.SetColumn(_editorTabControl, 1); mainContainer.Children.Add(_editorTabControl);
 
             var sidePanelBorder = new Border { Background = new SolidColorBrush(Color.FromArgb(40, 0, 0, 0)), BorderThickness = new Thickness(1, 0, 0, 0), BorderBrush = Brushes.DimGray };
@@ -183,7 +184,7 @@ namespace JarvisLauncher
         }
 
         private void InsertText(string text) {
-            if (_editorTabControl.SelectedItem is Telerik.Windows.Controls.RadTabItem ti && ti.Tag is EditorTab t) {
+            if (_editorTabControl.SelectedItem is TabItem ti && ti.Tag is EditorTab t) {
                 var rtb = t.Editor;
                 var range = rtb.Selection;
                 range.Text = text;
@@ -228,7 +229,7 @@ namespace JarvisLauncher
             editor.KeyUp += (s, e) => HandleKeyUp(editor, ext, e);
 
             tab.Editor = editor;
-            tab.TabItem = new Telerik.Windows.Controls.RadTabItem { Header = tab.FileName, Content = editor, Tag = tab };
+            tab.TabItem = new TabItem { Header = tab.FileName, Content = editor, Tag = tab };
             _openTabs.Add(tab); _editorTabControl.Items.Add(tab.TabItem); _editorTabControl.SelectedItem = tab.TabItem;
         }
 
@@ -302,7 +303,7 @@ namespace JarvisLauncher
         }
 
         private void SaveActiveFile() {
-            if (_editorTabControl.SelectedItem is Telerik.Windows.Controls.RadTabItem ti && ti.Tag is EditorTab t) {
+            if (_editorTabControl.SelectedItem is TabItem ti && ti.Tag is EditorTab t) {
                 File.WriteAllText(t.FilePath, EditorTab.GetText(t.Editor));
                 t.OriginalText = EditorTab.GetText(t.Editor);
                 _statusLabel.Text = $"Saved: {t.FileName}";
@@ -311,7 +312,7 @@ namespace JarvisLauncher
         }
 
         private void RunActiveFile() {
-            if (_editorTabControl.SelectedItem is Telerik.Windows.Controls.RadTabItem ti && ti.Tag is EditorTab t) {
+            if (_editorTabControl.SelectedItem is TabItem ti && ti.Tag is EditorTab t) {
                 string ext = Path.GetExtension(t.FilePath).ToLower();
                 string dir = Path.GetDirectoryName(t.FilePath) ?? "";
                 string name = Path.GetFileNameWithoutExtension(t.FilePath);
@@ -331,7 +332,7 @@ namespace JarvisLauncher
         }
 
         private void RunAiFix() {
-            if (_editorTabControl.SelectedItem is Telerik.Windows.Controls.RadTabItem ti && ti.Tag is EditorTab t) {
+            if (_editorTabControl.SelectedItem is TabItem ti && ti.Tag is EditorTab t) {
                 Task.Run(async () => {
                     string code = Application.Current.Dispatcher.Invoke(() => EditorTab.GetText(t.Editor));
                     string prompt = $"## TASK\nFix bugs and optimize this {Path.GetExtension(t.FilePath)} code:\n\n{code}";
@@ -347,7 +348,7 @@ namespace JarvisLauncher
             b.Click += h; return b;
         }
 
-        private string GetActiveEditorText() => (_editorTabControl.SelectedItem is Telerik.Windows.Controls.RadTabItem ti && ti.Tag is EditorTab t) ? EditorTab.GetText(t.Editor) : "";
-        private string GetActiveEditorExtension() => (_editorTabControl.SelectedItem is Telerik.Windows.Controls.RadTabItem ti && ti.Tag is EditorTab t) ? Path.GetExtension(t.FilePath) : "";
+        private string GetActiveEditorText() => (_editorTabControl.SelectedItem is TabItem ti && ti.Tag is EditorTab t) ? EditorTab.GetText(t.Editor) : "";
+        private string GetActiveEditorExtension() => (_editorTabControl.SelectedItem is TabItem ti && ti.Tag is EditorTab t) ? Path.GetExtension(t.FilePath) : "";
     }
 }

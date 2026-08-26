@@ -16,7 +16,6 @@ namespace JarvisLauncher
     public class SettingsOverlay : BaseOverlay
     {
         private static SettingsOverlay? _instance;
-        private readonly Telerik.Windows.Controls.RadTabControl _mainTabControl;
 
         private CheckBox _startWinCheck = null!;
         private CheckBox _playSoundCheck = null!;
@@ -36,6 +35,7 @@ namespace JarvisLauncher
         private Slider _chatHistorySlider = null!;
         private CheckBox _chatDebugCheck = null!;
         private Slider _guiScaleSlider = null!;
+        private TabControl _mainTabControl = null!;
 
         public static void OpenSettings() => ShowOverlay();
         public static void ShowSettings() => ShowOverlay();
@@ -56,18 +56,19 @@ namespace JarvisLauncher
             mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            _mainTabControl = CreateRadTabControl();
+            _mainTabControl = new TabControl();
+            StyleTabControl(_mainTabControl);
 
-            _mainTabControl.Items.Add(new Telerik.Windows.Controls.RadTabItem { Header = "⚙️ Gen", Content = BuildGeneralTab() });
-            _mainTabControl.Items.Add(new Telerik.Windows.Controls.RadTabItem { Header = "🎨 Visuals", Content = BuildVisualsTab() });
-            _mainTabControl.Items.Add(new Telerik.Windows.Controls.RadTabItem { Header = "🤖 LLM", Content = BuildLlmTab() });
-            _mainTabControl.Items.Add(new Telerik.Windows.Controls.RadTabItem { Header = "🗣️ TTS", Content = BuildTtsTab() });
-            _mainTabControl.Items.Add(new Telerik.Windows.Controls.RadTabItem { Header = "🎙️ Vox", Content = BuildVoiceAiTab() });
-            _mainTabControl.Items.Add(new Telerik.Windows.Controls.RadTabItem { Header = "🧹 Data", Content = BuildDataTab() });
-            _mainTabControl.Items.Add(new Telerik.Windows.Controls.RadTabItem { Header = "🔄 Sync", Content = BuildSyncTab() });
-            _mainTabControl.Items.Add(new Telerik.Windows.Controls.RadTabItem { Header = "📶 Off", Content = BuildOfflineTab() });
-            _mainTabControl.Items.Add(new Telerik.Windows.Controls.RadTabItem { Header = "🏷️ Map", Content = BuildAliasesTab() });
-            _mainTabControl.Items.Add(new Telerik.Windows.Controls.RadTabItem { Header = "💬 Chat", Content = BuildChatTab() });
+            _mainTabControl.Items.Add(new TabItem { Header = "⚙️ Gen", Content = BuildGeneralTab() });
+            _mainTabControl.Items.Add(new TabItem { Header = "🎨 Visuals", Content = BuildVisualsTab() });
+            _mainTabControl.Items.Add(new TabItem { Header = "🤖 LLM", Content = BuildLlmTab() });
+            _mainTabControl.Items.Add(new TabItem { Header = "🗣️ TTS", Content = BuildTtsTab() });
+            _mainTabControl.Items.Add(new TabItem { Header = "🎙️ Vox", Content = BuildVoiceAiTab() });
+            _mainTabControl.Items.Add(new TabItem { Header = "🧹 Data", Content = BuildDataTab() });
+            _mainTabControl.Items.Add(new TabItem { Header = "🔄 Sync", Content = BuildSyncTab() });
+            _mainTabControl.Items.Add(new TabItem { Header = "📶 Off", Content = BuildOfflineTab() });
+            _mainTabControl.Items.Add(new TabItem { Header = "🏷️ Map", Content = BuildAliasesTab() });
+            _mainTabControl.Items.Add(new TabItem { Header = "💬 Chat", Content = BuildChatTab() });
 
             Grid.SetRow(_mainTabControl, 0);
             mainGrid.Children.Add(_mainTabControl);

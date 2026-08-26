@@ -197,8 +197,8 @@ namespace JarvisLauncher
             mainGrid.Children.Add(fileGrid);
 
             // --- Row 1: Tab Control ---
-            var tabControl = CreateRadTabControl();
-            tabControl.ScrollMode = Telerik.Windows.Controls.TabControlScrollMode.Pixel;
+            var tabControl = new TabControl();
+            StyleTabControl(tabControl);
 
             // Add keyboard navigation (Ctrl+Arrows) and MouseWheel for speed
             tabControl.PreviewKeyDown += (s, e) => {
@@ -226,13 +226,13 @@ namespace JarvisLauncher
 
             // Tab 1: PE Info
             _peInfoText = CreateLogConsole();
-            var peTab = new Telerik.Windows.Controls.RadTabItem { Header = "PE Header Info" };
+            var peTab = new TabItem { Header = "PE Header Info" };
             peTab.Content = _peInfoText;
             tabControl.Items.Add(peTab);
 
             // Tab 1.5: Diagnostics & Security
             _diagnosticsText = CreateLogConsole();
-            var diagTab = new Telerik.Windows.Controls.RadTabItem { Header = "Diagnostics & Security" };
+            var diagTab = new TabItem { Header = "Diagnostics & Security" };
             diagTab.Content = _diagnosticsText;
             tabControl.Items.Add(diagTab);
 
@@ -271,7 +271,7 @@ namespace JarvisLauncher
             Grid.SetColumn(dotnetContentGrid, 1);
             dotnetGrid.Children.Add(dotnetContentGrid);
 
-            var dotnetTab = new Telerik.Windows.Controls.RadTabItem { Header = ".NET Decompiler (MSIL)" };
+            var dotnetTab = new TabItem { Header = ".NET Decompiler (MSIL)" };
             dotnetTab.Content = dotnetGrid;
             tabControl.Items.Add(dotnetTab);
 
@@ -317,7 +317,7 @@ namespace JarvisLauncher
             Grid.SetRow(_hexDumpText, 1);
             hexGrid.Children.Add(_hexDumpText);
 
-            var hexTab = new Telerik.Windows.Controls.RadTabItem { Header = "Hex Viewer" };
+            var hexTab = new TabItem { Header = "Hex Viewer" };
             hexTab.Content = hexGrid;
             tabControl.Items.Add(hexTab);
 
@@ -346,7 +346,7 @@ namespace JarvisLauncher
             Grid.SetRow(_stringsText, 1);
             stringsGrid.Children.Add(_stringsText);
 
-            var stringsTab = new Telerik.Windows.Controls.RadTabItem { Header = "Strings" };
+            var stringsTab = new TabItem { Header = "Strings" };
             stringsTab.Content = stringsGrid;
             tabControl.Items.Add(stringsTab);
 
@@ -370,7 +370,7 @@ namespace JarvisLauncher
             Grid.SetColumn(_structureDetailText, 1);
             structGrid.Children.Add(_structureDetailText);
 
-            var structTab = new Telerik.Windows.Controls.RadTabItem { Header = "Structure Browser" };
+            var structTab = new TabItem { Header = "Structure Browser" };
             structTab.Content = structGrid;
             tabControl.Items.Add(structTab);
 
@@ -470,19 +470,19 @@ namespace JarvisLauncher
             Grid.SetColumn(editorGrid, 1);
             rebuildGrid.Children.Add(editorGrid);
 
-            var rebuildTab = new Telerik.Windows.Controls.RadTabItem { Header = "Assembly Explorer (Reconstructed)" };
+            var rebuildTab = new TabItem { Header = "Assembly Explorer (Reconstructed)" };
             rebuildTab.Content = rebuildGrid;
             tabControl.Items.Add(rebuildTab);
 
             // Tab 5: Native Disassembly
             _nativeDisasmText = CreateLogConsole();
-            var nativeTab = new Telerik.Windows.Controls.RadTabItem { Header = "Native Disassembly" };
+            var nativeTab = new TabItem { Header = "Native Disassembly" };
             nativeTab.Content = _nativeDisasmText;
             tabControl.Items.Add(nativeTab);
 
             // Tab 6: IDA Flow Graph (Text-based Conditional Blocks)
             _flowGraphConsole = CreateLogConsole();
-            var flowTab = new Telerik.Windows.Controls.RadTabItem { Header = "IDA Graph View" };
+            var flowTab = new TabItem { Header = "IDA Graph View" };
             flowTab.Content = _flowGraphConsole;
             tabControl.Items.Add(flowTab);
 
@@ -521,7 +521,7 @@ namespace JarvisLauncher
             Grid.SetColumn(xrefDetailPanel, 1);
             xrefGrid.Children.Add(xrefDetailPanel);
 
-            var xrefsTab = new Telerik.Windows.Controls.RadTabItem { Header = "XREFs Callers" };
+            var xrefsTab = new TabItem { Header = "XREFs Callers" };
             xrefsTab.Content = xrefGrid;
             tabControl.Items.Add(xrefsTab);
 
@@ -565,7 +565,7 @@ namespace JarvisLauncher
             Grid.SetRow(_reconstructStatusText, 1);
             reconGrid.Children.Add(_reconstructStatusText);
 
-            var reconTab = new Telerik.Windows.Controls.RadTabItem { Header = "Project Reconstructor" };
+            var reconTab = new TabItem { Header = "Project Reconstructor" };
             reconTab.Content = reconGrid;
             tabControl.Items.Add(reconTab);
 
@@ -627,15 +627,16 @@ namespace JarvisLauncher
             Grid.SetRow(rightToolbar, 0);
             rightGrid.Children.Add(rightToolbar);
 
-            var decompilerTabControl = CreateRadTabControl();
+            var decompilerTabControl = new TabControl();
+            StyleTabControl(decompilerTabControl);
 
             _ghidraDecompileText = CreateLogConsole();
-            var cTab = new Telerik.Windows.Controls.RadTabItem { Header = "Ghidra Pseudo-C" };
+            var cTab = new TabItem { Header = "Ghidra Pseudo-C" };
             cTab.Content = _ghidraDecompileText;
             decompilerTabControl.Items.Add(cTab);
 
             _liftedIlText = CreateLogConsole();
-            var ilTab = new Telerik.Windows.Controls.RadTabItem { Header = "Binary Ninja BNIL (HLIL)" };
+            var ilTab = new TabItem { Header = "Binary Ninja BNIL (HLIL)" };
             ilTab.Content = _liftedIlText;
             decompilerTabControl.Items.Add(ilTab);
 
@@ -645,7 +646,7 @@ namespace JarvisLauncher
             Grid.SetColumn(rightGrid, 1);
             ghidraGrid.Children.Add(rightGrid);
 
-            var ghidraTab = new Telerik.Windows.Controls.RadTabItem { Header = "Ghidra & BinNinja Suite" };
+            var ghidraTab = new TabItem { Header = "Ghidra & BinNinja Suite" };
             ghidraTab.Content = ghidraGrid;
             tabControl.Items.Add(ghidraTab);
 
@@ -697,7 +698,7 @@ namespace JarvisLauncher
             Grid.SetRow(_langDecompilerOutput, 1);
             langDecompGrid.Children.Add(_langDecompilerOutput);
 
-            var langDecompTab = new Telerik.Windows.Controls.RadTabItem { Header = "Language Decompilers" };
+            var langDecompTab = new TabItem { Header = "Language Decompilers" };
             langDecompTab.Content = langDecompGrid;
             tabControl.Items.Add(langDecompTab);
 
@@ -743,7 +744,7 @@ namespace JarvisLauncher
             Grid.SetRow(_externalToolsLog, 1);
             extToolsGrid.Children.Add(_externalToolsLog);
 
-            var extToolsTab = new Telerik.Windows.Controls.RadTabItem { Header = "External Tools" };
+            var extToolsTab = new TabItem { Header = "External Tools" };
             extToolsTab.Content = extToolsGrid;
             tabControl.Items.Add(extToolsTab);
 
@@ -778,7 +779,7 @@ namespace JarvisLauncher
             Grid.SetRow(_tracerLogText, 1);
             injectGrid.Children.Add(_tracerLogText);
 
-            var injectTab = new Telerik.Windows.Controls.RadTabItem { Header = "Dynamic Injector" };
+            var injectTab = new TabItem { Header = "Dynamic Injector" };
             injectTab.Content = injectGrid;
             tabControl.Items.Add(injectTab);
 
@@ -813,7 +814,7 @@ namespace JarvisLauncher
             Grid.SetRow(_dumpLog, 1); Grid.SetColumn(_dumpLog, 1);
             dumpGrid.Children.Add(_dumpLog);
 
-            var dumpTab = new Telerik.Windows.Controls.RadTabItem { Header = "MegaDumper" };
+            var dumpTab = new TabItem { Header = "MegaDumper" };
             dumpTab.Content = dumpGrid;
             tabControl.Items.Add(dumpTab);
 
@@ -831,7 +832,7 @@ namespace JarvisLauncher
             Grid.SetRow(_blobCanvas, 1);
             blobGrid.Children.Add(_blobCanvas);
 
-            var blobTab = new Telerik.Windows.Controls.RadTabItem { Header = "BlobToolkit" };
+            var blobTab = new TabItem { Header = "BlobToolkit" };
             blobTab.Content = blobGrid;
             tabControl.Items.Add(blobTab);
 

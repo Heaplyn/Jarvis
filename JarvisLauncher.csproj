@@ -46,8 +46,6 @@
     <PackageReference Include="SharpCompress" Version="0.38.0" />
     <PackageReference Include="System.Management" Version="10.0.11" />
     <PackageReference Include="System.Speech" Version="10.0.11" />
-    <PackageReference Include="Telerik.UI.for.Wpf.AllControls.Xaml" Version="2026.3.812" />
-    <PackageReference Include="Telerik.Windows.Controls.ConversationalUI.for.Wpf.Xaml" Version="2026.3.812" />
     <PackageReference Include="Vosk" Version="0.3.38" />
     <PackageReference Include="WpfAnimatedGif" Version="2.0.2" />
   </ItemGroup>

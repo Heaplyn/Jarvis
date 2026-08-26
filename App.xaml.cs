@@ -49,7 +49,7 @@ namespace JarvisLauncher
                 CoreRegistry.InitializeAll();
 
                 loadingWindow.UpdateStatus("Applying visual interface...", 25);
-                InitializeTelerik();
+               
                 ThemeManager.ApplyTheme(CoreRegistry.Data.Settings.Current.THEME);
 
                 // 3. Fire background service initializations in parallel
@@ -70,10 +70,12 @@ namespace JarvisLauncher
                 var evoTask = Task.Run(() => { try { EvolutionManager.StartContinuousEvolution(); } catch { } });
 
                 // Await only the essential core setup (dependencies & command calibration)
-                await Task.WhenAll(depTask, cmdTask);
+                /*
+await Task.WhenAll(depTask, cmdTask);
 
                 // 4. Build and Show Main Window
                 loadingWindow.UpdateStatus("System Online.", 100);
+                */
                 
                 _mainWindow = new MainWindow();
                 this.MainWindow = _mainWindow;
@@ -165,22 +167,7 @@ namespace JarvisLauncher
             catch { }
         }
 
-        private void InitializeTelerik()
-        {
-            try
-            {
-                // Set Global Telerik Theme to Fluent with DARK variation
-                Telerik.Windows.Controls.StyleManager.ApplicationTheme = new Telerik.Windows.Controls.FluentTheme();
-                Telerik.Windows.Controls.FluentPalette.LoadPreset(Telerik.Windows.Controls.FluentPalette.ColorVariation.Dark);
-
-                // Calibrate Palette for Jarvis HUD
-                Telerik.Windows.Controls.FluentPalette.Palette.AccentColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#00FFFF");
-                Telerik.Windows.Controls.FluentPalette.Palette.BasicColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#333333");
-                Telerik.Windows.Controls.FluentPalette.Palette.MainColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#1A1A1A");
-                Telerik.Windows.Controls.FluentPalette.Palette.MarkerColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString("#FFFFFF");
-            }
-            catch { }
-        }
+        
 
         protected override void OnExit(ExitEventArgs e)
         {

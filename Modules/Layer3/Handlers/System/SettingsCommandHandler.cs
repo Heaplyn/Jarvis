@@ -4,15 +4,29 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace JarvisLauncher
 {
     public class SettingsCommandHandler : ICommandHandler
     {
+        public List<string> Aliases = new List<string> {
+            "settings",
+            "options",
+            "config",
+            "setup"
+        };
+        
         public bool CanHandle(string query)
         {
             string q = query.Trim().ToLower();
-            return q == "settings" || q == "options" || q == "config" || q == "setup" ||
+            foreach (string Member in Aliases)
+            {
+                if (q == Member || SearchUtil.IsClose(q, Member))
+                Console.WriteLine(q);
+                    return true;
+            }
+            return SearchUtil.IsClose(q,"settings") || Aliases.Any(a => q == a || SearchUtil.IsClose(q, a)) ||
                    q.StartsWith("ontop") || q.StartsWith("topmost") || q.StartsWith("alwaysontop") ||
                    q.StartsWith("opacity") || q.StartsWith("alpha") || q == "sleep" || q == "wake" ||
                    q.StartsWith("setkey") || q.StartsWith("apikey") || q.StartsWith("obsidian");
@@ -27,7 +41,7 @@ namespace JarvisLauncher
 
             string cmd = parts[0].ToLower();
 
-            if (lowerQuery == "settings" || lowerQuery == "options" || lowerQuery == "config")
+            if (true)//(lowerQuery == "settings" || lowerQuery == "options" || lowerQuery == "config")
             {
                 suggestions.Add(new CommandResult {
                     TITLE = "⚙️ Open Master Settings Studio",

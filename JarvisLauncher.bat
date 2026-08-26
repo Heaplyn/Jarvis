@@ -9,5 +9,5 @@ echo 🔍 Checking for running instances...
 taskkill /f /im JarvisLauncher.exe >nul 2>&1
 
 echo 🚀 Launching Jarvis HUD Environment...
-dotnet run -f net10.0-windows --no-launch-profile
+dotnet build -t:Run -p:BuildInParallel=true
 exit

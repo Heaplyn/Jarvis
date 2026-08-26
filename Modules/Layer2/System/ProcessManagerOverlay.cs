@@ -34,16 +34,15 @@ namespace JarvisLauncher
                 _instance.BringToFront();
             });
         }
-
-        private readonly Telerik.Windows.Controls.RadGridView _processGrid;
         private readonly DispatcherTimer _timer;
         private readonly TextBox _searchBox;
         private string _searchFilter = string.Empty;
+        private DataGrid _processGrid = null!;
 
         public static void OpenManager() => ShowOverlay();
 
         private ProcessManagerOverlay()
-            : base("JARVIS TELERIK PROCESS STUDIO", width: 800, height: 600)
+            : base("JARVIS PROCESS STUDIO", width: 800, height: 600)
         {
             this.Closed += (s, e) =>
             {
@@ -81,18 +80,29 @@ namespace JarvisLauncher
             Grid.SetRow(toolbarGrid, 0);
             rootGrid.Children.Add(toolbarGrid);
 
-            // 2. Telerik RadGridView
-            _processGrid = CreateRadGridView();
-            _processGrid.Columns.Add(new Telerik.Windows.Controls.GridViewDataColumn { Header = "Process Name", DataMemberBinding = new System.Windows.Data.Binding("Name"), Width = new Telerik.Windows.Controls.GridViewLength(1, Telerik.Windows.Controls.GridViewLengthUnitType.Star) });
-            _processGrid.Columns.Add(new Telerik.Windows.Controls.GridViewDataColumn { Header = "PID", DataMemberBinding = new System.Windows.Data.Binding("Id"), Width = 80 });
-            _processGrid.Columns.Add(new Telerik.Windows.Controls.GridViewDataColumn { Header = "Memory (MB)", DataMemberBinding = new System.Windows.Data.Binding("MemoryMB"), Width = 120, DataFormatString = "{0:N1}" });
+            // 2. DataGrid
+            _processGrid = new DataGrid
+            {
+                AutoGenerateColumns = false,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Foreground = Brushes.White,
+                RowBackground = Brushes.Transparent,
+                GridLinesVisibility = DataGridGridLinesVisibility.None,
+                SelectionMode = DataGridSelectionMode.Single,
+                IsReadOnly = true,
+                HeadersVisibility = DataGridHeadersVisibility.Column
+            };
+            _processGrid.Columns.Add(new DataGridTextColumn { Header = "Process Name", Binding = new System.Windows.Data.Binding("Name"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            _processGrid.Columns.Add(new DataGridTextColumn { Header = "PID", Binding = new System.Windows.Data.Binding("Id"), Width = 80 });
+            _processGrid.Columns.Add(new DataGridTextColumn { Header = "Memory (MB)", Binding = new System.Windows.Data.Binding("MemoryMB") { StringFormat = "{0:N1}" }, Width = 120 });
 
             Grid.SetRow(_processGrid, 1);
             rootGrid.Children.Add(_processGrid);
 
             // 3. Footer
             var footer = new TextBlock { FontSize = 10, Margin = new Thickness(0,10,0,0), Opacity = 0.6, HorizontalAlignment = HorizontalAlignment.Center, Foreground = Brushes.Gray };
-            footer.Text = "Telerik Real-Time Telemetry Active. Monitoring local threads...";
+            footer.Text = "Telemetry Active. Monitoring local threads...";
             Grid.SetRow(footer, 2);
             rootGrid.Children.Add(footer);
 
@@ -145,7 +155,7 @@ namespace JarvisLauncher
                 try
                 {
                     info.ProcessRef.Kill();
-                    DebugConsoleOverlay.Log("System", $"Telerik Command: Terminated {info.Name} ({info.Id})");
+                    DebugConsoleOverlay.Log("System", $"Command: Terminated {info.Name} ({info.Id})");
                     RefreshProcessList();
                 }
                 catch (Exception ex)

@@ -660,39 +660,7 @@ namespace JarvisLauncher
             return tb;
         }
 
-        public static Telerik.Windows.Controls.RadTabControl CreateRadTabControl()
-        {
-            var tc = new Telerik.Windows.Controls.RadTabControl
-            {
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
-                Margin = new Thickness(0, 10, 0, 10),
-                ScrollMode = Telerik.Windows.Controls.TabControlScrollMode.Pixel
-            };
-
-            var repeatButtonStyle = new Style(typeof(RepeatButton));
-            repeatButtonStyle.Setters.Add(new Setter(RepeatButton.IntervalProperty, 15));
-            repeatButtonStyle.Setters.Add(new Setter(RepeatButton.DelayProperty, 150));
-            tc.Resources.Add(typeof(RepeatButton), repeatButtonStyle);
-
-            return tc;
-        }
-
-        public static Telerik.Windows.Controls.RadGridView CreateRadGridView()
-        {
-            var gv = new Telerik.Windows.Controls.RadGridView
-            {
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
-                AutoGenerateColumns = true,
-                IsReadOnly = true,
-                ShowGroupPanel = false,
-                RowHeight = 28,
-                Margin = new Thickness(0, 5, 0, 5)
-            };
-            return gv;
-        }
-
+       
         public void ApplyGuiScale()
         {
             try

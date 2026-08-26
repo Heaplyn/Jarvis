@@ -18,7 +18,6 @@ namespace JarvisLauncher
     public class JarvisVisualsOverlay : BaseOverlay
     {
         private static JarvisVisualsOverlay? _instance;
-        private readonly Telerik.Windows.Controls.RadTabControl _tabControl;
 
         // Aesthetics Tab Controls
         private string _bgHex, _textHex, _accentHex;
@@ -87,6 +86,7 @@ namespace JarvisLauncher
         private TextBlock _textOpacityValText = null!;
 
         private TextBlock _statusText = null!;
+        private TabControl _tabControl = null!;
 
         public static void ShowOverlay()
         {
@@ -113,13 +113,14 @@ namespace JarvisLauncher
             mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            _tabControl = CreateRadTabControl();
-            _tabControl.Items.Add(new Telerik.Windows.Controls.RadTabItem { Header = "🎨 Aesthetics", Content = BuildAestheticsTab() });
-            _tabControl.Items.Add(new Telerik.Windows.Controls.RadTabItem { Header = "🔡 Typography", Content = BuildTypographyTab() });
-            _tabControl.Items.Add(new Telerik.Windows.Controls.RadTabItem { Header = "📐 Shapes", Content = BuildShapesTab() });
-            _tabControl.Items.Add(new Telerik.Windows.Controls.RadTabItem { Header = "✨ Motion", Content = BuildMotionTab() });
-            _tabControl.Items.Add(new Telerik.Windows.Controls.RadTabItem { Header = "🧬 FX", Content = BuildFxTab() });
-            _tabControl.Items.Add(new Telerik.Windows.Controls.RadTabItem { Header = "⚙️ System", Content = BuildSystemTab() });
+            _tabControl = new TabControl();
+            StyleTabControl(_tabControl);
+            _tabControl.Items.Add(new TabItem { Header = "🎨 Aesthetics", Content = BuildAestheticsTab() });
+            _tabControl.Items.Add(new TabItem { Header = "🔡 Typography", Content = BuildTypographyTab() });
+            _tabControl.Items.Add(new TabItem { Header = "📐 Shapes", Content = BuildShapesTab() });
+            _tabControl.Items.Add(new TabItem { Header = "✨ Motion", Content = BuildMotionTab() });
+            _tabControl.Items.Add(new TabItem { Header = "🧬 FX", Content = BuildFxTab() });
+            _tabControl.Items.Add(new TabItem { Header = "⚙️ System", Content = BuildSystemTab() });
 
             Grid.SetRow(_tabControl, 0);
             mainGrid.Children.Add(_tabControl);

@@ -46,13 +46,15 @@ namespace JarvisLauncher
             query  = query.ToLower().Trim();
             target = target.ToLower().Trim();
 
+            /*
             // Aggressive Prefix: If typing the start of any word in the target
             if (target.StartsWith(query) || target.Contains(" " + query))
                 return true;
+                */
 
             if (target.Contains(query))
                 return true;
-
+/*
             // Short string prefix boost (e.g. "l" matches "llm")
             if (query.Length >= 1 && target.StartsWith(query))
                 return true;
@@ -64,9 +66,10 @@ namespace JarvisLauncher
             // Word-level token: any query word starts a word in target
             if (HasWordBoundaryMatch(query, target))
                 return true;
+                */
 
             double similarity = GetSimilarity(query, target);
-            return similarity > 0.35; // Lowered threshold for higher recall
+            return similarity > 0.60; // Lowered threshold for higher recall
         }
 
         // ── Scoring ──────────────────────────────────────────────────────────────
