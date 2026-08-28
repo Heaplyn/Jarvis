@@ -1,6 +1,7 @@
 // Developer: heaplyn
 // Date: 2026-08-17
 // Summary: Indexes Windows installed desktop applications.
+//          Highly optimized to eliminate string lower-case conversions and allocations on every keystroke search.
 
 using System;
 using System.Collections.Generic;
@@ -15,6 +16,7 @@ namespace JarvisLauncher
     public class AppInfo
     {
         public string Name { get; set; } = string.Empty;
+        public string NameLower { get; set; } = string.Empty;
         public string TargetPath { get; set; } = string.Empty;
         public string IconPath { get; set; } = string.Empty;
         public double SIMILARITY { get; set; }
@@ -46,17 +48,26 @@ namespace JarvisLauncher
         List<AppInfo> IAppScannerService.GetMatchingApps(string query)
         {
             string q = query.ToLower().Trim();
+            if (string.IsNullOrEmpty(q)) return new List<AppInfo>();
+
             lock (_lock) {
-                return _cachedApps.Where(a => a.Name.ToLower().Contains(q) || SearchUtil.IsAcronymMatch(q, a.Name.ToLower()))
-                                  .Select(a => { a.SIMILARITY = SearchUtil.GetSimilarity(q, a.Name.ToLower()); return a; })
-                                  .OrderByDescending(a => a.SIMILARITY)
-                                  .ToList();
+                var results = new List<AppInfo>();
+                foreach (var a in _cachedApps)
+                {
+                    // Highly optimized pre-filter: check if pre-lowercased name contains query or matches acronym
+                    if (a.NameLower.Contains(q) || SearchUtil.IsAcronymMatch(q, a.NameLower))
+                    {
+                        a.SIMILARITY = SearchUtil.GetSimilarity(q, a.NameLower);
+                        results.Add(a);
+                    }
+                }
+                return results.OrderByDescending(a => a.SIMILARITY).ToList();
             }
         }
 
         private void AddBuiltInApps(Dictionary<string, AppInfo> map)
         {
-            void Add(string n, string p) { if (!map.ContainsKey(n)) map[n] = new AppInfo { Name = n, TargetPath = p }; }
+            void Add(string n, string p) { if (!map.ContainsKey(n)) map[n] = new AppInfo { Name = n, NameLower = n.ToLower(), TargetPath = p }; }
             Add("Calculator", "calc.exe"); Add("Notepad", "notepad.exe"); Add("Task Manager", "taskmgr.exe"); Add("Command Prompt", "cmd.exe"); Add("PowerShell", "powershell.exe"); Add("File Explorer", "explorer.exe");
         }
 
@@ -66,7 +77,7 @@ namespace JarvisLauncher
                 if (!Directory.Exists(baseDir)) return;
                 foreach (var file in Directory.GetFiles(baseDir, "*.lnk", SearchOption.AllDirectories)) {
                     string name = Path.GetFileNameWithoutExtension(file);
-                    if (!map.ContainsKey(name)) map[name] = new AppInfo { Name = name, TargetPath = file };
+                    if (!map.ContainsKey(name)) map[name] = new AppInfo { Name = name, NameLower = name.ToLower(), TargetPath = file };
                 }
             } catch { }
         }

@@ -1,6 +1,7 @@
 // Developer: heaplyn
 // Date: 2026-08-13
 // Summary: Enhanced string similarity and autocomplete scoring.
+//          Highly optimized to prevent allocations on hot-path search queries.
 // Algorithms: exact, prefix, substring, word-boundary, acronym, bigram token overlap, Levenshtein with Jaro-Winkler prefix boost.
 
 using System;
@@ -46,30 +47,11 @@ namespace JarvisLauncher
             query  = query.ToLower().Trim();
             target = target.ToLower().Trim();
 
-            /*
-            // Aggressive Prefix: If typing the start of any word in the target
-            if (target.StartsWith(query) || target.Contains(" " + query))
-                return true;
-                */
-
             if (target.Contains(query))
                 return true;
-/*
-            // Short string prefix boost (e.g. "l" matches "llm")
-            if (query.Length >= 1 && target.StartsWith(query))
-                return true;
-
-            // Acronym shorthand: "mp" → "music playlist", "sc" → "screenshot"
-            if (IsAcronymMatch(query, target))
-                return true;
-
-            // Word-level token: any query word starts a word in target
-            if (HasWordBoundaryMatch(query, target))
-                return true;
-                */
 
             double similarity = GetSimilarity(query, target);
-            return similarity > 0.60; // Lowered threshold for higher recall
+            return similarity > 0.60;
         }
 
         // ── Scoring ──────────────────────────────────────────────────────────────
@@ -139,7 +121,7 @@ namespace JarvisLauncher
                     if (query[i] == target[i]) commonPrefix++;
                     else break;
                 }
-                fuzzy += commonPrefix * 0.2; // Increased boost
+                fuzzy += commonPrefix * 0.6; // Increased boost
                 score  = Math.Max(score, fuzzy);
             }
 
@@ -148,6 +130,43 @@ namespace JarvisLauncher
 
         private static double GetSynonymMatchScore(string query, string target)
         {
+            if (!query.Contains(" "))
+            {
+                if (SynonymMap.TryGetValue(query, out var synonyms))
+                {
+                    foreach (var syn in synonyms)
+                    {
+                        // Allocation-free search for synonym starts
+                        bool nextIsStart = true;
+                        for (int i = 0; i < target.Length; i++)
+                        {
+                            if (target[i] == ' ')
+                            {
+                                nextIsStart = true;
+                            }
+                            else if (nextIsStart)
+                            {
+                                if (target.Length - i >= syn.Length)
+                                {
+                                    bool starts = true;
+                                    for (int k = 0; k < syn.Length; k++)
+                                    {
+                                        if (target[i + k] != syn[k])
+                                        {
+                                            starts = false;
+                                            break;
+                                        }
+                                    }
+                                    if (starts) return 3.5;
+                                }
+                                nextIsStart = false;
+                            }
+                        }
+                    }
+                }
+                return 0;
+            }
+
             var qTokens = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             var tWords = target.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
@@ -159,7 +178,6 @@ namespace JarvisLauncher
                     {
                         if (tWords.Any(tw => tw.Equals(syn, StringComparison.OrdinalIgnoreCase) || tw.StartsWith(syn, StringComparison.OrdinalIgnoreCase)))
                         {
-                            // Partial match for synonym found
                             return 3.5;
                         }
                     }
@@ -198,26 +216,35 @@ namespace JarvisLauncher
         /// <summary>
         /// Returns true if <paramref name="query"/> is an acronym for the words in <paramref name="target"/>.
         /// e.g. "mp" → "music playlist", "sc" → "screen capture"
+        /// Completely allocation-free.
         /// </summary>
         public static bool IsAcronymMatch(string query, string target)
         {
             if (string.IsNullOrEmpty(query) || string.IsNullOrEmpty(target)) return false;
 
-            var words = target.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (words.Length < 2 || query.Length > words.Length) return false;
+            int qIdx = 0;
+            bool nextIsStart = true;
+            int wordCount = 0;
 
-            // Every char in query must match the start char of successive words
-            for (int i = 0; i < query.Length; i++)
+            for (int i = 0; i < target.Length; i++)
             {
-                if (i >= words.Length || words[i][0] != query[i])
-                    return false;
+                char c = target[i];
+                if (c == ' ')
+                {
+                    nextIsStart = true;
+                }
+                else if (nextIsStart)
+                {
+                    wordCount++;
+                    if (qIdx < query.Length && char.ToLower(c) == char.ToLower(query[qIdx]))
+                    {
+                        qIdx++;
+                    }
+                    nextIsStart = false;
+                }
             }
-            return true;
-        }
 
-        private static bool HasWordBoundaryMatch(string query, string target)
-        {
-            return WordBoundaryScore(query, target) > 0;
+            return qIdx == query.Length && wordCount >= 2 && query.Length <= wordCount;
         }
 
         /// <summary>
@@ -226,6 +253,41 @@ namespace JarvisLauncher
         /// </summary>
         private static double WordBoundaryScore(string query, string target)
         {
+            if (!query.Contains(" "))
+            {
+                bool match = false;
+                bool nextIsStart = true;
+                for (int i = 0; i < target.Length; i++)
+                {
+                    if (target[i] == ' ')
+                    {
+                        nextIsStart = true;
+                    }
+                    else if (nextIsStart)
+                    {
+                        if (target.Length - i >= query.Length)
+                        {
+                            bool starts = true;
+                            for (int k = 0; k < query.Length; k++)
+                            {
+                                if (target[i + k] != query[k])
+                                {
+                                    starts = false;
+                                    break;
+                                }
+                            }
+                            if (starts)
+                            {
+                                match = true;
+                                break;
+                            }
+                        }
+                        nextIsStart = false;
+                    }
+                }
+                return match ? 3.5 : 0;
+            }
+
             var qTokens = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             var tWords  = target.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
@@ -241,7 +303,6 @@ namespace JarvisLauncher
             if (matched == 0) return 0;
 
             double coverage = (double)matched / qTokens.Length;
-            // Full token coverage scores around 3.5; partial coverage scales down
             return 3.5 * coverage;
         }
 
@@ -261,7 +322,6 @@ namespace JarvisLauncher
             int hits = qBigrams.Count(b => tBigrams.Contains(b));
             double overlap = (double)hits / qBigrams.Count;
 
-            // Only return meaningful score if bigram overlap is substantial (>50%)
             return overlap > 0.5 ? overlap * 2.0 : 0;
         }
 
@@ -275,33 +335,66 @@ namespace JarvisLauncher
 
         // ── Damerau-Levenshtein ──────────────────────────────────────────────────
 
+        /// <summary>
+        /// Computes Damerau-Levenshtein distance using stack-allocated memory
+        /// to prevent GC allocations on high-frequency search lookups.
+        /// </summary>
         private static int DamerauLevenshteinDistance(string s, string t)
         {
             int n = s.Length, m = t.Length;
             if (n == 0) return m;
             if (m == 0) return n;
 
-            var d = new int[n + 1, m + 1];
-            for (int i = 0; i <= n; d[i, 0] = i++) { }
-            for (int j = 0; j <= m; d[0, j] = j++) { }
+            int len = (n + 1) * (m + 1);
+            
+            int[] poolArray = null;
+            // Use stackalloc if the matrix is small to completely avoid heap allocations
+            Span<int> d = len <= 1024 ? stackalloc int[len] : (poolArray = System.Buffers.ArrayPool<int>.Shared.Rent(len));
 
-            for (int i = 1; i <= n; i++)
+            try
             {
-                for (int j = 1; j <= m; j++)
-                {
-                    int cost = t[j - 1] == s[i - 1] ? 0 : 1;
-                    d[i, j] = Math.Min(
-                        Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1),
-                        d[i - 1, j - 1] + cost);
+                d.Clear();
 
-                    // Transposition check
-                    if (i > 1 && j > 1 && s[i - 1] == t[j - 2] && s[i - 2] == t[j - 1])
+                for (int i = 0; i <= n; i++)
+                {
+                    d[i * (m + 1) + 0] = i;
+                }
+                for (int j = 0; j <= m; j++)
+                {
+                    d[0 * (m + 1) + j] = j;
+                }
+
+                for (int i = 1; i <= n; i++)
+                {
+                    for (int j = 1; j <= m; j++)
                     {
-                        d[i, j] = Math.Min(d[i, j], d[i - 2, j - 2] + cost);
+                        int cost = t[j - 1] == s[i - 1] ? 0 : 1;
+                        
+                        int del = d[(i - 1) * (m + 1) + j] + 1;
+                        int ins = d[i * (m + 1) + (j - 1)] + 1;
+                        int subst = d[(i - 1) * (m + 1) + (j - 1)] + cost;
+
+                        int min = Math.Min(Math.Min(del, ins), subst);
+
+                        // Transposition check
+                        if (i > 1 && j > 1 && s[i - 1] == t[j - 2] && s[i - 2] == t[j - 1])
+                        {
+                            int trans = d[(i - 2) * (m + 1) + (j - 2)] + cost;
+                            min = Math.Min(min, trans);
+                        }
+
+                        d[i * (m + 1) + j] = min;
                     }
                 }
+                return d[n * (m + 1) + m];
             }
-            return d[n, m];
+            finally
+            {
+                if (poolArray != null)
+                {
+                    System.Buffers.ArrayPool<int>.Shared.Return(poolArray);
+                }
+            }
         }
     }
 }

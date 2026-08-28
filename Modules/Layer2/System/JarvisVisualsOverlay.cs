@@ -21,13 +21,12 @@ namespace JarvisLauncher
 
         // Aesthetics Tab Controls
         private string _bgHex, _textHex, _accentHex;
+        private string _gradStartHex, _gradEndHex;
         private string _gifPath;
         private ComboBox _bgModeCombo = null!;
         private Slider _gifOpacitySlider = null!;
         private Slider _gifFpsSlider = null!;
         private CheckBox _textGradientCheck = null!;
-        private TextBox _gradStartBox = null!;
-        private TextBox _gradEndBox = null!;
 
         // Typography Tab Controls
         private ComboBox _profileSelector = null!;
@@ -106,6 +105,7 @@ namespace JarvisLauncher
 
             var set = SettingsManager.Current;
             _bgHex = set.THEME_BG_COLOR; _textHex = set.THEME_TEXT_COLOR; _accentHex = set.THEME_ACCENT_COLOR; _gifPath = set.BACKGROUND_GIF_PATH;
+            _gradStartHex = set.TEXT_GRADIENT_START; _gradEndHex = set.TEXT_GRADIENT_END;
             _shadowHex = set.TEXT_SHADOW_COLOR;
             _glowHex = set.TEXT_GLOW_COLOR;
 
@@ -166,8 +166,8 @@ namespace JarvisLauncher
             stack.Children.Add(CreateHeader("High-Fidelity Text Gradients"));
             _textGradientCheck = new CheckBox { Content = "Enable Universal Text Gradients", IsChecked = set.USE_TEXT_GRADIENT, Foreground = Brushes.White, Margin = new Thickness(0,10,0,5) };
             stack.Children.Add(_textGradientCheck);
-            _gradStartBox = CreateLabeledTextBox(stack, "Gradient Start Color:", set.TEXT_GRADIENT_START);
-            _gradEndBox = CreateLabeledTextBox(stack, "Gradient End Color:", set.TEXT_GRADIENT_END);
+            AddColorEditor(stack, "Gradient Start Color (HEX):", _gradStartHex, h => _gradStartHex = h);
+            AddColorEditor(stack, "Gradient End Color (HEX):", _gradEndHex, h => _gradEndHex = h);
 
             stack.Children.Add(CreateHeader("Cinematic Background Media"));
             var gifGrid = new Grid { Margin = new Thickness(0,5,0,10) };
@@ -463,8 +463,8 @@ namespace JarvisLauncher
                 s.BACKGROUND_MODE = _bgModeCombo.SelectedItem.ToString() ?? "Gradient";
                 s.THEME_BG_COLOR = _bgHex; s.THEME_TEXT_COLOR = _textHex; s.THEME_ACCENT_COLOR = _accentHex;
                 s.USE_TEXT_GRADIENT = _textGradientCheck.IsChecked == true;
-                s.TEXT_GRADIENT_START = _gradStartBox.Text.Trim();
-                s.TEXT_GRADIENT_END = _gradEndBox.Text.Trim();
+                s.TEXT_GRADIENT_START = _gradStartHex;
+                s.TEXT_GRADIENT_END = _gradEndHex;
                 s.BACKGROUND_GIF_PATH = _gifPath; s.BACKGROUND_GIF_OPACITY = _gifOpacitySlider.Value; s.BACKGROUND_GIF_FPS = _gifFpsSlider.Value;
 
                 s.ENABLE_TEXT_STROKE = _strokeCheck.IsChecked == true;

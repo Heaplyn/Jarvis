@@ -32,6 +32,7 @@ namespace JarvisLauncher
         private TextBox _openaiUrlBox = null!;
         private TextBox _ollamaUrlBox = null!;
         private TextBox _customFontPathBox = null!;
+        private TextBox _downloadDirBox = null!;
         private Slider _chatHistorySlider = null!;
         private CheckBox _chatDebugCheck = null!;
         private Slider _guiScaleSlider = null!;
@@ -204,6 +205,30 @@ namespace JarvisLauncher
             s.Children.Add(CreateHeader("Knowledge Harvesting & Persistence"));
             s.Children.Add(CreateCheckBox("Automatic App Indexing", set.ENABLE_WINDOWS_APP_INDEXING, v => set.ENABLE_WINDOWS_APP_INDEXING = v));
             s.Children.Add(CreateCheckBox("Context Scraping Active", set.DATA_ENABLE_AUTO_SCRAPE, v => set.DATA_ENABLE_AUTO_SCRAPE = v));
+
+            s.Children.Add(CreateHeader("System Storage & Downloads"));
+            s.Children.Add(CreateLabel("Download Directory:"));
+            var folderGrid = new Grid { Margin = new Thickness(0, 0, 0, 10) };
+            folderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            folderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            _downloadDirBox = CreateTextBox();
+            _downloadDirBox.Text = set.DOWNLOAD_DIRECTORY;
+            Grid.SetColumn(_downloadDirBox, 0);
+            folderGrid.Children.Add(_downloadDirBox);
+
+            var browseBtn = CreateStyledButton("📁 BROWSE", (obj, e) => {
+                var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "Select Download Directory" };
+                if (dlg.ShowDialog() == true) {
+                    _downloadDirBox.Text = dlg.FolderName;
+                }
+            }, isPrimary: false, fontSize: 10);
+            browseBtn.Height = 32;
+            browseBtn.Margin = new Thickness(8, 0, 0, 8);
+            Grid.SetColumn(browseBtn, 1);
+            folderGrid.Children.Add(browseBtn);
+
+            s.Children.Add(folderGrid);
             return new ScrollViewer { Content = s, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         }
 
@@ -248,6 +273,7 @@ namespace JarvisLauncher
                 s.CHAT_MAX_HISTORY_DISPLAY = (int)_chatHistorySlider.Value;
                 if (_chatDebugCheck != null) s.CHAT_SHOW_DEBUG_DETAILS = _chatDebugCheck.IsChecked == true;
                 if (_customFontPathBox != null) s.CUSTOM_FONT_PATH = _customFontPathBox.Text.Trim();
+                if (_downloadDirBox != null) s.DOWNLOAD_DIRECTORY = _downloadDirBox.Text.Trim();
                 if (_guiScaleSlider != null) s.GUI_SCALE = _guiScaleSlider.Value;
                 ThemeManager.ApplyVisualOverrides();
                 BaseOverlay.UpdateAllScales();
