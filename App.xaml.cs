@@ -61,13 +61,28 @@ namespace JarvisLauncher
                 loadingWindow = new LoadingWindow();
                 loadingWindow.Show();
 
+                // Boot profiler: log each phase's wall-clock to jarvis_debug.log so slow startup
+                // is diagnosable instead of guessed. (Search the log for "BOOT-PROFILE".)
+                var bootSw = System.Diagnostics.Stopwatch.StartNew();
+                long lastMs = 0;
+                void BootPhase(string name)
+                {
+                    long now = bootSw.ElapsedMilliseconds;
+                    try { System.IO.File.AppendAllText(
+                        System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "jarvis_debug.log"),
+                        $"[{DateTime.Now:HH:mm:ss.fff}] BOOT-PROFILE {name}: +{now - lastMs}ms (total {now}ms)\n"); } catch { }
+                    lastMs = now;
+                }
+
                 // 2. Fast Initialization
                 loadingWindow.UpdateStatus("Initializing Core Services...", 10);
                 CoreRegistry.InitializeAll();
+                BootPhase("CoreRegistry.InitializeAll");
 
                 loadingWindow.UpdateStatus("Applying visual interface...", 25);
-               
+
                 ThemeManager.ApplyTheme(CoreRegistry.Data.Settings.Current.THEME);
+                BootPhase("ApplyTheme");
 
                 // 3. Fire background service initializations in parallel
                 loadingWindow.UpdateStatus("Starting engines...", 50);
@@ -106,6 +121,7 @@ namespace JarvisLauncher
                 // Await essential core setup (dependencies & command calibration) before showing the UI.
                 loadingWindow.UpdateStatus("Calibrating core services...", 75);
                 await Task.WhenAll(depTask, cmdTask);
+                BootPhase("Await deps+CommandParser");
                 loadingWindow.UpdateStatus("System Online.", 100);
 
                 _mainWindow = new MainWindow();
@@ -113,6 +129,7 @@ namespace JarvisLauncher
 
                 _mainWindow.Show();
                 _mainWindow.ShowHUD();
+                BootPhase("MainWindow shown (HUD ready)");
 
                 loadingWindow.Close();
 
