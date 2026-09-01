@@ -288,8 +288,10 @@ namespace JarvisLauncher
                 var cts = new CancellationTokenSource(); _activeCts = cts;
                 string aiRaw = "";
 
-                if (CoreRegistry.Data.Settings.Current.LLM_BACKEND == "Ollama") {
-                    aiRaw = await CoreRegistry.Intelligence.Llm.AskOllamaStreamAsync(apiMsg, ConversationHistory, t => Application.Current.Dispatcher.Invoke(() => AppendToRichText(rt, t)), cts.Token);
+                if (LlmRouter.IsStreamingBackend(CoreRegistry.Data.Settings.Current.LLM_BACKEND)) {
+                    // Stream tokens live into the bubble for Ollama + all OpenAI-compatible providers.
+                    Application.Current.Dispatcher.Invoke(() => { try { rt.Document.Blocks.Clear(); } catch { } });
+                    aiRaw = await LlmRouter.AskStreamAsync(apiMsg, ConversationHistory, t => Application.Current.Dispatcher.Invoke(() => AppendToRichText(rt, t)), cts.Token);
                 } else {
                     // Inject MCP Context for tool discovery
                     string mcpContext = "[MCP ENABLED]\nServers: " + string.Join(", ", McpManager.Servers.Select(s => s.Name)) + "\n";

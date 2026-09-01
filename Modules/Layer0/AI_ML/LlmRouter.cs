@@ -341,6 +341,81 @@ namespace JarvisLauncher
             throw new Exception("Groq failed.");
         }
 
+        // === Streaming (token-by-token) for OpenAI-compatible providers + Ollama ===
+        private static readonly HttpClient _streamHttp = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
+
+        public static bool IsStreamingBackend(string b) => b switch
+        {
+            "Ollama" or "OpenAI" or "Groq" or "Mistral" or "OpenRouter" or "DeepSeek" or "X-AI" or "Perplexity" => true,
+            _ => false
+        };
+
+        /// <summary>Streams tokens via onToken as they arrive; returns the full accumulated text.
+        /// Falls back to a single non-streamed emit for backends without a stream path.</summary>
+        public static async Task<string> AskStreamAsync(string prompt, List<ChatTurn>? history, Action<string> onToken, CancellationToken ct = default)
+        {
+            var s = CoreRegistry.Data.Settings.Current;
+            switch (s.LLM_BACKEND)
+            {
+                case "Ollama":     return await AskOllamaStreamAsync(prompt, history, onToken, ct);
+                case "OpenAI":     return await AskGenericStreamAsync(s.OPENAI_BASE_URL, s.OPENAI_KEY, s.OPENAI_MODEL, prompt, history, onToken, ct);
+                case "Groq":       return await AskGenericStreamAsync("https://api.groq.com/openai/v1", s.GROQ_KEY, string.IsNullOrWhiteSpace(s.GROQ_MODEL) ? "llama-3.3-70b-versatile" : s.GROQ_MODEL, prompt, history, onToken, ct);
+                case "OpenRouter": return await AskGenericStreamAsync("https://openrouter.ai/api/v1", s.OPENROUTER_KEY, s.OPENROUTER_MODEL, prompt, history, onToken, ct);
+                case "Mistral":    return await AskGenericStreamAsync("https://api.mistral.ai/v1", s.MISTRAL_KEY, string.IsNullOrWhiteSpace(s.MISTRAL_MODEL) ? "mistral-large-latest" : s.MISTRAL_MODEL, prompt, history, onToken, ct);
+                case "DeepSeek":   return await AskGenericStreamAsync("https://api.deepseek.com", s.CUSTOM_LLM_KEY, "deepseek-chat", prompt, history, onToken, ct);
+                case "X-AI":       return await AskGenericStreamAsync("https://api.x.ai/v1", s.CUSTOM_LLM_KEY, "grok-beta", prompt, history, onToken, ct);
+                case "Perplexity": return await AskGenericStreamAsync("https://api.perplexity.ai", s.PERPLEXITY_KEY, string.IsNullOrWhiteSpace(s.PERPLEXITY_MODEL) ? "sonar" : s.PERPLEXITY_MODEL, prompt, history, onToken, ct);
+                default:
+                    string full = await AskAsync(prompt, history, ct);
+                    onToken(full);
+                    return full;
+            }
+        }
+
+        private static async Task<string> AskGenericStreamAsync(string baseUrl, string key, string model, string prompt, List<ChatTurn>? history, Action<string> onToken, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(baseUrl)) throw new Exception("Base URL empty.");
+
+            var msgs = new List<object> { new { role = "system", content = AiAPI.GetCompactSystemPrompt() } };
+            if (history != null) foreach (var t in history) msgs.Add(new { role = (t.Role == "model" ? "assistant" : "user"), content = t.Text ?? "" });
+            msgs.Add(new { role = "user", content = prompt });
+
+            var payload = new { model, messages = msgs, stream = true };
+            var req = new HttpRequestMessage(HttpMethod.Post, $"{baseUrl.TrimEnd('/')}/chat/completions")
+            { Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json") };
+            if (!string.IsNullOrEmpty(key)) req.Headers.Add("Authorization", $"Bearer {key}");
+
+            using var resp = await _streamHttp.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+            if (!resp.IsSuccessStatusCode)
+                throw new Exception($"{resp.StatusCode}: {await resp.Content.ReadAsStringAsync(ct)}");
+
+            using var stream = await resp.Content.ReadAsStreamAsync(ct);
+            using var reader = new StreamReader(stream);
+            var sb = new StringBuilder();
+            string? line;
+            while ((line = await reader.ReadLineAsync(ct)) != null)
+            {
+                if (ct.IsCancellationRequested) break;
+                if (!line.StartsWith("data:")) continue;
+                string data = line.Substring(5).Trim();
+                if (data == "[DONE]") break;
+                try
+                {
+                    using var doc = JsonDocument.Parse(data);
+                    var choices = doc.RootElement.GetProperty("choices");
+                    if (choices.GetArrayLength() == 0) continue;
+                    var delta = choices[0].GetProperty("delta");
+                    if (delta.TryGetProperty("content", out var c) && c.ValueKind == JsonValueKind.String)
+                    {
+                        string tok = c.GetString() ?? "";
+                        if (tok.Length > 0) { sb.Append(tok); onToken(tok); }
+                    }
+                }
+                catch { }
+            }
+            return sb.ToString();
+        }
+
         // === Claude Code (Claude Max/Pro subscription via the headless `claude` CLI) ===
         // This does NOT use api.anthropic.com or ANTHROPIC_KEY (that is separate pay-per-token
         // billing). It shells out to the Claude Code CLI, which is authenticated by the user's
