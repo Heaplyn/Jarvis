@@ -1726,17 +1726,58 @@ private void CopyTrackToFolder(MusicTrack track, MusicFolder destinationFolder)
                         var psi = new System.Diagnostics.ProcessStartInfo
                         {
                             FileName = executable,
-                            Arguments = $"-x --audio-format mp3 --audio-quality 0 --no-playlist --no-mtime {ffmpegArg} -o \"{outputTemplate}\" \"{downloadUrl}\"",
+                            // SPEED: --concurrent-fragments downloads DASH/HLS fragments in parallel
+                            // (often 2-4x faster on YouTube). --newline makes progress parseable.
+                            Arguments = $"-x --audio-format mp3 --audio-quality 0 --no-playlist --no-mtime --newline --concurrent-fragments 8 {ffmpegArg} -o \"{outputTemplate}\" \"{downloadUrl}\"",
                             UseShellExecute = false,
                             CreateNoWindow = true,
                             RedirectStandardOutput = true,
-                            RedirectStandardError = true
+                            RedirectStandardError = true,
+                            StandardOutputEncoding = System.Text.Encoding.UTF8,
+                            StandardErrorEncoding = System.Text.Encoding.UTF8
                         };
 
                         using var proc = System.Diagnostics.Process.Start(psi);
                         if (proc != null)
                         {
+                            // Live progress: read yt-dlp output line-by-line, surface the song title
+                            // and download %/speed/ETA to the queue item. (Also prevents the redirected
+                            // pipe from filling and deadlocking, which the old blind WaitForExit risked.)
+                            string detectedTitle = "";
+                            var destRx  = new System.Text.RegularExpressions.Regex(@"\[download\] Destination: (?<f>.+)");
+                            var pctRx   = new System.Text.RegularExpressions.Regex(@"(?<p>\d{1,3}(?:\.\d)?)%");
+                            var speedRx = new System.Text.RegularExpressions.Regex(@"at\s+(?<s>[\d.]+\S*/s)");
+                            var etaRx   = new System.Text.RegularExpressions.Regex(@"ETA\s+(?<e>[\d:]+)");
+                            void HandleLine(string? line)
+                            {
+                                if (string.IsNullOrWhiteSpace(line)) return;
+                                if (string.IsNullOrEmpty(detectedTitle))
+                                {
+                                    var dm = destRx.Match(line);
+                                    if (dm.Success)
+                                    {
+                                        detectedTitle = Path.GetFileNameWithoutExtension(dm.Groups["f"].Value.Trim());
+                                        if (!string.IsNullOrEmpty(detectedTitle))
+                                            UpdateQueueItemStatus(queueItem, "Downloading...", detectedTitle);
+                                    }
+                                }
+                                var pm = pctRx.Match(line);
+                                if (pm.Success && line.Contains("[download]"))
+                                {
+                                    string pct = pm.Groups["p"].Value + "%";
+                                    var sm = speedRx.Match(line); var em = etaRx.Match(line);
+                                    string extra = (sm.Success ? " · " + sm.Groups["s"].Value : "")
+                                                 + (em.Success ? " · ETA " + em.Groups["e"].Value : "");
+                                    UpdateQueueItemStatus(queueItem, pct + extra);
+                                }
+                            }
+                            proc.OutputDataReceived += (s, e) => HandleLine(e.Data);
+                            proc.ErrorDataReceived  += (s, e) => HandleLine(e.Data);
+                            proc.BeginOutputReadLine();
+                            proc.BeginErrorReadLine();
+
                             await proc.WaitForExitAsync(ct);
+                            if (ct.IsCancellationRequested) { try { proc.Kill(entireProcessTree: true); } catch { } }
                             if (!ct.IsCancellationRequested)
                             {
                                 var files = Directory.GetFiles(musicDir, "*.mp3");
