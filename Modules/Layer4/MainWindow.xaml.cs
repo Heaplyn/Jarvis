@@ -198,15 +198,15 @@ namespace JarvisLauncher
 
             try
             {
-                // 60ms debounce: wait for a pause in typing before computing suggestions
-                await Task.Delay(60, token);
+                // 40ms debounce: wait for a pause in typing before computing suggestions
+                await Task.Delay(40, token);
 
                 // Run the suggestion matching off the UI thread
                 var Suggestions = await Task.Run(() => CommandParser.GetSuggestions(Query), token);
 
                 if (token.IsCancellationRequested) return;
 
-                // Push results back at Background priority so input/animations stay fluid
+                // Push results back at Input priority so they display immediately
                 await Dispatcher.InvokeAsync(() =>
                 {
                     if (Suggestions.Count > 0)
@@ -222,7 +222,7 @@ namespace JarvisLauncher
                         ResultsList.Visibility = Visibility.Collapsed;
                         DividerLine.Visibility = Visibility.Collapsed;
                     }
-                }, System.Windows.Threading.DispatcherPriority.Background);
+                }, System.Windows.Threading.DispatcherPriority.Input);
             }
             catch (OperationCanceledException) { /* Keystroke superseded — expected */ }
         }

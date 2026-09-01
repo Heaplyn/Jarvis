@@ -55,8 +55,10 @@ namespace JarvisLauncher
         public static bool IsKnownLocalCommand(string Query)
         {
             string Q = Query.Trim().ToLower();
-            foreach (var Pair in HANDLERS.Values) if (Pair.Item2.CanHandle(Q)) return true;
-            return CoreRegistry.System.Apps.GetMatchingApps(Q).Any();
+            foreach (var Pair in HANDLERS.Values) {
+                if (Pair.Item2.CanHandle(Q)) return true;
+                }
+            return false;//CoreRegistry.System.Apps.GetMatchingApps(Q).Any();
         }
 
         public static List<CommandResult> GetSuggestions(string Query)
@@ -102,7 +104,8 @@ namespace JarvisLauncher
                     {
                         if (_descCache.TryGetValue(h.Item2, out var descs))
                         {
-                            if (descs.Any(d => SearchUtil.IsClose(LowerExpanded, d.COMMAND_NAME)))
+                            if (descs.Any(d => SearchUtil.IsClose(LowerExpanded, d.COMMAND_NAME) || 
+                                               (!string.IsNullOrEmpty(d.COMMAND_DESCRIPTION) && d.COMMAND_DESCRIPTION.ToLower().Contains(LowerExpanded))))
                                 match = true;
                         }
                     }
@@ -135,6 +138,17 @@ namespace JarvisLauncher
                 double finalSim = SearchUtil.GetSimilarity(LowerExpanded, CmdName);
 
                 if (SearchUtil.IsAcronymMatch(LowerExpanded, CmdName)) finalSim = Math.Max(finalSim, 6.0);
+
+                // Search inside the command description for keyword relevance
+                if (!string.IsNullOrWhiteSpace(Cd.COMMAND_DESCRIPTION))
+                {
+                    string descLower = Cd.COMMAND_DESCRIPTION.ToLower();
+                    if (descLower.Contains(LowerExpanded))
+                    {
+                        double descSim = 4.5 + ((double)LowerExpanded.Length / descLower.Length);
+                        finalSim = Math.Max(finalSim, descSim);
+                    }
+                }
 
                 if (finalSim > 0.45)
                 {

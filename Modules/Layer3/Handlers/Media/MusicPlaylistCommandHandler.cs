@@ -12,7 +12,19 @@ namespace JarvisLauncher
         public bool CanHandle(string query)
         {
             query = query.Trim().ToLower();
-            return query == "music" || query == "playlist" || query == "player" || query == "songs" || query == "song" || query.StartsWith("download") || query.StartsWith("dl ");
+            
+            bool IsClose =  SearchUtil.IsClose(query,"music") ||
+            SearchUtil.IsClose(query,"playlist") ||
+            SearchUtil.IsClose(query,"player") ||
+            SearchUtil.IsClose(query,"songs") ||
+            SearchUtil.IsClose(query,"song") ||
+             query == "music" ||
+              query == "playlist" ||
+               query == "player" ||
+                query == "songs" ||
+                 query == "song" || query.StartsWith("download") || query.StartsWith("dl ");
+                Console.WriteLine(IsClose);
+                return IsClose;
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -28,7 +40,7 @@ namespace JarvisLauncher
                 {
                     TITLE = $"📥 Download Media to Playlist: {targetUrl}",
                     DESCRIPTION = "Downloads URL via DownloadMediaRunner TS engine directly to active playlist folder",
-                    SIMILARITY = 3.0,
+                    SIMILARITY = 6.0,
                     EXECUTE = () => MusicPlaylistOverlay.DownloadTrackFromUrl(targetUrl)
                 });
                 return suggestions;
@@ -39,7 +51,7 @@ namespace JarvisLauncher
                 {
                     TITLE = "📥 Download Media to Playlist (Prompt)...",
                     DESCRIPTION = "Prompt for music/video URL (Spotify, YouTube, Deezer, etc.)",
-                    SIMILARITY = 3.0,
+                    SIMILARITY = 6.0,
                     EXECUTE = () => MusicPlaylistOverlay.DownloadTrackFromUrl(string.Empty)
                 });
                 return suggestions;
@@ -49,7 +61,7 @@ namespace JarvisLauncher
             {
                 TITLE       = "🎵 Open Music Player & Playlist Manager",
                 DESCRIPTION = "Manage song folders, add audio files/links, and play music",
-                SIMILARITY  = 2.0,
+                SIMILARITY  = 8.0,
                 EXECUTE     = () => MusicPlaylistOverlay.OpenPlayer()
             });
 
