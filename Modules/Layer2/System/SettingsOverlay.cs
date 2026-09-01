@@ -63,6 +63,7 @@ namespace JarvisLauncher
             _mainTabControl.Items.Add(new TabItem { Header = "⚙️ Gen", Content = BuildGeneralTab() });
             _mainTabControl.Items.Add(new TabItem { Header = "🎨 Visuals", Content = BuildVisualsTab() });
             _mainTabControl.Items.Add(new TabItem { Header = "🤖 LLM", Content = BuildLlmTab() });
+            _mainTabControl.Items.Add(new TabItem { Header = "🔐 Accounts", Content = BuildAccountsTab() });
             _mainTabControl.Items.Add(new TabItem { Header = "🗣️ TTS", Content = BuildTtsTab() });
             _mainTabControl.Items.Add(new TabItem { Header = "🎙️ Vox", Content = BuildVoiceAiTab() });
             _mainTabControl.Items.Add(new TabItem { Header = "🧹 Data", Content = BuildDataTab() });
@@ -306,6 +307,62 @@ namespace JarvisLauncher
         private CheckBox CreateCheckBox(string text, bool val, Action<bool> changed) {
             var cb = new CheckBox { Content = text, IsChecked = val, Foreground = Brushes.White, Margin = new Thickness(0, 0, 0, 8), FontSize = 12 };
             cb.Checked += (s, e) => changed(true); cb.Unchecked += (s, e) => changed(false); return cb;
+        }
+
+        private UIElement BuildAccountsTab() {
+            var s = new StackPanel();
+            var set = SettingsManager.Current;
+
+            s.Children.Add(CreateHeader("Google"));
+            string active = GoogleAccountManager.ActiveEmail;
+            s.Children.Add(new TextBlock {
+                Text = string.IsNullOrEmpty(active) ? "Not connected." : $"Active account: {active}",
+                Foreground = Brushes.White, Margin = new Thickness(0, 0, 0, 4), TextWrapping = TextWrapping.Wrap
+            });
+            s.Children.Add(new TextBlock {
+                Text = "One click enables Gemini (no API key needed) plus Gmail / Calendar / Drive.",
+                Foreground = Brushes.Gray, FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
+            });
+
+            var connectBtn = CreateStyledButton(
+                string.IsNullOrEmpty(active) ? "🔗 Connect Google" : "➕ Add / Switch Google Account",
+                (obj, e) => { _ = OAuth2Manager.AddGoogleAccountAsync(st => { try { TextOverlay.Show(st, 3000); } catch { } }); },
+                isPrimary: true, fontSize: 13);
+            connectBtn.Margin = new Thickness(0, 0, 0, 10);
+            s.Children.Add(connectBtn);
+
+            var accounts = GoogleAccountManager.All;
+            if (accounts.Count > 0) {
+                s.Children.Add(CreateHeader("Connected accounts"));
+                foreach (var acc in accounts) {
+                    var a = acc;
+                    bool isActive = a.Email.Equals(active, StringComparison.OrdinalIgnoreCase);
+                    var row = new Grid { Margin = new Thickness(0, 4, 0, 4) };
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                    row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+                    var lbl = new TextBlock { Text = (isActive ? "✅ " : "👤 ") + a.Email, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+                    Grid.SetColumn(lbl, 0); row.Children.Add(lbl);
+
+                    if (!isActive) {
+                        var sw = CreateStyledButton("Switch", (o, e) => { if (GoogleAccountManager.Activate(a.Email)) { try { TextOverlay.Show($"Switched to {a.Email}", 3000); } catch { } } }, isPrimary: false, fontSize: 11);
+                        sw.Margin = new Thickness(6, 0, 0, 0); Grid.SetColumn(sw, 1); row.Children.Add(sw);
+                    }
+                    var rm = CreateStyledButton("Remove", (o, e) => { GoogleAccountManager.Remove(a.Email); try { TextOverlay.Show($"Removed {a.Email}", 2500); } catch { } }, isPrimary: false, fontSize: 11);
+                    rm.Margin = new Thickness(6, 0, 0, 0); Grid.SetColumn(rm, 2); row.Children.Add(rm);
+                    s.Children.Add(row);
+                }
+                s.Children.Add(new TextBlock { Text = "Reopen this panel after connecting to refresh the list.", Foreground = Brushes.Gray, FontSize = 10, Margin = new Thickness(0, 8, 0, 0) });
+            }
+
+            s.Children.Add(CreateHeader("Advanced (optional)"));
+            s.Children.Add(new TextBlock { Text = "Custom Google OAuth Client ID — only needed if the built-in one ever fails:", Foreground = Brushes.Gray, FontSize = 11, TextWrapping = TextWrapping.Wrap });
+            var cidBox = new TextBox { Text = set.GOOGLE_OAUTH_CLIENT_ID, Margin = new Thickness(0, 4, 0, 0) };
+            cidBox.LostFocus += (o, e) => { set.GOOGLE_OAUTH_CLIENT_ID = cidBox.Text.Trim(); };
+            s.Children.Add(cidBox);
+
+            return new ScrollViewer { Content = s, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         }
 
         private Slider CreateSettingsSlider(double min, double max, double val, double tick) {
