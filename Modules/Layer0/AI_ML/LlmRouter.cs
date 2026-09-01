@@ -54,6 +54,15 @@ namespace JarvisLauncher
                 prompt = $"[SYSTEM CONTEXT: USER HISTORY LOGS]\n{historyContext}\n\n### USER REQUEST\n{prompt}";
             }
 
+            // LIVE WEB CONTEXT: scrape pasted URLs / run explicit web searches (read-only, safe).
+            try {
+                string webCtx = await WebContextInjector.MaybeFetchAsync(prompt, ct);
+                if (!string.IsNullOrEmpty(webCtx)) {
+                    DebugConsoleOverlay.Log("AI-Web", "Injected live web context into prompt.");
+                    prompt = $"{webCtx}\n### USER REQUEST\n{prompt}";
+                }
+            } catch { }
+
             try {
                 string? local = await HeuristicIntentParser.TryHandleLocallyAsync(prompt);
                 if (local != null) return local;
