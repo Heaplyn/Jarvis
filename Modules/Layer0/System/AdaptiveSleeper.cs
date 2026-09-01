@@ -80,9 +80,12 @@ namespace JarvisLauncher
         }
 
         // ---- Drop-in delay helpers -----------------------------------------
+        // Async waits are serviced by the single Ring0WaitScheduler thread (coalesced to its
+        // MinTimeout floor) instead of allocating one system timer per Task.Delay call. This is
+        // what makes "many background loops" cost a handful of wakeups rather than dozens.
         public static Task DelayAsync(int baseMs, CancellationToken ct = default,
                                       double maxMultiplier = 4.0, int maxCapMs = 600000)
-            => Task.Delay(ComputeInterval(baseMs, maxMultiplier, maxCapMs), ct);
+            => Ring0WaitScheduler.WaitAsync(ComputeInterval(baseMs, maxMultiplier, maxCapMs), ct);
 
         public static Task DelayAsync(TimeSpan baseInterval, CancellationToken ct = default,
                                       double maxMultiplier = 4.0, int maxCapMs = 600000)
@@ -93,7 +96,11 @@ namespace JarvisLauncher
 
         // ---- Sampler thread -------------------------------------------------
         /// <summary>Idempotent. Safe to call from App boot or lazily on first use.</summary>
-        public static void Start() => EnsureSampler();
+        public static void Start()
+        {
+            EnsureSampler();
+            Ring0WaitScheduler.Start();   // warm the shared wait thread too
+        }
 
         private static void EnsureSampler()
         {
