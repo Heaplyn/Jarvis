@@ -56,13 +56,32 @@ namespace JarvisLauncher
 
         public static void InitializeAll()
         {
+            // Settings MUST load synchronously — the theme, scheduler, and everything else read it.
+            // Nothing else runs here: the heavy initializers are deferred to InitializeDeferred()
+            // which the app calls AFTER the HUD is visible, so they don't contend with window
+            // construction (running them during boot cost ~1.9s of blocking time).
             Data.Settings.Load();
-            ContextNotesManager.Initialize();
-            Data.Memory.Start();
-            System.Apps.StartScan();
-            Interaction.Autonomous.Start();
-            Interaction.Voice.Start();
-            BackupSyncManager.StartAutoSync();
+        }
+
+        private static int _deferredStarted;
+
+        /// <summary>
+        /// Heavy, non-UI-critical initializers. Call AFTER the main window is shown so they run in
+        /// the background without slowing the HUD's first paint. Idempotent.
+        /// </summary>
+        public static void InitializeDeferred()
+        {
+            if (global::System.Threading.Interlocked.CompareExchange(ref _deferredStarted, 1, 0) != 0) return;
+
+            Task.Run(() => {
+                try { ContextNotesManager.Initialize(); } catch { }
+                try { Data.Memory.Start(); } catch { }
+                try { System.Apps.StartScan(); } catch { }
+                // SECURITY: autonomous interjection is gated by the opt-in flag (it was not before).
+                try { if (Data.Settings.Current.IS_AUTONOMOUS_MODE_ENABLED) Interaction.Autonomous.Start(); } catch { }
+                try { Interaction.Voice.Start(); } catch { }
+                try { BackupSyncManager.StartAutoSync(); } catch { }
+            });
 
             Task.Run(async () => {
                 try {

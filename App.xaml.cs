@@ -133,6 +133,10 @@ namespace JarvisLauncher
 
                 loadingWindow.Close();
 
+                // Now that the HUD is visible, start the heavy initializers (app scan, voice, memory,
+                // backup sync, AI discovery) in the background so they don't slow first paint.
+                CoreRegistry.InitializeDeferred();
+
                 // 5. System Tray
                 try {
                     _notifyIcon = new NotifyIcon { Icon = SystemIcons.Application, Visible = true, Text = "Jarvis HUD" };
