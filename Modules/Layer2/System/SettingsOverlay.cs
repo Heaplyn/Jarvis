@@ -157,6 +157,26 @@ namespace JarvisLauncher
             s.Children.Add(CreateCheckBox("Adaptive Auto-Scaling", set.AUTO_GUI_SCALE_TO_SCREEN, v => set.AUTO_GUI_SCALE_TO_SCREEN = v));
             s.Children.Add(CreateCheckBox("Low-VFX Performance Mode (Disables Blurs)", set.LOW_VFX_MODE, v => { set.LOW_VFX_MODE = v; ThemeManager.ApplyVisualOverrides(); }));
 
+            // --- Performance & Power: Ring0 wait-scheduler coalescing floor ---
+            s.Children.Add(CreateHeader("Performance & Power"));
+            var ringLabel = new TextBlock {
+                Text = $"Background wait coalescing floor: {set.RING0_MIN_TIMEOUT_MS} ms",
+                Foreground = Brushes.White, Margin = new Thickness(0, 4, 0, 0), TextWrapping = TextWrapping.Wrap
+            };
+            s.Children.Add(ringLabel);
+            s.Children.Add(new TextBlock {
+                Text = "Higher = fewer CPU wakeups and more power saving; lower = snappier background timing.",
+                Foreground = Brushes.Gray, FontSize = 11, TextWrapping = TextWrapping.Wrap
+            });
+            var ringSlider = CreateSettingsSlider(50, 2000, set.RING0_MIN_TIMEOUT_MS, 50);
+            ringSlider.ValueChanged += (obj, e) => {
+                int ms = (int)ringSlider.Value;
+                set.RING0_MIN_TIMEOUT_MS = ms;
+                Ring0WaitScheduler.MinTimeoutMs = ms;   // apply live, no restart needed
+                ringLabel.Text = $"Background wait coalescing floor: {ms} ms";
+            };
+            s.Children.Add(ringSlider);
+
             return new ScrollViewer { Content = s, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         }
 

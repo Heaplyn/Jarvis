@@ -72,8 +72,10 @@ namespace JarvisLauncher
                 // 3. Fire background service initializations in parallel
                 loadingWindow.UpdateStatus("Starting engines...", 50);
 
-                // Warm the adaptive throttle sampler first so background loops
-                // read live CPU/RAM pressure from their very first iteration.
+                // Apply the saved Ring0 wait-scheduler coalescing floor, then warm the adaptive
+                // throttle sampler + shared wait scheduler so background loops read live CPU/RAM
+                // pressure and share one wait thread from their very first iteration.
+                Ring0WaitScheduler.MinTimeoutMs = CoreRegistry.Data.Settings.Current.RING0_MIN_TIMEOUT_MS;
                 AdaptiveSleeper.Start();
 
                 var depTask = Task.Run(() => { try { EnsureDependenciesAsync().GetAwaiter().GetResult(); } catch { } });

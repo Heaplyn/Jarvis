@@ -48,6 +48,9 @@ namespace JarvisLauncher
         public bool ENABLE_ANIMATIONS { get; set; } = true;
         public bool USE_ROUNDED_CORNERS { get; set; } = true;
         public bool LOW_VFX_MODE { get; set; } = false;
+        // Ring0 wait-scheduler coalescing floor (ms). Higher = fewer CPU wakeups / more power saving,
+        // at the cost of coarser timing on background loops. Applied to Ring0WaitScheduler.MinTimeoutMs.
+        public int RING0_MIN_TIMEOUT_MS { get; set; } = 250;
         public string CUSTOM_FONT_FAMILY { get; set; } = "Segoe UI";
         public bool IS_JARVIS_ENABLED { get; set; } = true;
         public bool IS_VOICE_MODE_ACTIVE { get; set; } = true;
