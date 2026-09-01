@@ -145,7 +145,7 @@ namespace JarvisLauncher
         private static bool IsBackendConfigured(string b) {
             var s = CoreRegistry.Data.Settings.Current;
             return b switch {
-                "Gemini" => !string.IsNullOrEmpty(s.GOOGLE_AI_KEY),
+                "Gemini" => !string.IsNullOrEmpty(s.GOOGLE_AI_KEY) || !string.IsNullOrEmpty(s.GOOGLE_OAUTH_ACCESS_TOKEN),
                 "Groq" => !string.IsNullOrEmpty(s.GROQ_KEY),
                 "OpenAI" => !string.IsNullOrEmpty(s.OPENAI_KEY),
                 "Anthropic" => !string.IsNullOrEmpty(s.ANTHROPIC_KEY),
@@ -182,9 +182,13 @@ namespace JarvisLauncher
         public static async Task<string> AskGeminiAsync(string prompt, List<ChatTurn>? history, CancellationToken ct)
         {
             var s = CoreRegistry.Data.Settings.Current;
-            string rawKeys = s.GOOGLE_AI_KEY;
-            if (string.IsNullOrEmpty(rawKeys)) throw new Exception("API Key is empty.");
-            var keys = rawKeys.Split(';', StringSplitOptions.RemoveEmptyEntries).Select(k => k.Trim()).ToList();
+            var keys = (s.GOOGLE_AI_KEY ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries).Select(k => k.Trim()).Where(k => k.Length > 0).ToList();
+            // Easy setup: with NO API key, fall back to the connected Google account's OAuth token
+            // (the cloud-platform scope lets us call the Gemini API with a Bearer token). So a user
+            // who just clicks "Connect Google" gets working Gemini with nothing to paste.
+            string oauthToken = keys.Count == 0 ? await OAuth2Manager.GetValidAccessTokenAsync() : "";
+            if (keys.Count == 0 && string.IsNullOrEmpty(oauthToken))
+                throw new Exception("No Gemini credential — add a Google AI key or connect a Google account.");
 
             string model = string.IsNullOrWhiteSpace(s.GEMINI_MODEL) ? "gemini-1.5-flash" : s.GEMINI_MODEL;
             if (model.StartsWith("models/")) model = model.Replace("models/", "");
@@ -205,17 +209,28 @@ namespace JarvisLauncher
             var payload = new { systemInstruction = new { parts = new[] { new { text = AiAPI.GetCompactSystemPrompt() } } }, contents, generationConfig = new { temperature = 0.7, maxOutputTokens = 4096 } };
             string json = JsonSerializer.Serialize(payload);
 
-            string lastError = "";
-            foreach (var key in keys) {
-                string[] endpoints = { $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}", $"https://generativelanguage.googleapis.com/v1/models/{model}:generateContent?key={key}" };
-                foreach (var url in endpoints) {
-                    try {
-                        using var resp = await _http.PostAsync(url, new StringContent(json, Encoding.UTF8, "application/json"), ct);
-                        string body = await resp.Content.ReadAsStringAsync();
-                        if (resp.IsSuccessStatusCode) { using var doc = JsonDocument.Parse(body); return doc.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString() ?? ""; }
-                        lastError = body;
-                    } catch (Exception ex) { lastError = ex.Message; }
+            // Build attempts: API-key query param when keys exist, else OAuth Bearer (no ?key=).
+            var attempts = new List<(string url, string? bearer)>();
+            if (keys.Count > 0) {
+                foreach (var key in keys) {
+                    attempts.Add(($"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}", null));
+                    attempts.Add(($"https://generativelanguage.googleapis.com/v1/models/{model}:generateContent?key={key}", null));
                 }
+            } else {
+                attempts.Add(($"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent", oauthToken));
+                attempts.Add(($"https://generativelanguage.googleapis.com/v1/models/{model}:generateContent", oauthToken));
+            }
+
+            string lastError = "";
+            foreach (var (url, bearer) in attempts) {
+                try {
+                    using var req = new HttpRequestMessage(HttpMethod.Post, url) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
+                    if (!string.IsNullOrEmpty(bearer)) req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearer);
+                    using var resp = await _http.SendAsync(req, ct);
+                    string body = await resp.Content.ReadAsStringAsync();
+                    if (resp.IsSuccessStatusCode) { using var doc = JsonDocument.Parse(body); return doc.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString() ?? ""; }
+                    lastError = body;
+                } catch (Exception ex) { lastError = ex.Message; }
             }
             throw new Exception($"Gemini Error: {lastError}");
         }

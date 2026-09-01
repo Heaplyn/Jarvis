@@ -134,7 +134,8 @@ namespace JarvisLauncher
         public string GOOGLE_OAUTH_CLIENT_SECRET { get; set; } = string.Empty;
         public string GOOGLE_OAUTH_ACCESS_TOKEN { get; set; } = string.Empty;
         public string GOOGLE_OAUTH_REFRESH_TOKEN { get; set; } = string.Empty;
-        public string GOOGLE_OAUTH_USER_EMAIL { get; set; } = string.Empty;
+        public string GOOGLE_OAUTH_USER_EMAIL { get; set; } = string.Empty;   // the ACTIVE account
+        public string GOOGLE_ACCOUNTS_JSON { get; set; } = string.Empty;       // all connected accounts (GoogleAccountManager)
 
         public string GITHUB_OAUTH_CLIENT_ID { get; set; } = string.Empty;
         public string GITHUB_OAUTH_CLIENT_SECRET { get; set; } = string.Empty;

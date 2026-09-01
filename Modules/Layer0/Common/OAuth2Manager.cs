@@ -48,7 +48,20 @@ namespace JarvisLauncher
             return await LoginGoogleOAuth2Async(statusCallback);
         }
 
-        public static async Task<bool> LoginGoogleOAuth2Async(Action<string>? statusCallback = null)
+        // Scopes cover: identity, Gemini + Google Cloud (cloud-platform lets us call the Gemini API
+        // with the OAuth token — no API key needed), and the common "Google things": Gmail, Calendar,
+        // Drive. NOTE: the Gmail/Calendar/Drive scopes are "sensitive" — until this OAuth app is
+        // Google-verified for them, users see an "unverified app" screen and can proceed for their
+        // own account via "Advanced".
+        private const string GoogleScopes =
+            "openid email profile " +
+            "https://www.googleapis.com/auth/cloud-platform " +
+            "https://www.googleapis.com/auth/gmail.modify " +
+            "https://www.googleapis.com/auth/calendar " +
+            "https://www.googleapis.com/auth/drive";
+
+        /// <param name="forceAccountPicker">Show Google's account chooser (for "add / switch account").</param>
+        public static async Task<bool> LoginGoogleOAuth2Async(Action<string>? statusCallback = null, bool forceAccountPicker = false)
         {
             string clientId = GoogleClientId;
             int port = GetRandomUnusedPort();
@@ -59,15 +72,16 @@ namespace JarvisLauncher
 
             statusCallback?.Invoke("🔑 Opening Google login in browser...");
 
+            string prompt = forceAccountPicker ? "select_account consent" : "consent";
             string authUrl = $"https://accounts.google.com/o/oauth2/v2/auth?" +
                              $"client_id={Uri.EscapeDataString(clientId)}&" +
                              $"redirect_uri={Uri.EscapeDataString(redirectUri)}&" +
                              $"response_type=code&" +
-                             $"scope={Uri.EscapeDataString("https://www.googleapis.com/auth/generative-language.tuning https://www.googleapis.com/auth/cloud-platform email profile openid")}&" +
+                             $"scope={Uri.EscapeDataString(GoogleScopes)}&" +
                              $"code_challenge={Uri.EscapeDataString(codeChallenge)}&" +
                              $"code_challenge_method=S256&" +
                              $"access_type=offline&" +
-                             $"prompt=consent";
+                             $"prompt={Uri.EscapeDataString(prompt)}";
 
             string code = await ListenForAuthorizationCodeAsync(authUrl, redirectUri, "Google");
             if (string.IsNullOrEmpty(code)) return false;
@@ -129,6 +143,15 @@ namespace JarvisLauncher
                 if (root.TryGetProperty("refresh_token", out var rt)) s.GOOGLE_OAUTH_REFRESH_TOKEN = rt.GetString() ?? "";
 
                 await FetchGoogleUserInfoAsync(s.GOOGLE_OAUTH_ACCESS_TOKEN);
+
+                // Record (or update) this account in the multi-account store and make it active.
+                GoogleAccountManager.UpsertAndActivate(new GoogleAccount
+                {
+                    Email = s.GOOGLE_OAUTH_USER_EMAIL,
+                    AccessToken = s.GOOGLE_OAUTH_ACCESS_TOKEN,
+                    RefreshToken = s.GOOGLE_OAUTH_REFRESH_TOKEN
+                });
+
                 CoreRegistry.Data.Settings.Save();
                 return true;
             }
@@ -150,9 +173,26 @@ namespace JarvisLauncher
 
                 using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
                 s.GOOGLE_OAUTH_ACCESS_TOKEN = doc.RootElement.GetProperty("access_token").GetString() ?? "";
+                GoogleAccountManager.UpdateActiveTokens(s.GOOGLE_OAUTH_ACCESS_TOKEN);
                 CoreRegistry.Data.Settings.Save();
                 return true;
             } catch { return false; }
+        }
+
+        /// <summary>Connect an additional Google account (shows the account chooser) and make it active.</summary>
+        public static Task<bool> AddGoogleAccountAsync(Action<string>? statusCallback = null)
+            => LoginGoogleOAuth2Async(statusCallback, forceAccountPicker: true);
+
+        /// <summary>Returns a valid access token for the active account, refreshing if needed.</summary>
+        public static async Task<string> GetValidAccessTokenAsync()
+        {
+            var s = CoreRegistry.Data.Settings.Current;
+            if (!string.IsNullOrWhiteSpace(s.GOOGLE_OAUTH_ACCESS_TOKEN) &&
+                await VerifyGoogleTokenValidityAsync(s.GOOGLE_OAUTH_ACCESS_TOKEN))
+                return s.GOOGLE_OAUTH_ACCESS_TOKEN;
+            if (!string.IsNullOrWhiteSpace(s.GOOGLE_OAUTH_REFRESH_TOKEN) && await RefreshGoogleTokenAsync())
+                return s.GOOGLE_OAUTH_ACCESS_TOKEN;
+            return string.Empty;
         }
 
         private static async Task<bool> VerifyGoogleTokenValidityAsync(string token)
