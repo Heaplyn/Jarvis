@@ -1,21 +1,100 @@
-⚠️ [FATAL] AI Pipeline collapsed. No configured models responded.
+# ── Build outputs ──────────────────────────────────────────────────────────────
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Ll]og/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
 
-ERRORS:
-[Ollama]: The request was canceled due to the configured HttpClient.Timeout of 60 seconds elapsing.
-[Gemini]: Gemini Error: {
-  "error": {
-    "code": 401,
-    "message": "Request had invalid authentication credentials. Expected OAuth 2 access token, login cookie or other valid authentication credential. See https://developers.google.com/identity/sign-in/web/devconsole-project.",
-    "status": "UNAUTHENTICATED",
-    "details": [
-      {
-        "@type": "type.googleapis.com/google.rpc.ErrorInfo",
-        "reason": "ACCESS_TOKEN_TYPE_UNSUPPORTED",
-        "metadata": {
-          "method": "google.ai.generativelanguage.v1.GenerativeService.GenerateContent",
-          "service": "generativelanguage.googleapis.com"
-        }
-      }
-    ]
-  }
-}
+# ── Visual Studio / Rider ──────────────────────────────────────────────────────
+.vs/
+.idea/
+.artifacts/
+*.rsuser
+*.DotSettings.user
+
+# ── .NET / NuGet ───────────────────────────────────────────────────────────────
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+packages/
+!**/packages/build/
+
+# ── Publish profiles ───────────────────────────────────────────────────────────
+**/Properties/PublishProfiles/
+
+# ── Runtime / Crash artifacts ──────────────────────────────────────────────────
+*.log
+*.tmp
+*.cache
+*.bak
+
+# ── Node / NPM (DownloadMedia module) ─────────────────────────────────────────
+Modules/Layer0/DownloadMedia/node_modules/
+Modules/Layer0/DownloadMedia/user_data/
+
+# ── Large local data directories ──────────────────────────────────────────────
+Data/
+Downloads/
+Data/*
+!Data/.gitkeep
+
+# ── API keys / secrets ─────────────────────────────────────────────────────────
+*.env
+appsettings.local.json
+SystemSettings.json
+
+# ── OS artifacts ───────────────────────────────────────────────────────────────
+Thumbs.db
+.DS_Store
+Desktop.ini
+
+# Jarvis System Ignore Rules
+bin/
+obj/
+*.exe
+*.dll
+*.pdb
+*.user
+*.suo
+*.sln.docstates
+
+# Secrets & Local Config (CRITICAL)
+Data/SystemSettings.json
+Data/Notes/Credentials/
+*.key
+*.token
+*.pem
+google-services.json
+
+# Data & Large Tooling
+Data/Tools/
+Data/Models/
+Data/Conversations/
+Data/Instructions/Evolved_Laws.md
+Data/Context/History/
+Data/Training/
+Data/VoiceDataset/
+
+# Media & Downloads
+Downloads/
+Modules/Layer0/DownloadMedia/flaresolverr/
+Modules/Layer0/DownloadMedia/node_modules/
+
+# OS Specific
+.vs/
+.idea/
+.vscode/
+*.log
+*.mp3
+*.wav
+*.zip
+*.7z
+*.rar
+*.jpg
+*.png
+# Relocated stale root publish (regenerable via dotnet build)
+/_legacy_root_bin/
