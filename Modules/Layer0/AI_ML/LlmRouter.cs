@@ -140,6 +140,7 @@ namespace JarvisLauncher
                 "Groq" => !string.IsNullOrEmpty(s.GROQ_KEY),
                 "OpenAI" => !string.IsNullOrEmpty(s.OPENAI_KEY),
                 "Anthropic" => !string.IsNullOrEmpty(s.ANTHROPIC_KEY),
+                "ClaudeCode" => IsClaudeCodeAvailable(),
                 "DeepSeek" => !string.IsNullOrEmpty(s.CUSTOM_LLM_KEY),
                 "X-AI" => !string.IsNullOrEmpty(s.CUSTOM_LLM_KEY),
                 "Mistral" => !string.IsNullOrEmpty(s.MISTRAL_KEY),
@@ -157,6 +158,7 @@ namespace JarvisLauncher
                 "OpenAI"     => await AskOpenAIAsync(prompt, history, ct),
                 "DeepSeek"   => await AskDeepSeekAsync(prompt, history, ct),
                 "Anthropic"  => await AskAnthropicAsync(prompt, history, ct),
+                "ClaudeCode" => await AskClaudeCodeAsync(prompt, history, ct),
                 "Groq"       => await AskGroqAsync(prompt, history, ct),
                 "X-AI"       => await AskGrokAsync(prompt, history, ct),
                 "Mistral"    => await AskMistralAsync(prompt, history, ct),
@@ -328,6 +330,109 @@ namespace JarvisLauncher
             var models = new[] { "llama-3.3-70b-versatile", "mixtral-8x7b-32768" };
             foreach (var m in models) { try { return await AskGenericOpenAICompatibleAsync("https://api.groq.com/openai/v1", CoreRegistry.Data.Settings.Current.GROQ_KEY, m, p, h, ct); } catch { } }
             throw new Exception("Groq failed.");
+        }
+
+        // === Claude Code (Claude Max/Pro subscription via the headless `claude` CLI) ===
+        // This does NOT use api.anthropic.com or ANTHROPIC_KEY (that is separate pay-per-token
+        // billing). It shells out to the Claude Code CLI, which is authenticated by the user's
+        // Max/Pro login (`claude` -> /login). Install: npm i -g @anthropic-ai/claude-code.
+        public static string? ResolveClaudeCli()
+        {
+            var s = CoreRegistry.Data.Settings.Current;
+            if (!string.IsNullOrWhiteSpace(s.CLAUDE_CLI_PATH) && File.Exists(s.CLAUDE_CLI_PATH))
+                return s.CLAUDE_CLI_PATH;
+
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var candidates = new[]
+            {
+                Path.Combine(appData, "npm", "claude.cmd"),
+                Path.Combine(appData, "npm", "claude.exe"),
+                Path.Combine(home, ".local", "bin", "claude.exe"),
+                Path.Combine(home, ".local", "bin", "claude"),
+                Path.Combine(home, ".claude", "local", "claude.exe"),
+            };
+            foreach (var c in candidates) if (File.Exists(c)) return c;
+
+            // Fall back to PATH resolution via `where`.
+            try
+            {
+                var psi = new ProcessStartInfo("where", "claude")
+                { RedirectStandardOutput = true, UseShellExecute = false, CreateNoWindow = true };
+                using var p = Process.Start(psi);
+                if (p != null)
+                {
+                    string outp = p.StandardOutput.ReadToEnd();
+                    p.WaitForExit(3000);
+                    var first = outp.Split('\n').Select(l => l.Trim())
+                        .FirstOrDefault(l => l.EndsWith(".cmd") || l.EndsWith(".exe"));
+                    if (!string.IsNullOrEmpty(first) && File.Exists(first)) return first;
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        public static bool IsClaudeCodeAvailable() => ResolveClaudeCli() != null;
+
+        public static async Task<string> AskClaudeCodeAsync(string prompt, List<ChatTurn>? history, CancellationToken ct)
+        {
+            string? cli = ResolveClaudeCli();
+            if (cli == null)
+                throw new Exception("Claude Code CLI not found. Install it (npm i -g @anthropic-ai/claude-code), run `claude` once to log in with your Max subscription, then set it as the backend.");
+
+            var s = CoreRegistry.Data.Settings.Current;
+
+            // `claude -p` is one-shot, so fold history + system prompt into a single prompt piped via stdin
+            // (stdin avoids Windows command-line length limits).
+            var sb = new StringBuilder();
+            sb.AppendLine(AiAPI.GetCompactSystemPrompt());
+            if (history != null)
+                foreach (var t in history)
+                    sb.AppendLine($"{(t.Role == "model" ? "Assistant" : "User")}: {t.Text}");
+            sb.AppendLine($"User: {prompt}");
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = cli,
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8,
+            };
+            psi.ArgumentList.Add("-p");
+            psi.ArgumentList.Add("--output-format");
+            psi.ArgumentList.Add("json");
+            if (!string.IsNullOrWhiteSpace(s.CLAUDE_CODE_MODEL))
+            {
+                psi.ArgumentList.Add("--model");
+                psi.ArgumentList.Add(s.CLAUDE_CODE_MODEL);
+            }
+
+            using var proc = Process.Start(psi)
+                ?? throw new Exception("Failed to start Claude CLI process.");
+            await proc.StandardInput.WriteAsync(sb.ToString());
+            proc.StandardInput.Close();
+
+            string outText = await proc.StandardOutput.ReadToEndAsync();
+            string errText = await proc.StandardError.ReadToEndAsync();
+            await proc.WaitForExitAsync(ct);
+
+            if (proc.ExitCode != 0)
+                throw new Exception($"Claude CLI exit {proc.ExitCode}: {(string.IsNullOrWhiteSpace(errText) ? outText : errText)}");
+
+            // --output-format json => { "type":"result", "subtype":"success", "result":"...", ... }
+            try
+            {
+                using var doc = JsonDocument.Parse(outText);
+                if (doc.RootElement.TryGetProperty("result", out var r) && r.ValueKind == JsonValueKind.String)
+                    return r.GetString() ?? "";
+            }
+            catch { /* not JSON — return raw */ }
+            return outText.Trim();
         }
 
         public static async Task<List<string>> GetOllamaModelsAsync()

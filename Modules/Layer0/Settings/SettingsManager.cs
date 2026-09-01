@@ -103,8 +103,11 @@ namespace JarvisLauncher
         public string CUSTOM_LLM_KEY { get; set; } = string.Empty;
         public string CUSTOM_LLM_MODEL { get; set; } = string.Empty;
 
-        public string ANTHROPIC_KEY { get; set; } = string.Empty;
-        public string ANTHROPIC_MODEL { get; set; } = "claude-3-5-sonnet-20240620";
+        public string ANTHROPIC_KEY { get; set; } = string.Empty;   // api.anthropic.com — pay-per-token, NOT the Max subscription
+        public string ANTHROPIC_MODEL { get; set; } = "claude-sonnet-4-6";
+        // --- Claude Code (uses your Claude Max/Pro subscription via the headless `claude` CLI) ---
+        public string CLAUDE_CLI_PATH { get; set; } = string.Empty;  // auto-detected if empty
+        public string CLAUDE_CODE_MODEL { get; set; } = string.Empty; // optional; e.g. "sonnet" or "opus". Empty = CLI default
         public string GROQ_KEY { get; set; } = string.Empty;
         public string GROQ_MODEL { get; set; } = "llama-3.3-70b-versatile";
         public string PERPLEXITY_KEY { get; set; } = string.Empty;
