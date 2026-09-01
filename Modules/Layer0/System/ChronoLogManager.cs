@@ -87,7 +87,7 @@ namespace JarvisLauncher
                             lastWin = currentWin;
                         }
                     } catch { }
-                    await Task.Delay(10000);
+                    await AdaptiveSleeper.DelayAsync(10000);
                 }
             });
         }

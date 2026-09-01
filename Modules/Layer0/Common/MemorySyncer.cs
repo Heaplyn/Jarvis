@@ -39,7 +39,7 @@ namespace JarvisLauncher
             {
                 try
                 {
-                    await Task.Delay(TimeSpan.FromMinutes(2), token);
+                    await AdaptiveSleeper.DelayAsync(TimeSpan.FromMinutes(2), token);
                     await SyncAllMemoriesAsync();
                 }
                 catch (TaskCanceledException) { break; }

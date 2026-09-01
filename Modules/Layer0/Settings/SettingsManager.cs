@@ -58,7 +58,8 @@ namespace JarvisLauncher
         public string ENROLLED_SPEAKER_NAME { get; set; } = "Kyle";
         public double SPEAKER_VERIFICATION_THRESHOLD { get; set; } = 0.50;
         public bool IS_TEACHER_MODE_ENABLED { get; set; } = true;
-        public bool IS_AUTONOMOUS_MODE_ENABLED { get; set; } = true;
+        // SECURITY: autonomous loops (screen capture, harvest, evolution, self-action) are opt-in.
+        public bool IS_AUTONOMOUS_MODE_ENABLED { get; set; } = false;
         public int AUTONOMOUS_INTERVAL_MINUTES { get; set; } = 2;
 
         public bool ENABLE_VOICE_COMMAND_CHUNKING { get; set; } = true;
@@ -156,10 +157,11 @@ namespace JarvisLauncher
         public int MOBILE_PORT { get; set; } = 9000;
         public string MOBILE_PREFERRED_TUNNEL { get; set; } = "None";
         public bool MOBILE_AUTO_START_TUNNEL { get; set; } = false;
-        public bool MOBILE_ALLOW_TERMINAL { get; set; } = true;
-        public bool MOBILE_ALLOW_FILES { get; set; } = true;
-        public bool MOBILE_ALLOW_SCREEN_MIRROR { get; set; } = true;
-        public bool MOBILE_ALLOW_CLIPBOARD { get; set; } = true;
+        // SECURITY: remote capabilities are opt-in. Do NOT default these to true.
+        public bool MOBILE_ALLOW_TERMINAL { get; set; } = false;
+        public bool MOBILE_ALLOW_FILES { get; set; } = false;
+        public bool MOBILE_ALLOW_SCREEN_MIRROR { get; set; } = false;
+        public bool MOBILE_ALLOW_CLIPBOARD { get; set; } = false;
 
         public string DISCORD_BOT_TOKEN { get; set; } = string.Empty;
         public string ROBLOX_COOKIE { get; set; } = string.Empty;
@@ -168,7 +170,8 @@ namespace JarvisLauncher
         public string HF_TRAINING_DATASET_ID { get; set; } = string.Empty;
         public bool VERBOSE_LOGGING { get; set; } = false;
         public int DEBUG_VERBOSITY_LEVEL { get; set; } = 1;
-        public bool ENABLE_PC_CONTROL { get; set; } = true;
+        // SECURITY: model/remote PC control is opt-in.
+        public bool ENABLE_PC_CONTROL { get; set; } = false;
         public string OBSIDIAN_VAULT_PATH { get; set; } = string.Empty;
         public bool MINIMIZE_TO_WIDGET { get; set; } = true;
 
@@ -197,7 +200,8 @@ namespace JarvisLauncher
         public string VOX_WHISPER_MODEL { get; set; } = "base";
 
         // --- EXTENDED DATA SETTINGS ---
-        public bool DATA_ENABLE_AUTO_SCRAPE { get; set; } = true;
+        // SECURITY: autonomous dataset harvesting is opt-in.
+        public bool DATA_ENABLE_AUTO_SCRAPE { get; set; } = false;
         public int DATA_SCRAPE_DEPTH { get; set; } = 2;
         public string KNOWLEDGE_GRAPH_PATH { get; set; } = string.Empty;
 

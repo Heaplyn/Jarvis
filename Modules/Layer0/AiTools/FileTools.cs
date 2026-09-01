@@ -15,8 +15,9 @@ namespace JarvisLauncher.AiTools
         {
             string p = m.Groups["p"].Value.Trim().Trim('"', '\'');
             if (!executedTags.Add("RF:" + p)) return "";
-            if (File.Exists(p)) {
-                string content = await File.ReadAllTextAsync(p);
+            if (!AiPathJail.TryResolve(p, out string full, out string err)) return err;
+            if (File.Exists(full)) {
+                string content = await File.ReadAllTextAsync(full);
                 return $"[FILE: {p}]\n{(content.Length > 3000 ? content.Substring(0, 3000) + "... [Truncated]" : content)}\n[END]\n";
             }
             return $"[ERROR: File {p} not found]\n";
@@ -32,9 +33,10 @@ namespace JarvisLauncher.AiTools
             string p = m.Groups["p"].Value.Trim().Trim('"', '\'');
             string c = m.Groups["c"].Value;
             if (!executedTags.Add("WF:" + p + c.GetHashCode())) return "";
-            Directory.CreateDirectory(Path.GetDirectoryName(p) ?? ".");
-            await File.WriteAllTextAsync(p, c);
-            SemanticMemoryManager.AddTrackedFile(p);
+            if (!AiPathJail.TryResolve(p, out string full, out string err)) return err;
+            Directory.CreateDirectory(Path.GetDirectoryName(full) ?? AiPathJail.Root);
+            await File.WriteAllTextAsync(full, c);
+            SemanticMemoryManager.AddTrackedFile(full);
             return $"[WRITTEN: {p}]\n";
         }
     }
@@ -46,8 +48,9 @@ namespace JarvisLauncher.AiTools
         public Task<string> ExecuteAsync(Match m, HashSet<string> executedTags)
         {
             string p = m.Groups["p"].Value.Trim().Trim('"', '\'');
-            if (Directory.Exists(p)) {
-                var entries = Directory.GetFileSystemEntries(p).Select(Path.GetFileName).Take(50);
+            if (!AiPathJail.TryResolve(p, out string full, out string err)) return Task.FromResult(err);
+            if (Directory.Exists(full)) {
+                var entries = Directory.GetFileSystemEntries(full).Select(Path.GetFileName).Take(50);
                 return Task.FromResult($"[DIR {p}]:\n{string.Join("\n", entries)}\n");
             }
             return Task.FromResult($"[ERROR: Dir {p} not found]\n");
@@ -62,8 +65,9 @@ namespace JarvisLauncher.AiTools
         {
             string p = m.Groups["p"].Value.Trim().Trim('"', '\'');
             if (!executedTags.Add("RF_B:" + p)) return "";
-            if (File.Exists(p)) {
-                byte[] data = await File.ReadAllBytesAsync(p);
+            if (!AiPathJail.TryResolve(p, out string full, out string err)) return err;
+            if (File.Exists(full)) {
+                byte[] data = await File.ReadAllBytesAsync(full);
                 string b64 = Convert.ToBase64String(data);
                 return $"[BINARY FILE: {p}]\n[BASE64]: {b64}\n[END]\n";
             }
@@ -80,10 +84,11 @@ namespace JarvisLauncher.AiTools
             string p = m.Groups["p"].Value.Trim().Trim('"', '\'');
             string b = m.Groups["b"].Value.Trim();
             if (!executedTags.Add("WF_B:" + p)) return "";
+            if (!AiPathJail.TryResolve(p, out string full, out string err)) return err;
             try {
                 byte[] data = Convert.FromBase64String(b);
-                Directory.CreateDirectory(Path.GetDirectoryName(p) ?? ".");
-                await File.WriteAllBytesAsync(p, data);
+                Directory.CreateDirectory(Path.GetDirectoryName(full) ?? AiPathJail.Root);
+                await File.WriteAllBytesAsync(full, data);
                 return $"[WRITTEN BINARY: {p}]\n";
             } catch (Exception ex) { return $"[ERROR WF_B]: {ex.Message}\n"; }
         }

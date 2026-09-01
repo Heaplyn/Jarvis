@@ -25,12 +25,9 @@ namespace JarvisLauncher
             if (string.IsNullOrEmpty(aiResponse)) return aiResponse;
             aiResponse = AiAPI.CleanScratchpadText(aiResponse);
 
-            // 1. Check for autonomous tool creation (Capability Synthesis)
-            string synthesisResult = await SelfEvolvingToolEngine.ProcessToolSynthesisAsync(aiResponse);
-            if (!string.IsNullOrEmpty(synthesisResult))
-            {
-                 DebugConsoleOverlay.Log("Ai-Agent", "Synthesized new capabilities.");
-            }
+            // SECURITY: runtime tool synthesis (@new_tool) is DISABLED. Letting the model register
+            // arbitrary regex->PowerShell tools at runtime is remote code execution by prompt.
+            // Do not re-enable without a real sandbox (separate process, no shell, allow-list).
 
             if (!SettingsManager.Current.ENABLE_PC_CONTROL)
             {
@@ -101,17 +98,9 @@ namespace JarvisLauncher
         {
             var sb = new StringBuilder();
 
-            // 1. Process EXEC_PS tags
-            var psRegex = new Regex(@"(?:\[EXEC_PS:\s*(?<cmd>[\s\S]+?)\]|@ps\{(?<cmd>.+?)\})", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-            foreach (Match m in psRegex.Matches(response))
-            {
-                string cmd = m.Groups["cmd"].Value.Trim();
-                if (executed.Add("PS:" + cmd))
-                {
-                    string res = ExecutePowerShellDirect(cmd);
-                    sb.AppendLine($"[POWERSHELL OUTPUT]:\n{res}\n");
-                }
-            }
+            // SECURITY: model-emitted PowerShell (@ps{...} / [EXEC_PS:...]) is DISABLED. The model
+            // must never run arbitrary shell. Internal fixed-script callers of ExecutePowerShellDirect
+            // (firewall rule, diagnostics) are unaffected because they pass constant scripts, not model text.
 
             // 2. Process INGEST_DOCS
             var ingestRegex = new Regex(@"(?:\[INGEST_DOCS:\s*(?<url>.+?)\]|@ingest\{(?<url>.+?)\})", RegexOptions.IgnoreCase);

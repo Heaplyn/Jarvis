@@ -40,7 +40,7 @@ namespace JarvisLauncher
                     {
                         try { await RunSyncCycleAsync(); } catch { }
                     }
-                    await Task.Delay(TimeSpan.FromMinutes(Math.Max(5, set.AUTO_SYNC_INTERVAL_MINUTES)));
+                    await AdaptiveSleeper.DelayAsync(TimeSpan.FromMinutes(Math.Max(5, set.AUTO_SYNC_INTERVAL_MINUTES)));
                 }
             });
         }

@@ -22,6 +22,10 @@ namespace JarvisLauncher
 
         public static async Task<string> StartTunnelAsync(int targetPort = -1)
         {
+            // SECURITY: refuse to expose the bridge to the internet unless it is locked down first.
+            if (string.IsNullOrEmpty(SettingsManager.Current.BACKUP_PC_SECRET))
+                return "❌ Refused: set BACKUP_PC_SECRET before starting an ngrok tunnel. The server must require a secret before it is exposed.";
+
             if (targetPort <= 0) targetPort = MobileBridgeServer.Port;
             StopTunnel();
 

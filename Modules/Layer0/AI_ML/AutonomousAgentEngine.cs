@@ -32,7 +32,7 @@ namespace JarvisLauncher
                         await AuditScreenSurveillance();
                         if (new Random().Next(100) < 5) await RunSubconsciousReflect();
                     } catch { }
-                    await Task.Delay(TimeSpan.FromMinutes(2));
+                    await AdaptiveSleeper.DelayAsync(TimeSpan.FromMinutes(2));
                 }
             });
 

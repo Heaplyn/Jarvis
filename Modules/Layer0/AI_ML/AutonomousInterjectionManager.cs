@@ -27,7 +27,7 @@ namespace JarvisLauncher
                 await Task.Delay(30000);
                 while (_isRunning) {
                     try { await CheckProactiveAsync(); } catch { }
-                    await Task.Delay(_random.Next(180000, 300000));
+                    await AdaptiveSleeper.DelayAsync(_random.Next(180000, 300000));
                 }
             });
         }

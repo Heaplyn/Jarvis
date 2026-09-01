@@ -40,7 +40,7 @@ namespace JarvisLauncher
                     }
 
                     // Evolve every hour
-                    await Task.Delay(TimeSpan.FromHours(1));
+                    await AdaptiveSleeper.DelayAsync(TimeSpan.FromHours(1));
                 }
             });
 

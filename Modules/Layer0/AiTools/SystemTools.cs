@@ -13,10 +13,8 @@ namespace JarvisLauncher.AiTools
         public string RegexPattern => @"@ps\{(?<c>.*?)\}";
         public Task<string> ExecuteAsync(Match m, HashSet<string> executedTags)
         {
-            string cmd = m.Groups["c"].Value.Trim();
-            if (!executedTags.Add("PS:" + cmd.GetHashCode())) return Task.FromResult("");
-            string output = AgentExecutor.ExecutePowerShellDirect(cmd);
-            return Task.FromResult($"[PS OUTPUT]:\n{output}\n");
+            // SECURITY: model-emitted PowerShell is disabled. The model may not run arbitrary shell.
+            return Task.FromResult("[BLOCKED: @ps is disabled — the model may not run PowerShell]\n");
         }
     }
 
@@ -40,8 +38,11 @@ namespace JarvisLauncher.AiTools
         {
             string name = m.Groups["n"].Value.Trim().Trim('"', '\'');
             if (!executedTags.Add("PK:" + name)) return Task.FromResult("");
+            // SECURITY: model-initiated process termination requires explicit human confirmation.
+            if (!HumanConfirm.Ask($"Jarvis (AI) wants to force-kill all '{name}' processes. Allow?"))
+                return Task.FromResult($"[DENIED: user declined to kill {name}]\n");
             int killed = 0;
-            foreach (var p in Process.GetProcessesByName(name)) { p.Kill(); killed++; }
+            foreach (var p in Process.GetProcessesByName(name)) { try { p.Kill(); killed++; } catch { } }
             return Task.FromResult($"[KILLED: {name} ({killed} instances)]\n");
         }
     }

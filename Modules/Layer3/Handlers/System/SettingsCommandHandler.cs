@@ -41,7 +41,7 @@ namespace JarvisLauncher
 
             string cmd = parts[0].ToLower();
 
-            if (true)//(lowerQuery == "settings" || lowerQuery == "options" || lowerQuery == "config")
+            if (lowerQuery == "settings" || lowerQuery == "options" || lowerQuery == "config")
             {
                 suggestions.Add(new CommandResult {
                     TITLE = "⚙️ Open Master Settings Studio",

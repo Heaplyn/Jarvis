@@ -41,7 +41,7 @@ namespace JarvisLauncher
                     }
 
                     // Run the audit every 15 minutes
-                    await Task.Delay(TimeSpan.FromMinutes(15));
+                    await AdaptiveSleeper.DelayAsync(TimeSpan.FromMinutes(15));
                 }
             });
 

@@ -88,7 +88,7 @@ namespace JarvisLauncher
 
             while (_isPolling)
             {
-                Thread.Sleep(1000);
+                AdaptiveSleeper.Sleep(1000);
 
                 // 1. Calculate CPU Usage
                 System.Runtime.InteropServices.ComTypes.FILETIME currIdleTime, currKernelTime, currUserTime;

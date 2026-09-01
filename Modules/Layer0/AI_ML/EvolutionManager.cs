@@ -25,7 +25,7 @@ namespace JarvisLauncher
                             await DatasetHarvester.RunAutomaticHarvestAsync();
                         }
                     } catch { }
-                    await Task.Delay(TimeSpan.FromMinutes(30));
+                    await AdaptiveSleeper.DelayAsync(TimeSpan.FromMinutes(30));
                 }
             });
 
@@ -35,7 +35,7 @@ namespace JarvisLauncher
                     try {
                         await PerformDeepKernelRefinementAsync();
                     } catch { }
-                    await Task.Delay(TimeSpan.FromMinutes(60));
+                    await AdaptiveSleeper.DelayAsync(TimeSpan.FromMinutes(60));
                 }
             });
         }

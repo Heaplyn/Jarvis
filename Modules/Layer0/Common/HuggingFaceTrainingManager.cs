@@ -44,7 +44,7 @@ namespace JarvisLauncher
                     }
 
                     // Run every 4 hours to avoid rate limits
-                    await Task.Delay(TimeSpan.FromHours(4));
+                    await AdaptiveSleeper.DelayAsync(TimeSpan.FromHours(4));
                 }
             });
 

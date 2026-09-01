@@ -47,7 +47,7 @@ namespace JarvisLauncher
                     }
 
                     // Process cycle every 60 seconds to avoid saturating the LLM backend
-                    await Task.Delay(60000);
+                    await AdaptiveSleeper.DelayAsync(60000);
                 }
             });
 

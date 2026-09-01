@@ -48,13 +48,16 @@ namespace JarvisLauncher
             {
                 try
                 {
-                    LogToFile($"Starting Dual-Stack TCP Server on port {PortParam}...");
+                    LogToFile($"Starting loopback-only TCP Server on port {PortParam}...");
 
-                    Listener = TcpListener.Create(PortParam);
+                    // SECURITY: bind to 127.0.0.1 ONLY. The server is never exposed on the LAN or
+                    // all interfaces. Remote (phone) access must go through an explicit, opt-in tunnel
+                    // (cloudflared/ngrok) or `adb reverse`, both of which terminate on loopback here.
+                    Listener = new TcpListener(IPAddress.Loopback, PortParam);
                     Listener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
                     Listener.Start();
 
-                    LogToFile($"Server LIVE on all interfaces at port {PortParam}.");
+                    LogToFile($"Server LIVE on 127.0.0.1:{PortParam} (loopback only).");
 
                     // Removed ChatOverlay.LogConsoleAction from here to keep the Chat Console focused on AI actions only.
 
@@ -152,13 +155,34 @@ namespace JarvisLauncher
                             providedSecret = header.Substring(16).Trim();
                     }
 
-                    bool isLocalhost = RemoteEp?.ToString()?.Contains("127.0.0.1") == true;
-                    if (!string.IsNullOrEmpty(SettingsManager.Current.BACKUP_PC_SECRET) &&
-                        providedSecret != SettingsManager.Current.BACKUP_PC_SECRET &&
-                        !PathString.Equals("/") && !isLocalhost)
+                    // SECURITY: every /api endpoint requires a configured, matching secret. Fail closed.
+                    // No localhost bypass, no "empty secret = open server". The static UI shell
+                    // (/, /index.html, /cmd, /bar, health) is allowed through so the page can load and
+                    // then authenticate its own API calls with the X-Jarvis-Secret header.
+                    bool isApi = PathString.StartsWith("/api", StringComparison.OrdinalIgnoreCase);
+                    if (isApi)
                     {
-                        await SendResponseAsync(Stream, 401, "Unauthorized", Encoding.UTF8.GetBytes("Invalid Secret"), "text/plain");
-                        return;
+                        string configuredSecret = SettingsManager.Current.BACKUP_PC_SECRET ?? string.Empty;
+                        if (string.IsNullOrEmpty(configuredSecret))
+                        {
+                            await SendResponseAsync(Stream, 401, "Unauthorized",
+                                Encoding.UTF8.GetBytes("Server locked: set BACKUP_PC_SECRET in Jarvis settings to enable the mobile API."), "text/plain");
+                            return;
+                        }
+                        if (!FixedTimeEquals(providedSecret, configuredSecret))
+                        {
+                            await SendResponseAsync(Stream, 401, "Unauthorized", Encoding.UTF8.GetBytes("Invalid Secret"), "text/plain");
+                            return;
+                        }
+
+                        // SECURITY: per-capability gates (all default OFF). A disabled feature is 403
+                        // even with a valid secret; the user must opt in per capability in settings.
+                        if (IsFeatureBlocked(PathString, out string blockedFeature))
+                        {
+                            await SendResponseAsync(Stream, 403, "Forbidden",
+                                Encoding.UTF8.GetBytes($"'{blockedFeature}' is disabled. Enable it in Jarvis mobile settings."), "text/plain");
+                            return;
+                        }
                     }
 
                     if (PathString == "/" || PathString.Equals("/index.html", StringComparison.OrdinalIgnoreCase))
@@ -1049,6 +1073,37 @@ namespace JarvisLauncher
                 }
                 catch { }
             });
+        }
+
+        // SECURITY: constant-time secret comparison to avoid timing side channels.
+        private static bool FixedTimeEquals(string? provided, string configured)
+        {
+            if (provided == null) return false;
+            var a = Encoding.UTF8.GetBytes(provided);
+            var b = Encoding.UTF8.GetBytes(configured);
+            return System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(a, b);
+        }
+
+        // SECURITY: maps an API path to a capability flag. All capabilities default OFF.
+        private static bool IsFeatureBlocked(string path, out string feature)
+        {
+            var s = SettingsManager.Current;
+            string p = path.ToLowerInvariant();
+
+            if ((p.Contains("terminal") || p.Contains("/api/command")) && !s.MOBILE_ALLOW_TERMINAL)
+            { feature = "Remote terminal"; return true; }
+
+            if (p.StartsWith("/api/files") && !s.MOBILE_ALLOW_FILES)
+            { feature = "File access"; return true; }
+
+            if ((p.Contains("screenshot") || p.StartsWith("/api/screen")) && !s.MOBILE_ALLOW_SCREEN_MIRROR)
+            { feature = "Screen mirror"; return true; }
+
+            if (p.Contains("clipboard") && !s.MOBILE_ALLOW_CLIPBOARD)
+            { feature = "Clipboard"; return true; }
+
+            feature = string.Empty;
+            return false;
         }
 
         public static string GetLocalIPAddress()

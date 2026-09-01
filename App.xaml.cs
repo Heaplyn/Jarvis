@@ -29,6 +29,23 @@ namespace JarvisLauncher
 
             this.DispatcherUnhandledException += (s, ev) =>
             {
+                // Do NOT swallow silently. Surface the exception (console + crash log) so failures
+                // are diagnosable. Kept non-fatal (Handled = true) so a single UI fault doesn't kill
+                // the HUD, but it is now logged loudly instead of hidden.
+                try
+                {
+                    string details = $"{ev.Exception.GetType().Name}: {ev.Exception.Message}\n{ev.Exception.StackTrace}";
+                    DebugConsoleOverlay.Log("UI-EXCEPTION", details);
+                    System.Diagnostics.Debug.WriteLine("[DISPATCHER EXCEPTION] " + details);
+                    try
+                    {
+                        System.IO.File.AppendAllText(
+                            System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "jarvis_debug.log"),
+                            $"[{DateTime.Now:u}] DISPATCHER EXCEPTION: {details}\n");
+                    }
+                    catch { }
+                }
+                catch { }
                 ev.Handled = true;
             };
 
@@ -55,28 +72,40 @@ namespace JarvisLauncher
                 // 3. Fire background service initializations in parallel
                 loadingWindow.UpdateStatus("Starting engines...", 50);
 
+                // Warm the adaptive throttle sampler first so background loops
+                // read live CPU/RAM pressure from their very first iteration.
+                AdaptiveSleeper.Start();
+
                 var depTask = Task.Run(() => { try { EnsureDependenciesAsync().GetAwaiter().GetResult(); } catch { } });
                 var predTask = Task.Run(() => { try { PredictiveStreamManager.Start(); } catch { } });
-                var sysTask = Task.Run(() => { try { SystemKnowledgeManager.Start(); } catch { } });
                 var cmdTask = Task.Run(() => { try { CommandParser.Initialize(); } catch { } });
                 var mobTask = Task.Run(() => { try { MobileBridgeServer.Start(CoreRegistry.Data.Settings.Current.MOBILE_PORT); } catch { } });
                 var persTask = Task.Run(() => { try { PersonalityEvolver.Start(); } catch { } });
                 var emoTask = Task.Run(() => { try { EmotionalContextManager.Start(); } catch { } });
                 var chronoTask = Task.Run(() => { try { ChronoLogManager.StartAutoTracker(); } catch { } });
-                var screenTask = Task.Run(() => { try { ScreenMonitorEngine.Start(15); } catch { } });
                 var selfTask = Task.Run(() => { try { SelfHealingManager.Initialize(); } catch { } });
                 var remTask = Task.Run(() => { try { ReminderManager.Initialize(); } catch { } });
                 var plugTask = Task.Run(() => { try { JarvisPluginManager.Initialize(); } catch { } });
-                var evoTask = Task.Run(() => { try { EvolutionManager.StartContinuousEvolution(); } catch { } });
 
-                // Await only the essential core setup (dependencies & command calibration)
-                /*
-await Task.WhenAll(depTask, cmdTask);
+                // SECURITY: autonomous loops that watch the screen, harvest datasets, or self-modify
+                // ("kernel evolution") are gated behind IS_AUTONOMOUS_MODE_ENABLED (default OFF).
+                // Turning on autonomous mode in Settings is the explicit human opt-in.
+                if (CoreRegistry.Data.Settings.Current.IS_AUTONOMOUS_MODE_ENABLED)
+                {
+                    _ = Task.Run(() => { try { SystemKnowledgeManager.Start(); } catch { } });
+                    _ = Task.Run(() => { try { ScreenMonitorEngine.Start(15); } catch { } });
+                    _ = Task.Run(() => { try { EvolutionManager.StartContinuousEvolution(); } catch { } });
+                }
+                else
+                {
+                    try { DebugConsoleOverlay.Log("Security", "Autonomous loops disabled (screen capture, dataset harvest, evolution). Enable in Settings to opt in."); } catch { }
+                }
 
-                // 4. Build and Show Main Window
+                // Await essential core setup (dependencies & command calibration) before showing the UI.
+                loadingWindow.UpdateStatus("Calibrating core services...", 75);
+                await Task.WhenAll(depTask, cmdTask);
                 loadingWindow.UpdateStatus("System Online.", 100);
-                */
-                
+
                 _mainWindow = new MainWindow();
                 this.MainWindow = _mainWindow;
 

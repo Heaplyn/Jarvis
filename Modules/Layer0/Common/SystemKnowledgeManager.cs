@@ -47,7 +47,7 @@ namespace JarvisLauncher
                     }
 
                     // Re-scan every 10 minutes to stay updated with code changes
-                    await Task.Delay(TimeSpan.FromMinutes(10));
+                    await AdaptiveSleeper.DelayAsync(TimeSpan.FromMinutes(10));
                 }
             });
 

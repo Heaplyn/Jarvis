@@ -89,3 +89,67 @@ WPF's frosted glass `BlurEffect` and background processes can be heavy on some s
 - **Low-VFX Performance Mode**: Can be enabled in **Settings -> Visual Options**. This disables GPU-heavy window blurs and replaces them with solid, semi-transparent overlays for ultra-low GPU consumption.
 - **Parallel Boot Sequences**: The bootloader inside `App.xaml.cs` runs heavy engine initializations concurrently in separate threads. The HUD becomes active in milliseconds while larger indexes load gracefully in the background.
 - **Vosk STT Deferral**: The heavy 40MB offline Vosk speech model is loaded **lazily** only when a speech recognition file command is run, freeing up ~100MB of startup memory.
+
+---
+
+## 🧑‍💻 Developer Guide & Coding Conventions
+
+Everything below reflects how the code is actually wired today (root namespace `JarvisLauncher`, WPF on .NET). Follow these when extending Jarvis.
+
+### Adding a Command Handler (the extension point)
+
+Handlers implement `ICommandHandler` ([`Modules/Layer1/Interfaces/ICommandHandler.cs`](file:///c:/Users/Kyle/Downloads/Projects/Jarvis/Modules/Layer1/Interfaces/ICommandHandler.cs)):
+
+```csharp
+public interface ICommandHandler
+{
+    bool CanHandle(string Query);                    // fast prefix/keyword test — keep it allocation-free
+    List<CommandResult> GetSuggestions(string Query); // build the HUD result rows
+    void OnStart() { }                                // optional: warm caches at boot
+    List<CommandDesc> GetCommandDescriptions() => new(); // optional: self-document for help/search
+}
+```
+
+The `CommandParser` reflection-scans the assembly at boot and auto-registers every non-abstract type implementing this interface. To ship a new command:
+
+1. Drop a class under [`Modules/Layer3/Handlers/`](file:///c:/Users/Kyle/Downloads/Projects/Jarvis/Modules/Layer3/Handlers/) (grouped by domain: `AI`, `Dev`, `Media`, `Productivity`, `System`, `Utilities`).
+2. Implement `CanHandle`/`GetSuggestions`. **Do not** register it anywhere — reflection handles that.
+3. Keep `CanHandle` cheap: it runs on **every keystroke** across **all** handlers. Do heavy work lazily inside `GetSuggestions`, or defer it to `OnStart`.
+
+> ⚠️ **Reflection registry caveat:** because handlers are discovered by type, a handler with a throwing constructor or a slow `OnStart` stalls the whole boot scan. Wrap risky init in try/catch and log rather than throw.
+
+### Enforcing the Layer Hierarchy
+
+The 4-layer rule (Layer K may reference only J < K) is a *convention*, not compiler-enforced — the whole app is one assembly. To keep it honest:
+
+- **Never** add a `using` that points "upward" (e.g. a `Layer0` engine referencing a `Layer2` overlay). If a lower layer needs to notify an upper one, raise an **event** or push through a **Layer1 messaging contract/DTO** — don't call up directly.
+- Cross-cutting data travels as DTOs in [`Modules/Layer1/DTOs/`](file:///c:/Users/Kyle/Downloads/Projects/Jarvis/Modules/Layer1/DTOs/) (`ChatTurn`, `CommandResult`, `CommandDesc`). Add new shared shapes here, not inside a handler.
+
+### WPF Threading & Glass Overlays (Layer2)
+
+Overlays are built programmatically in C# (no XAML). Common footguns:
+
+- **UI objects are thread-affine.** Any mutation of a `Window`/`Control` from a background task must marshal back via `Dispatcher.Invoke` / `await Dispatcher.InvokeAsync`. Touching UI off-thread throws `InvalidOperationException` intermittently.
+- **Never block the UI thread.** No `.Result` / `.Wait()` on async calls in event handlers — it deadlocks the HUD. Use `async void` only for top-level event handlers; everything else returns `Task`.
+- **`BlurEffect` is GPU-bound.** Respect the Low-VFX flag (Settings → Visual Options) in any new overlay so it degrades to a solid brush when blur is disabled. Dispose bitmaps/`RenderTargetBitmap` you allocate — they are unmanaged-backed and a frequent leak source.
+- Prefer `Freeze()` on any `Brush`/`Geometry`/`ImageSource` shared across threads or reused across frames; frozen resources skip locking and reduce GC churn (the recent *"Fixed gc pressure with fuzzy searching"* commit is this class of fix).
+
+### The Mobile Bridge (Layer1)
+
+[`Modules/Layer1/Bridges/MobileBridgeServer.cs`](file:///c:/Users/Kyle/Downloads/Projects/Jarvis/Modules/Layer1/Bridges/MobileBridgeServer.cs) is the PC-side counterpart to the **Jarvis Mobile** app. It exposes a local JSON-over-HTTP surface (screen stream, remote mouse/keyboard, file explorer, EXEC/DEL) and is tunnelled out via **ngrok** for off-LAN access. When changing the wire format here, update `JarvisBridgeClient.cs` in the mobile repo in lockstep — they are a contract pair. Server activity is traced to [`mobile_server_log.txt`](file:///c:/Users/Kyle/Downloads/Projects/Jarvis/mobile_server_log.txt).
+
+### Async & Networking Patterns
+
+- Every `HttpClient` should be **reused** (one long-lived instance), never `new`-per-call — per-call sockets exhaust the ephemeral port range under the LLM prober's parallel load.
+- The 17-endpoint prober fans out with `Task.WhenAll` + per-task `CancellationToken` timeouts. Add new providers as isolated tasks; one slow endpoint must never stall the group — always give it a `CancellationTokenSource(timeout)`.
+- Wrap external process launches (yt-dlp, Ghidra, decompilers) with **UTF-8 stream encoding** on `ProcessStartInfo` (`StandardOutputEncoding = Encoding.UTF8`) to preserve emoji/Unicode paths — see the media downloader notes above.
+
+### Build & Debug
+
+```powershell
+dotnet build                 # incremental compile (sub-second once warm)
+```
+
+- Launch via `JarvisLauncher.bat` / `run.bat` (incremental compile + launch). `run_silent.vbs` starts with no console window.
+- Runtime diagnostics land in [`jarvis_debug.log`](file:///c:/Users/Kyle/Downloads/Projects/Jarvis/jarvis_debug.log); the mobile server has its own log.
+- The repo ships the .NET runtime/WPF DLLs alongside the launcher (self-contained-style layout), so a machine without the matching SDK can still run the built output.

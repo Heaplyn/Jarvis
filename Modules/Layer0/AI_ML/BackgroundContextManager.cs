@@ -45,7 +45,7 @@ namespace JarvisLauncher
                     }
 
                     // Run prefetch analysis every 45 seconds
-                    await Task.Delay(45000);
+                    await AdaptiveSleeper.DelayAsync(45000);
                 }
             });
 

@@ -163,7 +163,7 @@ namespace JarvisLauncher
 
                     while (!cts.Token.IsCancellationRequested)
                     {
-                        await Task.Delay(10000, cts.Token); // Check every 10 seconds
+                        await AdaptiveSleeper.DelayAsync(10000, cts.Token); // Check every 10 seconds (adaptive)
 
                         var pollReq = new HttpRequestMessage(HttpMethod.Get, $"https://apis.roblox.com/assets/user-auth/v1/assets/{assetId}");
                         pollReq.Headers.Add("Cookie", $".ROBLOSECURITY={cookie}");
@@ -244,7 +244,7 @@ namespace JarvisLauncher
 
                     while (!cts.Token.IsCancellationRequested)
                     {
-                        await Task.Delay(60000, cts.Token); // Check every minute
+                        await AdaptiveSleeper.DelayAsync(60000, cts.Token); // Check every minute (adaptive)
 
                         var pollReq = new HttpRequestMessage(HttpMethod.Get, apiLink);
                         pollReq.Headers.Add("Cookie", $".ROBLOSECURITY={cookie}");
