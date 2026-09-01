@@ -92,7 +92,9 @@ namespace JarvisLauncher
             var windowChrome = new WindowChrome { ResizeBorderThickness = new Thickness(6), CaptionHeight = 0, GlassFrameThickness = new Thickness(1), CornerRadius = new CornerRadius(12) };
             WindowChrome.SetWindowChrome(this, windowChrome);
 
-            _mainBorder = new Border { BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(12), IsHitTestVisible = true, Effect = new DropShadowEffect { BlurRadius = 15, Color = Colors.Black, Opacity = 0.5, ShadowDepth = 2 } };
+            // RenderingBias.Performance makes the per-frame drop-shadow render markedly cheaper on
+            // every overlay for a near-identical look — a safe, visually-neutral UI smoothness win.
+            _mainBorder = new Border { BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(12), IsHitTestVisible = true, Effect = new DropShadowEffect { BlurRadius = 15, Color = Colors.Black, Opacity = 0.5, ShadowDepth = 2, RenderingBias = RenderingBias.Performance } };
             _mainBorder.SetResourceReference(Border.BackgroundProperty, "WindowBackgroundBrush"); _mainBorder.SetResourceReference(Border.BorderBrushProperty, "WindowBorderBrush");
 
             _mainGrid = new Grid { Margin = new Thickness(12, 10, 12, 12) };
