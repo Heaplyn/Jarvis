@@ -186,10 +186,51 @@ namespace JarvisLauncher
             s.Children.Add(CreateHeader("Global LLM Orchestration"));
             s.Children.Add(CreateLabel("Primary Intelligence Node:"));
             var backCombo = new ComboBox { Margin = new Thickness(0, 0, 0, 10), Padding = new Thickness(6, 4, 6, 4) };
-            string[] backends = { "Gemini", "Groq", "OpenAI", "Anthropic", "Mistral", "OpenRouter", "Perplexity", "Lemonade", "Ollama" };
+            string[] backends = { "Gemini", "Groq", "OpenAI", "Anthropic", "ClaudeCode", "Mistral", "OpenRouter", "Perplexity", "DeepSeek", "X-AI", "Lemonade", "Ollama" };
             foreach (var b in backends) backCombo.Items.Add(b); backCombo.SelectedItem = set.LLM_BACKEND;
-            backCombo.SelectionChanged += (obj, e) => set.LLM_BACKEND = backCombo.SelectedItem.ToString() ?? "Gemini";
+            backCombo.SelectionChanged += (obj, e) => set.LLM_BACKEND = backCombo.SelectedItem?.ToString() ?? "Gemini";
             s.Children.Add(backCombo);
+
+            s.Children.Add(new TextBlock {
+                Text = "Click 'Get Key' to open the provider's key page. Gemini also works with NO key if you connect Google in the Accounts tab.",
+                Foreground = Brushes.Gray, FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8)
+            });
+
+            // key row: label + textbox + optional "Get Key" button (persists immediately on edit)
+            void KeyRow(string label, string provider, Func<string> get, Action<string> setk) {
+                s.Children.Add(new TextBlock { Text = label, Foreground = Brushes.White, Margin = new Thickness(0, 8, 0, 2) });
+                var g = new Grid();
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                var box = new TextBox { Text = get() ?? "", Margin = new Thickness(0, 0, 6, 0) };
+                box.LostFocus += (o, e) => { setk(box.Text.Trim()); try { SettingsManager.Save(); } catch { } };
+                Grid.SetColumn(box, 0); g.Children.Add(box);
+                if (ApiKeyPortals.Has(provider)) {
+                    var btn = CreateStyledButton("🔑 Get Key", (o, e) => ApiKeyPortals.Open(provider), isPrimary: false, fontSize: 11);
+                    Grid.SetColumn(btn, 1); g.Children.Add(btn);
+                }
+                s.Children.Add(g);
+            }
+            void ModelRow(string label, Func<string> get, Action<string> setm) {
+                s.Children.Add(new TextBlock { Text = label, Foreground = Brushes.Gray, FontSize = 11, Margin = new Thickness(0, 4, 0, 2) });
+                var box = new TextBox { Text = get() ?? "" };
+                box.LostFocus += (o, e) => { setm(box.Text.Trim()); try { SettingsManager.Save(); } catch { } };
+                s.Children.Add(box);
+            }
+
+            s.Children.Add(CreateHeader("API Keys"));
+            KeyRow("Google Gemini API Key:", "Gemini", () => set.GOOGLE_AI_KEY, v => set.GOOGLE_AI_KEY = v);
+            ModelRow("Gemini model (e.g. gemini-2.0-flash, gemini-2.5-flash):", () => set.GEMINI_MODEL, v => set.GEMINI_MODEL = v);
+            KeyRow("OpenAI API Key:", "OpenAI", () => set.OPENAI_KEY, v => set.OPENAI_KEY = v);
+            KeyRow("Anthropic API Key (paid API — not the Max subscription):", "Anthropic", () => set.ANTHROPIC_KEY, v => set.ANTHROPIC_KEY = v);
+            KeyRow("Groq API Key:", "Groq", () => set.GROQ_KEY, v => set.GROQ_KEY = v);
+            KeyRow("OpenRouter API Key (unlocks ~400 models):", "OpenRouter", () => set.OPENROUTER_KEY, v => set.OPENROUTER_KEY = v);
+            ModelRow("OpenRouter model:", () => set.OPENROUTER_MODEL, v => set.OPENROUTER_MODEL = v);
+            KeyRow("Mistral API Key:", "Mistral", () => set.MISTRAL_KEY, v => set.MISTRAL_KEY = v);
+            KeyRow("Perplexity API Key:", "Perplexity", () => set.PERPLEXITY_KEY, v => set.PERPLEXITY_KEY = v);
+            KeyRow("DeepSeek / X-AI (Grok) Key:", "DeepSeek", () => set.CUSTOM_LLM_KEY, v => set.CUSTOM_LLM_KEY = v);
+
+            s.Children.Add(CreateHeader("Local / Custom Endpoints"));
             _openaiModelBox = CreateLabeledTextBox(s, "OpenAI Model Target:", set.OPENAI_MODEL);
             _openaiUrlBox = CreateLabeledTextBox(s, "OpenAI Base Endpoint URL:", set.OPENAI_BASE_URL);
             _ollamaModelBox = CreateLabeledTextBox(s, "Ollama Model Target:", set.OLLAMA_MODEL);
