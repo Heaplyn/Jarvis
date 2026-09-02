@@ -60,8 +60,15 @@ namespace JarvisLauncher
             var geminiKey = CreateTextBox(CoreRegistry.Data.Settings.Current?.GOOGLE_AI_KEY);
             geminiKey.TextChanged += (s, e) => { if (CoreRegistry.Data.Settings.Current != null) CoreRegistry.Data.Settings.Current.GOOGLE_AI_KEY = geminiKey.Text.Trim(); };
             _geminiPanel.Children.Add(geminiKey);
+            _geminiPanel.Children.Add(new System.Windows.Controls.TextBlock {
+                Text = "The key must start with 'AIza' (create one free at AI Studio). OAuth tokens / other values are rejected.",
+                Foreground = System.Windows.Media.Brushes.Gray, FontSize = 11, TextWrapping = System.Windows.TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 4)
+            });
+            var getGeminiKeyBtn = new System.Windows.Controls.Button { Content = "🔑 Get a free Gemini API key", Margin = new Thickness(0, 0, 0, 6), Padding = new Thickness(8, 4, 8, 4), HorizontalAlignment = System.Windows.HorizontalAlignment.Left };
+            getGeminiKeyBtn.Click += (s, e) => ApiKeyPortals.Open("Gemini");
+            _geminiPanel.Children.Add(getGeminiKeyBtn);
             _geminiPanel.Children.Add(CreateLabel("Gemini Model:"));
-            _geminiModelCombo = CreateEditableComboBox(new[] { "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro" }, CoreRegistry.Data.Settings.Current?.GEMINI_MODEL);
+            _geminiModelCombo = CreateEditableComboBox(new[] { "gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro", "gemini-flash-latest" }, CoreRegistry.Data.Settings.Current?.GEMINI_MODEL);
             _geminiModelCombo.SelectionChanged += (s, e) => {
                 var selected = _geminiModelCombo.SelectedItem?.ToString() ?? _geminiModelCombo.Text;
                 if (CoreRegistry.Data.Settings.Current != null) CoreRegistry.Data.Settings.Current.GEMINI_MODEL = selected;

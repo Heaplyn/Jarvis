@@ -397,8 +397,26 @@ namespace JarvisLauncher
                 s.Children.Add(new TextBlock { Text = "Reopen this panel after connecting to refresh the list.", Foreground = Brushes.Gray, FontSize = 10, Margin = new Thickness(0, 8, 0, 0) });
             }
 
+            s.Children.Add(CreateHeader("Blocked signing in? (403 / access_denied)"));
+            s.Children.Add(new TextBlock {
+                Text = "The built-in Google app is in Google's 'test mode' and can't approve every account. Two fixes:",
+                Foreground = Brushes.Gray, FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6)
+            });
+            var geminiKeyBtn = CreateStyledButton("🔑 Easiest: Get a free Gemini API key (no login)", (o, e) => ApiKeyPortals.Open("Gemini"), isPrimary: true, fontSize: 12);
+            geminiKeyBtn.Margin = new Thickness(0, 0, 0, 6); s.Children.Add(geminiKeyBtn);
+            s.Children.Add(new TextBlock { Text = "…then paste it under LLM → Gemini. That skips Google login entirely.", Foreground = Brushes.Gray, FontSize = 10, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) });
+
+            var ownClientBtn = CreateStyledButton("🛠️ For Gmail/Calendar/Drive: create your own OAuth client", (o, e) => {
+                try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = "https://console.cloud.google.com/auth/clients", UseShellExecute = true }); } catch { }
+            }, isPrimary: false, fontSize: 11);
+            s.Children.Add(ownClientBtn);
+            s.Children.Add(new TextBlock {
+                Text = "Steps: New project → Credentials → Create OAuth client ID → type 'Desktop app' → copy the Client ID → paste below. As the project owner you're allowed immediately.",
+                Foreground = Brushes.Gray, FontSize = 10, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 8)
+            });
+
             s.Children.Add(CreateHeader("Advanced (optional)"));
-            s.Children.Add(new TextBlock { Text = "Custom Google OAuth Client ID — only needed if the built-in one ever fails:", Foreground = Brushes.Gray, FontSize = 11, TextWrapping = TextWrapping.Wrap });
+            s.Children.Add(new TextBlock { Text = "Your Google OAuth Client ID (paste the Desktop-app client id from above):", Foreground = Brushes.Gray, FontSize = 11, TextWrapping = TextWrapping.Wrap });
             var cidBox = new TextBox { Text = set.GOOGLE_OAUTH_CLIENT_ID, Margin = new Thickness(0, 4, 0, 0) };
             cidBox.LostFocus += (o, e) => { set.GOOGLE_OAUTH_CLIENT_ID = cidBox.Text.Trim(); };
             s.Children.Add(cidBox);

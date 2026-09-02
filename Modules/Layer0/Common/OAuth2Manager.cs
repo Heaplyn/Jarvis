@@ -53,12 +53,17 @@ namespace JarvisLauncher
         // Drive. NOTE: the Gmail/Calendar/Drive scopes are "sensitive" — until this OAuth app is
         // Google-verified for them, users see an "unverified app" screen and can proceed for their
         // own account via "Advanced".
-        private const string GoogleScopes =
-            "openid email profile " +
-            "https://www.googleapis.com/auth/cloud-platform " +
-            "https://www.googleapis.com/auth/gmail.modify " +
-            "https://www.googleapis.com/auth/calendar " +
-            "https://www.googleapis.com/auth/drive";
+        // Default scopes: identity + cloud-platform (enough for Gemini via the OAuth token). The
+        // heavy Gmail/Calendar/Drive scopes are opt-in via GOOGLE_EXTRA_SCOPES so a plain login
+        // doesn't trigger the "sensitive scope" verification wall.
+        private static string GoogleScopes
+        {
+            get
+            {
+                string extra = CoreRegistry.Data.Settings.Current.GOOGLE_EXTRA_SCOPES ?? "";
+                return ("openid email profile https://www.googleapis.com/auth/cloud-platform " + extra).Trim();
+            }
+        }
 
         /// <param name="forceAccountPicker">Show Google's account chooser (for "add / switch account").</param>
         public static async Task<bool> LoginGoogleOAuth2Async(Action<string>? statusCallback = null, bool forceAccountPicker = false)
@@ -107,10 +112,28 @@ namespace JarvisLauncher
                 var req = context.Request;
                 var res = context.Response;
                 string code = req.QueryString["code"] ?? string.Empty;
+                string? error = req.QueryString["error"];
 
-                string html = $"<html><body style='font-family:sans-serif;background:#0f172a;color:#38bdf8;text-align:center;padding-top:50px;'>" +
-                              $"<h1>✅ {providerName} Auth Successful!</h1>" +
-                              $"<p>Return to Jarvis.</p></body></html>";
+                string html;
+                if (!string.IsNullOrEmpty(error))
+                {
+                    // e.g. access_denied when the bundled OAuth app is in "Testing" and this account
+                    // isn't an approved tester. Explain the two real fixes in the browser page + log.
+                    DebugConsoleOverlay.Log("OAuth-Error", $"{providerName} authorization failed: {error}");
+                    html = "<html><body style='font-family:sans-serif;background:#0f172a;color:#e2e8f0;text-align:center;padding:50px;'>" +
+                           $"<h1 style='color:#f59e0b;'>⚠️ {providerName} sign-in blocked ({error})</h1>" +
+                           "<p>The built-in Google app is in test mode and can't approve arbitrary accounts.</p>" +
+                           "<div style='max-width:560px;margin:20px auto;text-align:left;color:#94a3b8;'>" +
+                           "<p><b>Easiest fix (Gemini):</b> skip Google login — in Jarvis, LLM settings &rarr; Gemini &rarr; <b>Get Key</b>, create a free API key, paste it.</p>" +
+                           "<p><b>For Gmail/Calendar/Drive:</b> create your own OAuth <i>Desktop</i> client at console.cloud.google.com &rarr; Credentials, then paste its Client ID into Jarvis (Accounts tab).</p>" +
+                           "</div><p>You can close this tab.</p></body></html>";
+                }
+                else
+                {
+                    html = $"<html><body style='font-family:sans-serif;background:#0f172a;color:#38bdf8;text-align:center;padding-top:50px;'>" +
+                           $"<h1>✅ {providerName} Auth Successful!</h1>" +
+                           $"<p>Return to Jarvis.</p></body></html>";
+                }
 
                 byte[] buffer = Encoding.UTF8.GetBytes(html);
                 res.ContentLength64 = buffer.Length;
