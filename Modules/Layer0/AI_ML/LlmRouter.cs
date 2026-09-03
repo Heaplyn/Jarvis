@@ -194,11 +194,12 @@ namespace JarvisLauncher
             if (keys.Count == 0 && string.IsNullOrEmpty(oauthToken))
                 throw new Exception("No Gemini credential — add a Google AI key or connect a Google account.");
 
-            string model = string.IsNullOrWhiteSpace(s.GEMINI_MODEL) ? "gemini-2.0-flash" : s.GEMINI_MODEL.Trim();
+            string model = string.IsNullOrWhiteSpace(s.GEMINI_MODEL) ? "gemini-flash-latest" : s.GEMINI_MODEL.Trim();
             if (model.StartsWith("models/")) model = model.Substring("models/".Length);
-            // Map RETIRED models (1.x / gemini-pro) to a current one so old configs don't 404.
-            // (The previous code did the opposite — it forced modern models down to the dead 1.5-flash.)
-            if (model.Contains("1.5") || model.Contains("1.0") || model == "gemini-pro") model = "gemini-2.0-flash";
+            // Google keeps RETIRING versioned flash models (1.5, 2.0, ...). Steer old configs to the
+            // always-current alias so they never 404 again. gemini-2.5/3.x are kept as-is.
+            if (model.Contains("1.5") || model.Contains("1.0") || model.Contains("2.0") || model == "gemini-pro")
+                model = "gemini-flash-latest";
 
             var contents = new List<object>();
             string lastRole = ""; string lastText = "";
@@ -248,7 +249,7 @@ namespace JarvisLauncher
             if (string.IsNullOrEmpty(rawKeys)) throw new Exception("API Key is empty.");
             var keys = rawKeys.Split(';', StringSplitOptions.RemoveEmptyEntries).Select(k => k.Trim()).ToList();
 
-            string model = "gemini-2.0-flash";
+            string model = "gemini-flash-latest";
             string b64Data = Convert.ToBase64String(audioBytes);
             var payload = new { systemInstruction = new { parts = new[] { new { text = AiAPI.GetCompactSystemPrompt() } } }, contents = new[] { new { role = "user", parts = new object[] { new { inlineData = new { mimeType = "audio/mp3", data = b64Data } }, new { text = prompt } } } }, generationConfig = new { temperature = 0.4, maxOutputTokens = 4096 } };
             string json = JsonSerializer.Serialize(payload);

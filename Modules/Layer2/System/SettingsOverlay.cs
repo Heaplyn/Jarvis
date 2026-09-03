@@ -220,7 +220,7 @@ namespace JarvisLauncher
 
             s.Children.Add(CreateHeader("API Keys"));
             KeyRow("Google Gemini API Key:", "Gemini", () => set.GOOGLE_AI_KEY, v => set.GOOGLE_AI_KEY = v);
-            ModelRow("Gemini model (e.g. gemini-2.0-flash, gemini-2.5-flash):", () => set.GEMINI_MODEL, v => set.GEMINI_MODEL = v);
+            ModelRow("Gemini model (recommend 'gemini-flash-latest' — never goes stale):", () => set.GEMINI_MODEL, v => set.GEMINI_MODEL = v);
             KeyRow("OpenAI API Key:", "OpenAI", () => set.OPENAI_KEY, v => set.OPENAI_KEY = v);
             KeyRow("Anthropic API Key (paid API — not the Max subscription):", "Anthropic", () => set.ANTHROPIC_KEY, v => set.ANTHROPIC_KEY = v);
             KeyRow("Groq API Key:", "Groq", () => set.GROQ_KEY, v => set.GROQ_KEY = v);

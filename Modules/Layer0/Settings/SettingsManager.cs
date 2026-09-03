@@ -90,7 +90,7 @@ namespace JarvisLauncher
         public Dictionary<string, string> ALIASES { get; set; } = new Dictionary<string, string>();
 
         public string LLM_BACKEND { get; set; } = "Gemini";
-        public string GEMINI_MODEL { get; set; } = "gemini-2.0-flash";
+        public string GEMINI_MODEL { get; set; } = "gemini-flash-latest";
         public string OPENAI_KEY { get; set; } = string.Empty;
         public string OPENAI_BASE_URL { get; set; } = "https://api.openai.com/v1";
         public string OPENAI_MODEL { get; set; } = "gpt-4o-mini";
