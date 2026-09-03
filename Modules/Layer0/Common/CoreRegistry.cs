@@ -84,6 +84,8 @@ namespace JarvisLauncher
                 // Periodic screen perception (feeds the AI's [PERCEPTION CONTEXT]).
                 try { if (Data.Settings.Current.ENABLE_SCREEN_PERCEPTION)
                         ScreenMonitorEngine.Start(Data.Settings.Current.SCREEN_PERCEPTION_INTERVAL_SEC); } catch { }
+                // Slow background filesystem index for AI file reference.
+                try { if (Data.Settings.Current.ENABLE_FILE_INDEXING) FileSystemIndexer.Start(); } catch { }
             });
 
             Task.Run(async () => {

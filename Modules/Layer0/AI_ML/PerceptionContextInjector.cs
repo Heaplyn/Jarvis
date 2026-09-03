@@ -72,6 +72,29 @@ namespace JarvisLauncher
                 }
                 catch { }
 
+                // 4) Files from the slow filesystem index that match the request (path matches only).
+                try
+                {
+                    if (!NeuralResourceManager.IsThrottled)
+                    {
+                        var terms = Regex.Matches(prompt, @"[A-Za-z0-9_\.\-]{4,}")
+                                         .Select(m => m.Value).Distinct().Take(6);
+                        var hits = new List<string>();
+                        foreach (var t in terms)
+                        {
+                            hits.AddRange(FileSystemIndexer.Search(t, 3));
+                            if (hits.Count >= 6) break;
+                        }
+                        hits = hits.Distinct().Take(6).ToList();
+                        if (hits.Count > 0)
+                        {
+                            sb.AppendLine("- Files on disk matching the request:");
+                            foreach (var h in hits) sb.AppendLine($"    • {h}");
+                        }
+                    }
+                }
+                catch { }
+
                 if (sb.Length == 0) return "";
                 return "[PERCEPTION CONTEXT — what Jarvis currently sees / knows]\n" + sb;
             }

@@ -69,6 +69,8 @@ namespace JarvisLauncher
         public bool ENABLE_PERCEPTION_CONTEXT { get; set; } = true;   // inject active window / screen / files into prompts
         public bool ENABLE_SCREEN_PERCEPTION { get; set; } = true;    // run periodic screen captures for that context
         public int SCREEN_PERCEPTION_INTERVAL_SEC { get; set; } = 10;
+        public bool ENABLE_FILE_INDEXING { get; set; } = true;        // slow background filesystem index for AI file reference
+        public int FILE_INDEX_DELAY_MS { get; set; } = 150;           // base delay per directory (adaptive-scaled)
 
         public bool ENABLE_VOICE_COMMAND_CHUNKING { get; set; } = true;
         public int VOICE_CHUNKING_SILENCE_MS { get; set; } = 1200;
