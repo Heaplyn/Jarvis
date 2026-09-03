@@ -24,20 +24,29 @@ namespace JarvisLauncher.AiTools
 
         private static void RegisterCoreTools()
         {
-            // File Tools
+            // File Tools (path-jailed): read, write, list, edit
             Register(new ReadFileTool());
             Register(new WriteFileTool());
             Register(new ListFilesTool());
             Register(new ReadBinaryTool());
             Register(new WriteBinaryTool());
+            Register(new EditFileTool());
 
             // System & Automation Tools
             Register(new MouseControlTool());
             Register(new KeyboardTool());
             Register(new AppFocusTool());
+            Register(new ProcessListTool());
+            Register(new ProcessKillTool());     // asks for confirmation before killing
+            Register(new PowerShellTool());      // runs shell (Agent Mode only + confirm on risky cmds)
 
-            // Web Tools (Assuming implementation exists in WebTools.cs)
-            // Register(new WebScrapeTool());
+            // Web (from WebTools.cs)
+            Register(new WebSearchTool());       // @web_search{query}
+            Register(new WebFetchTool());        // @web_fetch{url}
+            Register(new DownloadTool());        // @download{url}{dest}
+
+            // Self-configuration (asks for confirmation)
+            Register(new SettingsControlTool());
         }
 
         public static void Register(IAiTool tool)

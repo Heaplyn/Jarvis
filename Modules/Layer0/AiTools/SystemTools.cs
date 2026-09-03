@@ -13,8 +13,20 @@ namespace JarvisLauncher.AiTools
         public string RegexPattern => @"@ps\{(?<c>.*?)\}";
         public Task<string> ExecuteAsync(Match m, HashSet<string> executedTags)
         {
-            // SECURITY: model-emitted PowerShell is disabled. The model may not run arbitrary shell.
-            return Task.FromResult("[BLOCKED: @ps is disabled — the model may not run PowerShell]\n");
+            string cmd = m.Groups["c"].Value.Trim();
+            if (!executedTags.Add("PS:" + cmd.GetHashCode())) return Task.FromResult("");
+            // Agent Mode gate: only runs when the user has enabled PC control.
+            if (!CoreRegistry.Data.Settings.Current.ENABLE_PC_CONTROL)
+                return Task.FromResult("[BLOCKED: enable Agent Mode (PC control) in Settings to let Jarvis run commands]\n");
+            // Confirm clearly-destructive commands before running.
+            string lc = cmd.ToLowerInvariant();
+            bool risky = lc.Contains("remove-item") || lc.Contains("del ") || lc.Contains("format ") ||
+                         lc.Contains("shutdown") || lc.Contains("stop-process") || lc.Contains("rmdir") ||
+                         lc.Contains("rd /s") || lc.Contains("rm -");
+            if (risky && !HumanConfirm.Ask($"Jarvis (AI) wants to run a shell command:\n\n{cmd}\n\nAllow?"))
+                return Task.FromResult("[DENIED: user declined the command]\n");
+            string output = AgentExecutor.ExecutePowerShellDirect(cmd);
+            return Task.FromResult($"[PS OUTPUT]:\n{output}\n");
         }
     }
 

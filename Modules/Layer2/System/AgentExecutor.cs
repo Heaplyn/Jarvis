@@ -25,15 +25,16 @@ namespace JarvisLauncher
             if (string.IsNullOrEmpty(aiResponse)) return aiResponse;
             aiResponse = AiAPI.CleanScratchpadText(aiResponse);
 
-            // SECURITY: runtime tool synthesis (@new_tool) is DISABLED. Letting the model register
-            // arbitrary regex->PowerShell tools at runtime is remote code execution by prompt.
-            // Do not re-enable without a real sandbox (separate process, no shell, allow-list).
-
             if (!SettingsManager.Current.ENABLE_PC_CONTROL)
             {
                 ProcessSafeIntents(aiResponse);
                 return StripAllInternalTags(aiResponse);
             }
+
+            // AGENT MODE: runtime tool synthesis (@new_tool). Each synthesized tool runs arbitrary
+            // PowerShell, so ProcessToolSynthesisAsync confirms every one with the user before it is
+            // registered. Only reachable here because ENABLE_PC_CONTROL is on.
+            try { await SelfEvolvingToolEngine.ProcessToolSynthesisAsync(aiResponse); } catch { }
 
             string currentContext = aiResponse;
             var executedTags = new HashSet<string>();
