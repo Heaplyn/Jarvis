@@ -203,8 +203,11 @@ namespace JarvisLauncher
 
             var contents = new List<object>();
             string lastRole = ""; string lastText = "";
-            if (history != null) {
-                foreach (var t in history) {
+            // Gemini REQUIRES the first content to be role 'user'. Drop any leading assistant/greeting
+            // turns — this is why chat (with history) 400s while a bare test prompt (no history) works.
+            var trimmedHistory = history?.SkipWhile(t => t.Role == "model" || t.Role == "assistant").ToList();
+            if (trimmedHistory != null) {
+                foreach (var t in trimmedHistory) {
                     string currentRole = (t.Role == "model" || t.Role == "assistant" ? "model" : "user");
                     if (currentRole == lastRole) lastText += "\n" + (t.Text ?? "");
                     else { if (!string.IsNullOrEmpty(lastRole)) contents.Add(new { role = lastRole, parts = new[] { new { text = lastText } } }); lastRole = currentRole; lastText = t.Text ?? ""; }
