@@ -51,6 +51,8 @@ namespace JarvisLauncher
             string lowerPrompt = prompt.ToLower();
             if (lowerPrompt.Contains("yesterday") || lowerPrompt.Contains("history") || lowerPrompt.Contains("did i do")) {
                 string historyContext = ChronoLogManager.GetHistoryForDate(DateTime.Now.AddDays(-1));
+                // Cap the injected log dump so the prompt doesn't balloon (which was causing timeouts).
+                if (historyContext.Length > 6000) historyContext = historyContext.Substring(0, 6000) + "\n...[truncated]";
                 prompt = $"[SYSTEM CONTEXT: USER HISTORY LOGS]\n{historyContext}\n\n### USER REQUEST\n{prompt}";
             }
 
@@ -88,10 +90,10 @@ namespace JarvisLauncher
                     if (!IsBackendConfigured(backend)) continue;
                     DebugConsoleOverlay.Log("AI-Router", $"Attempting: {backend}");
 
-                    // Per-attempt timeout so ONE hanging backend can't eat the whole 60s HttpClient
-                    // timeout and stall failover — cancel at 35s and move to the next provider.
+                    // Per-attempt timeout so a truly hung backend can't stall failover, but generous
+                    // enough for large prompts / long generations (short 35s was cancelling real work).
                     using var attemptCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                    attemptCts.CancelAfter(TimeSpan.FromSeconds(35));
+                    attemptCts.CancelAfter(TimeSpan.FromSeconds(120));
                     string result = await CallBackendInternalAsync(backend, prompt, optimizedHistory, attemptCts.Token);
 
                     if (!string.IsNullOrEmpty(result) && !result.StartsWith("⚠️")) {
@@ -216,7 +218,7 @@ namespace JarvisLauncher
             if (lastRole == "user") { lastText += "\n" + prompt; contents.Add(new { role = "user", parts = new[] { new { text = lastText } } }); }
             else { if (!string.IsNullOrEmpty(lastRole)) contents.Add(new { role = lastRole, parts = new[] { new { text = lastText } } }); contents.Add(new { role = "user", parts = new[] { new { text = prompt } } }); }
 
-            var payload = new { systemInstruction = new { parts = new[] { new { text = AiAPI.GetCompactSystemPrompt() } } }, contents, generationConfig = new { temperature = 0.7, maxOutputTokens = 4096 } };
+            var payload = new { systemInstruction = new { parts = new[] { new { text = AiAPI.GetCompactSystemPrompt() } } }, contents, generationConfig = new { temperature = 0.7, maxOutputTokens = 8192 } };
             string json = JsonSerializer.Serialize(payload);
 
             // Build attempts: API-key query param when keys exist, else OAuth Bearer (no ?key=).
@@ -236,7 +238,9 @@ namespace JarvisLauncher
                 try {
                     using var req = new HttpRequestMessage(HttpMethod.Post, url) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
                     if (!string.IsNullOrEmpty(bearer)) req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearer);
-                    using var resp = await _http.SendAsync(req, ct);
+                    // Use the uncapped client so the shared 60s HttpClient timeout doesn't cut off a
+                    // large generation; the per-attempt CTS (120s) is the real limit.
+                    using var resp = await _streamHttp.SendAsync(req, ct);
                     string body = await resp.Content.ReadAsStringAsync();
                     if (resp.IsSuccessStatusCode) { using var doc = JsonDocument.Parse(body); return doc.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString() ?? ""; }
                     lastError = body;
