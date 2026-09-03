@@ -81,6 +81,9 @@ namespace JarvisLauncher
                 try { if (Data.Settings.Current.IS_AUTONOMOUS_MODE_ENABLED) Interaction.Autonomous.Start(); } catch { }
                 try { Interaction.Voice.Start(); } catch { }
                 try { BackupSyncManager.StartAutoSync(); } catch { }
+                // Periodic screen perception (feeds the AI's [PERCEPTION CONTEXT]).
+                try { if (Data.Settings.Current.ENABLE_SCREEN_PERCEPTION)
+                        ScreenMonitorEngine.Start(Data.Settings.Current.SCREEN_PERCEPTION_INTERVAL_SEC); } catch { }
             });
 
             Task.Run(async () => {

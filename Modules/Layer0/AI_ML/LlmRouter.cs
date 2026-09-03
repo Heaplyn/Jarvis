@@ -65,6 +65,13 @@ namespace JarvisLauncher
                 }
             } catch { }
 
+            // PERCEPTION: inject what Jarvis currently sees (active window, latest screen summary) and
+            // the most relevant project files, so the AI can reason about the screen + codebase.
+            try {
+                string perc = PerceptionContextInjector.Gather(prompt);
+                if (!string.IsNullOrEmpty(perc)) prompt = $"{perc}\n### USER REQUEST\n{prompt}";
+            } catch { }
+
             try {
                 string? local = await HeuristicIntentParser.TryHandleLocallyAsync(prompt);
                 if (local != null) return local;

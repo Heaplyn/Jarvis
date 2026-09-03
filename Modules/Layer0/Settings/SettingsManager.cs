@@ -65,6 +65,11 @@ namespace JarvisLauncher
         public bool IS_AUTONOMOUS_MODE_ENABLED { get; set; } = false;
         public int AUTONOMOUS_INTERVAL_MINUTES { get; set; } = 2;
 
+        // --- PERCEPTION (Jarvis's "senses" fed into AI context) ---
+        public bool ENABLE_PERCEPTION_CONTEXT { get; set; } = true;   // inject active window / screen / files into prompts
+        public bool ENABLE_SCREEN_PERCEPTION { get; set; } = true;    // run periodic screen captures for that context
+        public int SCREEN_PERCEPTION_INTERVAL_SEC { get; set; } = 10;
+
         public bool ENABLE_VOICE_COMMAND_CHUNKING { get; set; } = true;
         public int VOICE_CHUNKING_SILENCE_MS { get; set; } = 1200;
         public double MIN_VOICE_CONFIDENCE { get; set; } = 0.65;
