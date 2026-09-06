@@ -11,8 +11,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
     {
         public bool CanHandle(string query)
         {
-            string q = query.ToLower();
-            return q == "tools" || q == "orchestrator" || q == "registry" || q == "tool manager";
+            return SearchUtil.MatchesAny(query, "tools", "orchestrator", "registry", "tool manager");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -23,7 +22,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
                 {
                     TITLE = "🛠️ Open AI Tool Orchestrator",
                     DESCRIPTION = "Manage and register autonomous AI tools and capabilities.",
-                    SIMILARITY = 1.0,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "tools", "orchestrator", "registry", "tool manager") + 1.0 * 0.01),
                     EXECUTE = () => ToolManagerOverlay.ShowOverlay()
                 }
             };

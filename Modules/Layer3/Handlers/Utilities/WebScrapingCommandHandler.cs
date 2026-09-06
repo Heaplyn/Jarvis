@@ -16,7 +16,9 @@ namespace JarvisLauncher
         private static bool IsMatch(string input, string target)
         {
             if (string.IsNullOrEmpty(input)) return false;
-            return target.StartsWith(input) || input.StartsWith(target);
+            if (target.StartsWith(input) || input.StartsWith(target)) return true;
+            // Typo tolerance for 3+ char tokens ("scrpe" -> "scrape") via the shared fuzzy gate.
+            return input.Length >= 3 && SearchUtil.IsClose(input, target);
         }
 
         public bool CanHandle(string query)

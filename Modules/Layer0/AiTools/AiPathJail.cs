@@ -33,13 +33,21 @@ namespace JarvisLauncher.AiTools
                     : Path.Combine(Root, requested);
                 string full = Path.GetFullPath(combined);
 
+                // Agent Mode (ENABLE_PC_CONTROL) grants full filesystem access. With it off, file
+                // tools stay confined to the app workspace.
+                if (CoreRegistry.Data.Settings.Current.ENABLE_PC_CONTROL)
+                {
+                    fullPath = full;
+                    return true;
+                }
+
                 string rootWithSep = Root.EndsWith(Path.DirectorySeparatorChar)
                     ? Root : Root + Path.DirectorySeparatorChar;
 
                 if (!string.Equals(full, Root, StringComparison.OrdinalIgnoreCase) &&
                     !full.StartsWith(rootWithSep, StringComparison.OrdinalIgnoreCase))
                 {
-                    error = $"[ERROR: path '{requested}' is outside the AI workspace and was blocked]\n";
+                    error = $"[ERROR: path '{requested}' is outside the workspace. Enable Agent Mode for full file access.]\n";
                     return false;
                 }
 

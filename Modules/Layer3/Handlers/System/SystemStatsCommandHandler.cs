@@ -18,15 +18,14 @@ namespace JarvisLauncher
 
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query == "cpu" || query == "ram" || query == "sys" || query == "stats" || query == "system";
+            return SearchUtil.MatchesAny(query, "cpu", "ram", "sys", "stats", "system");
         }
 
         public List<CommandResult> GetSuggestions(string query)
         {
             var suggestions = new List<CommandResult>();
             query = query.Trim().ToLower();
-            double similarity = 1.0; // High priority matching for stats keywords
+            double similarity = SearchUtil.BestSimilarity(query, "cpu", "ram", "sys", "stats", "system"); // High priority matching for stats keywords
 
             if (query == "cpu")
             {

@@ -12,9 +12,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query == "mcp" || query == "mcpstudio" || query == "mcpgui" || query == "mcpservers" ||
-                   query == "mcp tools" || query == "mcp list" || query.StartsWith("mcp ") || query.StartsWith("mcp2");
+            return SearchUtil.MatchesAny(query, "mcp", "mcpstudio", "mcpgui", "mcpservers", "mcp tools", "mcp list");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -26,7 +24,7 @@ namespace JarvisLauncher
             {
                 TITLE = "⚡ Open MCP Registry & Server Manager Studio",
                 DESCRIPTION = "Manage Model Context Protocol servers (Roblox, Filesystem, Brave Search, Memory, GitHub)",
-                SIMILARITY = 6.0,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "mcp", "mcpstudio", "mcpgui", "mcpservers", "mcp tools", "mcp list") + 6.0 * 0.01),
                 EXECUTE = () => McpStudioOverlay.ShowOverlay()
             });
 
@@ -36,7 +34,7 @@ namespace JarvisLauncher
                 {
                     TITLE = "🎮 Register Roblox Studio MCP Server",
                     DESCRIPTION = "claude mcp add --transport stdio Roblox_Studio -- cmd.exe /c cd /d %LOCALAPPDATA%\\Roblox && .\\mcp.bat",
-                    SIMILARITY = 5.5,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "mcp", "mcpstudio", "mcpgui", "mcpservers", "mcp tools", "mcp list") + 5.5 * 0.01),
                     EXECUTE = () =>
                     {
                         McpManager.AddServer(new McpServerConfig
@@ -57,7 +55,7 @@ namespace JarvisLauncher
                 {
                     TITLE = "📁 Register Filesystem MCP Server",
                     DESCRIPTION = "npx -y @modelcontextprotocol/server-filesystem %USERPROFILE%",
-                    SIMILARITY = 5.5,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "mcp", "mcpstudio", "mcpgui", "mcpservers", "mcp tools", "mcp list") + 5.5 * 0.01),
                     EXECUTE = () =>
                     {
                         McpManager.AddServer(new McpServerConfig
@@ -80,7 +78,7 @@ namespace JarvisLauncher
                 {
                     TITLE = $"⚡ Test Connection: MCP Server [{s.Name}]",
                     DESCRIPTION = $"{s.Command} {string.Join(" ", s.Args)}",
-                    SIMILARITY = 4.0,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "mcp", "mcpstudio", "mcpgui", "mcpservers", "mcp tools", "mcp list") + 4.0 * 0.01),
                     EXECUTE = async () =>
                     {
                         bool ok = await McpManager.TestServerConnectionAsync(s);

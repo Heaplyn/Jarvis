@@ -14,8 +14,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            string q = query.Trim().ToLower();
-            return q == "cleanup" || q == "clean" || q == "storage" || q == "disk" || q == "purge" || q == "empty recycle bin" || q == "clear temp";
+            return SearchUtil.MatchesAny(query, "heal", "selfheal", "self heal", "optimize", "cleanup", "clean", "storage", "disk", "purge", "empty recycle bin", "clear temp", "ram", "memory");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -25,9 +24,23 @@ namespace JarvisLauncher
 
             suggestions.Add(new CommandResult
             {
+                TITLE = "⚡ Self-Heal & Optimize System Memory",
+                DESCRIPTION = "Trim RAM working set, compact heap, purge caches, and audit system integrity",
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "heal", "selfheal", "self heal", "optimize", "ram", "memory", "cleanup") + 9.5 * 0.01),
+                EXECUTE = () => {
+                    SelfHealingManager.AuditAndHealDirectories();
+                    SelfHealingManager.AuditAndHealSettingsFile();
+                    SelfHealingManager.AuditAndHealDataFiles();
+                    SelfHealingManager.CompactAndHealMemory("User manual execution");
+                    TextOverlay.Show("⚡ Jarvis Self-Healing: Memory compacted & integrity verified!", 3000);
+                }
+            });
+
+            suggestions.Add(new CommandResult
+            {
                 TITLE = "🧹 Run Full System Cleanup",
                 DESCRIPTION = "Purge temp files, empty recycle bin, and rotate old logs",
-                SIMILARITY = 9.0,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "cleanup", "clean", "storage", "disk", "purge", "empty recycle bin", "clear temp") + 9.0 * 0.01),
                 EXECUTE = () => RunFullCleanup()
             });
 
@@ -35,7 +48,7 @@ namespace JarvisLauncher
             {
                 TITLE = "🗑️ Empty Recycle Bin",
                 DESCRIPTION = "Permanently delete all items in the Windows Recycle Bin",
-                SIMILARITY = 8.5,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "cleanup", "clean", "storage", "disk", "purge", "empty recycle bin", "clear temp") + 8.5 * 0.01),
                 EXECUTE = () => Task.Run(async () => {
                     bool ok = await CoreRegistry.Data.StorageCleanup.EmptyRecycleBinAsync();
                     TextOverlay.Show(ok ? "🗑️ Recycle Bin Emptied!" : "⚠️ Bin is already empty.", 2500);
@@ -46,7 +59,7 @@ namespace JarvisLauncher
             {
                 TITLE = "🧹 Clear Temporary Files",
                 DESCRIPTION = "Purge the Windows %TEMP% directory to free up space",
-                SIMILARITY = 8.0,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "cleanup", "clean", "storage", "disk", "purge", "empty recycle bin", "clear temp") + 8.0 * 0.01),
                 EXECUTE = () => Task.Run(async () => {
                     int cleared = await CoreRegistry.Data.StorageCleanup.ClearTempFilesAsync();
                     TextOverlay.Show($"🧹 Cleared {cleared} temp files/folders!", 3000);
@@ -57,7 +70,7 @@ namespace JarvisLauncher
             {
                 TITLE = "📊 Analyze Disk Space",
                 DESCRIPTION = "Show free space on all connected drives",
-                SIMILARITY = 7.5,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "cleanup", "clean", "storage", "disk", "purge", "empty recycle bin", "clear temp") + 7.5 * 0.01),
                 EXECUTE = () => {
                     var info = CoreRegistry.Data.StorageCleanup.GetDiskSpaceInfo();
                     var sb = new StringBuilder("# Disk Space Report\n\n");
@@ -70,7 +83,7 @@ namespace JarvisLauncher
             {
                 TITLE = "🔍 Find Large Files",
                 DESCRIPTION = "Scan for files larger than 500MB in your user profile",
-                SIMILARITY = 7.0,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "cleanup", "clean", "storage", "disk", "purge", "empty recycle bin", "clear temp") + 7.0 * 0.01),
                 EXECUTE = () => RunLargeFileAnalysis()
             });
 

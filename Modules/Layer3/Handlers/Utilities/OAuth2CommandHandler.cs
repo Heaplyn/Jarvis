@@ -11,11 +11,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query == "oauth" || query == "auth" || query == "login" ||
-                   query == "google login" || query == "github login" || query == "oauth2" ||
-                   query.StartsWith("set google_client_id ") || query.StartsWith("set google_client_secret ") ||
-                   query.StartsWith("set github_client_id ") || query.StartsWith("set github_client_secret ");
+            return SearchUtil.MatchesAny(query, "oauth", "auth", "login", "google login", "github login", "oauth2");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -28,7 +24,7 @@ namespace JarvisLauncher
             {
                 TITLE = "🔑 Open OAuth2 Account Authentication Studio",
                 DESCRIPTION = "Manage Google Gemini AI & GitHub OAuth2 account logins and tokens",
-                SIMILARITY = 6.0,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "oauth", "auth", "login", "google login", "github login", "oauth2") + 6.0 * 0.01),
                 EXECUTE = () => OAuth2StudioOverlay.ShowOverlay()
             });
 
@@ -39,7 +35,7 @@ namespace JarvisLauncher
                 {
                     TITLE = "🔑 Sign In with Google OAuth2",
                     DESCRIPTION = "Launch browser to authorize Google Gemini AI access token",
-                    SIMILARITY = 6.5,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "oauth", "auth", "login", "google login", "github login", "oauth2") + 6.5 * 0.01),
                     EXECUTE = async () => await OAuth2Manager.LoginGoogleOAuth2Async(status => TextOverlay.Show(status, 2500))
                 });
             }
@@ -51,7 +47,7 @@ namespace JarvisLauncher
                 {
                     TITLE = "🐙 Sign In with GitHub OAuth2",
                     DESCRIPTION = "Launch browser to authorize GitHub access token",
-                    SIMILARITY = 6.5,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "oauth", "auth", "login", "google login", "github login", "oauth2") + 6.5 * 0.01),
                     EXECUTE = async () => await OAuth2Manager.LoginGithubOAuth2Async(status => TextOverlay.Show(status, 2500))
                 });
             }
@@ -64,7 +60,7 @@ namespace JarvisLauncher
                 {
                     TITLE = $"💾 Set Google OAuth2 Client ID to: \"{val}\"",
                     DESCRIPTION = "Saves custom Google Cloud Client ID for Gemini authorization",
-                    SIMILARITY = 7.0,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "oauth", "auth", "login", "google login", "github login", "oauth2") + 7.0 * 0.01),
                     EXECUTE = () => { SettingsManager.Current.GOOGLE_OAUTH_CLIENT_ID = val; SettingsManager.Save(); TextOverlay.Show("✅ Google Client ID saved!", 2500); }
                 });
             }
@@ -75,7 +71,7 @@ namespace JarvisLauncher
                 {
                     TITLE = $"💾 Set Google OAuth2 Client Secret to: \"{val}\"",
                     DESCRIPTION = "Saves custom Google Cloud Client Secret",
-                    SIMILARITY = 7.0,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "oauth", "auth", "login", "google login", "github login", "oauth2") + 7.0 * 0.01),
                     EXECUTE = () => { SettingsManager.Current.GOOGLE_OAUTH_CLIENT_SECRET = val; SettingsManager.Save(); TextOverlay.Show("✅ Google Client Secret saved!", 2500); }
                 });
             }
@@ -86,7 +82,7 @@ namespace JarvisLauncher
                 {
                     TITLE = $"💾 Set GitHub OAuth2 Client ID to: \"{val}\"",
                     DESCRIPTION = "Saves custom GitHub Client ID",
-                    SIMILARITY = 7.0,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "oauth", "auth", "login", "google login", "github login", "oauth2") + 7.0 * 0.01),
                     EXECUTE = () => { SettingsManager.Current.GITHUB_OAUTH_CLIENT_ID = val; SettingsManager.Save(); TextOverlay.Show("✅ GitHub Client ID saved!", 2500); }
                 });
             }
@@ -97,7 +93,7 @@ namespace JarvisLauncher
                 {
                     TITLE = $"💾 Set GitHub OAuth2 Client Secret to: \"{val}\"",
                     DESCRIPTION = "Saves custom GitHub Client Secret",
-                    SIMILARITY = 7.0,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "oauth", "auth", "login", "google login", "github login", "oauth2") + 7.0 * 0.01),
                     EXECUTE = () => { SettingsManager.Current.GITHUB_OAUTH_CLIENT_SECRET = val; SettingsManager.Save(); TextOverlay.Show("✅ GitHub Client Secret saved!", 2500); }
                 });
             }

@@ -17,22 +17,25 @@ namespace JarvisLauncher
 {
     public class VoiceActivationManager : IVoiceActivationService
     {
-        private WaveIn? _waveIn;
-        private MemoryStream _commandAudioStream = new MemoryStream();
-        private bool _isRecordingCommand = false;
+        bool IVoiceActivationService.IsListening => LocalWakeWordDetector.IsListening;
 
-        bool IVoiceActivationService.IsListening => _waveIn != null;
-
+        // Boot calls this via CoreRegistry.Interaction.Voice.Start(). Rather than buffer raw mic
+        // audio into a stream nobody reads (the old stub), drive the real "Hey Jarvis" wake-word
+        // engine so voice activation actually works. Gated by ENABLE_WAKE_WORD.
         void IVoiceActivationService.Start()
         {
             try {
-                _waveIn = new WaveIn { WaveFormat = new WaveFormat(16000, 1) };
-                _waveIn.DataAvailable += (s, e) => { if (_isRecordingCommand) _commandAudioStream.Write(e.Buffer, 0, e.BytesRecorded); };
-                _waveIn.StartRecording();
+                if (!SettingsManager.Current.ENABLE_WAKE_WORD)
+                {
+                    DebugConsoleOverlay.Log("Voice", "Wake word disabled (ENABLE_WAKE_WORD = false). Say-\"Hey Jarvis\" listening not started.");
+                    return;
+                }
+                LocalWakeWordDetector.Initialize();
+                DebugConsoleOverlay.Log("Voice", "Wake-word engine online — listening for \"Hey Jarvis\".");
             } catch { }
         }
 
-        void IVoiceActivationService.Stop() => _waveIn?.StopRecording();
+        void IVoiceActivationService.Stop() => LocalWakeWordDetector.Stop();
         void IVoiceActivationService.SetSensitivity(double level) { }
 
         Task IVoiceActivationService.EnrollVoiceAsync(string name) => Task.CompletedTask;

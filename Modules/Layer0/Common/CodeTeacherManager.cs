@@ -6,12 +6,35 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace JarvisLauncher
 {
     public static class CodeTeacherManager
     {
+        // Dedup: suppress identical (or near-identical) reports submitted within this window.
+        private static string _lastReportSignature = string.Empty;
+        private static DateTime _lastReportTime = DateTime.MinValue;
+        private static readonly TimeSpan ReportCooldown = TimeSpan.FromMinutes(10);
+
+        private static string ReportSignature(string text)
+        {
+            var words = new string(text.ToLowerInvariant()
+                    .Where(c => char.IsLetterOrDigit(c) || c == ' ').ToArray())
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            return string.Join(" ", words.Take(18));
+        }
+
+        private static bool IsDuplicate(string report)
+        {
+            string sig = ReportSignature(report);
+            if (sig == _lastReportSignature && DateTime.Now - _lastReportTime < ReportCooldown)
+                return true;
+            _lastReportSignature = sig;
+            _lastReportTime = DateTime.Now;
+            return false;
+        }
         /// <summary>
         /// Reads a file from disk and queries AI to educational-check its contents.
         /// </summary>
@@ -59,6 +82,10 @@ namespace JarvisLauncher
 
                 // Update active workspace memory with this code context
                 WorkspaceMemoryManager.UpdateActiveCode(filePath, code, language);
+
+                // Suppress duplicate / near-identical reports within the cooldown window.
+                if (IsDuplicate(report))
+                    return "duplicate_suppressed";
 
                 // Show notification and return
                 TextOverlay.Show($"🎓 Code Teacher found issues in {filename}!", 4000);

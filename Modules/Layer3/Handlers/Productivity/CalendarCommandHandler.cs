@@ -12,8 +12,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query == "cal" || query.StartsWith("cal ") || query == "calendar" || query.StartsWith("calendar ");
+            return SearchUtil.MatchesAny(query, "cal", "calendar");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -25,7 +24,7 @@ namespace JarvisLauncher
             if (parts.Length == 0) return suggestions;
 
             string cmd = parts[0].ToLower();
-            double similarity = 2.0;
+            double similarity = SearchUtil.BestSimilarity(query, "cal", "calendar");
 
             // Check if user is typing a direct event logging statement: calendar add yyyy-MM-dd hh:mm event name
             var addMatch = Regex.Match(query, @"^(?:calendar|cal)\s+add\s+(\d{4}-\d{2}-\d{2})\s+(\S+)\s+(.+)$", RegexOptions.IgnoreCase);

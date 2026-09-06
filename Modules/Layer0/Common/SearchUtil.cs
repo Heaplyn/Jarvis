@@ -54,6 +54,81 @@ namespace JarvisLauncher
             return similarity > 0.60;
         }
 
+        // ── Command-trigger fuzzy matching ───────────────────────────────────────
+
+        /// <summary>
+        /// Fuzzy trigger gate for command handlers. Returns true if the query — or its
+        /// leading command word — is close to ANY of <paramref name="keywords"/>, using the
+        /// same <see cref="IsClose"/> similarity gate used everywhere else. This is a strict
+        /// superset of the old exact/prefix checks (so nothing that matched before stops
+        /// matching) plus typo tolerance: "volme"→"volume", "netwrk"→"network".
+        ///
+        /// Single-word keywords are tested against the query's first token (so "volume 50"
+        /// still fires "volume"); multi-word keywords ("sync pc") are tested against the whole
+        /// query. To avoid single-character explosions, prefix/fuzzy widening only kicks in for
+        /// tokens of length ≥ 2 (fuzzy at ≥ 3).
+        /// </summary>
+        public static bool MatchesAny(string query, params string[] keywords)
+        {
+            if (string.IsNullOrWhiteSpace(query) || keywords == null) return false;
+            string q = query.ToLower().Trim();
+            if (q.Length == 0) return false;
+            string first = q.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? q;
+
+            foreach (var kwRaw in keywords)
+            {
+                if (string.IsNullOrWhiteSpace(kwRaw)) continue;
+                string k = kwRaw.ToLower().Trim();
+
+                if (k.Contains(' '))
+                {
+                    // Phrase keyword: preserve original contains/prefix behaviour + fuzzy whole query.
+                    if (q == k || q.StartsWith(k) || q.Contains(k) || IsClose(q, k)) return true;
+                }
+                else if (WordMatch(first, k) || WordMatch(q, k))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Match one token to a keyword. Short keywords (≤2 chars, e.g. "re","ip","cb") match
+        // ONLY exactly — prefix-widening them would fire "reminder" on "re". Longer keywords
+        // also match by prefix (either direction) and by fuzzy typo-distance.
+        private static bool WordMatch(string word, string keyword)
+        {
+            if (string.IsNullOrEmpty(word)) return false;
+            if (word == keyword) return true;
+            if (keyword.Length >= 3 && word.Length >= 2 && (word.StartsWith(keyword) || keyword.StartsWith(word))) return true;
+            if (keyword.Length >= 3 && word.Length >= 3 && IsClose(word, keyword)) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// Best relevance score (see <see cref="GetSimilarity"/>) of the query against any of
+        /// <paramref name="keywords"/>. Handlers use this to set <c>CommandResult.SIMILARITY</c>
+        /// so ranking is consistent across every handler instead of hand-picked constants.
+        /// The query's leading token is also scored against single-word keywords so a trailing
+        /// argument ("theme dark") doesn't dilute the match on "theme".
+        /// </summary>
+        public static double BestSimilarity(string query, params string[] keywords)
+        {
+            if (string.IsNullOrWhiteSpace(query) || keywords == null) return 0.0;
+            string q = query.ToLower().Trim();
+            string first = q.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? q;
+
+            double best = 0.0;
+            foreach (var kwRaw in keywords)
+            {
+                if (string.IsNullOrWhiteSpace(kwRaw)) continue;
+                string k = kwRaw.ToLower().Trim();
+                best = Math.Max(best, GetSimilarity(q, k));
+                if (!k.Contains(' ')) best = Math.Max(best, GetSimilarity(first, k));
+            }
+            return best;
+        }
+
         // ── Scoring ──────────────────────────────────────────────────────────────
 
         /// <summary>

@@ -22,8 +22,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query == "todo" || query.StartsWith("todo ") || query == "tasks" || query.StartsWith("tasks ");
+            return SearchUtil.MatchesAny(query, "todo", "tasks");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -35,7 +34,7 @@ namespace JarvisLauncher
             if (parts.Length == 0) return suggestions;
 
             string cmd = parts[0].ToLower();
-            double similarity = 2.0; // High priority match
+            double similarity = SearchUtil.BestSimilarity(query, "todo", "tasks"); // High priority match
 
             if (parts.Length > 1)
             {

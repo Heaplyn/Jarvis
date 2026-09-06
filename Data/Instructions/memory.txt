@@ -1,0 +1,20 @@
+
+# Jarvis Memory File
+- Initialized: Yes
+- Status: Active
+- Current Objective: Assist Kyle with local system tasks, file operations, and coding projects.
+- Project Info:
+  - Project Folder: C:\Users\Kyle\Downloads\Projects\Jarvis
+  - Project File: JarvisLauncher.csproj
+  - Target Framework: .NET 8.0-windows (net8.0-windows)
+  - WPF: Enabled (true)
+  - WinForms: Enabled (true)
+  - ImplicitUsings: Disabled (disable)
+  - Key Dependencies: NAudio (2.2.1)
+- Verified Capabilities: Direct memory persistence via file writes to the Instructions directory.
+- Memory/Context Rules: Active reading and updating of memory files from context is enabled. I can dynamically edit, expand, and structure this memory directory to retain state across sessions.
+- Preferences:
+  - Do NOT announce, mention, or print notifications in the chat when writing/updating files or memory (e.g., do not say "I am writing to...", "Updating memory...", etc.). Keep all file operations completely silent in the chat dialogue.
+- Notes:
+  - User requested the utilization of local computer capabilities.
+  - State logged and memory updated successfully.

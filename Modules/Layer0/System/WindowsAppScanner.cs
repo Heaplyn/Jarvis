@@ -1,7 +1,7 @@
 // Developer: heaplyn
-// Date: 2026-08-17
-// Summary: Indexes Windows installed desktop applications.
-//          Highly optimized to eliminate string lower-case conversions and allocations on every keystroke search.
+// Date: 2026-09-03
+// Summary: Indexes Windows installed desktop applications with on-demand lazy scanning.
+//          Eliminates heavy startup disk I/O; built-in apps resolve immediately.
 
 using System;
 using System.Collections.Generic;
@@ -29,19 +29,49 @@ namespace JarvisLauncher
         private bool _isIndexingInProgress = false;
         private readonly object _lock = new();
 
-        void IAppScannerService.StartScan() => IndexApplications();
+        public WindowsAppScanner()
+        {
+            // Built-in applications are pre-seeded with negligible memory footprint
+            var map = new Dictionary<string, AppInfo>(StringComparer.OrdinalIgnoreCase);
+            AddBuiltInApps(map);
+            _cachedApps.AddRange(map.Values);
+        }
+
+        void IAppScannerService.StartScan()
+        {
+            // Do not force heavy scan on startup — will run lazily on first search
+        }
 
         public void IndexApplications(bool force = false)
         {
-            lock (_lock) { if (!force && _isIndexed) return; if (_isIndexingInProgress) return; _isIndexingInProgress = true; }
-            Task.Run(() => {
-                try {
+            lock (_lock)
+            {
+                if (!force && _isIndexed) return;
+                if (_isIndexingInProgress) return;
+                _isIndexingInProgress = true;
+            }
+
+            Task.Run(() =>
+            {
+                try
+                {
                     var appMap = new Dictionary<string, AppInfo>(StringComparer.OrdinalIgnoreCase);
                     AddBuiltInApps(appMap);
                     ScanStartMenuDirectory(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), appMap);
                     ScanStartMenuDirectory(Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu), appMap);
-                    lock (_lock) { _cachedApps.Clear(); _cachedApps.AddRange(appMap.Values); _isIndexed = true; _isIndexingInProgress = false; }
-                } catch { lock(_lock) _isIndexingInProgress = false; }
+
+                    lock (_lock)
+                    {
+                        _cachedApps.Clear();
+                        _cachedApps.AddRange(appMap.Values);
+                        _isIndexed = true;
+                        _isIndexingInProgress = false;
+                    }
+                }
+                catch
+                {
+                    lock (_lock) _isIndexingInProgress = false;
+                }
             });
         }
 
@@ -50,11 +80,17 @@ namespace JarvisLauncher
             string q = query.ToLower().Trim();
             if (string.IsNullOrEmpty(q)) return new List<AppInfo>();
 
-            lock (_lock) {
+            // On-demand lazy index on first user search
+            if (!_isIndexed && !_isIndexingInProgress)
+            {
+                IndexApplications(force: false);
+            }
+
+            lock (_lock)
+            {
                 var results = new List<AppInfo>();
                 foreach (var a in _cachedApps)
                 {
-                    // Highly optimized pre-filter: check if pre-lowercased name contains query or matches acronym
                     if (a.NameLower.Contains(q) || SearchUtil.IsAcronymMatch(q, a.NameLower))
                     {
                         a.SIMILARITY = SearchUtil.GetSimilarity(q, a.NameLower);
@@ -67,19 +103,37 @@ namespace JarvisLauncher
 
         private void AddBuiltInApps(Dictionary<string, AppInfo> map)
         {
-            void Add(string n, string p) { if (!map.ContainsKey(n)) map[n] = new AppInfo { Name = n, NameLower = n.ToLower(), TargetPath = p }; }
-            Add("Calculator", "calc.exe"); Add("Notepad", "notepad.exe"); Add("Task Manager", "taskmgr.exe"); Add("Command Prompt", "cmd.exe"); Add("PowerShell", "powershell.exe"); Add("File Explorer", "explorer.exe");
+            void Add(string n, string p)
+            {
+                if (!map.ContainsKey(n))
+                    map[n] = new AppInfo { Name = n, NameLower = n.ToLower(), TargetPath = p };
+            }
+
+            Add("Calculator", "calc.exe");
+            Add("Notepad", "notepad.exe");
+            Add("Task Manager", "taskmgr.exe");
+            Add("Command Prompt", "cmd.exe");
+            Add("PowerShell", "powershell.exe");
+            Add("File Explorer", "explorer.exe");
+            Add("Paint", "mspaint.exe");
+            Add("Snipping Tool", "snippingtool.exe");
         }
 
         private void ScanStartMenuDirectory(string baseDir, Dictionary<string, AppInfo> map)
         {
-            try {
+            try
+            {
                 if (!Directory.Exists(baseDir)) return;
-                foreach (var file in Directory.GetFiles(baseDir, "*.lnk", SearchOption.AllDirectories)) {
+                foreach (var file in Directory.GetFiles(baseDir, "*.lnk", SearchOption.AllDirectories))
+                {
                     string name = Path.GetFileNameWithoutExtension(file);
-                    if (!map.ContainsKey(name)) map[name] = new AppInfo { Name = name, NameLower = name.ToLower(), TargetPath = file };
+                    if (!map.ContainsKey(name))
+                    {
+                        map[name] = new AppInfo { Name = name, NameLower = name.ToLower(), TargetPath = file };
+                    }
                 }
-            } catch { }
+            }
+            catch { }
         }
 
         // --- STATIC BRIDGES ---

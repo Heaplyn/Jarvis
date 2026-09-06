@@ -14,8 +14,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            string q = query.Trim().ToLower();
-            return q.StartsWith("template ") || q == "template";
+            return SearchUtil.MatchesAny(query, "template");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -46,7 +45,7 @@ namespace JarvisLauncher
                             TextOverlay.Show($"Listed {list.Count} templates in Console.", 3000);
                         }
                     },
-                    SIMILARITY = 8.5
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "template") + 8.5 * 0.01)
                 });
             }
 
@@ -88,7 +87,7 @@ namespace JarvisLauncher
                             }
                         }
                     },
-                    SIMILARITY = 8.5
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "template") + 8.5 * 0.01)
                 });
             }
 
@@ -115,7 +114,7 @@ namespace JarvisLauncher
                             }
                         });
                     },
-                    SIMILARITY = 8.5
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "template") + 8.5 * 0.01)
                 });
             }
 
@@ -130,7 +129,7 @@ namespace JarvisLauncher
                     {
                         TextOverlay.Show("Usage: template list | template save [name] | template import [name] [changes]", 4000);
                     },
-                    SIMILARITY = 3.0
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "template") + 3.0 * 0.01)
                 });
             }
 

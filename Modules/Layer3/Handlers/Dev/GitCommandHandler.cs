@@ -18,9 +18,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string Query)
         {
-            if (string.IsNullOrWhiteSpace(Query)) return false;
-            string lower = Query.Trim().ToLower();
-            return lower.StartsWith("push") || lower.StartsWith("git") || lower.StartsWith("github") || lower.StartsWith("repo");
+            return SearchUtil.MatchesAny(Query, "push", "git", "github", "repo");
         }
 
         public List<CommandResult> GetSuggestions(string Query)
@@ -35,14 +33,14 @@ namespace JarvisLauncher
                 suggestions.Add(new CommandResult {
                     TITLE = "🚀 Open GitHub Studio",
                     DESCRIPTION = "Manage commits, branches, and AI-generated pushes visually",
-                    SIMILARITY = 10.0,
+                    SIMILARITY = (SearchUtil.BestSimilarity(Query, "push", "git", "github", "repo") + 10.0 * 0.01),
                     EXECUTE = () => GithubOverlay.ShowOverlay()
                 });
                 return suggestions;
             }
 
             if (lower == "git status" || lower == "git st")
-                suggestions.Add(new CommandResult { TITLE = "📋 Git Status", DESCRIPTION = "Show working tree status", SIMILARITY = 3.0, EXECUTE = () => RunGitQuick("status") });
+                suggestions.Add(new CommandResult { TITLE = "📋 Git Status", DESCRIPTION = "Show working tree status", SIMILARITY = (SearchUtil.BestSimilarity(Query, "push", "git", "github", "repo") + 3.0 * 0.01), EXECUTE = () => RunGitQuick("status") });
 
             string? commitMessage = null;
             if (lower.StartsWith("push ")) commitMessage = trimmed.Substring(5).Trim().Trim('"', '\'');

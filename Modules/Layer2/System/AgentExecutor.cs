@@ -62,6 +62,7 @@ namespace JarvisLauncher
                                 toolResults.AppendLine(result);
                                 anyExecuted = true;
                                 ChatOverlay.LogConsoleAction("Tool Executed", $"[{tool.Tag}]: {match.Value}");
+                                CommandAuditLog.Log(tool.Tag, match.Value);   // durable audit of every tool the AI runs
                             }
                         }
                     }
@@ -95,6 +96,67 @@ namespace JarvisLauncher
             return StripAllInternalTags(aiResponse);
         }
 
+        // === Multi-turn agent loop ===
+        // Ask the LLM, run any tools it emitted, feed the tool results BACK to the LLM, and repeat —
+        // up to AGENT_MAX_TURNS — so it can chain steps for a complex task. Tools only run in Agent
+        // Mode; otherwise this is a single LLM call. Returns the final (tag-stripped) answer.
+        public static async Task<string> RunAgentTurnsAsync(string userPrompt, List<ChatTurn>? history,
+            System.Threading.CancellationToken ct = default, Action<string>? onStep = null)
+        {
+            int maxTurns = Math.Max(1, SettingsManager.Current.AGENT_MAX_TURNS);
+            var convo = new List<ChatTurn>(history ?? new List<ChatTurn>());
+            string prompt = userPrompt;
+            string finalResponse = "";
+            var executedTags = new HashSet<string>();
+
+            for (int turn = 0; turn < maxTurns; turn++)
+            {
+                string response = await LlmRouter.AskAsync(prompt, convo, ct);
+                finalResponse = response;
+
+                if (!SettingsManager.Current.ENABLE_PC_CONTROL) { ProcessSafeIntents(response); break; }
+
+                try { await SelfEvolvingToolEngine.ProcessToolSynthesisAsync(response); } catch { }
+                var (toolOutput, anyRan) = await ExecuteToolsOnceAsync(response, executedTags);
+
+                if (!anyRan) { ProcessSafeIntents(response); break; }   // no tools => final answer
+
+                onStep?.Invoke($"⚙️ Turn {turn + 1}: ran tools, continuing…");
+                convo.Add(new ChatTurn { Role = "user", Text = prompt });
+                convo.Add(new ChatTurn { Role = "model", Text = response });
+                prompt = $"[TOOL RESULTS]\n{toolOutput}\nUse these results to continue the task. When it is complete, reply with your final answer and NO more tool tags.";
+            }
+            return StripAllInternalTags(finalResponse);
+        }
+
+        // Runs each registered tool's matches once (+ legacy tags), returns combined output & whether any ran.
+        private static async Task<(string output, bool anyRan)> ExecuteToolsOnceAsync(string response, HashSet<string> executedTags)
+        {
+            var sb = new StringBuilder();
+            bool any = false;
+            foreach (var tool in AiToolRegistry.GetAllTools())
+            {
+                try
+                {
+                    var rx = new Regex(tool.RegexPattern, RegexOptions.Singleline | RegexOptions.IgnoreCase);
+                    foreach (Match m in rx.Matches(response))
+                    {
+                        string r = await tool.ExecuteAsync(m, executedTags);
+                        if (!string.IsNullOrEmpty(r))
+                        {
+                            sb.AppendLine(r); any = true;
+                            try { ChatOverlay.LogConsoleAction("Tool Executed", $"[{tool.Tag}]: {m.Value}"); } catch { }
+                            CommandAuditLog.Log(tool.Tag, m.Value);
+                        }
+                    }
+                }
+                catch (Exception ex) { try { DebugConsoleOverlay.Log("Tool-Error", $"[{tool.Tag}]: {ex.Message}"); } catch { } }
+            }
+            string legacy = await ProcessLegacyTagsWithContextAsync(response, executedTags);
+            if (!string.IsNullOrEmpty(legacy)) { sb.AppendLine(legacy); any = true; }
+            return (sb.ToString(), any);
+        }
+
         private static async Task<string> ProcessLegacyTagsWithContextAsync(string response, HashSet<string> executed)
         {
             var sb = new StringBuilder();
@@ -125,13 +187,28 @@ namespace JarvisLauncher
              return task.Result;
         }
 
+        private static string _lastSpokenText = string.Empty;
+        private static DateTime _lastSpokenTime = DateTime.MinValue;
+
         private static void ProcessSafeIntents(string aiResponse)
         {
-            // 5. Process SPEECH tags
+            // 5. Process SPEECH tags with anti-loop de-duplication
             var speechRegex = new Regex(@"(?:\[SPEECH:\s*(?<text>[\s\S]+?)\]|@say\{(?<text>.*?)\})", RegexOptions.IgnoreCase | RegexOptions.Singleline);
             foreach (Match m in speechRegex.Matches(aiResponse))
             {
-                TtsManager.Speak(m.Groups["text"].Value.Trim().Trim('"', '\''));
+                string text = m.Groups["text"].Value.Trim().Trim('"', '\'');
+                if (string.IsNullOrWhiteSpace(text)) continue;
+
+                // Anti-loop: suppress identical speech tags repeating within 6 seconds
+                if (text.Equals(_lastSpokenText, StringComparison.OrdinalIgnoreCase) && (DateTime.Now - _lastSpokenTime).TotalSeconds < 6)
+                {
+                    DebugConsoleOverlay.Log("AntiLoop", $"Suppressed duplicate speech tag: '{text}'");
+                    continue;
+                }
+
+                _lastSpokenText = text;
+                _lastSpokenTime = DateTime.Now;
+                TtsManager.Speak(text);
             }
 
             // 6. Process SET_CLIPBOARD tags
@@ -142,12 +219,12 @@ namespace JarvisLauncher
                 Application.Current.Dispatcher.Invoke(() => Clipboard.SetText(text));
             }
 
-            // 11. Handling UI commands
+            // 11. Handling UI commands (allowAiFallback: false prevents infinite recursion back to ChatOverlay)
             var cmdRegex = new Regex(@"(?:\[RUN_COMMAND:\s*(?<cmd>.+?)\]|@run\{(?<cmd>.+?)\})", RegexOptions.IgnoreCase);
             foreach (Match m in cmdRegex.Matches(aiResponse))
             {
                 string cmd = m.Groups["cmd"].Value.Trim();
-                Application.Current.Dispatcher.Invoke(() => CommandParser.ExecuteFirstSuggestion(cmd));
+                Application.Current.Dispatcher.Invoke(() => CommandParser.ExecuteFirstSuggestion(cmd, allowAiFallback: false));
             }
 
             // 12. Handle REBUILD / FRESH START
@@ -177,6 +254,7 @@ namespace JarvisLauncher
 
         public static string ExecutePowerShellDirect(string cmd)
         {
+            CommandAuditLog.Log("SHELL", cmd);   // durable audit of every command run
             try
             {
                 string tempFile = Path.Combine(Path.GetTempPath(), $"jarvis_script_{Guid.NewGuid():N}.ps1");

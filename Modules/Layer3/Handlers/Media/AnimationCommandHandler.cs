@@ -10,10 +10,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
     {
         public bool CanHandle(string query)
         {
-            query = query.ToLower().Trim();
-            return query == "anim" || query == "animation" || query == "animations" ||
-                   query == "fx" || query == "visuals" || query == "motion" ||
-                   query.StartsWith("anim ") || query.StartsWith("animation ");
+            return SearchUtil.MatchesAny(query, "anim", "animation", "animations", "fx", "visuals", "motion");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -24,7 +21,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
             {
                 TITLE = "✨ Open Jarvis Visuals",
                 DESCRIPTION = "Unified suite for motion, typography, and visual effects.",
-                SIMILARITY = 5.5,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "anim", "animation", "animations", "fx", "visuals", "motion") + 5.5 * 0.01),
                 EXECUTE = () => JarvisVisualsOverlay.ShowOverlay()
             });
 

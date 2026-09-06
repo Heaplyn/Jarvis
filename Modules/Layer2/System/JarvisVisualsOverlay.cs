@@ -1,16 +1,17 @@
 // Developer: heaplyn
-// Date: 2026-08-21
+// Date: 2026-09-05
 // Summary: Jarvis Visuals [MASTER] - Unified HUD Customization Suite.
-//          Combines VisualStudioOverlay and AnimationOptionsOverlay into a high-fidelity tabbed interface.
+//          Combines Aesthetics, Typography, Shapes, Motion, FX, and System settings
+//          with bulletproof null-safety and dynamic category profiling.
 
 using System;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media;
-using System.Windows.Input;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Collections.Generic;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
 using Microsoft.Win32;
 
 namespace JarvisLauncher
@@ -20,9 +21,9 @@ namespace JarvisLauncher
         private static JarvisVisualsOverlay? _instance;
 
         // Aesthetics Tab Controls
-        private string _bgHex, _textHex, _accentHex;
-        private string _gradStartHex, _gradEndHex;
-        private string _gifPath;
+        private string _bgHex = "#1A1A1A", _textHex = "#FFFFFF", _accentHex = "#00FFFF";
+        private string _gradStartHex = "#FF007F", _gradEndHex = "#7F00FF";
+        private string _gifPath = string.Empty;
         private ComboBox _bgModeCombo = null!;
         private Slider _gifOpacitySlider = null!;
         private Slider _gifFpsSlider = null!;
@@ -39,9 +40,9 @@ namespace JarvisLauncher
         private Slider _shadowOffsetX = null!;
         private Slider _shadowOffsetY = null!;
         private Slider _shadowBlurSlider = null!;
-        private string _shadowHex;
+        private string _shadowHex = "#FF000000";
         private Slider _glowAmountSlider = null!;
-        private string _glowHex;
+        private string _glowHex = "#FF00FFFF";
         private Slider _textSizeSlider = null!;
 
         // Motion Tab Controls
@@ -91,9 +92,16 @@ namespace JarvisLauncher
         {
             Application.Current.Dispatcher.Invoke(() =>
             {
-                if (_instance == null || !_instance.IsLoaded) _instance = new JarvisVisualsOverlay();
-                _instance.Show();
-                _instance.BringToFront();
+                try
+                {
+                    if (_instance == null || !_instance.IsLoaded) _instance = new JarvisVisualsOverlay();
+                    _instance.Show();
+                    _instance.BringToFront();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error opening Jarvis Visuals: {ex.Message}\n{ex.StackTrace}", "Jarvis Visuals Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             });
         }
 
@@ -103,11 +111,32 @@ namespace JarvisLauncher
             this.Closed += (s, e) => _instance = null;
             this.ResizeMode = ResizeMode.CanResizeWithGrip;
 
-            var set = SettingsManager.Current;
-            _bgHex = set.THEME_BG_COLOR; _textHex = set.THEME_TEXT_COLOR; _accentHex = set.THEME_ACCENT_COLOR; _gifPath = set.BACKGROUND_GIF_PATH;
-            _gradStartHex = set.TEXT_GRADIENT_START; _gradEndHex = set.TEXT_GRADIENT_END;
-            _shadowHex = set.TEXT_SHADOW_COLOR;
-            _glowHex = set.TEXT_GLOW_COLOR;
+            var set = SettingsManager.Current ?? new SystemSettings();
+            _bgHex = set.THEME_BG_COLOR ?? "#1A1A1A";
+            _textHex = set.THEME_TEXT_COLOR ?? "#FFFFFF";
+            _accentHex = set.THEME_ACCENT_COLOR ?? "#00FFFF";
+            _gifPath = set.BACKGROUND_GIF_PATH ?? string.Empty;
+            _gradStartHex = set.TEXT_GRADIENT_START ?? "#FF007F";
+            _gradEndHex = set.TEXT_GRADIENT_END ?? "#7F00FF";
+            _shadowHex = set.TEXT_SHADOW_COLOR ?? "#FF000000";
+            _glowHex = set.TEXT_GLOW_COLOR ?? "#FF00FFFF";
+
+            if (set.TEXT_PROFILES == null)
+            {
+                set.TEXT_PROFILES = new Dictionary<string, TextVisualProfile>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            var allDefaultCats = new[] { "Titles", "Headers", "Labels", "Search", "Cards", "Values", "Subtext", "Code", "Accents" };
+            foreach (var cat in allDefaultCats)
+            {
+                if (!set.TEXT_PROFILES.ContainsKey(cat))
+                    set.TEXT_PROFILES[cat] = new TextVisualProfile { Name = cat };
+            }
+
+            if (!set.TEXT_PROFILES.ContainsKey(_activeProfile))
+            {
+                _activeProfile = set.TEXT_PROFILES.Keys.FirstOrDefault() ?? "Labels";
+            }
 
             var mainGrid = new Grid { Margin = new Thickness(15) };
             mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
@@ -144,12 +173,12 @@ namespace JarvisLauncher
         private UIElement BuildAestheticsTab()
         {
             var stack = new StackPanel();
-            var set = SettingsManager.Current;
+            var set = SettingsManager.Current ?? new SystemSettings();
 
             stack.Children.Add(CreateHeader("System Theme & Color Matrix"));
             var customThemeCheck = new CheckBox { Content = "Override Built-in Themes with My Colors", IsChecked = set.THEME == "custom", Foreground = Brushes.Cyan, Margin = new Thickness(0,0,0,10) };
-            customThemeCheck.Checked += (s, e) => set.THEME = "custom";
-            customThemeCheck.Unchecked += (s, e) => set.THEME = "purple";
+            customThemeCheck.Checked += (s, e) => { var sCur = SettingsManager.Current; if (sCur != null) sCur.THEME = "custom"; };
+            customThemeCheck.Unchecked += (s, e) => { var sCur = SettingsManager.Current; if (sCur != null) sCur.THEME = "purple"; };
             stack.Children.Add(customThemeCheck);
 
             AddColorEditor(stack, "Primary Backdrop (HEX):", _bgHex, h => _bgHex = h);
@@ -160,7 +189,8 @@ namespace JarvisLauncher
             stack.Children.Add(CreateLabel("Active Background Engine:"));
             _bgModeCombo = new ComboBox { Margin = new Thickness(0,0,0,10), Height = 30 };
             _bgModeCombo.Items.Add("Gradient"); _bgModeCombo.Items.Add("Solid"); _bgModeCombo.Items.Add("Radial"); _bgModeCombo.Items.Add("RGB"); _bgModeCombo.Items.Add("Starfield");
-            _bgModeCombo.SelectedItem = set.BACKGROUND_MODE;
+            _bgModeCombo.SelectedItem = set.BACKGROUND_MODE ?? "Gradient";
+            if (_bgModeCombo.SelectedIndex < 0) _bgModeCombo.SelectedIndex = 0;
             stack.Children.Add(_bgModeCombo);
 
             stack.Children.Add(CreateHeader("High-Fidelity Text Gradients"));
@@ -190,20 +220,50 @@ namespace JarvisLauncher
         private UIElement BuildTypographyTab()
         {
             var stack = new StackPanel();
-            var set = SettingsManager.Current;
+            var set = SettingsManager.Current ?? new SystemSettings();
 
             stack.Children.Add(CreateHeader("Linguistic Profiles (Text Categories)"));
             var profStack = new StackPanel { Margin = new Thickness(0,0,0,15) };
+
+            // Pre-initialize child containers to prevent null reference on event cascades
+            _strokeListPanel = new StackPanel();
+            _profileShadowCheck = new CheckBox
+            {
+                Content = $"Enable Shadow for {_activeProfile} Category",
+                IsChecked = set.TEXT_PROFILES != null && set.TEXT_PROFILES.TryGetValue(_activeProfile, out var p) && p.EnableShadow,
+                Foreground = Brushes.Pink,
+                Margin = new Thickness(0,0,0,10),
+                FontWeight = FontWeights.Bold
+            };
+            _profileShadowCheck.Checked += (s, e) => {
+                var sCur = SettingsManager.Current;
+                if (sCur?.TEXT_PROFILES != null && sCur.TEXT_PROFILES.TryGetValue(_activeProfile, out var prof))
+                    prof.EnableShadow = true;
+            };
+            _profileShadowCheck.Unchecked += (s, e) => {
+                var sCur = SettingsManager.Current;
+                if (sCur?.TEXT_PROFILES != null && sCur.TEXT_PROFILES.TryGetValue(_activeProfile, out var prof))
+                    prof.EnableShadow = false;
+            };
+
             _profileSelector = new ComboBox { Margin = new Thickness(0,0,0,10), Height = 30 };
-            foreach (var p in set.TEXT_PROFILES.Keys) _profileSelector.Items.Add(p);
+            if (set.TEXT_PROFILES != null)
+            {
+                foreach (var catKey in set.TEXT_PROFILES.Keys) _profileSelector.Items.Add(catKey);
+            }
             _profileSelector.SelectedItem = _activeProfile;
-            _profileSelector.SelectionChanged += (s, e) => { _activeProfile = _profileSelector.SelectedItem.ToString()!; RefreshStrokeList(); RefreshProfileOptions(); };
+            if (_profileSelector.SelectedIndex < 0 && _profileSelector.Items.Count > 0) _profileSelector.SelectedIndex = 0;
+
+            _profileSelector.SelectionChanged += (s, e) => {
+                if (_profileSelector.SelectedItem != null)
+                {
+                    _activeProfile = _profileSelector.SelectedItem.ToString()!;
+                    RefreshStrokeList();
+                    RefreshProfileOptions();
+                }
+            };
             profStack.Children.Add(CreateLabel("Select Text Category to Calibrate:"));
             profStack.Children.Add(_profileSelector);
-
-            _profileShadowCheck = new CheckBox { Content = $"Enable Shadow for {_activeProfile} Category", IsChecked = set.TEXT_PROFILES[_activeProfile].EnableShadow, Foreground = Brushes.Pink, Margin = new Thickness(0,0,0,10), FontWeight = FontWeights.Bold };
-            _profileShadowCheck.Checked += (s, e) => set.TEXT_PROFILES[_activeProfile].EnableShadow = true;
-            _profileShadowCheck.Unchecked += (s, e) => set.TEXT_PROFILES[_activeProfile].EnableShadow = false;
             profStack.Children.Add(_profileShadowCheck);
             stack.Children.Add(profStack);
 
@@ -220,19 +280,26 @@ namespace JarvisLauncher
             stack.Children.Add(CreateLabel("Stroke Line Join Type:"));
             var joinCombo = new ComboBox { Margin = new Thickness(0,0,0,10) };
             joinCombo.Items.Add("Round"); joinCombo.Items.Add("Bevel"); joinCombo.Items.Add("Miter");
-            joinCombo.SelectedItem = set.TEXT_STROKE_LINE_JOIN;
-            joinCombo.SelectionChanged += (s, e) => set.TEXT_STROKE_LINE_JOIN = joinCombo.SelectedItem.ToString() ?? "Round";
+            joinCombo.SelectedItem = set.TEXT_STROKE_LINE_JOIN ?? "Round";
+            if (joinCombo.SelectedIndex < 0) joinCombo.SelectedIndex = 0;
+            joinCombo.SelectionChanged += (s, e) => {
+                var sCur = SettingsManager.Current;
+                if (sCur != null && joinCombo.SelectedItem != null)
+                    sCur.TEXT_STROKE_LINE_JOIN = joinCombo.SelectedItem.ToString() ?? "Round";
+            };
             stack.Children.Add(joinCombo);
 
-            _strokeListPanel = new StackPanel();
             RefreshStrokeList();
             stack.Children.Add(_strokeListPanel);
 
             var addStrokeBtn = CreateStyledButton("+ ADD STROKE LAYER", (s, e) => {
-                var p = set.TEXT_PROFILES[_activeProfile];
-                if (p.Strokes == null) p.Strokes = new List<TextStroke>();
-                p.Strokes.Add(new TextStroke { Thickness = 1.0, Color = "#FF000000" });
-                RefreshStrokeList();
+                var sCur = SettingsManager.Current;
+                if (sCur?.TEXT_PROFILES != null && sCur.TEXT_PROFILES.TryGetValue(_activeProfile, out var prof))
+                {
+                    if (prof.Strokes == null) prof.Strokes = new List<TextStroke>();
+                    prof.Strokes.Add(new TextStroke { Thickness = 1.0, Color = "#FF000000" });
+                    RefreshStrokeList();
+                }
             }, fontSize: 10);
             addStrokeBtn.HorizontalAlignment = HorizontalAlignment.Left;
             stack.Children.Add(addStrokeBtn);
@@ -259,7 +326,7 @@ namespace JarvisLauncher
         private UIElement BuildMotionTab()
         {
             var stack = new StackPanel();
-            var set = SettingsManager.Current;
+            var set = SettingsManager.Current ?? new SystemSettings();
 
             stack.Children.Add(CreateHeader("Visual Animations & HUD Motion Settings"));
             _enableAnimCheck = new CheckBox { Content = "Enable Motion Animations (Slide-in / Fade-out transitions)", IsChecked = set.ENABLE_ANIMATIONS, FontSize = 12, Foreground = Brushes.White, Margin = new Thickness(0, 0, 0, 14) };
@@ -296,13 +363,14 @@ namespace JarvisLauncher
         private UIElement BuildShapesTab()
         {
             var stack = new StackPanel();
-            var set = SettingsManager.Current;
+            var set = SettingsManager.Current ?? new SystemSettings();
 
             stack.Children.Add(CreateHeader("Window Geometry & Shape Variety"));
             stack.Children.Add(CreateLabel("Window Base Shape:"));
             _shapeModeCombo = new ComboBox { Margin = new Thickness(0,0,0,10), Height = 30 };
             _shapeModeCombo.Items.Add("Rounded"); _shapeModeCombo.Items.Add("Flat"); _shapeModeCombo.Items.Add("Capsule"); _shapeModeCombo.Items.Add("Cut"); _shapeModeCombo.Items.Add("Slanted"); _shapeModeCombo.Items.Add("Diamond"); _shapeModeCombo.Items.Add("Octagon");
-            _shapeModeCombo.SelectedItem = set.WINDOW_SHAPE_MODE;
+            _shapeModeCombo.SelectedItem = set.WINDOW_SHAPE_MODE ?? "Rounded";
+            if (_shapeModeCombo.SelectedIndex < 0) _shapeModeCombo.SelectedIndex = 0;
             stack.Children.Add(_shapeModeCombo);
 
             stack.Children.Add(CreateLabel("Global Corner Radius:"));
@@ -329,7 +397,7 @@ namespace JarvisLauncher
         private UIElement BuildFxTab()
         {
             var stack = new StackPanel();
-            var set = SettingsManager.Current;
+            var set = SettingsManager.Current ?? new SystemSettings();
 
             stack.Children.Add(CreateHeader("Retro Scanline Overlays"));
             _scanlineCheck = new CheckBox { Content = "Enable CRT-Style Scanlines", IsChecked = set.ENABLE_SCANLINES, Foreground = Brushes.White, Margin = new Thickness(0,0,0,10) };
@@ -372,7 +440,7 @@ namespace JarvisLauncher
         private UIElement BuildSystemTab()
         {
             var stack = new StackPanel();
-            var set = SettingsManager.Current;
+            var set = SettingsManager.Current ?? new SystemSettings();
 
             stack.Children.Add(CreateHeader("Universal HUD Scaling"));
             _autoScaleCheck = new CheckBox { Content = "Adaptive Auto-Scaling (Sync to Resolution)", IsChecked = set.AUTO_GUI_SCALE_TO_SCREEN, Foreground = Brushes.White, Margin = new Thickness(0,0,0,10) };
@@ -386,7 +454,8 @@ namespace JarvisLauncher
             _winOpacityValText = new TextBlock { Text = $"{Math.Round(set.WINDOW_OPACITY * 100)}%", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = Brushes.Cyan, HorizontalAlignment = HorizontalAlignment.Right };
             _winOpacitySlider.ValueChanged += (s, e) => {
                 if (_winOpacityValText != null) _winOpacityValText.Text = $"{Math.Round(_winOpacitySlider.Value * 100)}%";
-                SettingsManager.Current.WINDOW_OPACITY = Math.Round(_winOpacitySlider.Value, 2);
+                var sCur = SettingsManager.Current;
+                if (sCur != null) sCur.WINDOW_OPACITY = Math.Round(_winOpacitySlider.Value, 2);
                 ThemeManager.ApplyVisualOverrides();
             };
             stack.Children.Add(_winOpacitySlider); stack.Children.Add(_winOpacityValText);
@@ -414,10 +483,22 @@ namespace JarvisLauncher
 
         private void RefreshStrokeList()
         {
+            if (_strokeListPanel == null) return;
             _strokeListPanel.Children.Clear();
             var set = SettingsManager.Current;
+            if (set?.TEXT_PROFILES == null) return;
+
+            if (!set.TEXT_PROFILES.ContainsKey(_activeProfile))
+                set.TEXT_PROFILES[_activeProfile] = new TextVisualProfile { Name = _activeProfile };
+
             var prof = set.TEXT_PROFILES[_activeProfile];
-            var strokes = prof.Strokes ?? new List<TextStroke>();
+            if (prof == null)
+            {
+                prof = new TextVisualProfile { Name = _activeProfile };
+                set.TEXT_PROFILES[_activeProfile] = prof;
+            }
+
+            var strokes = prof.Strokes ??= new List<TextStroke>();
 
             for (int i = 0; i < strokes.Count; i++)
             {
@@ -447,9 +528,8 @@ namespace JarvisLauncher
         {
             if (_profileShadowCheck == null) return;
             var set = SettingsManager.Current;
-            if (set.TEXT_PROFILES.ContainsKey(_activeProfile))
+            if (set?.TEXT_PROFILES != null && set.TEXT_PROFILES.TryGetValue(_activeProfile, out var prof) && prof != null)
             {
-                var prof = set.TEXT_PROFILES[_activeProfile];
                 _profileShadowCheck.Content = $"Enable Shadow for {_activeProfile} Category";
                 _profileShadowCheck.IsChecked = prof.EnableShadow;
             }
@@ -459,54 +539,66 @@ namespace JarvisLauncher
         {
             try {
                 var s = SettingsManager.Current;
+                if (s == null) return;
+
                 s.THEME = "custom";
-                s.BACKGROUND_MODE = _bgModeCombo.SelectedItem.ToString() ?? "Gradient";
+                s.BACKGROUND_MODE = _bgModeCombo?.SelectedItem?.ToString() ?? "Gradient";
                 s.THEME_BG_COLOR = _bgHex; s.THEME_TEXT_COLOR = _textHex; s.THEME_ACCENT_COLOR = _accentHex;
-                s.USE_TEXT_GRADIENT = _textGradientCheck.IsChecked == true;
+                s.USE_TEXT_GRADIENT = _textGradientCheck?.IsChecked == true;
                 s.TEXT_GRADIENT_START = _gradStartHex;
                 s.TEXT_GRADIENT_END = _gradEndHex;
-                s.BACKGROUND_GIF_PATH = _gifPath; s.BACKGROUND_GIF_OPACITY = _gifOpacitySlider.Value; s.BACKGROUND_GIF_FPS = _gifFpsSlider.Value;
+                s.BACKGROUND_GIF_PATH = _gifPath;
+                if (_gifOpacitySlider != null) s.BACKGROUND_GIF_OPACITY = _gifOpacitySlider.Value;
+                if (_gifFpsSlider != null) s.BACKGROUND_GIF_FPS = _gifFpsSlider.Value;
 
-                s.ENABLE_TEXT_STROKE = _strokeCheck.IsChecked == true;
-                s.TEXT_IS_ITALIC = _italicCheck.IsChecked == true;
-                s.GLOBAL_TEXT_SIZE = _textSizeSlider.Value;
-                s.ENABLE_TEXT_SHADOW = _shadowCheck.IsChecked == true;
-                s.TEXT_SHADOW_OFFSET_X = _shadowOffsetX.Value; s.TEXT_SHADOW_OFFSET_Y = _shadowOffsetY.Value;
-                s.TEXT_SHADOW_BLUR = _shadowBlurSlider.Value;
+                if (_strokeCheck != null) s.ENABLE_TEXT_STROKE = _strokeCheck.IsChecked == true;
+                if (_italicCheck != null) s.TEXT_IS_ITALIC = _italicCheck.IsChecked == true;
+                if (_textSizeSlider != null) s.GLOBAL_TEXT_SIZE = _textSizeSlider.Value;
+                if (_shadowCheck != null) s.ENABLE_TEXT_SHADOW = _shadowCheck.IsChecked == true;
+                if (_shadowOffsetX != null) s.TEXT_SHADOW_OFFSET_X = _shadowOffsetX.Value;
+                if (_shadowOffsetY != null) s.TEXT_SHADOW_OFFSET_Y = _shadowOffsetY.Value;
+                if (_shadowBlurSlider != null) s.TEXT_SHADOW_BLUR = _shadowBlurSlider.Value;
                 s.TEXT_SHADOW_COLOR = _shadowHex;
-                s.TEXT_GLOW_AMOUNT = _glowAmountSlider.Value; s.TEXT_GLOW_COLOR = _glowHex;
+                if (_glowAmountSlider != null) s.TEXT_GLOW_AMOUNT = _glowAmountSlider.Value;
+                s.TEXT_GLOW_COLOR = _glowHex;
 
-                s.ENABLE_ANIMATIONS = _enableAnimCheck.IsChecked == true;
-                s.ENABLE_WINDOW_DRAG_WOBBLE = _winWobbleCheck.IsChecked == true;
-                s.WINDOW_DRAG_WOBBLE = _winWobbleSlider.Value;
-                s.WINDOW_DRAG_WOBBLE_MAX_SKEW = _winWobbleMaxSkewSlider.Value;
-                s.TEXT_WOBBLINESS = _textWobbleSlider.Value;
-                s.TEXT_WOBBLE_SPEED = _textWobbleSpeedSlider.Value;
+                if (s.TEXT_PROFILES != null && s.TEXT_PROFILES.TryGetValue(_activeProfile, out var activeP) && activeP?.Strokes?.Count > 0)
+                {
+                    s.TEXT_STROKES = new List<TextStroke>(activeP.Strokes.Select(st => new TextStroke { Thickness = st.Thickness, Color = st.Color }));
+                }
 
-                s.WINDOW_SHAPE_MODE = _shapeModeCombo.SelectedItem.ToString() ?? "Rounded";
-                s.WINDOW_CORNER_RADIUS = _cornerRadiusSlider.Value;
-                s.WINDOW_BORDER_THICKNESS = _borderThicknessSlider.Value;
-                s.ENABLE_WINDOW_GLOW = _winGlowCheck.IsChecked == true;
-                s.WINDOW_GLOW_RADIUS = _winGlowRadiusSlider.Value;
-                s.ENABLE_RAINBOW_BORDER = _rainbowBorderCheck.IsChecked == true;
-                s.RAINBOW_BORDER_SPEED = _rainbowSpeedSlider.Value;
+                if (_enableAnimCheck != null) s.ENABLE_ANIMATIONS = _enableAnimCheck.IsChecked == true;
+                if (_winWobbleCheck != null) s.ENABLE_WINDOW_DRAG_WOBBLE = _winWobbleCheck.IsChecked == true;
+                if (_winWobbleSlider != null) s.WINDOW_DRAG_WOBBLE = _winWobbleSlider.Value;
+                if (_winWobbleMaxSkewSlider != null) s.WINDOW_DRAG_WOBBLE_MAX_SKEW = _winWobbleMaxSkewSlider.Value;
+                if (_textWobbleSlider != null) s.TEXT_WOBBLINESS = _textWobbleSlider.Value;
+                if (_textWobbleSpeedSlider != null) s.TEXT_WOBBLE_SPEED = _textWobbleSpeedSlider.Value;
 
-                s.ENABLE_SCANLINES = _scanlineCheck.IsChecked == true;
-                s.SCANLINE_OPACITY = _scanlineOpacitySlider.Value;
-                s.SCANLINE_FREQUENCY = _scanlineFreqSlider.Value;
-                s.ENABLE_VIGNETTE = _vignetteCheck.IsChecked == true;
-                s.VIGNETTE_INTENSITY = _vignetteIntensitySlider.Value;
-                s.ENABLE_GRAIN = _grainCheck.IsChecked == true;
-                s.GRAIN_OPACITY = _grainOpacitySlider.Value;
-                s.ENABLE_CHROMA_SHIFT = _chromaCheck.IsChecked == true;
-                s.CHROMA_SHIFT_AMOUNT = _chromaAmountSlider.Value;
-                s.ENABLE_GLOW_PULSE = _glowPulseCheck.IsChecked == true;
-                s.GLOW_PULSE_SPEED = _glowPulseSpeedSlider.Value;
-                s.ENABLE_CLICK_DARK_SPOT = _clickDarkSpotCheck.IsChecked == true;
+                s.WINDOW_SHAPE_MODE = _shapeModeCombo?.SelectedItem?.ToString() ?? "Rounded";
+                if (_cornerRadiusSlider != null) s.WINDOW_CORNER_RADIUS = _cornerRadiusSlider.Value;
+                if (_borderThicknessSlider != null) s.WINDOW_BORDER_THICKNESS = _borderThicknessSlider.Value;
+                if (_winGlowCheck != null) s.ENABLE_WINDOW_GLOW = _winGlowCheck.IsChecked == true;
+                if (_winGlowRadiusSlider != null) s.WINDOW_GLOW_RADIUS = _winGlowRadiusSlider.Value;
+                if (_rainbowBorderCheck != null) s.ENABLE_RAINBOW_BORDER = _rainbowBorderCheck.IsChecked == true;
+                if (_rainbowSpeedSlider != null) s.RAINBOW_BORDER_SPEED = _rainbowSpeedSlider.Value;
 
-                s.AUTO_GUI_SCALE_TO_SCREEN = _autoScaleCheck.IsChecked == true; s.GUI_SCALE = _guiScaleSlider.Value;
-                s.WINDOW_OPACITY = Math.Round(_winOpacitySlider.Value, 2);
-                CommandParser.TriggerTextOpacityChange(Math.Round(_textOpacitySlider.Value, 2));
+                if (_scanlineCheck != null) s.ENABLE_SCANLINES = _scanlineCheck.IsChecked == true;
+                if (_scanlineOpacitySlider != null) s.SCANLINE_OPACITY = _scanlineOpacitySlider.Value;
+                if (_scanlineFreqSlider != null) s.SCANLINE_FREQUENCY = _scanlineFreqSlider.Value;
+                if (_vignetteCheck != null) s.ENABLE_VIGNETTE = _vignetteCheck.IsChecked == true;
+                if (_vignetteIntensitySlider != null) s.VIGNETTE_INTENSITY = _vignetteIntensitySlider.Value;
+                if (_grainCheck != null) s.ENABLE_GRAIN = _grainCheck.IsChecked == true;
+                if (_grainOpacitySlider != null) s.GRAIN_OPACITY = _grainOpacitySlider.Value;
+                if (_chromaCheck != null) s.ENABLE_CHROMA_SHIFT = _chromaCheck.IsChecked == true;
+                if (_chromaAmountSlider != null) s.CHROMA_SHIFT_AMOUNT = _chromaAmountSlider.Value;
+                if (_glowPulseCheck != null) s.ENABLE_GLOW_PULSE = _glowPulseCheck.IsChecked == true;
+                if (_glowPulseSpeedSlider != null) s.GLOW_PULSE_SPEED = _glowPulseSpeedSlider.Value;
+                if (_clickDarkSpotCheck != null) s.ENABLE_CLICK_DARK_SPOT = _clickDarkSpotCheck.IsChecked == true;
+
+                if (_autoScaleCheck != null) s.AUTO_GUI_SCALE_TO_SCREEN = _autoScaleCheck.IsChecked == true;
+                if (_guiScaleSlider != null) s.GUI_SCALE = _guiScaleSlider.Value;
+                if (_winOpacitySlider != null) s.WINDOW_OPACITY = Math.Round(_winOpacitySlider.Value, 2);
+                if (_textOpacitySlider != null) CommandParser.TriggerTextOpacityChange(Math.Round(_textOpacitySlider.Value, 2));
 
                 ThemeManager.ApplyVisualOverrides();
                 BaseOverlay.UpdateAllScales();

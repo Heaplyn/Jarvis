@@ -11,8 +11,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query == "notes" || query == "sticky" || query == "stickynote" || query == "stickynotes" || query == "curate notes";
+            return SearchUtil.MatchesAny(query, "notes", "sticky", "stickynote", "stickynotes", "curate notes");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -26,7 +25,7 @@ namespace JarvisLauncher
                 {
                     TITLE = "🤖 Trigger AI Notes Curation",
                     DESCRIPTION = "Have Jarvis review and organize your hierarchical notes and categories now",
-                    SIMILARITY = 5.0,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "notes", "sticky", "stickynote", "stickynotes", "curate notes") + 5.0 * 0.01),
                     EXECUTE = () => _ = NotesCuratorManager.PerformAutonomousCurationAsync()
                 });
                 return suggestions;

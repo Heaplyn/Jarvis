@@ -11,8 +11,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query == "editor" || query == "assistant" || query == "imports" || query == "boilerplate" || query == "snippets" || query == "code imports" || query == "insert";
+            return SearchUtil.MatchesAny(query, "editor", "assistant", "imports", "boilerplate", "snippets", "insert");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -20,7 +19,7 @@ namespace JarvisLauncher
             var suggestions = new List<CommandResult>();
             query = query.Trim().ToLower();
 
-            double similarity = 0;
+            double similarity = SearchUtil.BestSimilarity(query, "editor", "assistant", "imports", "boilerplate", "snippets", "insert");
             if (query == "editor" || query == "assistant" || query == "imports") similarity = 3.0;
             else if (query == "boilerplate" || query == "snippets" || query == "insert") similarity = 2.5;
 

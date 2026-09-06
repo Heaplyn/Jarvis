@@ -13,8 +13,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query == "remind" || query.StartsWith("remind ") || query == "reminders" || query.StartsWith("reminders ");
+            return SearchUtil.MatchesAny(query, "remind", "reminders");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -26,7 +25,7 @@ namespace JarvisLauncher
             if (parts.Length == 0) return suggestions;
 
             string cmd = parts[0].ToLower();
-            double similarity = 2.0;
+            double similarity = SearchUtil.BestSimilarity(query, "remind", "reminders");
 
             if (parts.Length > 1)
             {

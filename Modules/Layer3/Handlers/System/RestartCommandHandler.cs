@@ -12,8 +12,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query == "restart" || query == "re" || query == "reload" || query == "restart jarvis" || query == "fresh boot" || query == "fresh start";
+            return SearchUtil.MatchesAny(query, "restart", "re", "reload", "restart jarvis", "fresh boot", "fresh start");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -36,7 +35,7 @@ namespace JarvisLauncher
                     };
                     timer.Start();
                 },
-                SIMILARITY = 9.0
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "restart", "re", "reload", "restart jarvis", "fresh boot", "fresh start") + 9.0 * 0.01)
             });
 
             // 2. Explicit Fresh Start / Sync
@@ -55,7 +54,7 @@ namespace JarvisLauncher
                     };
                     timer.Start();
                 },
-                SIMILARITY = 10.0
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "restart", "re", "reload", "restart jarvis", "fresh boot", "fresh start") + 10.0 * 0.01)
             });
 
             // 3. Cloud Sync & Rebuild
@@ -74,7 +73,7 @@ namespace JarvisLauncher
                     };
                     timer.Start();
                 },
-                SIMILARITY = 7.5
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "restart", "re", "reload", "restart jarvis", "fresh boot", "fresh start") + 7.5 * 0.01)
             });
 
             return suggestions;

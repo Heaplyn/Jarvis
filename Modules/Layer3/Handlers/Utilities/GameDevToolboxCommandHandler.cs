@@ -21,9 +21,7 @@ namespace JarvisLauncher
 
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query == "dev" || query == "toolbox" || query == "game" || query == "roblox" || query == "blender" || query == "rings" || query == "validator"
-                || query.StartsWith("monitor ") || query.StartsWith("notify ");
+            return SearchUtil.MatchesAny(query, "toolbox", "game", "roblox", "blender", "rings", "validator");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -55,7 +53,7 @@ namespace JarvisLauncher
                     {
                         TITLE = $"🔍 Monitor Roblox Asset: {assetId}",
                         DESCRIPTION = "Track moderation status in background",
-                        SIMILARITY = 5.0,
+                        SIMILARITY = (SearchUtil.BestSimilarity(query, "toolbox", "game", "roblox", "blender", "rings", "validator") + 5.0 * 0.01),
                         EXECUTE = () => _ = StartAssetMonitorAsync(assetId)
                     });
                 }
@@ -65,7 +63,7 @@ namespace JarvisLauncher
                     {
                         TITLE = "🔍 Monitor Roblox Asset...",
                         DESCRIPTION = "Type asset ID to start tracking moderation",
-                        SIMILARITY = 3.0,
+                        SIMILARITY = (SearchUtil.BestSimilarity(query, "toolbox", "game", "roblox", "blender", "rings", "validator") + 3.0 * 0.01),
                         EXECUTE = () => TextOverlay.Show("Usage: monitor [assetId]", 2500)
                     });
                 }
@@ -81,7 +79,7 @@ namespace JarvisLauncher
                     {
                         TITLE = $"🔔 Notify on Release: {artist}",
                         DESCRIPTION = $"Monitor artist {artist} for new audio uploads",
-                        SIMILARITY = 5.0,
+                        SIMILARITY = (SearchUtil.BestSimilarity(query, "toolbox", "game", "roblox", "blender", "rings", "validator") + 5.0 * 0.01),
                         EXECUTE = () => _ = StartArtistMonitorAsync(artist)
                     });
                 }
@@ -91,7 +89,7 @@ namespace JarvisLauncher
                     {
                         TITLE = "🔔 Roblox Artist Notification...",
                         DESCRIPTION = "Type artist name to monitor releases",
-                        SIMILARITY = 3.0,
+                        SIMILARITY = (SearchUtil.BestSimilarity(query, "toolbox", "game", "roblox", "blender", "rings", "validator") + 3.0 * 0.01),
                         EXECUTE = () => TextOverlay.Show("Usage: notify [artistName]", 2500)
                     });
                 }
@@ -104,7 +102,7 @@ namespace JarvisLauncher
                 {
                     TITLE = "🎮 Roblox Development Hub",
                     DESCRIPTION = "Access asset monitors, release notifiers, and game dev tools",
-                    SIMILARITY = 4.0,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "toolbox", "game", "roblox", "blender", "rings", "validator") + 4.0 * 0.01),
                     EXECUTE = () => GameDevToolboxOverlay.OpenToolbox()
                 });
             }

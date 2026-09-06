@@ -11,9 +11,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query == "exit" || query == "quit" || query == "close" || 
-                   query == "exit jarvis" || query == "quit jarvis" || query == "close jarvis";
+            return SearchUtil.MatchesAny(query, "exit", "quit", "close", "exit jarvis", "quit jarvis", "close jarvis");
         }
 
         public List<CommandResult> GetSuggestions(string query)

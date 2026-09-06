@@ -11,10 +11,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
     {
         public bool CanHandle(string query)
         {
-            query = query.ToLower().Trim();
-            return query == "help" || query == "guide" || query == "shortcuts" ||
-                   query == "docs" || query == "commands" || query == "manual" ||
-                   query == "help center" || query.StartsWith("help ") || query.StartsWith("guide ");
+            return SearchUtil.MatchesAny(query, "help", "guide", "shortcuts", "docs", "commands", "manual", "help center");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -25,7 +22,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
             {
                 TITLE = "📖 Open Interactive Help & Documentation Center",
                 DESCRIPTION = "Browse all commands, global hotkeys, voice shortcuts, and pipeline tips",
-                SIMILARITY = 0.6, // Reduced from 10.0 to prevent overriding specific commands
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "help", "guide", "shortcuts", "docs", "commands", "manual", "help center") + 0.6 * 0.01), // Reduced from 10.0 to prevent overriding specific commands
                 EXECUTE = () => HelpCenterOverlay.ShowOverlay()
             });
 
@@ -33,7 +30,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
             {
                 TITLE = "🛠️ Repair Jarvis Documentation",
                 DESCRIPTION = "Force restore and link guide files if they are missing",
-                SIMILARITY = 5.0,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "help", "guide", "shortcuts", "docs", "commands", "manual", "help center") + 5.0 * 0.01),
                 EXECUTE = () => RepairDocumentation()
             });
 

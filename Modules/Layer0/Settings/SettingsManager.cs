@@ -52,8 +52,14 @@ namespace JarvisLauncher
         // at the cost of coarser timing on background loops. Applied to Ring0WaitScheduler.MinTimeoutMs.
         public int RING0_MIN_TIMEOUT_MS { get; set; } = 250;
         public string CUSTOM_FONT_FAMILY { get; set; } = "Segoe UI";
+        // Per-text-type fonts (blank = inherit the global CUSTOM_FONT_FAMILY / loaded custom font).
+        public string BODY_FONT_FAMILY { get; set; } = "";      // general UI / body text
+        public string HEADING_FONT_FAMILY { get; set; } = "";   // section headers / titles
+        public string MONO_FONT_FAMILY { get; set; } = "";      // code / numeric / monospace (fallback Consolas)
+        public string CHAT_FONT_FAMILY { get; set; } = "";      // AI chat message text
         public bool IS_JARVIS_ENABLED { get; set; } = true;
         public bool IS_VOICE_MODE_ACTIVE { get; set; } = true;
+        public bool ENABLE_WAKE_WORD { get; set; } = true;   // continuously listen for "Hey Jarvis" via LocalWakeWordDetector
         public bool ENABLE_WINDOWS_APP_INDEXING { get; set; } = true;
         public int MAX_SEARCH_SUGGESTIONS { get; set; } = 10;
         public bool AUTO_FOCUS_SEARCH_ON_LAUNCH { get; set; } = true;
@@ -61,6 +67,10 @@ namespace JarvisLauncher
         public string ENROLLED_SPEAKER_NAME { get; set; } = "Kyle";
         public double SPEAKER_VERIFICATION_THRESHOLD { get; set; } = 0.50;
         public bool IS_TEACHER_MODE_ENABLED { get; set; } = true;
+        // Live coding tutor cadence: how often it may spend a vision scan while you're coding,
+        // and the minimum gap between spoken interruptions so it advises without nagging.
+        public int TEACHER_SCAN_INTERVAL_SEC { get; set; } = 24;
+        public int TEACHER_TIP_COOLDOWN_SEC { get; set; } = 45;
         // SECURITY: autonomous loops (screen capture, harvest, evolution, self-action) are opt-in.
         public bool IS_AUTONOMOUS_MODE_ENABLED { get; set; } = false;
         public int AUTONOMOUS_INTERVAL_MINUTES { get; set; } = 2;
@@ -70,6 +80,7 @@ namespace JarvisLauncher
         public bool ENABLE_SCREEN_PERCEPTION { get; set; } = true;    // run periodic screen captures for that context
         public int SCREEN_PERCEPTION_INTERVAL_SEC { get; set; } = 10;
         public bool ENABLE_FILE_INDEXING { get; set; } = true;        // slow background filesystem index for AI file reference
+        public int AGENT_MAX_TURNS { get; set; } = 6;                 // max LLM<->tools round-trips per request (multi-turn agent)
         public int FILE_INDEX_DELAY_MS { get; set; } = 150;           // base delay per directory (adaptive-scaled)
 
         public bool ENABLE_VOICE_COMMAND_CHUNKING { get; set; } = true;
@@ -97,7 +108,7 @@ namespace JarvisLauncher
         public Dictionary<string, string> ALIASES { get; set; } = new Dictionary<string, string>();
 
         public string LLM_BACKEND { get; set; } = "Gemini";
-        public string GEMINI_MODEL { get; set; } = "gemini-flash-latest";
+        public string GEMINI_MODEL { get; set; } = "gemini-1.5-flash";
         public string OPENAI_KEY { get; set; } = string.Empty;
         public string OPENAI_BASE_URL { get; set; } = "https://api.openai.com/v1";
         public string OPENAI_MODEL { get; set; } = "gpt-4o-mini";
@@ -123,6 +134,17 @@ namespace JarvisLauncher
         public string MISTRAL_MODEL { get; set; } = "mistral-large-latest";
         public string OPENROUTER_KEY { get; set; } = string.Empty;
         public string OPENROUTER_MODEL { get; set; } = "anthropic/claude-3.5-sonnet";
+        public string DEEPSEEK_KEY { get; set; } = string.Empty;
+        public string DEEPSEEK_MODEL { get; set; } = "deepseek-chat";
+        public string XAI_KEY { get; set; } = string.Empty;
+        public string XAI_MODEL { get; set; } = "grok-2-latest";
+
+        // --- Custom Command / Script LLM Engine (CLI/MCP Runner) ---
+        public string CUSTOM_CMD_RUNNER_PATH { get; set; } = string.Empty;   // path to .exe, .ps1, .py, .bat, or command
+        public string CUSTOM_CMD_RUNNER_ARGS { get; set; } = string.Empty;   // e.g. -p "{prompt}" or empty for stdin
+        public string CUSTOM_CMD_WORKING_DIR { get; set; } = string.Empty;   // working directory
+        public string CUSTOM_CMD_RUNNER_TYPE { get; set; } = "Auto";         // Auto | PowerShell | Process | Python | Cmd
+
         public string CUSTOM_DATA_PROCESSOR_PATH { get; set; } = string.Empty;
         public bool ENABLE_CUSTOM_PROCESSOR { get; set; } = false;
 
@@ -240,6 +262,11 @@ namespace JarvisLauncher
         public string THEME_BG_COLOR { get; set; } = "#1A1A1A";
         public string THEME_TEXT_COLOR { get; set; } = "#FFFFFF";
         public string THEME_ACCENT_COLOR { get; set; } = "#00FFFF";
+        // Two-colour custom background gradient. When both are set (and BACKGROUND_MODE is a gradient),
+        // ThemeManager blends START->END at THEME_GRADIENT_ANGLE degrees instead of deriving from THEME_BG_COLOR.
+        public string THEME_GRADIENT_START { get; set; } = "";
+        public string THEME_GRADIENT_END { get; set; } = "";
+        public double THEME_GRADIENT_ANGLE { get; set; } = 135.0;
         public string CUSTOM_FONT_PATH { get; set; } = "";
         public bool HIDE_DEV_LIBS { get; set; } = false;
 
@@ -277,10 +304,16 @@ namespace JarvisLauncher
         public double BACKGROUND_GIF_OPACITY { get; set; } = 0.6;
         public double BACKGROUND_GIF_FPS { get; set; } = 30;
         public bool ENABLE_TEXT_STROKE { get; set; } = false;
-        public Dictionary<string, TextVisualProfile> TEXT_PROFILES { get; set; } = new Dictionary<string, TextVisualProfile> {
+        public Dictionary<string, TextVisualProfile> TEXT_PROFILES { get; set; } = new Dictionary<string, TextVisualProfile>(StringComparer.OrdinalIgnoreCase) {
             { "Titles", new TextVisualProfile { Name = "Titles", Strokes = new List<TextStroke>{ new TextStroke { Thickness=1, Color="#FF000000"}, new TextStroke{Thickness=2.5, Color="#FFFFFFFF"} } } },
+            { "Headers", new TextVisualProfile { Name = "Headers", Strokes = new List<TextStroke>{ new TextStroke { Thickness=1, Color="#FF000000"} } } },
             { "Labels", new TextVisualProfile { Name = "Labels" } },
-            { "Search", new TextVisualProfile { Name = "Search", IsItalic = true } }
+            { "Search", new TextVisualProfile { Name = "Search", IsItalic = true } },
+            { "Cards", new TextVisualProfile { Name = "Cards" } },
+            { "Values", new TextVisualProfile { Name = "Values" } },
+            { "Subtext", new TextVisualProfile { Name = "Subtext" } },
+            { "Code", new TextVisualProfile { Name = "Code" } },
+            { "Accents", new TextVisualProfile { Name = "Accents" } }
         };
         public List<TextStroke> TEXT_STROKES { get; set; } = new List<TextStroke> {
             new TextStroke { Thickness = 1.0, Color = "#FF000000" },

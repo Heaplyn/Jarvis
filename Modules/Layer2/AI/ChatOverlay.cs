@@ -91,17 +91,110 @@ namespace JarvisLauncher
 
             var toolStack = new StackPanel { Orientation = Orientation.Horizontal };
 
-            ModelSelector = new ComboBox { Width = 110, Height = 22, FontSize = 10, Margin = new Thickness(0,0,8,0), Background = new SolidColorBrush(Color.FromArgb(40, 0,0,0)), Foreground = Brushes.Cyan, BorderThickness = new Thickness(1), BorderBrush = Brushes.DimGray };
-            ModelSelector.Items.Add("Gemini"); ModelSelector.Items.Add("OpenAI"); ModelSelector.Items.Add("Anthropic"); ModelSelector.Items.Add("Groq"); ModelSelector.Items.Add("Ollama");
-            ModelSelector.SelectedItem = CoreRegistry.Data.Settings.Current.LLM_BACKEND;
-            ModelSelector.SelectionChanged += (s, e) => {
-                if (ModelSelector.SelectedItem is string sel) {
-                    SettingsManager.Current.LLM_BACKEND = sel;
-                    SettingsManager.Save();
-                    DebugConsoleOverlay.Log("AI-Switch", $"Backend changed to: {sel}");
-                }
+            ModelSelector = new ComboBox {
+                Width = 150,
+                Height = 24,
+                FontSize = 10.5,
+                IsEditable = true,
+                MaxDropDownHeight = 350,
+                Margin = new Thickness(0,0,6,0),
+                Background = new SolidColorBrush(Color.FromArgb(40, 0,0,0)),
+                Foreground = Brushes.Cyan,
+                BorderThickness = new Thickness(1),
+                BorderBrush = Brushes.DimGray,
+                VerticalContentAlignment = VerticalAlignment.Center
             };
+
+            var backendsList = new[] {
+                "Auto (Smart Failover)",
+                "Gemini 3.8 Flash",
+                "Gemini 3.8 Pro",
+                "Gemini 3.7 Flash",
+                "Gemini 3.7 Pro",
+                "Gemini 3.7 Thinking",
+                "Gemini 3.6 Flash",
+                "Gemini 3.5 Flash",
+                "Gemini 2.5 Flash",
+                "Gemini 2.5 Pro",
+                "Gemini 2.0 Flash",
+                "Gemini 1.5 Flash",
+                "OpenRouter",
+                "OpenRouter (DeepSeek R1)",
+                "OpenRouter (DeepSeek V3)",
+                "OpenRouter (Claude 3.7 Sonnet)",
+                "OpenRouter (Claude 3.5 Sonnet)",
+                "OpenRouter (GPT-4o)",
+                "OpenRouter (o3-mini)",
+                "OpenRouter (Llama 3.3 70B)",
+                "OpenRouter (Qwen 2.5 72B)",
+                "OpenRouter (Mistral Large)",
+                "OpenRouter (Gemini 2.0 Flash)",
+                "OpenRouter (Perplexity Sonar)",
+                "OpenRouter (Auto / Free)",
+                "OpenAI (GPT-4o)",
+                "OpenAI (GPT-4o Mini)",
+                "OpenAI (o1)",
+                "OpenAI (o3-mini)",
+                "OpenAI (GPT-4.5 Preview)",
+                "Anthropic (Claude 3.7 Sonnet)",
+                "Anthropic (Claude 3.5 Sonnet)",
+                "Anthropic (Claude 3.5 Haiku)",
+                "Anthropic (Claude 3 Opus)",
+                "ClaudeCode (CLI)",
+                "Groq (Llama 3.3 70B)",
+                "Groq (DeepSeek R1 Distill 70B)",
+                "Groq (Llama 3.1 8B)",
+                "Groq (Mixtral 8x7B)",
+                "DeepSeek (R1 Reasoning)",
+                "DeepSeek (V3 Chat)",
+                "Mistral (Mistral Large)",
+                "Mistral (Codestral)",
+                "Mistral (Mistral Small)",
+                "Perplexity (Sonar)",
+                "Perplexity (Sonar Pro)",
+                "Perplexity (Sonar Reasoning)",
+                "X-AI (Grok 2)",
+                "X-AI (Grok 2 Vision)",
+                "Ollama (Local)",
+                "LM Studio (Local)",
+                "Custom API",
+                "Custom Command"
+            };
+
+            foreach (var b in backendsList) ModelSelector.Items.Add(b);
+
+            // Populate local models dynamically in background
+            Task.Run(async () => {
+                try {
+                    var localModels = await ModelDiscoveryService.GetLocalModelsAsync();
+                    if (localModels.Count > 0) {
+                        Application.Current.Dispatcher.Invoke(() => {
+                            foreach (var m in localModels) {
+                                string label = $"{m.Provider}: {m.Id}";
+                                if (!ModelSelector.Items.Contains(label)) ModelSelector.Items.Add(label);
+                            }
+                        });
+                    }
+                } catch { }
+            });
+
+            string curBackend = CoreRegistry.Data.Settings.Current?.LLM_BACKEND ?? "Gemini";
+            ModelSelector.Text = curBackend;
+
+            ModelSelector.SelectionChanged += (s, e) => {
+                string? sel = ModelSelector.SelectedItem?.ToString() ?? ModelSelector.Text;
+                ApplySelectedModelOrBackend(sel);
+            };
+
+            ModelSelector.LostFocus += (s, e) => {
+                string text = ModelSelector.Text?.Trim() ?? "";
+                if (!string.IsNullOrEmpty(text)) ApplySelectedModelOrBackend(text);
+            };
+
             toolStack.Children.Add(ModelSelector);
+
+            var llmSettingsBtn = CreateToolbarButton("⚡ AI", (s, e) => { LlmSettingsOverlay.ShowOverlay(); });
+            toolStack.Children.Add(llmSettingsBtn);
 
             var historyBtn = CreateToolbarButton("📜 LOGS", (s, e) => { RefreshHistoryList(); HistoryContainer.Visibility = HistoryContainer.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; });
             toolStack.Children.Add(historyBtn);
@@ -120,7 +213,17 @@ namespace JarvisLauncher
 
             // --- Chat Display ---
             var chatGrid = new Grid();
-            ScrollViewerPrivate = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            ScrollViewerPrivate = new ScrollViewer {
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                CanContentScroll = false
+            };
+            ScrollViewerPrivate.PreviewMouseWheel += (s, e) => {
+                if (HistoryContainer.Visibility == Visibility.Visible && HistoryContainer.IsMouseOver) return;
+                double scrollAmount = (e.Delta / 3.0 > 0 ? Math.Max(28, e.Delta / 3.0) : Math.Min(-28, e.Delta / 3.0));
+                ScrollViewerPrivate.ScrollToVerticalOffset(ScrollViewerPrivate.VerticalOffset - scrollAmount);
+                e.Handled = true;
+            };
+
             ChatHistoryPanel = new StackPanel { VerticalAlignment = VerticalAlignment.Bottom };
             ScrollViewerPrivate.Content = ChatHistoryPanel;
 
@@ -128,6 +231,14 @@ namespace JarvisLauncher
             var historyStack = new StackPanel();
             historyStack.Children.Add(new TextBlock { Text = "ARCHIVED MISSIONS", FontSize = 11, FontWeight = FontWeights.Bold, Foreground = Brushes.Cyan, Margin = new Thickness(0,0,0,12) });
             HistoryListBox = new ListBox { Background = Brushes.Transparent, BorderThickness = new Thickness(0), Foreground = Brushes.White, MaxHeight = 400 };
+            HistoryListBox.PreviewMouseWheel += (s, e) => {
+                var sv = WpfScrollHelper.FindDescendant<ScrollViewer>(HistoryListBox);
+                if (sv != null) {
+                    double scrollAmount = (e.Delta / 3.0 > 0 ? Math.Max(28, e.Delta / 3.0) : Math.Min(-28, e.Delta / 3.0));
+                    sv.ScrollToVerticalOffset(sv.VerticalOffset - scrollAmount);
+                    e.Handled = true;
+                }
+            };
             HistoryListBox.SelectionChanged += (s, e) => { if (HistoryListBox.SelectedItem is string log) LoadSession(log); };
             historyStack.Children.Add(HistoryListBox); HistoryContainer.Child = historyStack;
 
@@ -160,6 +271,11 @@ namespace JarvisLauncher
             Grid.SetRow(ConsoleToggleBtn, 0); consoleGrid.Children.Add(ConsoleToggleBtn);
 
             ConsoleTextBox = new TextBox { Height = 0, Visibility = Visibility.Collapsed, IsReadOnly = true, FontFamily = new FontFamily("Consolas"), FontSize = 10, Background = Brushes.Transparent, Foreground = Brushes.Lime, BorderThickness = new Thickness(0), TextWrapping = TextWrapping.Wrap, Opacity = 0.8, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            ConsoleTextBox.PreviewMouseWheel += (s, e) => {
+                double scrollAmount = (e.Delta > 0 ? -3 : 3);
+                ConsoleTextBox.ScrollToVerticalOffset(ConsoleTextBox.VerticalOffset + scrollAmount);
+                e.Handled = true;
+            };
             ConsoleTextBox.Text = ConsoleLog.ToString();
             Grid.SetRow(ConsoleTextBox, 1); consoleGrid.Children.Add(ConsoleTextBox);
             ConsoleBorder.Child = consoleGrid;
@@ -266,6 +382,17 @@ namespace JarvisLauncher
         }
 
         public static async Task SubmitTextMessage(string msg) { ShowChat(); if (Instance != null) await Instance.SendUserMessage(msg); }
+
+        /// <summary>
+        /// Pushes a proactive assistant tip (e.g. from the Live Coding Tutor) into the chat WITHOUT
+        /// triggering a new AI turn. Shows the companion (docked far-right) and adds an AI bubble.
+        /// </summary>
+        public static void ShowTeacherTip(string body) {
+            Application.Current.Dispatcher.Invoke(() => {
+                ShowChat();
+                Instance?.AddMessageBubble(body, true);
+            });
+        }
         public static async Task SubmitVoiceCommand(string msg, bool showUi = true) { if (showUi) ShowChat(); if (Instance != null) await Instance.SendUserMessage(msg); }
 
         private async Task SendUserMessage(string msg) {
@@ -287,44 +414,63 @@ namespace JarvisLauncher
             try {
                 var cts = new CancellationTokenSource(); _activeCts = cts;
                 string aiRaw = "";
+                bool multiTurnDone = false;
 
                 if (LlmRouter.IsStreamingBackend(CoreRegistry.Data.Settings.Current.LLM_BACKEND)) {
                     // Stream tokens live into the bubble for Ollama + all OpenAI-compatible providers.
                     Application.Current.Dispatcher.Invoke(() => { try { rt.Document.Blocks.Clear(); } catch { } });
                     aiRaw = await LlmRouter.AskStreamAsync(apiMsg, ConversationHistory, t => Application.Current.Dispatcher.Invoke(() => AppendToRichText(rt, t)), cts.Token);
                 } else {
-                    // Inject MCP Context for tool discovery
-                    string mcpContext = "[MCP ENABLED]\nServers: " + string.Join(", ", McpManager.Servers.Select(s => s.Name)) + "\n";
-                    mcpContext += "To use a tool: [CALL_MCP_TOOL: Server | Tool | {args}]\n\n";
+                    // Inject MCP Context for tool discovery. GetToolManifest() returns instantly
+                    // (cached) and refreshes tool lists in the background, so MCP never blocks chat.
+                    string manifest = McpManager.GetToolManifest();
+                    string mcpContext = "[MCP ENABLED]\nAvailable MCP servers and tools:\n" + manifest +
+                        "To invoke one, emit exactly: [CALL_MCP_TOOL: ServerName | tool_name | {\"arg\":\"value\"}]\n\n";
 
-                    aiRaw = await AiAPI.AskAgentAsync(mcpContext + apiMsg, ConversationHistory, cts.Token);
+                    // Multi-turn agent loop: LLM -> tools -> feed results back -> LLM, until done.
+                    aiRaw = await AgentExecutor.RunAgentTurnsAsync(mcpContext + apiMsg, ConversationHistory, cts.Token,
+                        step => Application.Current.Dispatcher.Invoke(() => { try { AppendToRichText(rt, "\n" + step); } catch { } }));
+                    multiTurnDone = true;
 
-                    // Check for Tool Call
-                    var match = Regex.Match(aiRaw, @"\[CALL_MCP_TOOL:\s*(?<server>.*?)\s*\|\s*(?<tool>.*?)\s*\|\s*(?<args>.*?)\]");
-                    if (match.Success)
+                    // MCP tool loop: run whatever tool the model emitted, feed the result back, and
+                    // repeat so multi-step jobs (e.g. Roblox: list tree → read script → edit) can chain.
+                    var mcpRegex = new Regex(@"\[CALL_MCP_TOOL:\s*(?<server>.*?)\s*\|\s*(?<tool>.*?)\s*\|\s*(?<args>.*?)\]", RegexOptions.Singleline);
+                    for (int mcpStep = 0; mcpStep < 8 && !cts.IsCancellationRequested; mcpStep++)
                     {
+                        var match = mcpRegex.Match(aiRaw);
+                        if (!match.Success) break;
+
                         string server = match.Groups["server"].Value.Trim();
                         string tool = match.Groups["tool"].Value.Trim();
                         string argsJson = match.Groups["args"].Value.Trim();
 
                         Application.Current.Dispatcher.Invoke(() => {
-                            AppendToRichText(rt, $"\n\n⚡ [MCP PROTOCOL] Calling {tool} on {server}...");
+                            AppendToRichText(rt, $"\n\n⚡ [MCP] {tool} → {server}…");
                         });
 
+                        string toolResult;
                         try {
-                            var args = JsonSerializer.Deserialize<Dictionary<string, object>>(argsJson) ?? new();
-                            string toolResult = await McpManager.CallToolAsync(server, tool, args);
+                            var args = string.IsNullOrWhiteSpace(argsJson)
+                                ? new Dictionary<string, object>()
+                                : (JsonSerializer.Deserialize<Dictionary<string, object>>(argsJson) ?? new());
+                            toolResult = await McpManager.CallToolAsync(server, tool, args);
+                        } catch (Exception ex) {
+                            toolResult = $"Error: could not parse/execute tool call — {ex.Message}";
+                        }
 
-                            // Re-ask AI with result
-                            aiRaw = await AiAPI.AskAgentAsync($"[MCP TOOL RESULT]\nResult: {toolResult}\n\nContinue mission.", ConversationHistory, cts.Token);
-                        } catch { }
+                        // Re-ask AI with result so it can decide the next step (or finish).
+                        aiRaw = await AiAPI.AskAgentAsync(
+                            $"[MCP TOOL RESULT: {server}.{tool}]\n{toolResult}\n\nContinue the task. Emit another [CALL_MCP_TOOL: ...] to keep going, or give your final answer with no tool tags.",
+                            ConversationHistory, cts.Token);
                     }
 
                     FormatRichText(rt, AiAPI.SanitizeText(aiRaw));
                 }
 
                 StatusText.Text = "EXECUTING TOOLS"; StatusDot.Fill = Brushes.Orange;
-                string processedText = await AgentExecutor.ProcessAIResponseAsync(aiRaw);
+                // The non-streaming path already ran tools multi-turn; only the streaming path needs
+                // a single tool pass here.
+                string processedText = multiTurnDone ? aiRaw : await AgentExecutor.ProcessAIResponseAsync(aiRaw);
                 if (!string.IsNullOrEmpty(processedText)) FormatRichText(rt, processedText);
 
                 dbg.Text = "INTERNAL TRACE:\n" + aiRaw;
@@ -335,11 +481,214 @@ namespace JarvisLauncher
                 SaveCurrentSession();
             } catch (Exception ex) {
                 LogConsoleAction("AI Fault", ex.ToString());
-                FormatRichText(rt, "⚠️ THE MISSION HAS ENCOUNTERED AN ERROR. CHECK SYSTEM LOGS.");
+                string errText = ex.Message;
+                if (errText.Contains("429") || errText.Contains("quota")) errText = "Quota exceeded (429). Switch engine or check key in LLM Settings.";
+                FormatRichText(rt, $"⚠️ **AI Service Notice**\n\n{errText}\n\n*Click **⚡ AI** in the toolbar above to check keys or select a different engine.*");
             } finally {
                 StatusText.Text = "READY"; StatusDot.Fill = Brushes.LightGreen;
                 StopBtn.Visibility = Visibility.Collapsed; _activeCts = null; ScrollViewerPrivate.ScrollToBottom();
             }
+        }
+
+        private static void ApplySelectedModelOrBackend(string? sel)
+        {
+            if (string.IsNullOrWhiteSpace(sel)) return;
+            string s = sel.Trim();
+            var settings = CoreRegistry.Data.Settings.Current;
+            if (settings == null) return;
+
+            if (s.StartsWith("Auto", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Auto";
+            }
+            // Gemini
+            else if (s.StartsWith("Gemini 3.8 Pro", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Gemini";
+                settings.GEMINI_MODEL = "gemini-3.8-pro";
+            } else if (s.StartsWith("Gemini 3.8", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Gemini";
+                settings.GEMINI_MODEL = "gemini-3.8-flash";
+            } else if (s.StartsWith("Gemini 3.7 Pro", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Gemini";
+                settings.GEMINI_MODEL = "gemini-3.7-pro";
+            } else if (s.StartsWith("Gemini 3.7 Thinking", StringComparison.OrdinalIgnoreCase) || s.Contains("Thinking", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Gemini";
+                settings.GEMINI_MODEL = "gemini-3.7-flash-thinking";
+            } else if (s.StartsWith("Gemini 3.7", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Gemini";
+                settings.GEMINI_MODEL = "gemini-3.7-flash";
+            } else if (s.StartsWith("Gemini 3.6 Pro", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Gemini";
+                settings.GEMINI_MODEL = "gemini-3.6-pro";
+            } else if (s.StartsWith("Gemini 3.6", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Gemini";
+                settings.GEMINI_MODEL = "gemini-3.6-flash";
+            } else if (s.StartsWith("Gemini 3.5 Pro", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Gemini";
+                settings.GEMINI_MODEL = "gemini-3.5-pro";
+            } else if (s.StartsWith("Gemini 3.5", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Gemini";
+                settings.GEMINI_MODEL = "gemini-3.5-flash";
+            } else if (s.StartsWith("Gemini 2.5 Pro", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Gemini";
+                settings.GEMINI_MODEL = "gemini-2.5-pro";
+            } else if (s.StartsWith("Gemini 2.5", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Gemini";
+                settings.GEMINI_MODEL = "gemini-2.5-flash";
+            } else if (s.StartsWith("Gemini 2.0", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Gemini";
+                settings.GEMINI_MODEL = "gemini-2.0-flash";
+            } else if (s.StartsWith("Gemini 1.5 Pro", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Gemini";
+                settings.GEMINI_MODEL = "gemini-1.5-pro";
+            } else if (s.StartsWith("Gemini 1.5", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Gemini";
+                settings.GEMINI_MODEL = "gemini-1.5-flash";
+            } else if (s.Equals("Gemini", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Gemini";
+            }
+            // OpenRouter
+            else if (s.StartsWith("OpenRouter", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "OpenRouter";
+                if (s.Contains("DeepSeek R1", StringComparison.OrdinalIgnoreCase)) {
+                    settings.OPENROUTER_MODEL = "deepseek/deepseek-r1";
+                } else if (s.Contains("DeepSeek V3", StringComparison.OrdinalIgnoreCase) || s.Contains("DeepSeek-Chat", StringComparison.OrdinalIgnoreCase)) {
+                    settings.OPENROUTER_MODEL = "deepseek/deepseek-chat";
+                } else if (s.Contains("Claude 3.7", StringComparison.OrdinalIgnoreCase)) {
+                    settings.OPENROUTER_MODEL = "anthropic/claude-3.7-sonnet";
+                } else if (s.Contains("Claude 3.5", StringComparison.OrdinalIgnoreCase)) {
+                    settings.OPENROUTER_MODEL = "anthropic/claude-3.5-sonnet";
+                } else if (s.Contains("GPT-4o Mini", StringComparison.OrdinalIgnoreCase)) {
+                    settings.OPENROUTER_MODEL = "openai/gpt-4o-mini";
+                } else if (s.Contains("GPT-4o", StringComparison.OrdinalIgnoreCase)) {
+                    settings.OPENROUTER_MODEL = "openai/gpt-4o";
+                } else if (s.Contains("o3-mini", StringComparison.OrdinalIgnoreCase)) {
+                    settings.OPENROUTER_MODEL = "openai/o3-mini";
+                } else if (s.Contains("Llama 3.3", StringComparison.OrdinalIgnoreCase)) {
+                    settings.OPENROUTER_MODEL = "meta-llama/llama-3.3-70b-instruct";
+                } else if (s.Contains("Qwen 2.5", StringComparison.OrdinalIgnoreCase)) {
+                    settings.OPENROUTER_MODEL = "qwen/qwen-2.5-72b-instruct";
+                } else if (s.Contains("Mistral Large", StringComparison.OrdinalIgnoreCase)) {
+                    settings.OPENROUTER_MODEL = "mistralai/mistral-large-2411";
+                } else if (s.Contains("Gemini 2.0", StringComparison.OrdinalIgnoreCase)) {
+                    settings.OPENROUTER_MODEL = "google/gemini-2.0-flash-001";
+                } else if (s.Contains("Perplexity", StringComparison.OrdinalIgnoreCase) || s.Contains("Sonar", StringComparison.OrdinalIgnoreCase)) {
+                    settings.OPENROUTER_MODEL = "perplexity/sonar";
+                } else if (s.Contains("Auto", StringComparison.OrdinalIgnoreCase) || s.Contains("Free", StringComparison.OrdinalIgnoreCase)) {
+                    settings.OPENROUTER_MODEL = "openrouter/auto";
+                } else if (s.Contains("(") && s.Contains(")")) {
+                    string inside = s.Substring(s.IndexOf('(') + 1).TrimEnd(')').Trim();
+                    if (!string.IsNullOrEmpty(inside)) settings.OPENROUTER_MODEL = inside;
+                } else if (s.Contains(":")) {
+                    string after = s.Substring(s.IndexOf(':') + 1).Trim();
+                    if (!string.IsNullOrEmpty(after)) settings.OPENROUTER_MODEL = after;
+                }
+            }
+            // OpenAI
+            else if (s.StartsWith("OpenAI", StringComparison.OrdinalIgnoreCase) || s.StartsWith("gpt-", StringComparison.OrdinalIgnoreCase) || s.StartsWith("o1", StringComparison.OrdinalIgnoreCase) || s.StartsWith("o3", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "OpenAI";
+                if (s.Contains("4o-mini", StringComparison.OrdinalIgnoreCase)) settings.OPENAI_MODEL = "gpt-4o-mini";
+                else if (s.Contains("4o", StringComparison.OrdinalIgnoreCase)) settings.OPENAI_MODEL = "gpt-4o";
+                else if (s.Contains("4.5", StringComparison.OrdinalIgnoreCase)) settings.OPENAI_MODEL = "gpt-4.5-preview";
+                else if (s.Contains("o3-mini", StringComparison.OrdinalIgnoreCase)) settings.OPENAI_MODEL = "o3-mini";
+                else if (s.Contains("o1", StringComparison.OrdinalIgnoreCase)) settings.OPENAI_MODEL = "o1";
+                else if (s.Contains("(") && s.Contains(")")) {
+                    string inside = s.Substring(s.IndexOf('(') + 1).TrimEnd(')').Trim();
+                    if (!string.IsNullOrEmpty(inside)) settings.OPENAI_MODEL = inside;
+                } else if (s.StartsWith("gpt-", StringComparison.OrdinalIgnoreCase) || s.StartsWith("o1", StringComparison.OrdinalIgnoreCase) || s.StartsWith("o3", StringComparison.OrdinalIgnoreCase)) {
+                    settings.OPENAI_MODEL = s;
+                }
+            }
+            // Anthropic
+            else if (s.StartsWith("Anthropic", StringComparison.OrdinalIgnoreCase) || s.StartsWith("claude-", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Anthropic";
+                if (s.Contains("3.7") || s.Contains("3-7")) settings.ANTHROPIC_MODEL = "claude-3-7-sonnet-latest";
+                else if (s.Contains("3.5 Sonnet") || s.Contains("3-5-sonnet")) settings.ANTHROPIC_MODEL = "claude-3-5-sonnet-latest";
+                else if (s.Contains("3.5 Haiku") || s.Contains("3-5-haiku")) settings.ANTHROPIC_MODEL = "claude-3-5-haiku-latest";
+                else if (s.Contains("Opus") || s.Contains("opus")) settings.ANTHROPIC_MODEL = "claude-3-opus-latest";
+                else if (s.StartsWith("claude-", StringComparison.OrdinalIgnoreCase)) settings.ANTHROPIC_MODEL = s;
+            }
+            // ClaudeCode
+            else if (s.StartsWith("ClaudeCode", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "ClaudeCode";
+            }
+            // Groq
+            else if (s.StartsWith("Groq", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Groq";
+                if (s.Contains("DeepSeek", StringComparison.OrdinalIgnoreCase) || s.Contains("R1", StringComparison.OrdinalIgnoreCase)) settings.GROQ_MODEL = "deepseek-r1-distill-llama-70b";
+                else if (s.Contains("3.1", StringComparison.OrdinalIgnoreCase) || s.Contains("8b", StringComparison.OrdinalIgnoreCase)) settings.GROQ_MODEL = "llama-3.1-8b-instant";
+                else if (s.Contains("Mixtral", StringComparison.OrdinalIgnoreCase)) settings.GROQ_MODEL = "mixtral-8x7b-32768";
+                else if (s.Contains("3.3", StringComparison.OrdinalIgnoreCase) || s.Contains("70b", StringComparison.OrdinalIgnoreCase)) settings.GROQ_MODEL = "llama-3.3-70b-versatile";
+            }
+            // DeepSeek
+            else if (s.StartsWith("DeepSeek", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "DeepSeek";
+                if (s.Contains("R1") || s.Contains("reasoner", StringComparison.OrdinalIgnoreCase)) {
+                    settings.DEEPSEEK_MODEL = "deepseek-reasoner";
+                    settings.CUSTOM_LLM_MODEL = "deepseek-reasoner";
+                } else {
+                    settings.DEEPSEEK_MODEL = "deepseek-chat";
+                    settings.CUSTOM_LLM_MODEL = "deepseek-chat";
+                }
+            }
+            // Mistral
+            else if (s.StartsWith("Mistral", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Mistral";
+                if (s.Contains("Codestral", StringComparison.OrdinalIgnoreCase)) settings.MISTRAL_MODEL = "codestral-latest";
+                else if (s.Contains("Small", StringComparison.OrdinalIgnoreCase)) settings.MISTRAL_MODEL = "mistral-small-latest";
+                else settings.MISTRAL_MODEL = "mistral-large-latest";
+            }
+            // Perplexity
+            else if (s.StartsWith("Perplexity", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Perplexity";
+                if (s.Contains("Reasoning", StringComparison.OrdinalIgnoreCase)) settings.PERPLEXITY_MODEL = "sonar-reasoning";
+                else if (s.Contains("Pro", StringComparison.OrdinalIgnoreCase)) settings.PERPLEXITY_MODEL = "sonar-pro";
+                else settings.PERPLEXITY_MODEL = "sonar";
+            }
+            // X-AI / Grok
+            else if (s.StartsWith("X-AI", StringComparison.OrdinalIgnoreCase) || s.StartsWith("Grok", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "X-AI";
+                if (s.Contains("Vision", StringComparison.OrdinalIgnoreCase)) settings.XAI_MODEL = "grok-2-vision-1212";
+                else settings.XAI_MODEL = "grok-2-latest";
+            }
+            // LM Studio
+            else if (s.StartsWith("LM Studio", StringComparison.OrdinalIgnoreCase) || s.StartsWith("LMStudio", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "LMStudio";
+                if (s.Contains(":")) {
+                    string modelName = s.Substring(s.IndexOf(':') + 1).Trim();
+                    if (!string.IsNullOrEmpty(modelName)) settings.CUSTOM_LLM_MODEL = modelName;
+                }
+            }
+            // Ollama
+            else if (s.StartsWith("Ollama", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Ollama";
+                if (s.Contains(":")) {
+                    string modelName = s.Substring(s.IndexOf(':') + 1).Trim();
+                    if (!string.IsNullOrEmpty(modelName)) settings.OLLAMA_MODEL = modelName;
+                }
+            }
+            // Custom Command
+            else if (s.StartsWith("Custom Command", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "CustomCommand";
+            }
+            // Custom API
+            else if (s.StartsWith("Custom API", StringComparison.OrdinalIgnoreCase) || s.StartsWith("Custom", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Custom";
+            }
+            // Raw model path containing / -> OpenRouter
+            else if (s.Contains("/")) {
+                settings.LLM_BACKEND = "OpenRouter";
+                settings.OPENROUTER_MODEL = s;
+            }
+            // Gemini normalized fallback
+            else if (s.StartsWith("gemini-", StringComparison.OrdinalIgnoreCase)) {
+                settings.LLM_BACKEND = "Gemini";
+                settings.GEMINI_MODEL = LlmRouter.NormalizeGeminiModel(s);
+            } else {
+                settings.LLM_BACKEND = s;
+            }
+
+            CoreRegistry.Data.Settings.Save();
+            DebugConsoleOverlay.Log("AI-Switch", $"Engine switched to: {settings.LLM_BACKEND}");
         }
 
         private void AppendToRichText(RichTextBox rt, string text) {
@@ -362,24 +711,51 @@ namespace JarvisLauncher
                 if (block.StartsWith("```") && block.EndsWith("```")) {
                     string code = block.Trim('`').Trim();
                     var bdr = new Border { Background = new SolidColorBrush(Color.FromArgb(60, 0,0,0)), BorderThickness = new Thickness(1), BorderBrush = Brushes.DimGray, Padding = new Thickness(10), Margin = new Thickness(0,5,0,10), CornerRadius = new CornerRadius(4) };
-                    var tb = new TextBox { Text = code, FontFamily = new FontFamily("Consolas"), FontSize = 12, Foreground = Brushes.Lime, Background = Brushes.Transparent, BorderThickness = new Thickness(0), IsReadOnly = true, TextWrapping = TextWrapping.Wrap };
+                    var tb = new TextBox { Text = code, FontFamily = (Application.Current.Resources["MonoFontFamily"] as FontFamily) ?? new FontFamily("Consolas"), FontSize = 12, Foreground = Brushes.Lime, Background = Brushes.Transparent, BorderThickness = new Thickness(0), IsReadOnly = true, TextWrapping = TextWrapping.Wrap };
                     bdr.Child = tb;
                     rt.Document.Blocks.Add(new BlockUIContainer(bdr));
                 } else {
-                    var p = new Paragraph { Margin = new Thickness(0,0,0,8) };
-                    string[] subParts = Regex.Split(block, @"(\*\*.*?\*\*|`.*?`)");
-                    foreach (var part in subParts) {
-                        if (part.StartsWith("**") && part.EndsWith("**")) {
-                            p.Inlines.Add(new Bold(new Run(part.Trim('*'))) { Foreground = Brushes.Cyan });
-                        } else if (part.StartsWith("`") && part.EndsWith("`")) {
-                            p.Inlines.Add(new Run(part.Trim('`')) { Background = new SolidColorBrush(Color.FromArgb(60, 0,0,0)), FontFamily = new FontFamily("Consolas"), Foreground = Brushes.Lime });
-                        } else {
-                            p.Inlines.Add(new Run(part));
-                        }
-                    }
-                    rt.Document.Blocks.Add(p);
+                    RenderTextWithMedia(rt, block);
                 }
             }
+        }
+
+        // Renders a non-code text block, pulling out any image/gif/video/audio references and
+        // embedding them inline as real media players; the text around them keeps markdown styling.
+        private void RenderTextWithMedia(RichTextBox rt, string block) {
+            int last = 0;
+            foreach (Match m in ChatMediaRenderer.MediaRegex.Matches(block)) {
+                string before = block.Substring(last, m.Index - last);
+                if (!string.IsNullOrEmpty(before)) AddFormattedParagraph(rt, before);
+
+                string url = ChatMediaRenderer.ExtractUrl(m);
+                UIElement? media = null;
+                try { media = ChatMediaRenderer.Create(url); } catch { }
+                if (media != null) {
+                    rt.Document.Blocks.Add(new BlockUIContainer(media) { Margin = new Thickness(0, 4, 0, 8) });
+                } else {
+                    AddFormattedParagraph(rt, m.Value);   // not real media → leave the raw text
+                }
+                last = m.Index + m.Length;
+            }
+            string rest = block.Substring(last);
+            if (!string.IsNullOrEmpty(rest)) AddFormattedParagraph(rt, rest);
+        }
+
+        // Existing inline markdown styling (bold / inline-code), factored out for reuse.
+        private void AddFormattedParagraph(RichTextBox rt, string block) {
+            var p = new Paragraph { Margin = new Thickness(0,0,0,8) };
+            string[] subParts = Regex.Split(block, @"(\*\*.*?\*\*|`.*?`)");
+            foreach (var part in subParts) {
+                if (part.StartsWith("**") && part.EndsWith("**")) {
+                    p.Inlines.Add(new Bold(new Run(part.Trim('*'))) { Foreground = Brushes.Cyan });
+                } else if (part.StartsWith("`") && part.EndsWith("`")) {
+                    p.Inlines.Add(new Run(part.Trim('`')) { Background = new SolidColorBrush(Color.FromArgb(60, 0,0,0)), FontFamily = new FontFamily("Consolas"), Foreground = Brushes.Lime });
+                } else {
+                    p.Inlines.Add(new Run(part));
+                }
+            }
+            rt.Document.Blocks.Add(p);
         }
 
         private void AddMessageBubble(string t, bool ai) => AddMessageBubbleWithControls(t, ai);
@@ -388,7 +764,7 @@ namespace JarvisLauncher
             var b = new Border { Background = ai ? new SolidColorBrush(Color.FromArgb(35, 25, 25, 35)) : new SolidColorBrush(Color.FromArgb(90, 0, 120, 215)), CornerRadius = new CornerRadius(14, 14, ai ? 14 : 2, ai ? 2 : 14), Padding = new Thickness(16, 12, 16, 12), Margin = new Thickness(ai ? 0 : 50, 8, ai ? 50 : 0, 8), HorizontalAlignment = ai ? HorizontalAlignment.Left : HorizontalAlignment.Right, MaxWidth = 420, BorderThickness = new Thickness(1), BorderBrush = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) };
             var stack = new StackPanel();
 
-            var rt = new RichTextBox { Background = Brushes.Transparent, BorderThickness = new Thickness(0), IsReadOnly = true, Foreground = Brushes.White, FontSize = 13.5, FontFamily = new FontFamily("Segoe UI"), VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, IsHitTestVisible = true };
+            var rt = new RichTextBox { Background = Brushes.Transparent, BorderThickness = new Thickness(0), IsReadOnly = true, Foreground = Brushes.White, FontSize = 13.5, FontFamily = (Application.Current.Resources["ChatFontFamily"] as FontFamily) ?? new FontFamily("Segoe UI"), VerticalScrollBarVisibility = ScrollBarVisibility.Disabled, IsHitTestVisible = true };
             rt.Document.PagePadding = new Thickness(0);
             FormatRichText(rt, t);
             stack.Children.Add(rt);

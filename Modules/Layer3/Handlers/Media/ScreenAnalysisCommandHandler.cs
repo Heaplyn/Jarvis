@@ -11,10 +11,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query == "analyze" || query == "screen" || query == "analyzer" || query == "tile" || query == "tiling" ||
-                   query == "screenvision" || query == "screenmonitor" || query == "screen ai" || query == "analyze screen" ||
-                   query == "what is on my screen" || query == "explain screen" || query == "start screen monitoring" || query == "stop screen monitoring";
+            return SearchUtil.MatchesAny(query, "analyze", "screen", "analyzer", "tile", "tiling", "screenvision", "screenmonitor", "analyze screen", "explain screen");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -27,7 +24,7 @@ namespace JarvisLauncher
             {
                 TITLE = "📹 Open AI Screen Vision & Continuous Monitoring Studio",
                 DESCRIPTION = "Live screen preview, active window tracker, continuous screen watcher, & Gemini Vision AI analysis",
-                SIMILARITY = 6.0,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "analyze", "screen", "analyzer", "tile", "tiling", "screenvision", "screenmonitor", "analyze screen", "explain screen") + 6.0 * 0.01),
                 EXECUTE = () => ScreenVisionStudioOverlay.ShowOverlay()
             });
 
@@ -38,7 +35,7 @@ namespace JarvisLauncher
                 {
                     TITLE = "🧠 Analyze Current Screen with Gemini Vision AI",
                     DESCRIPTION = "Captures instant screen snapshot and explains visible code, windows, or applications",
-                    SIMILARITY = 6.5,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "analyze", "screen", "analyzer", "tile", "tiling", "screenvision", "screenmonitor", "analyze screen", "explain screen") + 6.5 * 0.01),
                     EXECUTE = () => ScreenVisionStudioOverlay.ShowOverlay()
                 });
             }
@@ -50,7 +47,7 @@ namespace JarvisLauncher
                 {
                     TITLE = ScreenMonitorEngine.IsMonitoring ? "🛑 Stop Continuous Screen Monitoring" : "📹 Start Continuous Screen Monitoring",
                     DESCRIPTION = "Toggle background automatic screen snapshot tracking (every 5 seconds)",
-                    SIMILARITY = 6.5,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "analyze", "screen", "analyzer", "tile", "tiling", "screenvision", "screenmonitor", "analyze screen", "explain screen") + 6.5 * 0.01),
                     EXECUTE = () =>
                     {
                         ScreenMonitorEngine.Toggle();
@@ -64,7 +61,7 @@ namespace JarvisLauncher
             {
                 TITLE = "🧩 Auto-Tile Windows",
                 DESCRIPTION = "Arrange all visible open desktop windows in a clean side-by-side grid layout",
-                SIMILARITY = 4.5,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "analyze", "screen", "analyzer", "tile", "tiling", "screenvision", "screenmonitor", "analyze screen", "explain screen") + 4.5 * 0.01),
                 EXECUTE = () => ScreenAnalyzer.TileActiveWindows()
             });
 

@@ -1,100 +1,77 @@
-# ── Build outputs ──────────────────────────────────────────────────────────────
+# Build results
 [Bb]in/
 [Oo]bj/
-[Oo]ut/
 [Ll]og/
-*.user
-*.suo
-*.userosscache
-*.sln.docstates
-
-# ── Visual Studio / Rider ──────────────────────────────────────────────────────
-.vs/
-.idea/
-.artifacts/
-*.rsuser
-*.DotSettings.user
-
-# ── .NET / NuGet ───────────────────────────────────────────────────────────────
-*.nupkg
-*.snupkg
-project.lock.json
-project.fragment.lock.json
-packages/
-!**/packages/build/
-
-# ── Publish profiles ───────────────────────────────────────────────────────────
-**/Properties/PublishProfiles/
-
-# ── Runtime / Crash artifacts ──────────────────────────────────────────────────
-*.log
-*.tmp
-*.cache
-*.bak
-
-# ── Node / NPM (DownloadMedia module) ─────────────────────────────────────────
-Modules/Layer0/DownloadMedia/node_modules/
-Modules/Layer0/DownloadMedia/user_data/
-
-# ── Large local data directories ──────────────────────────────────────────────
-Data/
-Downloads/
-Data/*
-!Data/.gitkeep
-
-# ── API keys / secrets ─────────────────────────────────────────────────────────
-*.env
-appsettings.local.json
-SystemSettings.json
-
-# ── OS artifacts ───────────────────────────────────────────────────────────────
-Thumbs.db
-.DS_Store
-Desktop.ini
-
-# Jarvis System Ignore Rules
-bin/
-obj/
+[Ll]ogs/
 *.exe
 *.dll
 *.pdb
+*.msi
+
+# Visual Studio / VS Code
+.vs/
 *.user
+*.userprefs
 *.suo
+*.userosscache
 *.sln.docstates
+.vscode/
 
-# Secrets & Local Config (CRITICAL)
-Data/SystemSettings.json
-Data/Notes/Credentials/
+# Logs and temporary files
+*.log
+*_log.txt
+kill_log.txt
+mobile_server_log.txt
+run_stdout.log
+jarvis_debug.log
+null
+
+# Environment, secrets & local configs
+.env
+*.env
 *.key
-*.token
 *.pem
-google-services.json
+*.secret
+secrets.json
 
-# Data & Large Tooling
-Data/Tools/
-Data/Models/
-Data/Conversations/
-Data/Instructions/Evolved_Laws.md
-Data/Context/History/
-Data/Training/
-Data/VoiceDataset/
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
 
-# Media & Downloads
-Downloads/
-Modules/Layer0/DownloadMedia/flaresolverr/
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Obsidian runtime files (machine-specific, locked while Obsidian is open)
+Jarvis Obsidian/.obsidian/workspace.json
+Jarvis Obsidian/.obsidian/workspace-mobile.json
+Jarvis Obsidian/.obsidian/cache
+
+# Node modules (DownloadMedia)
 Modules/Layer0/DownloadMedia/node_modules/
 
-# OS Specific
-.vs/
-.idea/
-.vscode/
-*.log
+# Large binary / voice dataset repos (tracked as submodules separately)
+Data/VoiceDataset/AudioMNIST/
+Data/VoiceDataset/EmoV-DB/
+Data/VoiceDataset/emotiontts_open_db/
+Data/VoiceDataset/free-spoken-digit-dataset/
+Data/ReversedTools/javabytes/
+Data/ReversedTools/krakatau/
+Data/ReversedTools/pork/
+Data/ReversedTools/pycdc/
+Data/ReversedTools/unassemblize/
+
+# Large binary files / Downloads (exceed GitHub 100 MB limit)
+Downloads/
 *.mp3
+*.mp4
 *.wav
+*.jar
 *.zip
+*.tar.gz
 *.7z
-*.rar
-*.jpg
-*.png
-# Relocated stale root publish (regenerable via dotnet build)
-/_legacy_root_bin/

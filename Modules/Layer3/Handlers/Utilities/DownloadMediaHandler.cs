@@ -12,8 +12,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            string q = query.Trim().ToLower();
-            return q.StartsWith("grab ") || q.StartsWith("getvideo ") || q.StartsWith("mp3 ") || q.Contains("download media");
+            return SearchUtil.MatchesAny(query, "grab", "getvideo", "mp3", "download media");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -28,7 +27,7 @@ namespace JarvisLauncher
             {
                 TITLE = "🎬 Grab Media Content",
                 DESCRIPTION = $"Scrape and download media from: {url}",
-                SIMILARITY = 9.0,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "grab", "getvideo", "mp3", "download media") + 9.0 * 0.01),
                 EXECUTE = () => Task.Run(async () => {
                     TextOverlay.Show("🎬 Analyzing media stream...", 3000);
                     // Assuming DownloadMediaRunner has a static or registry entry

@@ -11,8 +11,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query == "theme" || query.StartsWith("theme ");
+            return SearchUtil.MatchesAny(query, "theme");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -30,7 +29,7 @@ namespace JarvisLauncher
                 {
                     TITLE       = $"Apply Theme: {targetTheme}",
                     DESCRIPTION = $"Switch visual layout style to {targetTheme} accents",
-                    SIMILARITY  = 2.0, // High priority match
+                    SIMILARITY  = (SearchUtil.BestSimilarity(query, "theme") + 2.0 * 0.01), // High priority match
                     EXECUTE     = () => ChangeTheme(targetTheme)
                 });
             }
@@ -48,7 +47,7 @@ namespace JarvisLauncher
                     {
                         TITLE       = $"Theme: {th}" + (isCurrent ? " (active)" : ""),
                         DESCRIPTION = $"Switch HUD appearance to {th} theme style",
-                        SIMILARITY  = 1.0,
+                        SIMILARITY  = (SearchUtil.BestSimilarity(query, "theme") + 1.0 * 0.01),
                         EXECUTE     = () => ChangeTheme(th)
                     });
                 }

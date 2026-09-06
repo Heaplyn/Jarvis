@@ -14,8 +14,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            string q = query.Trim().ToLower();
-            return q.StartsWith("google") || q.StartsWith("connect google") || q.StartsWith("gmail login") || q.StartsWith("sign in google");
+            return SearchUtil.MatchesAny(query, "google", "connect google", "gmail login", "sign in google");
         }
 
         public List<CommandDesc> GetCommandDescriptions() => new()
@@ -37,7 +36,7 @@ namespace JarvisLauncher
                 DESCRIPTION = string.IsNullOrEmpty(active)
                     ? "Sign in — enables Gemini (no API key needed), Gmail, Calendar, Drive"
                     : $"Active: {active} — click to add a different account",
-                SIMILARITY = 9.6,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "google", "connect google", "gmail login", "sign in google") + 9.6 * 0.01),
                 EXECUTE = () => _ = OAuth2Manager.AddGoogleAccountAsync(st => Notify(st))
             });
 
@@ -50,7 +49,7 @@ namespace JarvisLauncher
                 {
                     TITLE = (isActive ? "✅ " : "👤 ") + a.Email,
                     DESCRIPTION = isActive ? "Active account" : "Switch to this account",
-                    SIMILARITY = 9.0,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "google", "connect google", "gmail login", "sign in google") + 9.0 * 0.01),
                     EXECUTE = () =>
                     {
                         if (GoogleAccountManager.Activate(a.Email)) Notify($"Switched to {a.Email}");
@@ -65,7 +64,7 @@ namespace JarvisLauncher
                 {
                     TITLE = $"🚪 Disconnect {active}",
                     DESCRIPTION = "Remove this account from Jarvis",
-                    SIMILARITY = 8.5,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "google", "connect google", "gmail login", "sign in google") + 8.5 * 0.01),
                     EXECUTE = () => { GoogleAccountManager.Remove(active); Notify($"Disconnected {active}"); }
                 });
             }

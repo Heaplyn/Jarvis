@@ -11,8 +11,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query.StartsWith("textopacity") || query.StartsWith("textopac");
+            return SearchUtil.MatchesAny(query, "textopacity", "textopac");
         }
 
         public List<CommandResult> GetSuggestions(string query)

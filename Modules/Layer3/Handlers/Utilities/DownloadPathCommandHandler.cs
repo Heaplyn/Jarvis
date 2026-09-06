@@ -13,8 +13,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query == "getdlpath" || query == "resetdlpath" || query.StartsWith("setdlpath");
+            return SearchUtil.MatchesAny(query, "getdlpath", "resetdlpath", "setdlpath");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -24,7 +23,7 @@ namespace JarvisLauncher
             var parts = query.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
 
             string cmd = parts[0].ToLower();
-            double similarity = 2.0; // High priority match
+            double similarity = SearchUtil.BestSimilarity(query, "getdlpath", "resetdlpath", "setdlpath"); // High priority match
 
             if (cmd == "getdlpath")
             {

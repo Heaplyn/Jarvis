@@ -12,8 +12,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            string q = query.Trim().ToLower();
-            return q == "offline" || q == "cache" || q == "precache" || q == "vosk" || q == "local" || q == "offline mode";
+            return SearchUtil.MatchesAny(query, "offline", "cache", "precache", "vosk", "local", "offline mode");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -25,7 +24,7 @@ namespace JarvisLauncher
             {
                 TITLE = "📶 Open Offline & Pre-Caching Studio",
                 DESCRIPTION = "Manage offline speech models, TTS samples, and dev tool installers",
-                SIMILARITY = 9.5,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "offline", "cache", "precache", "vosk", "local", "offline mode") + 9.5 * 0.01),
                 EXECUTE = () => OfflineStudioOverlay.ShowOverlay()
             });
 
@@ -33,7 +32,7 @@ namespace JarvisLauncher
             {
                 TITLE = "📶 Run Full Offline Pre-Cache",
                 DESCRIPTION = "Download Vosk models, TTS samples, and core dependencies for Wi-Fi disconnected use",
-                SIMILARITY = 8.5,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "offline", "cache", "precache", "vosk", "local", "offline mode") + 8.5 * 0.01),
                 EXECUTE = () => Task.Run(async () => {
                     TextOverlay.Show("📶 Starting background pre-caching...", 3000);
                     await OfflineCacheManager.PreCacheAllForOfflineAsync(null);
@@ -46,7 +45,7 @@ namespace JarvisLauncher
                 suggestions.Add(new CommandResult {
                     TITLE = "🎙️ Download Vosk Model",
                     DESCRIPTION = "Force download of the offline neural speech recognition model",
-                    SIMILARITY = 9.0,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "offline", "cache", "precache", "vosk", "local", "offline mode") + 9.0 * 0.01),
                     EXECUTE = () => Task.Run(async () => await VoskEngine.EnsureModelDownloadedAsync(true))
                 });
             }

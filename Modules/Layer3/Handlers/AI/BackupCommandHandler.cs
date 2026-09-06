@@ -12,8 +12,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
     {
         public bool CanHandle(string query)
         {
-            string q = query.ToLower();
-            return q.Contains("backup") || q.Contains("sync pc") || q.Contains("pull training");
+            return SearchUtil.MatchesAny(query, "backup", "sync pc", "pull training");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -24,7 +23,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
             {
                 TITLE = "🔄 Synchronize Training Data",
                 DESCRIPTION = "Connect to Backup PC and pull latest models/training files.",
-                SIMILARITY = 1.0,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "backup", "sync pc", "pull training") + 1.0 * 0.01),
                 EXECUTE = () => Task.Run(async () => {
                     TextOverlay.Show("🔄 Initiating PC-to-PC Sync...", 3000);
                     string res = await BackupSyncManager.RunSyncCycleAsync();
@@ -36,7 +35,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
             {
                 TITLE = "⚙️ Configure Backup PC",
                 DESCRIPTION = "Set URL and credentials for the remote Backup PC.",
-                SIMILARITY = 0.8,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "backup", "sync pc", "pull training") + 0.8 * 0.01),
                 EXECUTE = () => SettingsOverlay.ShowOverlay()
             });
 

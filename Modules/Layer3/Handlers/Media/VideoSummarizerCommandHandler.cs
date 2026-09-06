@@ -10,8 +10,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            string q = query.Trim().ToLower();
-            return q == "summarize" || q.StartsWith("summarize ");
+            return SearchUtil.MatchesAny(query, "summarize");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -20,7 +19,7 @@ namespace JarvisLauncher
             string q = query.Trim();
             var parts = q.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
 
-            double similarity = 3.0; // High priority match
+            double similarity = SearchUtil.BestSimilarity(query, "summarize"); // High priority match
 
             if (parts.Length > 1)
             {

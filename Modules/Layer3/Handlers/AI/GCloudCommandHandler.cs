@@ -15,8 +15,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
     {
         public bool CanHandle(string query)
         {
-            string q = query.ToLower();
-            return q.StartsWith("gcloud") || q.StartsWith("translate") || q.StartsWith("vision") || q.StartsWith("bucket") || q.StartsWith("assist");
+            return SearchUtil.MatchesAny(query, "gcloud", "translate", "vision", "bucket", "assist");
         }
 
         public List<CommandResult> GetSuggestions(string query)

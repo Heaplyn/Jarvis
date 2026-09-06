@@ -12,12 +12,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            var parts = query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length == 0) return false;
-
-            string cmd = parts[0];
-            return cmd == "grid" || cmd == "files" || cmd == "pin" || cmd == "unpin";
+            return SearchUtil.MatchesAny(query, "grid", "files", "pin", "unpin");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -49,7 +44,7 @@ namespace JarvisLauncher
                     {
                         TITLE       = $"Pin File: {Path.GetFileName(targetPath)}",
                         DESCRIPTION = $"Pin \"{targetPath}\" persistently to the File Launchpad Dashboard",
-                        SIMILARITY  = 2.0,
+                        SIMILARITY  = (SearchUtil.BestSimilarity(query, "grid", "files", "pin", "unpin") + 2.0 * 0.01),
                         EXECUTE     = () => PinFileNatively(targetPath)
                     });
                 }
@@ -81,7 +76,7 @@ namespace JarvisLauncher
                     {
                         TITLE       = $"Unpin File: {Path.GetFileName(targetPath)}",
                         DESCRIPTION = $"Remove \"{targetPath}\" from the File Launchpad Dashboard",
-                        SIMILARITY  = 2.0,
+                        SIMILARITY  = (SearchUtil.BestSimilarity(query, "grid", "files", "pin", "unpin") + 2.0 * 0.01),
                         EXECUTE     = () => FileGridOverlay.UnpinFile(targetPath)
                     });
                 }

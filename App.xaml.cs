@@ -24,7 +24,9 @@ namespace JarvisLauncher
         protected override void OnStartup(StartupEventArgs e)
         {
             System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12 | System.Net.SecurityProtocolType.Tls13;
+            SelfHealingManager.Initialize();
             KillPreviousJarvisInstances();
+            WpfScrollHelper.InitializeGlobalScrollFix();
             base.OnStartup(e);
 
             this.DispatcherUnhandledException += (s, ev) =>
@@ -94,31 +96,16 @@ namespace JarvisLauncher
                 AdaptiveSleeper.Start();
 
                 var depTask = Task.Run(() => { try { EnsureDependenciesAsync().GetAwaiter().GetResult(); } catch { } });
-                var predTask = Task.Run(() => { try { PredictiveStreamManager.Start(); } catch { } });
                 var cmdTask = Task.Run(() => { try { CommandParser.Initialize(); } catch { } });
-                var mobTask = Task.Run(() => { try { MobileBridgeServer.Start(CoreRegistry.Data.Settings.Current.MOBILE_PORT); } catch { } });
-                var persTask = Task.Run(() => { try { PersonalityEvolver.Start(); } catch { } });
-                var emoTask = Task.Run(() => { try { EmotionalContextManager.Start(); } catch { } });
-                var chronoTask = Task.Run(() => { try { ChronoLogManager.StartAutoTracker(); } catch { } });
-                var selfTask = Task.Run(() => { try { SelfHealingManager.Initialize(); } catch { } });
-                var remTask = Task.Run(() => { try { ReminderManager.Initialize(); } catch { } });
-                var plugTask = Task.Run(() => { try { JarvisPluginManager.Initialize(); } catch { } });
 
-                // SECURITY: autonomous loops that watch the screen, harvest datasets, or self-modify
-                // ("kernel evolution") are gated behind IS_AUTONOMOUS_MODE_ENABLED (default OFF).
-                // Turning on autonomous mode in Settings is the explicit human opt-in.
-                if (CoreRegistry.Data.Settings.Current.IS_AUTONOMOUS_MODE_ENABLED)
+                // Start opt-in network services if configured
+                var s = CoreRegistry.Data.Settings.Current;
+                if (s != null && s.P2P_SERVER_ENABLED)
                 {
-                    _ = Task.Run(() => { try { SystemKnowledgeManager.Start(); } catch { } });
-                    _ = Task.Run(() => { try { ScreenMonitorEngine.Start(15); } catch { } });
-                    _ = Task.Run(() => { try { EvolutionManager.StartContinuousEvolution(); } catch { } });
-                }
-                else
-                {
-                    try { DebugConsoleOverlay.Log("Security", "Autonomous loops disabled (screen capture, dataset harvest, evolution). Enable in Settings to opt in."); } catch { }
+                    Task.Run(() => { try { MobileBridgeServer.Start(s.MOBILE_PORT); } catch { } });
                 }
 
-                // Await essential core setup (dependencies & command calibration) before showing the UI.
+                // Await essential core setup (directories & command index) before showing UI
                 loadingWindow.UpdateStatus("Calibrating core services...", 75);
                 await Task.WhenAll(depTask, cmdTask);
                 BootPhase("Await deps+CommandParser");

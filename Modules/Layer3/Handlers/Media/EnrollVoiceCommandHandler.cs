@@ -12,8 +12,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            string q = query.Trim().ToLower();
-            return q.StartsWith("enroll voice") || q.StartsWith("enroll my voice") || q.StartsWith("biometric enroll") || q.StartsWith("voice enrollment") || q.StartsWith("train voice");
+            return SearchUtil.MatchesAny(query, "enroll voice", "biometric enroll", "voice enrollment", "train voice");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -37,7 +36,7 @@ namespace JarvisLauncher
                 {
                     Task.Run(async () => await VoiceActivationManager.EnrollVoiceGlobalAsync(name));
                 },
-                SIMILARITY = 8.5
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "enroll voice", "biometric enroll", "voice enrollment", "train voice") + 8.5 * 0.01)
             });
 
             suggestions.Add(new CommandResult

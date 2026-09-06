@@ -29,7 +29,9 @@ namespace JarvisLauncher
                     try {
                         AuditAppIndex();
                         AuditFocus();
-                        await AuditScreenSurveillance();
+                        // Teacher-mode screen tutoring is owned by LiveCodingTutorEngine (single path).
+                        // Start() is idempotent and the engine self-gates on Teacher Mode.
+                        LiveCodingTutorEngine.Start();
                         if (new Random().Next(100) < 5) await RunSubconsciousReflect();
                     } catch { }
                     await AdaptiveSleeper.DelayAsync(TimeSpan.FromMinutes(2));
@@ -56,21 +58,6 @@ namespace JarvisLauncher
                     TtsManager.Speak("You've been focused on distractions for a while. Need to switch back to productivity?");
                 }
             } else DistractionCounter = 0;
-        }
-
-        private static async Task AuditScreenSurveillance() {
-            if (!CoreRegistry.Data.Settings.Current.IS_TEACHER_MODE_ENABLED) return;
-            string win = CoreRegistry.Data.Memory.GetCurrentWindowTitle().ToLower();
-            if (win.Contains("studio") || win.Contains("code") || win.Contains("visual")) {
-                string? b64 = ScreenCaptureUtil.CapturePrimaryScreenToBase64();
-                if (!string.IsNullOrEmpty(b64)) {
-                    string res = await AiAPI.AnalyzeImageAsync("Jarvis Code Teacher: Spot syntax bugs.", b64);
-                    if (res != "CLEAR" && !res.Contains("NONE")) {
-                        TtsManager.Speak("I spotted a potential coding issue.");
-                        await ChatOverlay.SubmitTextMessage("educational advice:\n" + res);
-                    }
-                }
-            }
         }
 
         private static async Task RunSubconsciousReflect() {

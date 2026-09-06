@@ -14,8 +14,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            string q = query.Trim().ToLower();
-            return q.StartsWith("teacher ") || q == "teacher";
+            return SearchUtil.MatchesAny(query, "teacher");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -40,7 +39,19 @@ namespace JarvisLauncher
                         TtsManager.Speak(msg);
                         TextOverlay.Show($"🎓 Teacher Mode: {(nextState ? "ON" : "OFF")}", 3000);
                     },
-                    SIMILARITY = 8.5
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "teacher") + 8.5 * 0.01)
+                });
+            }
+
+            // 1b. Open Teacher Studio (goal-aware live tutor)
+            if (lower == "teacher" || lower.Contains("studio") || lower.Contains("goal") || lower.Contains("tutor"))
+            {
+                suggestions.Add(new CommandResult
+                {
+                    TITLE = "🎓 Open Teacher Studio",
+                    DESCRIPTION = "Set a goal and let JARVIS generate its own triggers to tutor you live while you code",
+                    EXECUTE = () => TeacherStudioOverlay.ShowOverlay(),
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "teacher") + 9.0 * 0.01)
                 });
             }
 
@@ -60,7 +71,7 @@ namespace JarvisLauncher
                             if (!string.IsNullOrEmpty(target))
                             {
                                 string result = await CodeTeacherManager.ScanFileAsync(target);
-                                if (!result.Contains("looks clean!") && !result.Contains("No issues found"))
+                                if (!result.Contains("looks clean!") && !result.Contains("No issues found") && result != "duplicate_suppressed")
                                 {
                                     ChatOverlay.ShowChat();
                                     await ChatOverlay.SubmitTextMessage("teacher scan report:\n" + result);
@@ -100,7 +111,7 @@ namespace JarvisLauncher
                                     foreach (var fInfo in files)
                                     {
                                         string result = await CodeTeacherManager.ScanFileAsync(fInfo.FullName);
-                                        if (!result.Contains("looks clean!") && !result.Contains("No issues found"))
+                                        if (!result.Contains("looks clean!") && !result.Contains("No issues found") && result != "duplicate_suppressed")
                                         {
                                             ChatOverlay.ShowChat();
                                             await ChatOverlay.SubmitTextMessage($"teacher scan report for {fInfo.Name}:\n" + result);
@@ -114,7 +125,7 @@ namespace JarvisLauncher
                             }
                         });
                     },
-                    SIMILARITY = 8.5
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "teacher") + 8.5 * 0.01)
                 });
             }
 

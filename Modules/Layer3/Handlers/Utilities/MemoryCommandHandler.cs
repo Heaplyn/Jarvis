@@ -12,8 +12,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query == "purge" || query == "clean" || query == "gc" || query == "optimize memory";
+            return SearchUtil.MatchesAny(query, "gc", "optimize memory", "free memory");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -27,7 +26,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
                 {
                     TITLE = "🧹 Purge System Memory",
                     DESCRIPTION = "Release heavy assets, clear caches, and force Garbage Collection",
-                    SIMILARITY = 2.0,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "gc", "optimize memory", "free memory") + 2.0 * 0.01),
                     EXECUTE = () =>
                     {
                         BaseOverlay.PurgeSystemMemory();

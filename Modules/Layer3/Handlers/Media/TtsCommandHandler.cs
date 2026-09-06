@@ -8,9 +8,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query.StartsWith("tts ") || query.StartsWith("speak ") || query.StartsWith("say ") ||
-                   query.StartsWith("read ") || query == "stop tts" || query == "ttsvoices" || query == "voices";
+            return SearchUtil.MatchesAny(query, "tts", "speak", "say", "read", "stop tts", "ttsvoices", "voices");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -25,7 +23,7 @@ namespace JarvisLauncher
                     TITLE = "🗣️ TTS Voice Studio",
                     DESCRIPTION = "Manage system voices and custom audio files",
                     EXECUTE = () => TtsVoiceLibraryOverlay.ShowOverlay(),
-                    SIMILARITY = 5.0
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "tts", "speak", "say", "read", "stop tts", "ttsvoices", "voices") + 5.0 * 0.01)
                 });
                 return suggestions;
             }
@@ -43,7 +41,7 @@ namespace JarvisLauncher
                     TITLE = "🔇 Stop Jarvis Speech",
                     DESCRIPTION = "Instantly cancel all active TTS output",
                     EXECUTE = () => TtsManager.Stop(),
-                    SIMILARITY = 5.0
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "tts", "speak", "say", "read", "stop tts", "ttsvoices", "voices") + 5.0 * 0.01)
                 });
                 return suggestions;
             }
@@ -55,7 +53,7 @@ namespace JarvisLauncher
                     TITLE = $"🔊 Read File: {Path.GetFileName(arg)}",
                     DESCRIPTION = $"Convert text in {arg} to speech",
                     EXECUTE = () => TtsManager.Speak(File.ReadAllText(arg)),
-                    SIMILARITY = 4.5
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "tts", "speak", "say", "read", "stop tts", "ttsvoices", "voices") + 4.5 * 0.01)
                 });
             }
 
@@ -66,7 +64,7 @@ namespace JarvisLauncher
                     TITLE = $"🗣️ Say: \"{arg}\"",
                     DESCRIPTION = "Play text through the active TTS engine",
                     EXECUTE = () => TtsManager.Speak(arg),
-                    SIMILARITY = 4.0
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "tts", "speak", "say", "read", "stop tts", "ttsvoices", "voices") + 4.0 * 0.01)
                 });
             }
 

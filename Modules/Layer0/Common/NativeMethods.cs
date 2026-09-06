@@ -39,6 +39,15 @@ namespace JarvisLauncher
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool LockWorkStation();
 
+        [DllImport("psapi.dll")]
+        public static extern int EmptyWorkingSet(IntPtr hwProc);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool SetProcessWorkingSetSize(IntPtr hProcess, IntPtr dwMinimumWorkingSetSize, IntPtr dwMaximumWorkingSetSize);
+
+        [DllImport("dnsapi.dll", EntryPoint = "DnsFlushResolverCache")]
+        public static extern int DnsFlushResolverCache();
+
         [DllImport("user32.dll")]
         public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
 

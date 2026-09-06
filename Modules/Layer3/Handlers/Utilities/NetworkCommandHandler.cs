@@ -16,8 +16,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            string q = query.Trim().ToLower();
-            return q == "net" || q == "network" || q == "ping" || q == "ip" || q == "port" || q == "wifi" || q == "netstat" || q == "speedtest" || q == "flushdns";
+            return SearchUtil.MatchesAny(query, "net", "network", "ping", "ip", "port", "wifi", "netstat", "speedtest", "flushdns");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -30,7 +29,7 @@ namespace JarvisLauncher
             {
                 TITLE = "📶 Network Diagnostics",
                 DESCRIPTION = "Analyze local interfaces, gateways, and connection status",
-                SIMILARITY = 9.0,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "net", "network", "ping", "ip", "port", "wifi", "netstat", "speedtest", "flushdns") + 9.0 * 0.01),
                 EXECUTE = () => RunNetworkAudit()
             });
 
@@ -40,7 +39,7 @@ namespace JarvisLauncher
                 suggestions.Add(new CommandResult {
                     TITLE = $"📡 Ping {host}",
                     DESCRIPTION = "Measure round-trip latency to remote host",
-                    SIMILARITY = 9.5,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "net", "network", "ping", "ip", "port", "wifi", "netstat", "speedtest", "flushdns") + 9.5 * 0.01),
                     EXECUTE = () => RunPing(host)
                 });
             }
@@ -49,7 +48,7 @@ namespace JarvisLauncher
             {
                 TITLE = "🌐 Show IP Addresses",
                 DESCRIPTION = "Display both Local (LAN) and Public (WAN) IP information",
-                SIMILARITY = 8.5,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "net", "network", "ping", "ip", "port", "wifi", "netstat", "speedtest", "flushdns") + 8.5 * 0.01),
                 EXECUTE = () => RunIpDiscovery()
             });
 
@@ -57,7 +56,7 @@ namespace JarvisLauncher
             {
                 TITLE = "⚡ Flush DNS Cache",
                 DESCRIPTION = "Purge Windows resolver cache to fix DNS resolution issues",
-                SIMILARITY = 8.0,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "net", "network", "ping", "ip", "port", "wifi", "netstat", "speedtest", "flushdns") + 8.0 * 0.01),
                 EXECUTE = () => RunFlushDns()
             });
 
@@ -65,7 +64,7 @@ namespace JarvisLauncher
             {
                 TITLE = "🚀 Run Speedtest",
                 DESCRIPTION = "Open Ookla speedtest in browser",
-                SIMILARITY = 7.5,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "net", "network", "ping", "ip", "port", "wifi", "netstat", "speedtest", "flushdns") + 7.5 * 0.01),
                 EXECUTE = () => Process.Start(new ProcessStartInfo { FileName = "https://www.speedtest.net", UseShellExecute = true })
             });
 

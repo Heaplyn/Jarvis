@@ -11,9 +11,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query == "compile ipa" || query == "compile ios" || query == "compile csharp to ios" ||
-                   query == "ipa" || query == "ipa compiler" || query == "ipa studio";
+            return SearchUtil.MatchesAny(query, "compile ipa", "compile ios", "ipa", "ipa compiler", "ipa studio");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -24,7 +22,7 @@ namespace JarvisLauncher
             {
                 TITLE = "🍎 Open C# to iOS IPA Compiler Studio",
                 DESCRIPTION = "Select a C# project, build into an IPA, and download directly to your connected phone",
-                SIMILARITY = 7.0,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "compile ipa", "compile ios", "ipa", "ipa compiler", "ipa studio") + 7.0 * 0.01),
                 EXECUTE = () => IpaCompilerOverlay.ShowOverlay()
             });
 

@@ -154,23 +154,40 @@ namespace JarvisLauncher
                 // 0. Custom Color Overrides (Visual Studio Integration)
                 if (set.THEME == "custom")
                 {
+                    // If the user picked an explicit two-colour gradient, use those stops; otherwise
+                    // derive a subtle gradient from the single background colour (legacy behaviour).
+                    bool hasCustomGrad = !string.IsNullOrWhiteSpace(set.THEME_GRADIENT_START)
+                                      && !string.IsNullOrWhiteSpace(set.THEME_GRADIENT_END);
+
                     if (set.BACKGROUND_MODE == "Solid") {
                         SetColorResource("WindowBackgroundBrush", set.THEME_BG_COLOR);
                     } else if (set.BACKGROUND_MODE == "Radial") {
                         try {
-                            var color = (Color)ColorConverter.ConvertFromString(set.THEME_BG_COLOR);
-                            var dark = Color.Multiply(color, 0.5f);
-                            var brush = new RadialGradientBrush(color, dark);
+                            Color inner, outer;
+                            if (hasCustomGrad) {
+                                inner = (Color)ColorConverter.ConvertFromString(set.THEME_GRADIENT_START);
+                                outer = (Color)ColorConverter.ConvertFromString(set.THEME_GRADIENT_END);
+                            } else {
+                                inner = (Color)ColorConverter.ConvertFromString(set.THEME_BG_COLOR);
+                                outer = Color.Multiply(inner, 0.5f);
+                            }
+                            var brush = new RadialGradientBrush(inner, outer);
                             brush.Freeze();
                             Application.Current.Resources["WindowBackgroundBrush"] = brush;
                         } catch { }
                     } else {
-                        // Default to gradient for custom
-                        var color = (Color)ColorConverter.ConvertFromString(set.THEME_BG_COLOR);
-                        var dark = Color.Multiply(color, 0.7f);
-                        var brush = new LinearGradientBrush(color, dark, new Point(0,0), new Point(1,1));
-                        brush.Freeze();
-                        Application.Current.Resources["WindowBackgroundBrush"] = brush;
+                        try {
+                            LinearGradientBrush brush;
+                            if (hasCustomGrad) {
+                                brush = BuildAngledGradient(set.THEME_GRADIENT_START, set.THEME_GRADIENT_END, set.THEME_GRADIENT_ANGLE);
+                            } else {
+                                var color = (Color)ColorConverter.ConvertFromString(set.THEME_BG_COLOR);
+                                var dark = Color.Multiply(color, 0.7f);
+                                brush = new LinearGradientBrush(color, dark, new Point(0,0), new Point(1,1));
+                                brush.Freeze();
+                            }
+                            Application.Current.Resources["WindowBackgroundBrush"] = brush;
+                        } catch { }
                     }
 
                     SetColorResource("TextPrimaryBrush", set.THEME_TEXT_COLOR);
@@ -227,6 +244,21 @@ namespace JarvisLauncher
 
                 Application.Current.Resources["GlobalFontFamily"] = activeFontFamily;
                 Application.Current.Resources["ActiveFontFamily"] = activeFontFamily;
+
+                // Per-text-type font families. Blank = inherit the global/custom font above. These are
+                // published as resources so components can opt in (headings, body, code/mono, chat).
+                FontFamily Fam(string name, FontFamily fallback)
+                    => string.IsNullOrWhiteSpace(name) ? fallback : new FontFamily(name);
+                var bodyFont    = Fam(set.BODY_FONT_FAMILY, activeFontFamily);
+                var headingFont = Fam(set.HEADING_FONT_FAMILY, activeFontFamily);
+                var monoFont    = Fam(set.MONO_FONT_FAMILY, new FontFamily("Consolas"));
+                var chatFont    = Fam(set.CHAT_FONT_FAMILY, bodyFont);
+                Application.Current.Resources["BodyFontFamily"]    = bodyFont;
+                Application.Current.Resources["HeadingFontFamily"] = headingFont;
+                Application.Current.Resources["MonoFontFamily"]    = monoFont;
+                Application.Current.Resources["ChatFontFamily"]    = chatFont;
+                // The global implicit text style follows the Body font when one is chosen.
+                activeFontFamily = bodyFont;
 
                 // 1a. Text Gradient Support – apply BEFORE UpdateImplicitStyles so it reads new brush
                 if (set.USE_TEXT_GRADIENT)
@@ -330,6 +362,20 @@ namespace JarvisLauncher
         }
 
         public static void SetColorResource(string key, string hex) { try { var b = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)); b.Freeze(); Application.Current.Resources[key] = b; } catch { } }
+
+        /// <summary>Builds a frozen two-stop linear gradient brush oriented at <paramref name="angleDeg"/> degrees (0 = left→right, 90 = top→bottom).</summary>
+        public static LinearGradientBrush BuildAngledGradient(string startHex, string endHex, double angleDeg)
+        {
+            var start = (Color)ColorConverter.ConvertFromString(startHex);
+            var end   = (Color)ColorConverter.ConvertFromString(endHex);
+            double rad = angleDeg * Math.PI / 180.0;
+            double dx = Math.Cos(rad), dy = Math.Sin(rad);
+            var brush = new LinearGradientBrush(start, end,
+                new Point(0.5 - dx / 2.0, 0.5 - dy / 2.0),
+                new Point(0.5 + dx / 2.0, 0.5 + dy / 2.0));
+            brush.Freeze();
+            return brush;
+        }
 
         private static void UpdateImplicitStyles(FontFamily fontFamily)
         {

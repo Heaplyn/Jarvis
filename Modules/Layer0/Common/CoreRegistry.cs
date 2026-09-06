@@ -74,25 +74,30 @@ namespace JarvisLauncher
             if (global::System.Threading.Interlocked.CompareExchange(ref _deferredStarted, 1, 0) != 0) return;
 
             Task.Run(() => {
-                try { ContextNotesManager.Initialize(); } catch { }
-                try { Data.Memory.Start(); } catch { }
-                try { System.Apps.StartScan(); } catch { }
-                // SECURITY: autonomous interjection is gated by the opt-in flag (it was not before).
-                try { if (Data.Settings.Current.IS_AUTONOMOUS_MODE_ENABLED) Interaction.Autonomous.Start(); } catch { }
-                try { Interaction.Voice.Start(); } catch { }
-                try { BackupSyncManager.StartAutoSync(); } catch { }
-                // Periodic screen perception (feeds the AI's [PERCEPTION CONTEXT]).
-                try { if (Data.Settings.Current.ENABLE_SCREEN_PERCEPTION)
-                        ScreenMonitorEngine.Start(Data.Settings.Current.SCREEN_PERCEPTION_INTERVAL_SEC); } catch { }
-                // Slow background filesystem index for AI file reference.
-                try { if (Data.Settings.Current.ENABLE_FILE_INDEXING) FileSystemIndexer.Start(); } catch { }
-            });
+                var set = Data.Settings.Current;
+                if (set == null) return;
 
-            Task.Run(async () => {
-                try {
-                    await Intelligence.Llm.DiscoverAiServersAsync();
-                    await Intelligence.ProjectContext.RefreshIndexAsync(AppDomain.CurrentDomain.BaseDirectory);
-                } catch { }
+                // SECURITY: autonomous interjection is gated by the opt-in flag
+                try { if (set.IS_AUTONOMOUS_MODE_ENABLED) Interaction.Autonomous.Start(); } catch { }
+                try { if (set.ENABLE_WAKE_WORD) Interaction.Voice.Start(); } catch { }
+                try { if (set.AUTO_SYNC_WITH_BACKUP) BackupSyncManager.StartAutoSync(); } catch { }
+                
+                // Periodic screen perception (feeds the AI's [PERCEPTION CONTEXT])
+                try { if (set.ENABLE_SCREEN_PERCEPTION && set.IS_AUTONOMOUS_MODE_ENABLED)
+                        ScreenMonitorEngine.Start(set.SCREEN_PERCEPTION_INTERVAL_SEC); } catch { }
+                        
+                // Slow background filesystem index for AI file reference
+                try { if (set.ENABLE_FILE_INDEXING) FileSystemIndexer.Start(); } catch { }
+                
+                // Ambient AI coding tutor
+                try { if (set.IS_TEACHER_MODE_ENABLED) LiveCodingTutorEngine.Start(); } catch { }
+
+                // Trim working set memory after initial boot completes
+                try
+                {
+                    GC.Collect(2, GCCollectionMode.Aggressive, false, false);
+                }
+                catch { }
             });
         }
 

@@ -16,8 +16,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query.StartsWith("uninstall ") || query == "uninstall";
+            return SearchUtil.MatchesAny(query, "uninstall");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -31,7 +30,7 @@ namespace JarvisLauncher
                 {
                     TITLE = "🗑️ Uninstall Packages or Jarvis",
                     DESCRIPTION = "Syntax: uninstall [winget/npm/python/self] [package_name]",
-                    SIMILARITY = 5.0,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "uninstall") + 5.0 * 0.01),
                     EXECUTE = () => TextOverlay.Show("Example: uninstall winget sideloadly", 4000)
                 });
                 return suggestions;
@@ -44,7 +43,7 @@ namespace JarvisLauncher
                 {
                     TITLE = "⚠️ Completely Uninstall Jarvis Launcher",
                     DESCRIPTION = "Purges all local configurations, templates, voice models, and files",
-                    SIMILARITY = 9.0,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "uninstall") + 9.0 * 0.01),
                     EXECUTE = () =>
                     {
                         var confirm = MessageBox.Show(
@@ -83,7 +82,7 @@ namespace JarvisLauncher
                 {
                     TITLE = $"🗑️ Uninstall Winget Package: {pkg}",
                     DESCRIPTION = $"Runs: winget uninstall {pkg} --silent",
-                    SIMILARITY = 6.8,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "uninstall") + 6.8 * 0.01),
                     EXECUTE = () => RunUninstallProcess("winget", $"uninstall {pkg} --silent")
                 });
             }
@@ -94,7 +93,7 @@ namespace JarvisLauncher
                 {
                     TITLE = $"🗑️ Uninstall NPM Package: {pkg}",
                     DESCRIPTION = $"Runs: npm uninstall -g {pkg}",
-                    SIMILARITY = 6.8,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "uninstall") + 6.8 * 0.01),
                     EXECUTE = () => RunUninstallProcess("cmd.exe", $"/c npm uninstall -g {pkg}")
                 });
             }
@@ -105,7 +104,7 @@ namespace JarvisLauncher
                 {
                     TITLE = $"🗑️ Uninstall Python pip Package: {pkg}",
                     DESCRIPTION = $"Runs: pip uninstall -y {pkg}",
-                    SIMILARITY = 6.8,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "uninstall") + 6.8 * 0.01),
                     EXECUTE = () => RunUninstallProcess("cmd.exe", $"/c pip uninstall -y {pkg}")
                 });
             }

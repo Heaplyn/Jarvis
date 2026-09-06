@@ -19,8 +19,7 @@ namespace JarvisLauncher
 
         public bool CanHandle(string query)
         {
-            string q = query.Trim().ToLower();
-            return q.StartsWith("model") || q.StartsWith("findmodel") || q.StartsWith("detect ai") || q.StartsWith("detect local");
+            return SearchUtil.MatchesAny(query, "model", "findmodel", "detect ai", "detect local");
         }
 
         public List<CommandDesc> GetCommandDescriptions() => new()
@@ -41,7 +40,7 @@ namespace JarvisLauncher
                 {
                     TITLE = "🔎 Detect local AI engines",
                     DESCRIPTION = "Probe for Ollama / LM Studio and report what's available",
-                    SIMILARITY = 9.5,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "model", "findmodel", "detect ai", "detect local") + 9.5 * 0.01),
                     EXECUTE = () => _ = DetectAsync()
                 });
                 return suggestions;
@@ -63,7 +62,7 @@ namespace JarvisLauncher
                 {
                     TITLE = "⏳ Searching models…",
                     DESCRIPTION = $"Looking for '{term}' across OpenRouter + local engines",
-                    SIMILARITY = 10.0,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "model", "findmodel", "detect ai", "detect local") + 10.0 * 0.01),
                     EXECUTE = () => { }
                 });
                 return suggestions;
@@ -75,7 +74,7 @@ namespace JarvisLauncher
                 {
                     TITLE = "Type a model name to search",
                     DESCRIPTION = "e.g. 'model claude', 'model llama', 'model gpt-4', 'model qwen'",
-                    SIMILARITY = 8.0,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "model", "findmodel", "detect ai", "detect local") + 8.0 * 0.01),
                     EXECUTE = () => { }
                 });
                 return suggestions;

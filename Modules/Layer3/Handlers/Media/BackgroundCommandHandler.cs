@@ -8,9 +8,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
     {
         public bool CanHandle(string query)
         {
-            return query.StartsWith("background", StringComparison.OrdinalIgnoreCase) ||
-                   query.StartsWith("bg", StringComparison.OrdinalIgnoreCase) ||
-                   query.StartsWith("gif", StringComparison.OrdinalIgnoreCase);
+            return SearchUtil.MatchesAny(query, "background", "bg", "gif");
         }
 
         public List<CommandResult> GetSuggestions(string query)

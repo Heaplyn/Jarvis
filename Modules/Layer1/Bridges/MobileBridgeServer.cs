@@ -53,9 +53,20 @@ namespace JarvisLauncher
                     // SECURITY: bind to 127.0.0.1 ONLY. The server is never exposed on the LAN or
                     // all interfaces. Remote (phone) access must go through an explicit, opt-in tunnel
                     // (cloudflared/ngrok) or `adb reverse`, both of which terminate on loopback here.
-                    Listener = new TcpListener(IPAddress.Loopback, PortParam);
-                    Listener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-                    Listener.Start();
+                    // Bind resiliently: SocketException 10013 (WSAEACCES) / 10048 (in-use) on a
+                    // loopback bind is almost always the configured port sitting inside a Windows
+                    // *excluded* port range (Hyper-V / WSL / Docker / winnat reserve blocks of ports).
+                    // Rather than crash, walk a list of fallbacks and finally let the OS pick a free port.
+                    Listener = TryBindLoopback(PortParam, out int boundPort);
+                    if (Listener == null)
+                    {
+                        IsRunningInternal = false;
+                        LogToFile("FATAL: could not bind ANY loopback port. The configured port and every fallback " +
+                                  "are blocked — likely a Windows excluded/reserved port range. Inspect with: " +
+                                  "netsh int ipv4 show excludedportrange protocol=tcp");
+                        return;
+                    }
+                    PortParam = boundPort;
 
                     LogToFile($"Server LIVE on 127.0.0.1:{PortParam} (loopback only).");
 
@@ -80,6 +91,43 @@ namespace JarvisLauncher
                     LogToFile($"FATAL server crash: {Ex}");
                 }
             });
+        }
+
+        // Loopback ports to try, in order, when the preferred one is blocked. The final 0 asks the
+        // OS for any free ephemeral port so the server always comes up somewhere.
+        private static readonly int[] FallbackPorts = { 9010, 9090, 8787, 8181, 7333, 5599, 45999, 0 };
+
+        private static TcpListener? TryBindLoopback(int preferredPort, out int boundPort)
+        {
+            boundPort = 0;
+            var order = new List<int> { preferredPort };
+            order.AddRange(FallbackPorts.Where(p => p != preferredPort));
+
+            foreach (int p in order)
+            {
+                try
+                {
+                    var l = new TcpListener(IPAddress.Loopback, p);
+                    l.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                    l.Start();
+                    boundPort = ((IPEndPoint)l.LocalEndpoint).Port;
+                    if (p != preferredPort)
+                        LogToFile($"Port {preferredPort} unavailable; bound to fallback loopback port {boundPort} instead. " +
+                                  "Point your mobile client / tunnel at this port.");
+                    return l;
+                }
+                catch (SocketException se) when (
+                    se.SocketErrorCode == SocketError.AccessDenied ||
+                    se.SocketErrorCode == SocketError.AddressAlreadyInUse)
+                {
+                    LogToFile($"Cannot bind loopback port {p}: {se.SocketErrorCode} ({se.ErrorCode}). Trying next candidate...");
+                }
+                catch (Exception ex)
+                {
+                    LogToFile($"Unexpected bind error on loopback port {p}: {ex.Message}. Trying next candidate...");
+                }
+            }
+            return null;
         }
 
         private static async Task HandleClientAsync(TcpClient ClientParam)

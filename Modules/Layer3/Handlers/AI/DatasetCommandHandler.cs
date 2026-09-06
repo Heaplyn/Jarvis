@@ -14,8 +14,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
     {
         public bool CanHandle(string query)
         {
-            string q = query.ToLower();
-            return q.Contains("dataset") || q.Contains("harvest") || q.Contains("scrape github datasets") || q.Contains("acoustic") || q.Contains("voice data");
+            return SearchUtil.MatchesAny(query, "dataset", "harvest", "acoustic", "voice data");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -40,7 +39,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
                 {
                     TITLE = "🔍 Search HF Datasets",
                     DESCRIPTION = "Discover new datasets on Hugging Face based on current trends.",
-                    SIMILARITY = 0.8,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "dataset", "harvest", "acoustic", "voice data") + 0.8 * 0.01),
                     EXECUTE = () => {
                         Task.Run(async () => {
                             await DatasetHarvester.RunAutomaticHarvestAsync();

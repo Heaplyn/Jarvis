@@ -86,6 +86,7 @@
 
                         <local:OutlinedText x:Name="PlaceholderText"
                                    Text="Type a command, math, or app name..."
+                                   Category="Search"
                                    Foreground="{DynamicResource TextPlaceholderBrush}"
                                    FontSize="20"
                                    FontFamily="{DynamicResource ActiveFontFamily}"
@@ -95,6 +96,7 @@
 
                         <!-- Autocomplete ghost suffix (Tab to accept) -->
                         <local:OutlinedText x:Name="AutocompleteGhost"
+                                   Category="Search"
                                    Foreground="{DynamicResource TextPlaceholderBrush}"
                                    FontSize="20"
                                    FontFamily="{DynamicResource ActiveFontFamily}"
@@ -137,11 +139,13 @@
                             <DataTemplate>
                                 <StackPanel Orientation="Vertical">
                                     <local:OutlinedText Text="{Binding TITLE}"
+                                               Category="Cards"
                                                Foreground="{DynamicResource TextPrimaryBrush}"
                                                FontSize="15"
                                                FontWeight="SemiBold"
                                                FontFamily="{DynamicResource ActiveFontFamily}"/>
                                     <local:OutlinedText Text="{Binding DESCRIPTION}"
+                                               Category="Subtext"
                                                Foreground="{DynamicResource TextSecondaryBrush}"
                                                FontSize="12"
                                                Margin="0,2,0,0"

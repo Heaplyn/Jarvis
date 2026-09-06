@@ -12,8 +12,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            string q = query.Trim().ToLower();
-            return q.StartsWith("download ") || q.StartsWith("dl ");
+            return SearchUtil.MatchesAny(query, "download", "dl");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -28,7 +27,7 @@ namespace JarvisLauncher
             {
                 TITLE = $"📥 Download File: {System.IO.Path.GetFileName(url)}",
                 DESCRIPTION = $"Source: {url}",
-                SIMILARITY = 9.0,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "download", "dl") + 9.0 * 0.01),
                 EXECUTE = () => Task.Run(async () => {
                     TextOverlay.Show("📥 Initiating download...", 3000);
                     string res = await CoreRegistry.System.Web.DownloadFileAsync(url, null);

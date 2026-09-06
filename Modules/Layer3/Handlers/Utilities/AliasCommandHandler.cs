@@ -11,8 +11,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query.StartsWith("alias") || query.StartsWith("unalias");
+            return SearchUtil.MatchesAny(query, "alias", "unalias");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -24,7 +23,7 @@ namespace JarvisLauncher.Modules.Layer3.Handlers
             if (parts.Length == 0) return suggestions;
 
             string cmd = parts[0].ToLower();
-            double similarity = 2.0; // High priority match
+            double similarity = SearchUtil.BestSimilarity(query, "alias", "unalias"); // High priority match
 
             if (cmd == "alias")
             {

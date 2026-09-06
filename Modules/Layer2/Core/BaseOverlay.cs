@@ -57,7 +57,11 @@ namespace JarvisLauncher
             if (onClick != null) btn.Click += onClick; return btn;
         }
 
-        public static TextBlock CreateLabel(string text, double fontSize = 11, bool isBold = true) { var tb = new TextBlock { Text = text, FontSize = fontSize, FontWeight = isBold ? FontWeights.SemiBold : FontWeights.Normal, Margin = new Thickness(0, 4, 0, 4) }; tb.SetResourceReference(TextBlock.ForegroundProperty, "TextPrimaryBrush"); return tb; }
+        public static OutlinedText CreateLabel(string text, double fontSize = 11, bool isBold = true, string category = "Labels") {
+            var tb = new OutlinedText { Text = text, Category = category, FontSize = fontSize, FontWeight = isBold ? FontWeights.SemiBold : FontWeights.Normal, Margin = new Thickness(0, 4, 0, 4) };
+            tb.SetResourceReference(OutlinedText.ForegroundProperty, "TextPrimaryBrush");
+            return tb;
+        }
         public static TextBox CreateTextBox() { var box = new TextBox { Background = Brushes.Transparent, BorderThickness = new Thickness(1), Padding = new Thickness(6, 4, 6, 4), FontSize = 12, FontFamily = new FontFamily("Segoe UI"), Margin = new Thickness(0, 0, 0, 8) }; box.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush"); box.SetResourceReference(TextBox.CaretBrushProperty, "AccentCaretBrush"); box.SetResourceReference(TextBox.BorderBrushProperty, "WindowBorderBrush"); return box; }
 
         protected Grid _mainGrid = null!;
@@ -67,7 +71,7 @@ namespace JarvisLauncher
         protected Border _vignetteBorder = null!;
         protected Border _grainBorder = null!;
         protected ContentPresenter _contentPresenter = null!;
-        protected TextBlock _titleTextBlock = null!;
+        protected OutlinedText _titleTextBlock = null!;
         protected StackPanel _controlStack = null!;
         protected Button _standardMinButton = null!;
         protected Button _maximizeButton = null!;
@@ -129,8 +133,8 @@ namespace JarvisLauncher
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
-            _titleTextBlock = new TextBlock { Text = title, FontSize = 12, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center };
-            _titleTextBlock.SetResourceReference(TextBlock.ForegroundProperty, "TextSecondaryBrush");
+            _titleTextBlock = new OutlinedText { Text = title, Category = "Titles", FontSize = 12, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center };
+            _titleTextBlock.SetResourceReference(OutlinedText.ForegroundProperty, "TextSecondaryBrush");
             Grid.SetColumn(_titleTextBlock, 0); headerGrid.Children.Add(_titleTextBlock);
 
             _controlStack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
@@ -648,9 +652,9 @@ namespace JarvisLauncher
             else if (element is Control c) c.Foreground = brush;
         }
 
-        public static TextBlock CreateHeader(string text)
+        public static OutlinedText CreateHeader(string text, string category = "Headers")
         {
-            return new TextBlock { Text = text, FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Brushes.Cyan, Margin = new Thickness(0, 15, 0, 10) };
+            return new OutlinedText { Text = text, Category = category, FontSize = 14, FontWeight = FontWeights.Bold, Foreground = Brushes.Cyan, Margin = new Thickness(0, 15, 0, 10) };
         }
 
         public static TextBox CreateLabeledTextBox(StackPanel panel, string labelText, string value)

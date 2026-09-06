@@ -13,8 +13,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query.StartsWith("install ") || query == "install" || query == "suite" || query == "devsuite" || query == "developer suite";
+            return SearchUtil.MatchesAny(query, "install", "suite", "devsuite", "developer suite");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -29,7 +28,7 @@ namespace JarvisLauncher
                 {
                     TITLE = "🛠️ Open Universal Developer & Offline Suite",
                     DESCRIPTION = "One-click setup for Languages, Game Engines, and Package Managers.",
-                    SIMILARITY = 10.0,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "install", "suite", "devsuite", "developer suite") + 10.0 * 0.01),
                     EXECUTE = () => DevSuiteOverlay.ShowOverlay()
                 });
                 if (trimmed != "install") return suggestions;
@@ -41,7 +40,7 @@ namespace JarvisLauncher
                 {
                     TITLE = "📥 Install Packages & Tools",
                     DESCRIPTION = "Syntax: install [winget/npm/python/dotnet/url] [package_name]",
-                    SIMILARITY = 5.0,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "install", "suite", "devsuite", "developer suite") + 5.0 * 0.01),
                     EXECUTE = () => TextOverlay.Show("Example: install winget sideloadly", 4000)
                 });
                 return suggestions;
@@ -54,7 +53,7 @@ namespace JarvisLauncher
                 {
                     TITLE = $"🌐 Scrape & Install from: {args}",
                     DESCRIPTION = "Downloads and executes Windows installer binary from this webpage",
-                    SIMILARITY = 7.0,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "install", "suite", "devsuite", "developer suite") + 7.0 * 0.01),
                     EXECUTE = () =>
                     {
                         Task.Run(async () =>
@@ -79,7 +78,7 @@ namespace JarvisLauncher
                 {
                     TITLE = $"📦 Install Winget Package: {pkg}",
                     DESCRIPTION = $"Runs: winget install {pkg} --silent",
-                    SIMILARITY = 6.8,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "install", "suite", "devsuite", "developer suite") + 6.8 * 0.01),
                     EXECUTE = () => RunInstallProcess("winget", $"install {pkg} --silent")
                 });
             }
@@ -90,7 +89,7 @@ namespace JarvisLauncher
                 {
                     TITLE = $"📦 Install NPM Package: {pkg}",
                     DESCRIPTION = $"Runs: npm install -g {pkg}",
-                    SIMILARITY = 6.8,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "install", "suite", "devsuite", "developer suite") + 6.8 * 0.01),
                     EXECUTE = () => RunInstallProcess("cmd.exe", $"/c npm install -g {pkg}")
                 });
             }
@@ -101,7 +100,7 @@ namespace JarvisLauncher
                 {
                     TITLE = $"🐍 Install Python pip Package: {pkg}",
                     DESCRIPTION = $"Runs: pip install {pkg}",
-                    SIMILARITY = 6.8,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "install", "suite", "devsuite", "developer suite") + 6.8 * 0.01),
                     EXECUTE = () => RunInstallProcess("cmd.exe", $"/c pip install {pkg}")
                 });
             }
@@ -112,7 +111,7 @@ namespace JarvisLauncher
                 {
                     TITLE = $"🛠️ Install .NET Workload: {pkg}",
                     DESCRIPTION = $"Runs: dotnet workload install {pkg} --source https://api.nuget.org/v3/index.json",
-                    SIMILARITY = 6.8,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "install", "suite", "devsuite", "developer suite") + 6.8 * 0.01),
                     EXECUTE = () => RunInstallProcess("dotnet", $"workload install {pkg} --source https://api.nuget.org/v3/index.json", runAsAdmin: true)
                 });
             }
@@ -123,14 +122,14 @@ namespace JarvisLauncher
                 {
                     TITLE = $"📥 Install '{args}' via Winget",
                     DESCRIPTION = $"Runs: winget install {args}",
-                    SIMILARITY = 6.0,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "install", "suite", "devsuite", "developer suite") + 6.0 * 0.01),
                     EXECUTE = () => RunInstallProcess("winget", $"install {args}")
                 });
                 suggestions.Add(new CommandResult
                 {
                     TITLE = $"🌐 Search and download installer for '{args}' from Web",
                     DESCRIPTION = $"Opens Google search for '{args} download setup'",
-                    SIMILARITY = 5.8,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "install", "suite", "devsuite", "developer suite") + 5.8 * 0.01),
                     EXECUTE = () => Process.Start(new ProcessStartInfo
                     {
                         FileName = $"https://www.google.com/search?q={Uri.EscapeDataString(args + " download windows setup msi")}",

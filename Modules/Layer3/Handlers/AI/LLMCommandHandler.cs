@@ -199,14 +199,17 @@ namespace JarvisLauncher
                 var s = CoreRegistry.Data.Settings.Current;
                 switch (backend.ToLower())
                 {
-                    case "gemini": s.GEMINI_MODEL = model; break;
+                    case "gemini": s.GEMINI_MODEL = LlmRouter.NormalizeGeminiModel(model); break;
                     case "openai": s.OPENAI_MODEL = model; break;
                     case "anthropic": s.ANTHROPIC_MODEL = model; break;
                     case "groq": s.GROQ_MODEL = model; break;
                     case "perplexity": s.PERPLEXITY_MODEL = model; break;
                     case "mistral": s.MISTRAL_MODEL = model; break;
                     case "openrouter": s.OPENROUTER_MODEL = model; break;
+                    case "deepseek": s.DEEPSEEK_MODEL = model; s.CUSTOM_LLM_MODEL = model; break;
+                    case "xai" or "x-ai" or "grok": s.XAI_MODEL = model; break;
                     case "ollama": s.OLLAMA_MODEL = model; break;
+                    case "custom": s.CUSTOM_LLM_MODEL = model; break;
                 }
                 CoreRegistry.Data.Settings.Save();
                 TextOverlay.Show($"✅ Updated {backend} model to: {model}", 2500);
@@ -228,6 +231,9 @@ namespace JarvisLauncher
                     case "perplexity": s.PERPLEXITY_KEY = key; break;
                     case "mistral": s.MISTRAL_KEY = key; break;
                     case "openrouter": s.OPENROUTER_KEY = key; break;
+                    case "deepseek": s.DEEPSEEK_KEY = key; s.CUSTOM_LLM_KEY = key; break;
+                    case "xai" or "x-ai" or "grok": s.XAI_KEY = key; s.CUSTOM_LLM_KEY = key; break;
+                    case "custom": s.CUSTOM_LLM_KEY = key; break;
                 }
                 CoreRegistry.Data.Settings.Save();
                 TextOverlay.Show($"✅ Updated {backend} API key.", 2500);

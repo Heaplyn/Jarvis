@@ -4,6 +4,7 @@
 // Handles JSON-RPC STDIO & SSE transports, mcp_config.json persistence, and tool enumeration.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -12,6 +13,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace JarvisLauncher
@@ -237,53 +239,89 @@ namespace JarvisLauncher
             }
         }
 
+        // ── Persistent STDIO sessions ─────────────────────────────────────────
+        // MCP stdio servers (StudioMCP.exe, filesystem, etc.) are long-lived processes that
+        // speak newline-delimited JSON-RPC and REQUIRE an initialize handshake before any
+        // tools/call. We keep one initialized session per server, alive across calls, and
+        // match responses to requests by JSON-RPC id. This is what makes the Roblox Studio
+        // bridge actually work — the old code spawned a throwaway process per call and skipped
+        // the handshake, so StudioMCP.exe never responded.
+        private static readonly ConcurrentDictionary<string, McpStdioSession> _sessions = new(StringComparer.OrdinalIgnoreCase);
+        private static readonly SemaphoreSlim _sessionGate = new(1, 1);
+
+        private static async Task<McpStdioSession> GetOrCreateSessionAsync(McpServerConfig server)
+        {
+            if (_sessions.TryGetValue(server.Name, out var existing) && existing.IsAlive)
+                return existing;
+
+            await _sessionGate.WaitAsync();
+            try
+            {
+                if (_sessions.TryGetValue(server.Name, out existing))
+                {
+                    if (existing.IsAlive) return existing;
+                    existing.Dispose();
+                    _sessions.TryRemove(server.Name, out _);
+                }
+
+                var session = new McpStdioSession(server);
+                session.Start();
+                await session.InitializeAsync();
+                _sessions[server.Name] = session;
+                server.Status = "Connected";
+                return session;
+            }
+            finally
+            {
+                _sessionGate.Release();
+            }
+        }
+
+        /// <summary>Verifies the server launches, completes the MCP handshake, and enumerates tools.</summary>
         public static async Task<bool> TestServerConnectionAsync(McpServerConfig server)
         {
-            return await Task.Run(() =>
+            try
             {
-                try
+                if (server.Transport == "SSE")
                 {
-                    if (string.IsNullOrEmpty(server.Command)) return false;
-
-                    var psi = new ProcessStartInfo
-                    {
-                        FileName = server.Command,
-                        Arguments = string.Join(" ", server.Args),
-                        CreateNoWindow = true,
-                        UseShellExecute = false,
-                        RedirectStandardInput = true,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true
-                    };
-
-                    foreach (var kvp in server.Env) psi.Environment[kvp.Key] = kvp.Value;
-
-                    using var proc = Process.Start(psi);
-                    if (proc == null) return false;
-
-                    // Send MCP initialize JSON-RPC request
-                    string initJson = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"JarvisLauncher\",\"version\":\"1.0.0\"}}}\n";
-                    proc.StandardInput.WriteLine(initJson);
-                    proc.StandardInput.Flush();
-
-                    Task.Delay(1200).Wait();
-                    if (!proc.HasExited)
-                    {
-                        try { proc.Kill(); } catch { }
-                        server.Status = "Connected";
-                        return true;
-                    }
-
-                    server.Status = proc.ExitCode == 0 ? "Connected" : "Error";
-                    return proc.ExitCode == 0;
+                    if (string.IsNullOrEmpty(server.Url)) return false;
+                    using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+                    var resp = await client.GetAsync(server.Url);
+                    server.Status = resp.IsSuccessStatusCode ? "Connected" : "Error";
+                    return resp.IsSuccessStatusCode;
                 }
-                catch (Exception ex)
-                {
-                    server.Status = "Error";
-                    DebugConsoleOverlay.Log("MCP Test Error", ex.Message);
-                    return false;
-                }
-            });
+
+                if (string.IsNullOrEmpty(server.Command)) { server.Status = "Error"; return false; }
+
+                var session = await GetOrCreateSessionAsync(server);
+                var tools = await session.ListToolsAsync();
+                server.Status = "Connected";
+                DebugConsoleOverlay.Log("MCP Test", $"{server.Name}: {tools.Count} tool(s) available");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                server.Status = "Error";
+                DebugConsoleOverlay.Log("MCP Test Error", $"{server.Name}: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>Enumerates the tools a server exposes (via MCP tools/list). Empty list on failure.</summary>
+        public static async Task<List<McpToolInfo>> ListToolsAsync(string serverName)
+        {
+            var server = Servers.FirstOrDefault(s => s.Name.Equals(serverName, StringComparison.OrdinalIgnoreCase));
+            if (server == null || server.Transport != "STDIO") return new();
+            try
+            {
+                var session = await GetOrCreateSessionAsync(server);
+                return await session.ListToolsAsync();
+            }
+            catch (Exception ex)
+            {
+                DebugConsoleOverlay.Log("MCP ListTools Error", $"{serverName}: {ex.Message}");
+                return new();
+            }
         }
 
         public static async Task<string> CallToolAsync(string serverName, string toolName, Dictionary<string, object> args)
@@ -295,68 +333,13 @@ namespace JarvisLauncher
             {
                 if (server.Transport == "STDIO")
                 {
-                    var psi = new ProcessStartInfo
-                    {
-                        FileName = server.Command,
-                        Arguments = string.Join(" ", server.Args),
-                        CreateNoWindow = true,
-                        UseShellExecute = false,
-                        RedirectStandardInput = true,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true
-                    };
-                    foreach (var kvp in server.Env) psi.Environment[kvp.Key] = kvp.Value;
-
-                    using var proc = Process.Start(psi);
-                    if (proc == null) return "Error: Failed to start MCP process.";
-
-                    var request = new
-                    {
-                        jsonrpc = "2.0",
-                        id = Guid.NewGuid().ToString(),
-                        method = "tools/call",
-                        @params = new
-                        {
-                            name = toolName,
-                            arguments = args
-                        }
-                    };
-
-                    string jsonReq = JsonSerializer.Serialize(request) + "\n";
-                    await proc.StandardInput.WriteLineAsync(jsonReq);
-                    await proc.StandardInput.FlushAsync();
-
-                    // Read response with timeout
-                    var readTask = proc.StandardOutput.ReadLineAsync();
-                    if (await Task.WhenAny(readTask, Task.Delay(10000)) == readTask)
-                    {
-                        string resp = await readTask;
-                        if (string.IsNullOrEmpty(resp)) return "Error: Empty response from MCP server.";
-
-                        using var doc = JsonDocument.Parse(resp);
-                        if (doc.RootElement.TryGetProperty("result", out var result))
-                        {
-                            return result.GetProperty("content")[0].GetProperty("text").GetString() ?? "";
-                        }
-                        if (doc.RootElement.TryGetProperty("error", out var error))
-                        {
-                            return $"Error: {error.GetProperty("message").GetString()}";
-                        }
-                    }
-                    else
-                    {
-                        try { proc.Kill(); } catch { }
-                        return "Error: MCP tool call timed out.";
-                    }
+                    var session = await GetOrCreateSessionAsync(server);
+                    return await session.CallToolAsync(toolName, args);
                 }
                 else if (server.Transport == "SSE")
                 {
                     using var client = new HttpClient();
-                    var request = new
-                    {
-                        name = toolName,
-                        arguments = args
-                    };
+                    var request = new { name = toolName, arguments = args };
                     var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
                     var resp = await client.PostAsync(server.Url + "/tools/call", content);
                     if (resp.IsSuccessStatusCode)
@@ -368,10 +351,270 @@ namespace JarvisLauncher
             }
             catch (Exception ex)
             {
+                // A dead pipe means the process died; drop the cached session so the next call respawns it.
+                if (_sessions.TryRemove(serverName, out var dead)) dead.Dispose();
                 return $"Error: {ex.Message}";
             }
 
             return "Error: Unsupported transport or server configuration.";
+        }
+
+        private static volatile string _cachedManifest = "";
+        private static int _manifestRefreshing;   // 0/1 guard so only one refresh runs at a time
+
+        /// <summary>
+        /// Returns the tool manifest for LLM-prompt injection INSTANTLY (never blocks the chat).
+        /// It hands back the last cached manifest — or just the server names on first use — and kicks
+        /// off a background refresh that enumerates each server's tools for next time. This keeps MCP
+        /// discovery completely off the AI pipeline's critical path: a slow or unpaired StudioMCP can
+        /// no longer stall a chat message.
+        /// </summary>
+        public static string GetToolManifest()
+        {
+            _ = RefreshManifestAsync();   // fire-and-forget; guarded against overlap
+
+            if (!string.IsNullOrEmpty(_cachedManifest)) return _cachedManifest;
+
+            // No cache yet — fall back to a plain server-name list so the model still knows they exist.
+            var sb = new StringBuilder();
+            foreach (var s in Servers.Where(s => s.IsEnabled)) sb.Append("• ").Append(s.Name).AppendLine();
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Builds the manifest by enumerating each STDIO server's tools, bounded per server, and
+        /// updates the cache. Never awaited by the chat path.
+        /// </summary>
+        public static async Task RefreshManifestAsync(int perServerTimeoutMs = 4000)
+        {
+            if (Interlocked.CompareExchange(ref _manifestRefreshing, 1, 0) != 0) return;
+            try
+            {
+                var sb = new StringBuilder();
+                foreach (var s in Servers.Where(s => s.IsEnabled))
+                {
+                    sb.Append("• ").Append(s.Name);
+                    if (s.Transport == "STDIO")
+                    {
+                        try
+                        {
+                            var listTask = ListToolsAsync(s.Name);
+                            if (await Task.WhenAny(listTask, Task.Delay(perServerTimeoutMs)) == listTask)
+                            {
+                                var tools = await listTask;
+                                if (tools.Count > 0)
+                                    sb.Append(" — tools: ").Append(string.Join(", ", tools.Select(t => t.Name)));
+                            }
+                        }
+                        catch { }
+                    }
+                    sb.AppendLine();
+                }
+                _cachedManifest = sb.ToString();
+            }
+            finally { Interlocked.Exchange(ref _manifestRefreshing, 0); }
+        }
+
+        /// <summary>Terminates and clears all live MCP sessions (call on app shutdown).</summary>
+        public static void ShutdownSessions()
+        {
+            foreach (var kvp in _sessions) { try { kvp.Value.Dispose(); } catch { } }
+            _sessions.Clear();
+        }
+
+        // ── One persistent JSON-RPC/stdio conversation with a single MCP server ────
+        private sealed class McpStdioSession : IDisposable
+        {
+            private readonly McpServerConfig _config;
+            private Process? _proc;
+            private readonly SemaphoreSlim _writeLock = new(1, 1);
+            private readonly ConcurrentDictionary<long, TaskCompletionSource<JsonElement>> _pending = new();
+            private long _nextId;
+            private volatile bool _initialized;
+            private List<McpToolInfo>? _tools;
+            private const int DefaultTimeoutMs = 30000;
+
+            public McpStdioSession(McpServerConfig config) { _config = config; }
+
+            public bool IsAlive => _proc is { HasExited: false };
+
+            public void Start()
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = _config.Command,
+                    Arguments = string.Join(" ", _config.Args),
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    RedirectStandardInput = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    StandardOutputEncoding = Encoding.UTF8,
+                    StandardInputEncoding = Encoding.UTF8
+                };
+                foreach (var kvp in _config.Env) psi.Environment[kvp.Key] = kvp.Value;
+
+                _proc = Process.Start(psi) ?? throw new IOException($"Failed to start MCP process '{_config.Command}'.");
+                _ = Task.Run(ReadLoopAsync);
+                _ = Task.Run(DrainStdErrAsync);
+            }
+
+            // Reads newline-delimited JSON-RPC messages and completes the matching pending request.
+            // Non-response lines (notifications, stray logs) are ignored so a chatty server can't wedge us.
+            private async Task ReadLoopAsync()
+            {
+                var stdout = _proc!.StandardOutput;
+                try
+                {
+                    string? line;
+                    while ((line = await stdout.ReadLineAsync()) != null)
+                    {
+                        line = line.Trim();
+                        if (line.Length == 0 || line[0] != '{') continue;
+                        JsonElement root;
+                        try { using var doc = JsonDocument.Parse(line); root = doc.RootElement.Clone(); }
+                        catch { continue; }
+
+                        if (root.TryGetProperty("id", out var idEl) &&
+                            (idEl.ValueKind == JsonValueKind.Number) && idEl.TryGetInt64(out long id) &&
+                            _pending.TryRemove(id, out var tcs))
+                        {
+                            tcs.TrySetResult(root);
+                        }
+                    }
+                }
+                catch { /* pipe closed */ }
+                finally
+                {
+                    // Process/pipe ended — fail every waiter so callers don't hang.
+                    foreach (var kvp in _pending)
+                        kvp.Value.TrySetException(new IOException("MCP server closed the connection."));
+                    _pending.Clear();
+                }
+            }
+
+            private async Task DrainStdErrAsync()
+            {
+                try
+                {
+                    string? line;
+                    while ((line = await _proc!.StandardError.ReadLineAsync()) != null)
+                    {
+                        if (!string.IsNullOrWhiteSpace(line))
+                            DebugConsoleOverlay.Log($"MCP:{_config.Name}", line.Trim());
+                    }
+                }
+                catch { }
+            }
+
+            private async Task WriteMessageAsync(object message)
+            {
+                string json = JsonSerializer.Serialize(message);
+                await _writeLock.WaitAsync();
+                try
+                {
+                    await _proc!.StandardInput.WriteAsync(json);
+                    await _proc.StandardInput.WriteAsync('\n');
+                    await _proc.StandardInput.FlushAsync();
+                }
+                finally { _writeLock.Release(); }
+            }
+
+            private async Task<JsonElement> RequestAsync(string method, object? parameters, int timeoutMs)
+            {
+                if (!IsAlive) throw new IOException("MCP session is not running.");
+                long id = Interlocked.Increment(ref _nextId);
+                var tcs = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
+                _pending[id] = tcs;
+
+                var payload = parameters == null
+                    ? (object)new { jsonrpc = "2.0", id, method }
+                    : new { jsonrpc = "2.0", id, method, @params = parameters };
+                await WriteMessageAsync(payload);
+
+                using var cts = new CancellationTokenSource(timeoutMs);
+                using (cts.Token.Register(() => { if (_pending.TryRemove(id, out var t)) t.TrySetException(new TimeoutException($"MCP '{method}' timed out after {timeoutMs}ms.")); }))
+                {
+                    return await tcs.Task;
+                }
+            }
+
+            public async Task InitializeAsync()
+            {
+                if (_initialized) return;
+                var initParams = new
+                {
+                    protocolVersion = "2024-11-05",
+                    capabilities = new { },
+                    clientInfo = new { name = "JarvisLauncher", version = "1.0.0" }
+                };
+                var result = await RequestAsync("initialize", initParams, 15000);
+                if (result.TryGetProperty("error", out var err))
+                    throw new IOException($"MCP initialize failed: {ErrorMessage(err)}");
+
+                // Required by spec: tell the server we're ready before issuing any requests.
+                await WriteMessageAsync(new { jsonrpc = "2.0", method = "notifications/initialized" });
+                _initialized = true;
+            }
+
+            public async Task<List<McpToolInfo>> ListToolsAsync()
+            {
+                if (_tools != null) return _tools;
+                var list = new List<McpToolInfo>();
+                var result = await RequestAsync("tools/list", new { }, DefaultTimeoutMs);
+                if (result.TryGetProperty("result", out var res) && res.TryGetProperty("tools", out var tools) &&
+                    tools.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var t in tools.EnumerateArray())
+                    {
+                        list.Add(new McpToolInfo
+                        {
+                            ServerName = _config.Name,
+                            Name = t.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "",
+                            Description = t.TryGetProperty("description", out var d) ? d.GetString() ?? "" : ""
+                        });
+                    }
+                }
+                _tools = list;
+                return list;
+            }
+
+            public async Task<string> CallToolAsync(string toolName, Dictionary<string, object> args)
+            {
+                if (!_initialized) await InitializeAsync();
+                var result = await RequestAsync("tools/call", new { name = toolName, arguments = args }, DefaultTimeoutMs);
+
+                if (result.TryGetProperty("error", out var err))
+                    return $"Error: {ErrorMessage(err)}";
+
+                if (result.TryGetProperty("result", out var res))
+                {
+                    var sb = new StringBuilder();
+                    if (res.TryGetProperty("content", out var content) && content.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var item in content.EnumerateArray())
+                        {
+                            if (item.TryGetProperty("text", out var txt) && txt.ValueKind == JsonValueKind.String)
+                                sb.AppendLine(txt.GetString());
+                        }
+                    }
+                    string text = sb.ToString().Trim();
+                    bool isError = res.TryGetProperty("isError", out var e) && e.ValueKind == JsonValueKind.True;
+                    if (string.IsNullOrEmpty(text)) text = res.GetRawText();
+                    return isError ? $"Error: {text}" : text;
+                }
+                return "Error: Empty response from MCP server.";
+            }
+
+            private static string ErrorMessage(JsonElement error) =>
+                error.TryGetProperty("message", out var m) ? m.GetString() ?? "unknown error" : error.GetRawText();
+
+            public void Dispose()
+            {
+                try { if (_proc is { HasExited: false }) _proc.Kill(true); } catch { }
+                try { _proc?.Dispose(); } catch { }
+                _writeLock.Dispose();
+            }
         }
 
         public static void AddServer(McpServerConfig server)

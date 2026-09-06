@@ -8,9 +8,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query.StartsWith("code ") || query.StartsWith("vscode ") || query.StartsWith("cursor ") ||
-                   query.StartsWith("vs ") || query.StartsWith("ide ") || query == "editors";
+            return SearchUtil.MatchesAny(query, "code", "vscode", "cursor", "vs", "ide", "editors");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -30,7 +28,7 @@ namespace JarvisLauncher
                 {
                     TITLE = "Installed Code Editors",
                     DESCRIPTION = editors.Count > 0 ? string.Join(", ", editors) : "No major IDEs detected in PATH",
-                    SIMILARITY = 5.0
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "code", "vscode", "cursor", "vs", "ide", "editors") + 5.0 * 0.01)
                 });
                 return suggestions;
             }
@@ -41,7 +39,7 @@ namespace JarvisLauncher
                 {
                     TITLE = $"Open in VS Code: {Path.GetFileName(path)}",
                     DESCRIPTION = $"Launch Visual Studio Code for {path}",
-                    SIMILARITY = 4.5,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "code", "vscode", "cursor", "vs", "ide", "editors") + 4.5 * 0.01),
                     EXECUTE = () => CodeEditorManager.OpenInVSCode(path)
                 });
             }
@@ -51,7 +49,7 @@ namespace JarvisLauncher
                 {
                     TITLE = $"Open in Cursor: {Path.GetFileName(path)}",
                     DESCRIPTION = $"Launch Cursor IDE for {path}",
-                    SIMILARITY = 4.5,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "code", "vscode", "cursor", "vs", "ide", "editors") + 4.5 * 0.01),
                     EXECUTE = () => CodeEditorManager.OpenInCursor(path)
                 });
             }
@@ -61,7 +59,7 @@ namespace JarvisLauncher
                 {
                     TITLE = $"Open in Visual Studio: {Path.GetFileName(path)}",
                     DESCRIPTION = $"Launch MS Visual Studio for {path}",
-                    SIMILARITY = 4.5,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "code", "vscode", "cursor", "vs", "ide", "editors") + 4.5 * 0.01),
                     EXECUTE = () => CodeEditorManager.OpenInVisualStudio(path)
                 });
             }

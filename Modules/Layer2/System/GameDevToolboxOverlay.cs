@@ -56,6 +56,14 @@ namespace JarvisLauncher
         private ComboBox? _dbzMechanicCombo;
         private TextBox? _dbzOutputBox;
 
+        // Admin & Player Data Restorer fields
+        private TextBox? _admUserIdBox;
+        private TextBox? _admDataStoreBox;
+        private ComboBox? _admStrategyCombo;
+        private ComboBox? _admPresetCombo;
+        private TextBox? _admCustomPayloadBox;
+        private TextBox? _admOutputBox;
+
         // AI Context Builder fields
         private ListBox? _aiFilesListBox;
         private TextBox? _aiPromptOutputBox;
@@ -130,6 +138,7 @@ namespace JarvisLauncher
                 "General Roblox Utils",
                 "Roblox VFX & Building",
                 "DBZ Game Mechanics",
+                "Admin & Data Restorer",
                 "AI Context Builder",
                 "Port Codebase → Studio",
                 "Luau Code Generators",
@@ -188,17 +197,21 @@ namespace JarvisLauncher
             }
             else if (idx == 4)
             {
-                LoadAiContextBuilderView();
+                LoadAdminDataRestorerView();
             }
             else if (idx == 5)
             {
-                LoadPortCodebaseView();
+                LoadAiContextBuilderView();
             }
             else if (idx == 6)
             {
-                LoadLuauGeneratorsView();
+                LoadPortCodebaseView();
             }
             else if (idx == 7)
+            {
+                LoadLuauGeneratorsView();
+            }
+            else if (idx == 8)
             {
                 LoadBlenderGeneratorView();
             }
@@ -1256,7 +1269,263 @@ namespace JarvisLauncher
         }
         #endregion
 
-        #region View 5: AI Context Builder
+        #region View 5: Admin Panel & Player Data Restorer
+        private void LoadAdminDataRestorerView()
+        {
+            var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var panel = new StackPanel();
+
+            var title = CreateSectionHeader("🛡️ Admin Panel & Player DataStore Restorer");
+            panel.Children.Add(title);
+
+            var hint = CreateHintText("Generates production-grade Roblox Studio Luau DataStore restoration scripts, snapshot rollbacks, and in-game :restore admin command handlers.");
+            panel.Children.Add(hint);
+
+            var formGrid = new Grid { Margin = new Thickness(0, 4, 0, 8) };
+            formGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            formGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var col1 = new StackPanel { Margin = new Thickness(0, 0, 6, 0) };
+            col1.Children.Add(CreateLabel("Target Player UserId / Key:"));
+            _admUserIdBox = CreateTextBox();
+            _admUserIdBox.Text = "12345678";
+            _admUserIdBox.TextChanged += (s, e) => GenerateAdminRestorerCode();
+            col1.Children.Add(_admUserIdBox);
+
+            col1.Children.Add(CreateLabel("DataStore Name:"));
+            _admDataStoreBox = CreateTextBox();
+            _admDataStoreBox.Text = "PlayerData_v1";
+            _admDataStoreBox.TextChanged += (s, e) => GenerateAdminRestorerCode();
+            col1.Children.Add(_admDataStoreBox);
+
+            Grid.SetColumn(col1, 0);
+            formGrid.Children.Add(col1);
+
+            var col2 = new StackPanel { Margin = new Thickness(6, 0, 0, 0) };
+            col2.Children.Add(CreateLabel("Data Schema Preset:"));
+            _admPresetCombo = CreateComboBox(new[]
+            {
+                "Dragon Blox / RPG Profile (Stats, Forms, Level, Zeni)",
+                "Standard Leaderstats (Coins, Gems, Rebirths)",
+                "ProfileStore / Session-Locked Dictionary",
+                "Custom JSON / Table Payload"
+            });
+            _admPresetCombo.SelectedIndex = 0;
+            _admPresetCombo.SelectionChanged += (s, e) =>
+            {
+                UpdateAdmPayloadFromPreset();
+                GenerateAdminRestorerCode();
+            };
+            col2.Children.Add(_admPresetCombo);
+
+            col2.Children.Add(CreateLabel("Restoration Strategy:"));
+            _admStrategyCombo = CreateComboBox(new[]
+            {
+                "Direct Inject / Force Overwrite (Command Bar / Server)",
+                "DataStore Version Rollback (Inspect & Restore Snapshot)",
+                "In-Game Admin Command Handler (:restoreplayer)",
+                "Automated Rolling DataStore Backup Engine"
+            });
+            _admStrategyCombo.SelectedIndex = 0;
+            _admStrategyCombo.SelectionChanged += (s, e) => GenerateAdminRestorerCode();
+            col2.Children.Add(_admStrategyCombo);
+
+            Grid.SetColumn(col2, 1);
+            formGrid.Children.Add(col2);
+            panel.Children.Add(formGrid);
+
+            panel.Children.Add(CreateLabel("Restoration Payload (JSON / Table):"));
+            _admCustomPayloadBox = new TextBox
+            {
+                Height = 65,
+                AcceptsReturn = true,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(1),
+                FontFamily = new FontFamily("Consolas, Courier New"),
+                FontSize = 10,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                TextWrapping = TextWrapping.Wrap,
+                Padding = new Thickness(4),
+                Text = "{\n  \"Strength\": 5000000,\n  \"Agility\": 5000000,\n  \"Defense\": 5000000,\n  \"Ki\": 5000000,\n  \"Level\": 500,\n  \"Zeni\": 10000000,\n  \"UnlockedForms\": [\"SuperSaiyan\", \"SSJ2\", \"SSJ3\", \"SSJGod\", \"SSJBlue\"]\n}"
+            };
+            _admCustomPayloadBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
+            _admCustomPayloadBox.SetResourceReference(TextBox.BorderBrushProperty, "WindowBorderBrush");
+            _admCustomPayloadBox.TextChanged += (s, e) => GenerateAdminRestorerCode();
+            panel.Children.Add(_admCustomPayloadBox);
+
+            _admOutputBox = new TextBox
+            {
+                Height = 170,
+                IsReadOnly = true,
+                AcceptsReturn = true,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(1),
+                FontFamily = new FontFamily("Consolas, Courier New"),
+                FontSize = 10,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                TextWrapping = TextWrapping.NoWrap,
+                Padding = new Thickness(6),
+                Margin = new Thickness(0, 8, 0, 0)
+            };
+            _admOutputBox.SetResourceReference(TextBox.ForegroundProperty, "TextPrimaryBrush");
+            _admOutputBox.SetResourceReference(TextBox.BorderBrushProperty, "WindowBorderBrush");
+            panel.Children.Add(_admOutputBox);
+
+            var copyBtn = CreateButton("📋 Copy Data Restorer Script to Clipboard", (s, e) => CopyToClipboard(_admOutputBox.Text));
+            copyBtn.FontWeight = FontWeights.Bold;
+            copyBtn.Margin = new Thickness(0, 8, 0, 0);
+            panel.Children.Add(copyBtn);
+
+            scroll.Content = panel;
+            _contentGrid.Children.Add(scroll);
+
+            GenerateAdminRestorerCode();
+        }
+
+        private void UpdateAdmPayloadFromPreset()
+        {
+            if (_admPresetCombo == null || _admCustomPayloadBox == null) return;
+            int idx = _admPresetCombo.SelectedIndex;
+            if (idx == 0)
+            {
+                _admCustomPayloadBox.Text = "{\n  \"Strength\": 5000000,\n  \"Agility\": 5000000,\n  \"Defense\": 5000000,\n  \"Ki\": 5000000,\n  \"Level\": 500,\n  \"Zeni\": 10000000,\n  \"UnlockedForms\": [\"SuperSaiyan\", \"SSJ2\", \"SSJ3\", \"SSJGod\", \"SSJBlue\"]\n}";
+            }
+            else if (idx == 1)
+            {
+                _admCustomPayloadBox.Text = "{\n  \"Coins\": 2500000,\n  \"Gems\": 50000,\n  \"Level\": 100,\n  \"Rebirths\": 15,\n  \"Inventory\": [\"DragonBlade\", \"KiArmor\", \"Wings\"]\n}";
+            }
+            else if (idx == 2)
+            {
+                _admCustomPayloadBox.Text = "{\n  \"MetaData\": {\"ProfileCreated\": 1690000000, \"SessionLock\": nil},\n  \"Data\": {\n    \"Stats\": {\"Strength\": 1000000, \"Defense\": 1000000},\n    \"Inventory\": {\"Slots\": 50, \"Items\": [\"Item_001\", \"Item_002\"]}\n  }\n}";
+            }
+        }
+
+        private void GenerateAdminRestorerCode()
+        {
+            if (_admOutputBox == null || _admUserIdBox == null || _admDataStoreBox == null || _admStrategyCombo == null) return;
+
+            string userId = _admUserIdBox.Text.Trim();
+            if (string.IsNullOrEmpty(userId)) userId = "12345678";
+
+            string storeName = _admDataStoreBox.Text.Trim();
+            if (string.IsNullOrEmpty(storeName)) storeName = "PlayerData_v1";
+
+            int methodIdx = _admStrategyCombo.SelectedIndex;
+            string payloadText = _admCustomPayloadBox?.Text.Trim() ?? "{}";
+
+            var sb = new StringBuilder();
+
+            if (methodIdx == 0) // Direct Inject / Force Overwrite
+            {
+                sb.AppendLine($"-- JARVIS DATASTORE DIRECT RESTORER & OVERRIDE PROTOCOL");
+                sb.AppendLine($"-- Target Player UserId: {userId} | DataStore: {storeName}");
+                sb.AppendLine($"local DataStoreService = game:GetService(\"DataStoreService\")");
+                sb.AppendLine($"local HttpService = game:GetService(\"HttpService\")");
+                sb.AppendLine($"local Players = game:GetService(\"Players\")");
+                sb.AppendLine($"local dataStore = DataStoreService:GetDataStore(\"{storeName}\")");
+                sb.AppendLine($"local TARGET_USER_ID = {userId}");
+                sb.AppendLine($"local TARGET_KEY = \"Player_\" .. TARGET_USER_ID");
+                sb.AppendLine();
+                sb.AppendLine($"local RAW_PAYLOAD_JSON = [==[{payloadText}]==]");
+                sb.AppendLine($"local success, restoredData = pcall(function() return HttpService:JSONDecode(RAW_PAYLOAD_JSON) end)");
+                sb.AppendLine($"if not success then warn(\"❌ Failed to decode payload JSON\") return end");
+                sb.AppendLine();
+                sb.AppendLine($"-- Snapshot backup prior to write");
+                sb.AppendLine($"pcall(function()");
+                sb.AppendLine($"    local old = dataStore:GetAsync(TARGET_KEY)");
+                sb.AppendLine($"    if old then dataStore:SetAsync(\"BACKUP_\" .. TARGET_KEY .. \"_\" .. os.time(), old) end");
+                sb.AppendLine($"end)");
+                sb.AppendLine();
+                sb.AppendLine($"local setSuccess, setErr = pcall(function()");
+                sb.AppendLine($"    local setOptions = Instance.new(\"DataStoreSetOptions\")");
+                sb.AppendLine($"    setOptions:SetMetadata({{ RestoredBy = \"JarvisAdminRestorer\", RestoreTime = os.time() }})");
+                sb.AppendLine($"    dataStore:SetAsync(TARGET_KEY, restoredData, {{ TARGET_USER_ID }}, setOptions)");
+                sb.AppendLine($"end)");
+                sb.AppendLine();
+                sb.AppendLine($"if setSuccess then");
+                sb.AppendLine($"    print(\"✅ Restored DataStore for UserId \" .. TARGET_USER_ID)");
+                sb.AppendLine($"    local player = Players:GetPlayerByUserId(TARGET_USER_ID)");
+                sb.AppendLine($"    if player then player:Kick(\"Your data has been restored by Server Admin. Rejoin to refresh.\") end");
+                sb.AppendLine($"else");
+                sb.AppendLine($"    warn(\"❌ Failed to restore: \" .. tostring(setErr))");
+                sb.AppendLine($"end");
+            }
+            else if (methodIdx == 1) // Version Rollback
+            {
+                sb.AppendLine($"-- JARVIS DATASTORE VERSION ROLLBACK & SNAPSHOT RECOVERY");
+                sb.AppendLine($"local DataStoreService = game:GetService(\"DataStoreService\")");
+                sb.AppendLine($"local dataStore = DataStoreService:GetDataStore(\"{storeName}\")");
+                sb.AppendLine($"local TARGET_KEY = \"Player_{userId}\"");
+                sb.AppendLine();
+                sb.AppendLine($"local success, pages = pcall(function() return dataStore:ListVersionsAsync(TARGET_KEY, Enum.SortDirection.Descending) end)");
+                sb.AppendLine($"if not success then warn(\"❌ ListVersionsAsync failed\") return end");
+                sb.AppendLine();
+                sb.AppendLine($"local versions = pages:GetCurrentPage()");
+                sb.AppendLine($"for i, v in ipairs(versions) do");
+                sb.AppendLine($"    print(string.format(\"[%d] VersionId: %s | Created: %s\", i, v.Version, os.date(\"%Y-%m-%d %H:%M:%S\", math.floor(v.CreatedTime / 1000))))");
+                sb.AppendLine($"end");
+                sb.AppendLine();
+                sb.AppendLine($"if #versions >= 2 then");
+                sb.AppendLine($"    local preCorruptionVersion = versions[2].Version");
+                sb.AppendLine($"    local getSuccess, versionData = pcall(function() return dataStore:GetVersionAsync(TARGET_KEY, preCorruptionVersion) end)");
+                sb.AppendLine($"    if getSuccess and versionData ~= nil then");
+                sb.AppendLine($"        dataStore:SetAsync(TARGET_KEY, versionData)");
+                sb.AppendLine($"        print(\"✅ Rolled back to version: \" .. preCorruptionVersion)");
+                sb.AppendLine($"    end");
+                sb.AppendLine($"end");
+            }
+            else if (methodIdx == 2) // In-Game Admin Command
+            {
+                sb.AppendLine($"-- Place in ServerScriptService -> AdminDataCommands");
+                sb.AppendLine($"local Players = game:GetService(\"Players\")");
+                sb.AppendLine($"local DataStoreService = game:GetService(\"DataStoreService\")");
+                sb.AppendLine($"local dataStore = DataStoreService:GetDataStore(\"{storeName}\")");
+                sb.AppendLine($"local ADMINS = {{ [game.CreatorId] = true }}");
+                sb.AppendLine($"local RESTORE_PAYLOAD = [==[{payloadText}]==]");
+                sb.AppendLine();
+                sb.AppendLine($"Players.PlayerAdded:Connect(function(player)");
+                sb.AppendLine($"    player.Chatted:Connect(function(msg)");
+                sb.AppendLine($"        if not ADMINS[player.UserId] and player.UserId ~= game.CreatorId then return end");
+                sb.AppendLine($"        local tokens = string.split(msg, \" \")");
+                sb.AppendLine($"        if tokens[1]:lower() == \":restore\" and tokens[2] then");
+                sb.AppendLine($"            local targetId = tonumber(tokens[2]) or (Players:FindFirstChild(tokens[2]) and Players[tokens[2]].UserId)");
+                sb.AppendLine($"            if targetId then");
+                sb.AppendLine($"                local decoded = game:GetService(\"HttpService\"):JSONDecode(RESTORE_PAYLOAD)");
+                sb.AppendLine($"                dataStore:SetAsync(\"Player_\" .. targetId, decoded)");
+                sb.AppendLine($"                print(\"⚡ Restored data for: \" .. targetId)");
+                sb.AppendLine($"            end");
+                sb.AppendLine($"        end");
+                sb.AppendLine($"    end)");
+                sb.AppendLine($"end)");
+            }
+            else // Rolling Backup System
+            {
+                sb.AppendLine($"-- Place in ServerScriptService -> DataBackupService");
+                sb.AppendLine($"local DataStoreService = game:GetService(\"DataStoreService\")");
+                sb.AppendLine($"local PRIMARY_STORE = DataStoreService:GetDataStore(\"{storeName}\")");
+                sb.AppendLine($"local BACKUP_STORE = DataStoreService:GetDataStore(\"{storeName}_Snapshots\")");
+                sb.AppendLine();
+                sb.AppendLine($"local DataBackup = {{}}");
+                sb.AppendLine($"function DataBackup.SaveSnapshot(userId: number, data: table)");
+                sb.AppendLine($"    pcall(function() BACKUP_STORE:SetAsync(string.format(\"Player_%d_%d\", userId, os.time()), data) end)");
+                sb.AppendLine($"end");
+                sb.AppendLine($"function DataBackup.RestoreLatestSnapshot(userId: number): boolean");
+                sb.AppendLine($"    local s, pages = pcall(function() return BACKUP_STORE:ListKeysAsync(\"Player_\" .. userId, 5) end)");
+                sb.AppendLine($"    if not s then return false end");
+                sb.AppendLine($"    local keys = pages:GetCurrentPage()");
+                sb.AppendLine($"    if #keys == 0 then return false end");
+                sb.AppendLine($"    local s2, data = pcall(function() return BACKUP_STORE:GetAsync(keys[#keys].KeyName) end)");
+                sb.AppendLine($"    if s2 and data then PRIMARY_STORE:SetAsync(\"Player_\" .. userId, data) return true end");
+                sb.AppendLine($"    return false");
+                sb.AppendLine($"end");
+                sb.AppendLine($"return DataBackup");
+            }
+
+            _admOutputBox.Text = sb.ToString();
+        }
+        #endregion
+
+        #region View 6: AI Context Builder
         private void LoadAiContextBuilderView()
         {
             var panel = new StackPanel();

@@ -11,8 +11,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query == "build" || query == "compile" || query == "make" || query == "build hub";
+            return SearchUtil.MatchesAny(query, "build", "compile", "make", "build hub");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -23,7 +22,7 @@ namespace JarvisLauncher
             {
                 TITLE = "🛠️ Open Universal Build Studio",
                 DESCRIPTION = "Compile multi-language projects (C#, Python, JS, C++) with AI analysis",
-                SIMILARITY = 9.0,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "build", "compile", "make", "build hub") + 9.0 * 0.01),
                 EXECUTE = () => BuildStudioOverlay.ShowOverlay()
             });
 

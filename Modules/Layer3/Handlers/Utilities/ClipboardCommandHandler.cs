@@ -12,8 +12,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query == "clipboard" || query == "cb" || query == "clip" || query == "clearclip" || query == "cliphistory" || query.StartsWith("cb ") || query.StartsWith("clip ");
+            return SearchUtil.MatchesAny(query, "clipboard", "cb", "clip", "clearclip", "cliphistory");
         }
 
         public List<CommandResult> GetSuggestions(string query)

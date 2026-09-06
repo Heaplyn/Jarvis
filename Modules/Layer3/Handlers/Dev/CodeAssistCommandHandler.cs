@@ -11,10 +11,7 @@ namespace JarvisLauncher
     {
         public bool CanHandle(string query)
         {
-            query = query.Trim().ToLower();
-            return query == "code assist" || query == "codeassist" || query == "code pilot" ||
-                   query == "turn on code assist" || query == "enable code assist" ||
-                   query == "turn off code assist" || query == "disable code assist";
+            return SearchUtil.MatchesAny(query, "code assist", "codeassist", "code pilot", "enable code assist", "disable code assist");
         }
 
         public List<CommandResult> GetSuggestions(string query)
@@ -29,7 +26,7 @@ namespace JarvisLauncher
                 {
                     TITLE = "🚀 Turn On Real-Time Code Assist",
                     DESCRIPTION = "Launches 8s Vision + Workspace File scanning loop with sidebar advisor panel",
-                    SIMILARITY = 6.8,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "code assist", "codeassist", "code pilot", "enable code assist", "disable code assist") + 6.8 * 0.01),
                     EXECUTE = () =>
                     {
                         CodeAssistManager.Start();
@@ -46,7 +43,7 @@ namespace JarvisLauncher
                 {
                     TITLE = "🛑 Turn Off Real-Time Code Assist",
                     DESCRIPTION = "Stops background project scanning and queries",
-                    SIMILARITY = 6.8,
+                    SIMILARITY = (SearchUtil.BestSimilarity(query, "code assist", "codeassist", "code pilot", "enable code assist", "disable code assist") + 6.8 * 0.01),
                     EXECUTE = () =>
                     {
                         CodeAssistManager.Stop();
@@ -61,7 +58,7 @@ namespace JarvisLauncher
             {
                 TITLE = "🤖 Show AI Code Assist Sidebar",
                 DESCRIPTION = "Dock Code Assist sidebar layout on your desktop",
-                SIMILARITY = 6.0,
+                SIMILARITY = (SearchUtil.BestSimilarity(query, "code assist", "codeassist", "code pilot", "enable code assist", "disable code assist") + 6.0 * 0.01),
                 EXECUTE = () => CodeAssistOverlay.ShowOverlay()
             });
 

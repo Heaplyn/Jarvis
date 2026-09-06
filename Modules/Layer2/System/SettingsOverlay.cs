@@ -88,7 +88,16 @@ namespace JarvisLauncher
             s.Children.Add(CreateCheckBox("Always on Top (HUD Priority)", set.ALWAYS_ON_TOP, v => set.ALWAYS_ON_TOP = v));
             _autoHideCheck = CreateCheckBox("Auto-Hide HUD on Command Execution", set.AUTO_HIDE_ON_EXECUTE, v => set.AUTO_HIDE_ON_EXECUTE = v); s.Children.Add(_autoHideCheck);
             _playSoundCheck = CreateCheckBox("Play System Audio Feedback", set.PLAY_SOUNDS, v => set.PLAY_SOUNDS = v); s.Children.Add(_playSoundCheck);
+            s.Children.Add(CreateCheckBox("🎙️ Voice Activation — listen for \"Hey Jarvis\"", set.ENABLE_WAKE_WORD, v => {
+                set.ENABLE_WAKE_WORD = v;
+                try {
+                    if (v) { CoreRegistry.Interaction.Voice.Start(); TextOverlay.Show("🎙️ Wake word ON — say \"Hey Jarvis\"", 2500); }
+                    else   { CoreRegistry.Interaction.Voice.Stop();  TextOverlay.Show("🔇 Wake word OFF", 2500); }
+                    SettingsManager.Save();
+                } catch { }
+            }));
             _autonomousModeCheck = CreateCheckBox("Enable Autonomous Proactive Interjections", set.IS_AUTONOMOUS_MODE_ENABLED, v => set.IS_AUTONOMOUS_MODE_ENABLED = v); s.Children.Add(_autonomousModeCheck);
+            s.Children.Add(CreateCheckBox("🛠️ Agent Mode — let Jarvis run commands, access ALL files, and make its own tools (asks to confirm risky actions)", set.ENABLE_PC_CONTROL, v => { set.ENABLE_PC_CONTROL = v; try { SettingsManager.Save(); } catch { } }));
             s.Children.Add(CreateHeader("Glassmorphic UI & Aesthetics"));
             s.Children.Add(CreateCheckBox("Enable Fluid Window Animations", set.ENABLE_ANIMATIONS, v => set.ENABLE_ANIMATIONS = v));
             s.Children.Add(CreateCheckBox("Use High-Fidelity Dynamic Gradients", set.USE_GRADIENT_BACKGROUND, v => set.USE_GRADIENT_BACKGROUND = v));
@@ -134,6 +143,32 @@ namespace JarvisLauncher
             fontGrid.Children.Add(browseFontBtn);
             s.Children.Add(fontGrid);
 
+            // ---- Per-text-type fonts -------------------------------------------------
+            s.Children.Add(CreateHeader("Per-Text-Type Fonts"));
+            s.Children.Add(new TextBlock {
+                Text = "Give different kinds of text their own font. Leave on \"(inherit global)\" to use the family above.",
+                Foreground = Brushes.Gray, FontSize = 11, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6)
+            });
+            var systemFonts = Fonts.SystemFontFamilies.Select(f => f.Source).OrderBy(x => x).ToList();
+            void FontPicker(string label, Func<string> get, Action<string> setv) {
+                s.Children.Add(CreateLabel(label));
+                var combo = new ComboBox { Margin = new Thickness(0, 0, 0, 10), Padding = new Thickness(6, 4, 6, 4) };
+                combo.Items.Add("(inherit global)");
+                foreach (var f in systemFonts) combo.Items.Add(f);
+                string cur = get();
+                combo.SelectedItem = string.IsNullOrWhiteSpace(cur) ? "(inherit global)" : (combo.Items.Contains(cur) ? cur : "(inherit global)");
+                combo.SelectionChanged += (o, e) => {
+                    string v = combo.SelectedItem?.ToString() ?? "(inherit global)";
+                    setv(v == "(inherit global)" ? "" : v);
+                    try { ThemeManager.ApplyVisualOverrides(); } catch { }
+                };
+                s.Children.Add(combo);
+            }
+            FontPicker("Body / UI text", () => set.BODY_FONT_FAMILY, v => set.BODY_FONT_FAMILY = v);
+            FontPicker("Headings / titles", () => set.HEADING_FONT_FAMILY, v => set.HEADING_FONT_FAMILY = v);
+            FontPicker("Code / monospace (fallback Consolas)", () => set.MONO_FONT_FAMILY, v => set.MONO_FONT_FAMILY = v);
+            FontPicker("AI chat messages", () => set.CHAT_FONT_FAMILY, v => set.CHAT_FONT_FAMILY = v);
+
             return new ScrollViewer { Content = s, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         }
 
@@ -151,12 +186,131 @@ namespace JarvisLauncher
             openBtn.Margin = new Thickness(0, 15, 0, 15);
             s.Children.Add(openBtn);
 
-            s.Children.Add(CreateHeader("Quick Visual Options"));
-            s.Children.Add(CreateCheckBox("Enable Fluid Window Animations", set.ENABLE_ANIMATIONS, v => set.ENABLE_ANIMATIONS = v));
-            s.Children.Add(CreateCheckBox("Use High-Fidelity Dynamic Gradients", set.USE_GRADIENT_BACKGROUND, v => set.USE_GRADIENT_BACKGROUND = v));
-            s.Children.Add(CreateCheckBox("Enable Click Visual Feedback (Ripples)", set.ENABLE_CLICK_DARK_SPOT, v => set.ENABLE_CLICK_DARK_SPOT = v));
+            // ---- live-apply helpers -------------------------------------------------
+            void ApplyAll() { try { ThemeManager.ApplyVisualOverrides(); BaseOverlay.GlobalApplyVisualConfig(); } catch { } }
+
+            // hex textbox + live swatch; returns the box so presets can drive it. markCustom flips
+            // THEME to "custom" so the color overrides actually take effect.
+            TextBox ColorRow(string label, Func<string> get, Action<string> setv, bool markCustom = true) {
+                s.Children.Add(CreateLabel(label));
+                var g = new Grid();
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                var box = CreateTextBox(); box.Height = 30; box.VerticalContentAlignment = VerticalAlignment.Center;
+                var sw = new Border { Width = 30, Height = 22, CornerRadius = new CornerRadius(4), BorderBrush = Brushes.Gray, BorderThickness = new Thickness(1), Margin = new Thickness(6, 0, 0, 8), Cursor = System.Windows.Input.Cursors.Hand, ToolTip = "Click to pick a color" };
+                void Paint(string hex) { try { var c = (Color)ColorConverter.ConvertFromString(hex); var b = new SolidColorBrush(c); b.Freeze(); sw.Background = b; } catch { } }
+                // Clicking the swatch opens the RGB color picker; the picked hex flows back into the
+                // textbox, whose TextChanged handler live-applies it.
+                sw.MouseLeftButtonUp += (o, e) => {
+                    string initial = string.IsNullOrWhiteSpace(box.Text) ? "#FFFFFF" : box.Text.Trim();
+                    RgbColorPickerOverlay.Show(initial, picked => Dispatcher.Invoke(() => { box.Text = picked; }));
+                };
+                box.Text = get(); Paint(box.Text);                 // set BEFORE subscribing (no apply on load)
+                box.TextChanged += (o, e) => {
+                    string hex = box.Text.Trim(); if (string.IsNullOrEmpty(hex)) { setv(""); return; }
+                    try { var c = (Color)ColorConverter.ConvertFromString(hex); Paint(hex); setv(hex); if (markCustom) set.THEME = "custom"; ApplyAll(); } catch { }
+                };
+                Grid.SetColumn(box, 0); g.Children.Add(box);
+                Grid.SetColumn(sw, 1); g.Children.Add(sw);
+                s.Children.Add(g);
+                return box;
+            }
+            Slider SliderRow(string label, double min, double max, double val, double tick, Action<double> onChange) {
+                var lbl = new TextBlock { Foreground = Brushes.White, Margin = new Thickness(0, 4, 0, 0), Text = $"{label}: {val:0.##}" };
+                s.Children.Add(lbl);
+                var sl = CreateSettingsSlider(min, max, val, tick);
+                sl.ValueChanged += (o, e) => { lbl.Text = $"{label}: {sl.Value:0.##}"; onChange(sl.Value); };
+                s.Children.Add(sl);
+                return sl;
+            }
+            ComboBox ComboRow(string label, string[] options, string current, Action<string> onChange) {
+                s.Children.Add(CreateLabel(label));
+                var c = new ComboBox { Margin = new Thickness(0, 0, 0, 10), Padding = new Thickness(6, 4, 6, 4) };
+                foreach (var o in options) c.Items.Add(o);
+                c.SelectedItem = current;
+                c.SelectionChanged += (o, e) => { onChange(c.SelectedItem?.ToString() ?? options[0]); };
+                s.Children.Add(c);
+                return c;
+            }
+
+            // ---- Background ---------------------------------------------------------
+            s.Children.Add(CreateHeader("🎨 Background"));
+            ComboRow("Background Style", new[] { "Gradient", "Solid", "Radial" }, string.IsNullOrEmpty(set.BACKGROUND_MODE) ? "Gradient" : set.BACKGROUND_MODE,
+                v => { set.BACKGROUND_MODE = v; set.THEME = "custom"; ApplyAll(); });
+            ColorRow("Base / Solid Color (hex)", () => set.THEME_BG_COLOR, v => set.THEME_BG_COLOR = v);
+
+            s.Children.Add(CreateHeader("🌈 Custom Two-Color Gradient"));
+            var gStart = ColorRow("Gradient Start (hex, blank = auto)", () => set.THEME_GRADIENT_START, v => set.THEME_GRADIENT_START = v);
+            var gEnd = ColorRow("Gradient End (hex, blank = auto)", () => set.THEME_GRADIENT_END, v => set.THEME_GRADIENT_END = v);
+            var angleSlider = SliderRow("Gradient Angle", 0, 360, set.THEME_GRADIENT_ANGLE, 5,
+                v => { set.THEME_GRADIENT_ANGLE = v; set.THEME = "custom"; ApplyAll(); });
+
+            void Preset(string a, string b, double ang) { set.THEME_GRADIENT_ANGLE = ang; angleSlider.Value = ang; set.BACKGROUND_MODE = "Gradient"; gStart.Text = a; gEnd.Text = b; }
+            var presetPanel = new WrapPanel { Margin = new Thickness(0, 2, 0, 8) };
+            (string name, string a, string b, double ang)[] presets = new (string, string, string, double)[] {
+                ("Aqua Neon",  "#00E5FF", "#1A1A40", 135.0),
+                ("Sunset",     "#FF512F", "#DD2476", 120.0),
+                ("Purple Haze","#7F00FF", "#E100FF", 135.0),
+                ("Emerald",    "#0F3443", "#34E89E", 120.0),
+                ("Cyberpunk",  "#F400A1", "#00D4FF", 45.0),
+                ("Fire",       "#F12711", "#F5AF19", 90.0),
+                ("Ocean",      "#2193B0", "#6DD5ED", 135.0),
+                ("Mono Slate", "#232526", "#414345", 135.0),
+                ("Candy",      "#FC5C7D", "#6A82FB", 120.0),
+                ("Gold Noir",  "#BF953F", "#1A1A1A", 135.0),
+            };
+            foreach (var p in presets) {
+                var b = CreateStyledButton(p.name, (o, e) => Preset(p.a, p.b, p.ang), isPrimary: false, fontSize: 11);
+                b.Margin = new Thickness(0, 0, 6, 6);
+                presetPanel.Children.Add(b);
+            }
+            s.Children.Add(presetPanel);
+            var clearGrad = CreateStyledButton("✖ Clear custom gradient (use theme default)", (o, e) => { gStart.Text = ""; gEnd.Text = ""; set.THEME_GRADIENT_START = ""; set.THEME_GRADIENT_END = ""; ApplyAll(); }, isPrimary: false, fontSize: 11);
+            clearGrad.Margin = new Thickness(0, 0, 0, 8); s.Children.Add(clearGrad);
+
+            // ---- Accent & Text color ------------------------------------------------
+            s.Children.Add(CreateHeader("✨ Accent & Text Color"));
+            ColorRow("Accent Color (borders, caret, highlights)", () => set.THEME_ACCENT_COLOR, v => set.THEME_ACCENT_COLOR = v);
+            ColorRow("Primary Text Color", () => set.THEME_TEXT_COLOR, v => set.THEME_TEXT_COLOR = v);
+            s.Children.Add(CreateCheckBox("Enable Rainbow Text Gradient", set.USE_TEXT_GRADIENT, v => { set.USE_TEXT_GRADIENT = v; ApplyAll(); }));
+            ColorRow("Text Gradient Start", () => set.TEXT_GRADIENT_START, v => set.TEXT_GRADIENT_START = v, markCustom: false);
+            ColorRow("Text Gradient End", () => set.TEXT_GRADIENT_END, v => set.TEXT_GRADIENT_END = v, markCustom: false);
+
+            // ---- Glass & Blur -------------------------------------------------------
+            s.Children.Add(CreateHeader("🧊 Glass & Blur"));
+            s.Children.Add(CreateCheckBox("Enable Glass Blur", set.ENABLE_GLASS_BLUR, v => { set.ENABLE_GLASS_BLUR = v; ApplyAll(); }));
+            SliderRow("Blur Depth", 0, 80, set.GLASS_BLUR_DEPTH, 1, v => { set.GLASS_BLUR_DEPTH = v; ApplyAll(); });
+            SliderRow("Window Opacity", 0.3, 1.0, set.WINDOW_OPACITY, 0.05, v => { set.WINDOW_OPACITY = v; ApplyAll(); });
+
+            // ---- Glow ---------------------------------------------------------------
+            s.Children.Add(CreateHeader("💡 Outer Glow"));
+            s.Children.Add(CreateCheckBox("Enable Window Glow", set.ENABLE_WINDOW_GLOW, v => { set.ENABLE_WINDOW_GLOW = v; ApplyAll(); }));
+            SliderRow("Glow Radius", 0, 100, set.WINDOW_GLOW_RADIUS, 1, v => { set.WINDOW_GLOW_RADIUS = v; ApplyAll(); });
+            SliderRow("Glow Strength", 0, 3, set.GLOW_STRENGTH, 0.1, v => { set.GLOW_STRENGTH = v; ApplyAll(); });
+            s.Children.Add(CreateCheckBox("Pulsing Glow Animation", set.ENABLE_GLOW_PULSE, v => { set.ENABLE_GLOW_PULSE = v; ApplyAll(); }));
+            SliderRow("Glow Pulse Speed", 0.2, 10, set.GLOW_PULSE_SPEED, 0.1, v => { set.GLOW_PULSE_SPEED = v; ApplyAll(); });
+
+            // ---- Shape & Border -----------------------------------------------------
+            s.Children.Add(CreateHeader("🔲 Shape & Border"));
+            ComboRow("Window Shape", new[] { "Rounded", "Flat", "Cut", "Capsule", "Slanted", "Diamond", "Octagon" }, string.IsNullOrEmpty(set.WINDOW_SHAPE_MODE) ? "Rounded" : set.WINDOW_SHAPE_MODE,
+                v => { set.WINDOW_SHAPE_MODE = v; ApplyAll(); });
+            SliderRow("Corner Radius", 0, 60, set.WINDOW_CORNER_RADIUS, 1, v => { set.WINDOW_CORNER_RADIUS = v; ApplyAll(); });
+            SliderRow("Border Thickness", 0, 6, set.WINDOW_BORDER_THICKNESS, 0.5, v => { set.WINDOW_BORDER_THICKNESS = v; ApplyAll(); });
+            s.Children.Add(CreateCheckBox("Animated Rainbow Border", set.ENABLE_RAINBOW_BORDER, v => { set.ENABLE_RAINBOW_BORDER = v; ApplyAll(); }));
+            SliderRow("Rainbow Border Speed", 0.5, 20, set.RAINBOW_BORDER_SPEED, 0.5, v => { set.RAINBOW_BORDER_SPEED = v; ApplyAll(); });
+
+            // ---- Retro FX -----------------------------------------------------------
+            s.Children.Add(CreateHeader("📺 Retro FX"));
+            SliderRow("Scanline Opacity", 0, 0.5, set.SCANLINE_OPACITY, 0.01, v => { set.SCANLINE_OPACITY = v; ApplyAll(); });
+            SliderRow("Film Grain Opacity", 0, 0.2, set.GRAIN_OPACITY, 0.01, v => { set.GRAIN_OPACITY = v; ApplyAll(); });
+
+            // ---- Motion -------------------------------------------------------------
+            s.Children.Add(CreateHeader("🎬 Motion & Feedback"));
+            s.Children.Add(CreateCheckBox("Enable Fluid Window Animations", set.ENABLE_ANIMATIONS, v => { set.ENABLE_ANIMATIONS = v; ApplyAll(); }));
+            SliderRow("Animation Speed", 0.1, 5.0, set.ANIMATION_SPEED, 0.1, v => set.ANIMATION_SPEED = v);
+            s.Children.Add(CreateCheckBox("Enable Click Ripples", set.ENABLE_CLICK_DARK_SPOT, v => set.ENABLE_CLICK_DARK_SPOT = v));
             s.Children.Add(CreateCheckBox("Adaptive Auto-Scaling", set.AUTO_GUI_SCALE_TO_SCREEN, v => set.AUTO_GUI_SCALE_TO_SCREEN = v));
-            s.Children.Add(CreateCheckBox("Low-VFX Performance Mode (Disables Blurs)", set.LOW_VFX_MODE, v => { set.LOW_VFX_MODE = v; ThemeManager.ApplyVisualOverrides(); }));
+            s.Children.Add(CreateCheckBox("Low-VFX Performance Mode (Disables Blurs)", set.LOW_VFX_MODE, v => { set.LOW_VFX_MODE = v; ApplyAll(); }));
 
             // --- Performance & Power: Ring0 wait-scheduler coalescing floor ---
             s.Children.Add(CreateHeader("Performance & Power"));
@@ -305,7 +459,17 @@ namespace JarvisLauncher
         private UIElement BuildOfflineTab() {
             var s = new StackPanel(); var set = SettingsManager.Current;
             s.Children.Add(CreateHeader("Offline & Edge Capabilities"));
-            s.Children.Add(CreateCheckBox("Enable Teacher Mode (Offline Manuals)", set.IS_TEACHER_MODE_ENABLED, v => set.IS_TEACHER_MODE_ENABLED = v));
+            s.Children.Add(CreateCheckBox("Enable Teacher Mode (live coding tutor: watches for mistakes, speaks tips + pops chat)", set.IS_TEACHER_MODE_ENABLED, v => set.IS_TEACHER_MODE_ENABLED = v));
+
+            s.Children.Add(CreateLabel("Tutor Scan Interval (seconds between screen checks while coding):"));
+            var scanSlider = CreateSettingsSlider(8, 120, set.TEACHER_SCAN_INTERVAL_SEC, 1);
+            scanSlider.ValueChanged += (obj, e) => set.TEACHER_SCAN_INTERVAL_SEC = (int)scanSlider.Value;
+            s.Children.Add(scanSlider);
+
+            s.Children.Add(CreateLabel("Tutor Tip Cooldown (min seconds between spoken interruptions):"));
+            var cooldownSlider = CreateSettingsSlider(10, 300, set.TEACHER_TIP_COOLDOWN_SEC, 5);
+            cooldownSlider.ValueChanged += (obj, e) => set.TEACHER_TIP_COOLDOWN_SEC = (int)cooldownSlider.Value;
+            s.Children.Add(cooldownSlider);
             return s;
         }
 
@@ -341,7 +505,8 @@ namespace JarvisLauncher
                 BaseOverlay.UpdateAllScales();
                 SettingsManager.Save();
                 TextOverlay.Show("⚙️ SYSTEM PARAMETERS SYNCHRONIZED", 2000);
-                this.Hide();
+                // Keep the settings panel open after saving so the user can keep adjusting /
+                // switch tabs. The toast above confirms the save; closing is left to the X / Esc.
             } catch (Exception ex) { MessageBox.Show("Failed to synchronize: " + ex.Message); }
         }
 
