@@ -1,3 +1,7 @@
+# Local data directory (conversations, memory, models, voice datasets, tools)
+Data/
+_legacy_root_bin/
+
 # Build results
 [Bb]in/
 [Oo]bj/
